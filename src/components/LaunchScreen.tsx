@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getRecentFiles, createNewFile, openFile, openRecentFile } from "../lib/tauriCommands";
+import { getRecentFiles, createNewPresentation, openFile, openRecentFile, addRecentFile } from "../lib/tauriCommands";
 import type { RecentFile } from "../types";
 
 interface LaunchScreenProps {
@@ -26,22 +26,16 @@ export function LaunchScreen({ onFileOpened }: LaunchScreenProps) {
     }
   }
 
-  async function handleNewFile() {
-    try {
-      setError(null);
-      const { path, slides } = await createNewFile();
-      onFileOpened(path, slides);
-    } catch (err) {
-      if (err instanceof Error && err.message !== "File creation cancelled") {
-        setError(err.message);
-      }
-    }
+  function handleNewIdea() {
+    const { slides } = createNewPresentation();
+    onFileOpened("", slides);
   }
 
   async function handleOpenFile() {
     try {
       setError(null);
       const { path, slides } = await openFile();
+      addRecentFile(path).catch(console.error);
       onFileOpened(path, slides);
     } catch (err) {
       if (err instanceof Error && err.message !== "File selection cancelled") {
@@ -61,8 +55,9 @@ export function LaunchScreen({ onFileOpened }: LaunchScreenProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
-      <div className="max-w-2xl w-full">
+    <div className="h-screen bg-gray-50 overflow-y-auto">
+      <div className="min-h-full flex items-center justify-center p-8">
+        <div className="max-w-2xl w-full">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">ideaSlide</h1>
           <p className="text-gray-600">Create beautiful presentations with Excalidraw</p>
@@ -77,11 +72,11 @@ export function LaunchScreen({ onFileOpened }: LaunchScreenProps) {
         <div className="bg-white rounded-lg shadow-sm p-8 mb-8">
           <div className="grid grid-cols-2 gap-4">
             <button
-              onClick={handleNewFile}
+              onClick={handleNewIdea}
               className="p-6 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors"
             >
               <div className="text-4xl mb-2">+</div>
-              <div className="font-semibold text-gray-900">New Presentation</div>
+              <div className="font-semibold text-gray-900">New Idea</div>
               <div className="text-sm text-gray-500 mt-1">Start from scratch</div>
             </button>
 
@@ -95,22 +90,6 @@ export function LaunchScreen({ onFileOpened }: LaunchScreenProps) {
             </button>
           </div>
 
-          <div className="mt-4">
-            <button
-              onClick={() => {
-                console.log("Quick Start clicked - skipping file dialog");
-                onFileOpened("__demo__", [{
-                  id: "demo-slide-1",
-                  elements: [],
-                  appState: {},
-                }]);
-              }}
-              className="w-full p-4 border-2 border-blue-400 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-            >
-              <div className="font-semibold text-blue-700">Quick Start (no file)</div>
-              <div className="text-sm text-blue-500">Start editing immediately without saving</div>
-            </button>
-          </div>
         </div>
 
         {loading ? (
@@ -125,14 +104,27 @@ export function LaunchScreen({ onFileOpened }: LaunchScreenProps) {
                   onClick={() => handleOpenRecent(file.path)}
                   className="w-full text-left p-3 rounded hover:bg-gray-50 transition-colors"
                 >
-                  <div className="font-medium text-gray-900">{file.name}</div>
-                  <div className="text-sm text-gray-500">{file.path}</div>
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium text-gray-900">{file.name}</div>
+                    <div className="text-xs text-gray-400">
+                      {file.modified
+                        ? new Date(file.modified).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : ""}
+                    </div>
+                  </div>
+                  <div className="text-sm text-gray-500 truncate">{file.path}</div>
                 </button>
               ))}
             </div>
           </div>
         ) : null}
       </div>
+    </div>
     </div>
   );
 }
