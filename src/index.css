@@ -28,3 +28,14 @@ html, body, #root {
 .excalidraw .layer-ui__wrapper {
   z-index: 10;
 }
+
+/* Hide the Library button in Excalidraw */
+.excalidraw .default-sidebar-trigger {
+  display: none !important;
+}
+
+/* Presentation mode animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
