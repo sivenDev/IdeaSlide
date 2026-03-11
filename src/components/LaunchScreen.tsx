@@ -94,6 +94,23 @@ export function LaunchScreen({ onFileOpened }: LaunchScreenProps) {
               <div className="text-sm text-gray-500 mt-1">Browse for .is files</div>
             </button>
           </div>
+
+          <div className="mt-4">
+            <button
+              onClick={() => {
+                console.log("Quick Start clicked - skipping file dialog");
+                onFileOpened("__demo__", [{
+                  id: "demo-slide-1",
+                  elements: [],
+                  appState: {},
+                }]);
+              }}
+              className="w-full p-4 border-2 border-blue-400 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+            >
+              <div className="font-semibold text-blue-700">Quick Start (no file)</div>
+              <div className="text-sm text-blue-500">Start editing immediately without saving</div>
+            </button>
+          </div>
         </div>
 
         {loading ? (

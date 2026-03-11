@@ -4,6 +4,7 @@ import { useAutoSave } from "../hooks/useAutoSave";
 import { Toolbar } from "./Toolbar";
 import { SlidePreviewPanel } from "./SlidePreviewPanel";
 import { SlideCanvas } from "./SlideCanvas";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { createNewFile, openFile, saveFile } from "../lib/tauriCommands";
 import { save } from "@tauri-apps/plugin-dialog";
 
@@ -115,12 +116,16 @@ export function EditorLayout() {
           }
         />
 
-        <div className="flex-1">
-          <SlideCanvas
-            elements={currentSlide.elements}
-            appState={currentSlide.appState}
-            onChange={handleSlideChange}
-          />
+        <div className="flex-1 relative">
+          <div className="absolute inset-0">
+            <ErrorBoundary>
+              <SlideCanvas
+                elements={currentSlide.elements}
+                appState={currentSlide.appState}
+                onChange={handleSlideChange}
+              />
+            </ErrorBoundary>
+          </div>
         </div>
       </div>
     </div>

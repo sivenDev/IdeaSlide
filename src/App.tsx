@@ -1,15 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { SlideStoreProvider, useSlideStore } from "./hooks/useSlideStore";
 import { LaunchScreen } from "./components/LaunchScreen";
 import { EditorLayout } from "./components/EditorLayout";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 function AppContent() {
   const { dispatch } = useSlideStore();
   const [showEditor, setShowEditor] = useState(false);
-
-  useEffect(() => {
-    console.log("AppContent mounted, showEditor:", showEditor);
-  }, [showEditor]);
 
   function handleFileOpened(filePath: string, slides: any[]) {
     console.log("handleFileOpened called:", { filePath, slides });
@@ -20,21 +17,24 @@ function AppContent() {
     setShowEditor(true);
   }
 
-  console.log("AppContent render, showEditor:", showEditor);
-
   if (!showEditor) {
     return <LaunchScreen onFileOpened={handleFileOpened} />;
   }
 
-  return <EditorLayout />;
+  return (
+    <ErrorBoundary>
+      <EditorLayout />
+    </ErrorBoundary>
+  );
 }
 
 function App() {
-  console.log("App component rendering");
   return (
-    <SlideStoreProvider>
-      <AppContent />
-    </SlideStoreProvider>
+    <ErrorBoundary>
+      <SlideStoreProvider>
+        <AppContent />
+      </SlideStoreProvider>
+    </ErrorBoundary>
   );
 }
 
