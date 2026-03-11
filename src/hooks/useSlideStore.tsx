@@ -1,7 +1,9 @@
 import { createContext, useContext, useReducer, ReactNode } from "react";
 import type { Presentation, Slide } from "../types";
 
-interface SlideStoreState extends Presentation {}
+interface SlideStoreState extends Presentation {
+  presentationMode: 'none' | 'preview' | 'fullscreen';
+}
 
 type SlideStoreAction =
   | { type: "LOAD_PRESENTATION"; payload: { slides: Slide[]; filePath?: string } }
@@ -14,15 +16,19 @@ type SlideStoreAction =
         index: number;
         elements: readonly any[];
         appState: Partial<any>;
+        elementsChanged: boolean;
       };
     }
   | { type: "MARK_SAVED" }
-  | { type: "MARK_DIRTY" };
+  | { type: "MARK_DIRTY" }
+  | { type: "START_PRESENTATION"; payload: { mode: 'preview' | 'fullscreen' } }
+  | { type: "EXIT_PRESENTATION" };
 
 const initialState: SlideStoreState = {
   slides: [{ id: crypto.randomUUID(), elements: [], appState: {} }],
   currentSlideIndex: 0,
   isDirty: false,
+  presentationMode: 'none',
 };
 
 function slideStoreReducer(
@@ -89,7 +95,7 @@ function slideStoreReducer(
       return {
         ...state,
         slides: newSlides,
-        isDirty: true,
+        isDirty: state.isDirty || action.payload.elementsChanged,
       };
     }
 
@@ -103,6 +109,18 @@ function slideStoreReducer(
       return {
         ...state,
         isDirty: true,
+      };
+
+    case "START_PRESENTATION":
+      return {
+        ...state,
+        presentationMode: action.payload.mode,
+      };
+
+    case "EXIT_PRESENTATION":
+      return {
+        ...state,
+        presentationMode: 'none',
       };
 
     default:
