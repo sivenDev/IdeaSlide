@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4F46E5"/>
+      <stop offset="100%" style="stop-color:#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:rgba(255,255,255,0.15)"/>
+      <stop offset="100%" style="stop-color:rgba(255,255,255,0)"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded background -->
+  <rect width="1024" height="1024" rx="220" ry="220" fill="url(#bg)"/>
+  <!-- Subtle shine overlay -->
+  <rect width="1024" height="512" rx="220" ry="220" fill="url(#shine)"/>
+  <!-- Slide frame -->
+  <rect x="200" y="280" width="624" height="440" rx="32" ry="32" fill="white" opacity="0.95"/>
+  <!-- Lightbulb / idea spark above the slide -->
+  <circle cx="512" cy="220" r="60" fill="#FBBF24" opacity="0.9"/>
+  <circle cx="512" cy="220" r="36" fill="#FDE68A"/>
+  <!-- Spark rays -->
+  <line x1="512" y1="140" x2="512" y2="110" stroke="#FBBF24" stroke-width="12" stroke-linecap="round"/>
+  <line x1="572" y1="160" x2="592" y2="136" stroke="#FBBF24" stroke-width="12" stroke-linecap="round"/>
+  <line x1="452" y1="160" x2="432" y2="136" stroke="#FBBF24" stroke-width="12" stroke-linecap="round"/>
+  <line x1="592" y1="200" x2="616" y2="190" stroke="#FBBF24" stroke-width="10" stroke-linecap="round"/>
+  <line x1="432" y1="200" x2="408" y2="190" stroke="#FBBF24" stroke-width="10" stroke-linecap="round"/>
+  <!-- Content lines on the slide -->
+  <rect x="268" y="360" width="280" height="20" rx="10" fill="#4F46E5" opacity="0.7"/>
+  <rect x="268" y="410" width="200" height="14" rx="7" fill="#9CA3AF"/>
+  <rect x="268" y="440" width="240" height="14" rx="7" fill="#9CA3AF"/>
+  <rect x="268" y="470" width="180" height="14" rx="7" fill="#9CA3AF"/>
+  <!-- Abstract shape on slide (representing drawing/excalidraw) -->
+  <rect x="560" y="370" width="200" height="140" rx="16" fill="#EEF2FF" stroke="#4F46E5" stroke-width="4" opacity="0.8"/>
+  <circle cx="620" cy="430" r="24" fill="#7C3AED" opacity="0.5"/>
+  <circle cx="700" cy="460" r="18" fill="#4F46E5" opacity="0.4"/>
+  <line x1="580" y1="490" x2="740" y2="400" stroke="#7C3AED" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
+  <!-- Slide navigation dots at bottom -->
+  <circle cx="472" cy="660" r="10" fill="white" opacity="0.9"/>
+  <circle cx="512" cy="660" r="10" fill="white" opacity="0.5"/>
+  <circle cx="552" cy="660" r="10" fill="white" opacity="0.5"/>
+  <!-- Bottom text area -->
+  <text x="512" y="780" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="700" fill="white" letter-spacing="2">ideaSlide</text>
+</svg>
