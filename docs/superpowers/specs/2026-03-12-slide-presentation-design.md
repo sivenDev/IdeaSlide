@@ -59,17 +59,18 @@ App.tsx
 ```typescript
 interface SlideStoreState extends Presentation {
   presentationMode: 'none' | 'preview' | 'fullscreen';
-  presentationStartIndex: number;
 }
 
 type SlideStoreAction =
   | // ... 现有 actions
   | {
       type: 'START_PRESENTATION';
-      payload: { mode: 'preview' | 'fullscreen'; startIndex: number }
+      payload: { mode: 'preview' | 'fullscreen' }
     }
   | { type: 'EXIT_PRESENTATION' }
 ```
+
+**注意**: `presentationStartIndex` 不需要存储在全局 store 中，作为 `PresentationMode` 组件的 props 传入即可。
 
 ## 组件设计
 
@@ -116,31 +117,36 @@ interface PresentationModeProps {
 
 **实现细节**:
 - 半透明黑色背景遮罩: `rgba(0, 0, 0, 0.85)`
-- 网格布局: `grid-template-columns: repeat(auto-fill, minmax(200px, 1fr))`
+- 网格布局: `grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); max-width: 1400px`
 - 复用现有的 `useSlideThumbnails` hook
 - 当前幻灯片高亮显示（蓝色边框）
 - 点击缩略图跳转并关闭浮层
 - 按 Esc 或 Tab 关闭
+- **内存管理**: 缩略图导航关闭时不销毁已生成的缩略图，依赖 `useSlideThumbnails` 的缓存机制
 
-### 5. SlideRenderer 组件
+### 5. 复用 SlideCanvas 组件
 
-**职责**:
-- 封装 Excalidraw 的渲染逻辑
-- 接收 `slide` 和 `viewMode` props
-- 在放映模式下设置 `viewModeEnabled={true}`
-- 禁用 Excalidraw 的 UI 元素
+**不创建新的 SlideRenderer 组件**，而是扩展现有的 `SlideCanvas` 组件：
 
-**Excalidraw 配置**:
+**添加 Props**:
+```typescript
+interface SlideCanvasProps {
+  // ... 现有 props
+  viewMode?: boolean; // 新增：是否为只读视图模式
+}
+```
+
+**在放映模式下的 Excalidraw 配置**:
 ```typescript
 <Excalidraw
   initialData={{
     elements: slide.elements,
     appState: {
       ...slide.appState,
-      viewModeEnabled: true,
-      zenModeEnabled: true,
-      gridSize: null,
+      viewModeEnabled: viewMode,
+      zenModeEnabled: viewMode,
     },
+    collaborators: new Map(), // 必须初始化，避免 forEach 错误
     scrollToContent: true,
   }}
   UIOptions={{
@@ -152,6 +158,8 @@ interface PresentationModeProps {
   }}
 />
 ```
+
+**注意**: 保持与现有 `SlideCanvas` 的一致性，不引入 `gridSize: null` 等未经验证的配置。
 
 ## 交互设计
 
@@ -200,54 +208,45 @@ interface PresentationModeProps {
 - 点击 → 从当前幻灯片开始全屏放映
 - 悬停显示 tooltip："放映幻灯片"
 
-## Tauri 后端集成
+## Tauri 全屏集成
 
-### Rust 命令
+### 使用 Tauri v2 内置 API
 
-在 `src-tauri/src/commands.rs` 中添加：
-
-```rust
-#[tauri::command]
-pub async fn set_fullscreen(window: tauri::Window, fullscreen: bool) -> Result<(), String> {
-    window
-        .set_fullscreen(fullscreen)
-        .map_err(|e| e.to_string())
-}
-```
-
-在 `src-tauri/src/lib.rs` 中注册：
-```rust
-.invoke_handler(tauri::generate_handler![
-    // ... 现有命令
-    set_fullscreen
-])
-```
-
-### 前端封装
-
-在 `src/lib/tauriCommands.ts` 中添加：
+**不需要创建自定义 Rust 命令**。Tauri v2 已经在前端提供了全屏 API：
 
 ```typescript
-import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 
-export async function setFullscreen(fullscreen: boolean): Promise<void> {
-  await invoke('set_fullscreen', { fullscreen });
-}
+// 进入全屏
+await getCurrentWindow().setFullscreen(true);
+
+// 退出全屏
+await getCurrentWindow().setFullscreen(false);
 ```
 
 ### 全屏状态管理流程
 
 **进入全屏**:
 1. 用户点击"全屏放映"
-2. 更新 store: `dispatch({ type: 'START_PRESENTATION', payload: { mode: 'fullscreen', startIndex } })`
+2. 更新 store: `dispatch({ type: 'START_PRESENTATION', payload: { mode: 'fullscreen' } })`
 3. `App.tsx` 检测到 `presentationMode === 'fullscreen'`，渲染 `FullscreenPresentation`
-4. `FullscreenPresentation` 组件挂载时调用 `setFullscreen(true)`
+4. `FullscreenPresentation` 组件挂载时调用 `getCurrentWindow().setFullscreen(true)`
 
 **退出全屏**:
 1. 用户按 Esc 或点击退出按钮
-2. `FullscreenPresentation` 组件卸载前调用 `setFullscreen(false)`
+2. `FullscreenPresentation` 组件卸载前调用 `getCurrentWindow().setFullscreen(false)`
 3. 更新 store: `dispatch({ type: 'EXIT_PRESENTATION' })`
 4. `App.tsx` 切换回 `EditorLayout`
+
+**错误处理**:
+```typescript
+try {
+  await getCurrentWindow().setFullscreen(true);
+} catch (error) {
+  console.error('Failed to enter fullscreen:', error);
+  // 显示 toast 提示但继续放映
+}
+```
 
 ## 视觉设计
 
@@ -316,31 +315,103 @@ export async function setFullscreen(fullscreen: boolean): Promise<void> {
 - 缩略图导航仍然可以打开
 
 **放映过程中编辑数据变化**:
-- 放映模式使用启动时的 `slides` 快照
-- 不响应编辑模式的数据变化
+- 放映模式通过 props 接收 `slides` 数组
+- 使用 `slides` 的引用，不创建深拷贝
 - 退出放映后回到编辑模式，看到最新数据
 
 **窗口失焦/最小化**:
 - 全屏模式下窗口失焦不自动退出
 - 用户需要手动按 Esc 退出
+- 异常退出时，`useEffect` cleanup 函数会恢复窗口状态
 
 **多显示器场景**:
 - Tauri 的 `setFullscreen` 会在当前显示器全屏
 - 不特殊处理多显示器（未来可扩展）
 
+## 无障碍访问
+
+### 键盘焦点管理
+
+**进入放映模式**:
+- 放映容器自动获得焦点（`tabIndex={0}` 和 `autoFocus`）
+- 确保键盘事件能被正确捕获
+
+**缩略图导航**:
+- 打开时焦点移到缩略图网格容器
+- 支持 Tab 键在缩略图间导航
+- 当前幻灯片的缩略图自动获得焦点
+
+**退出放映**:
+- 焦点返回到触发放映的按钮（工具栏或预览面板）
+
+### ARIA 标签
+
+```typescript
+// 放映容器
+<div role="application" aria-label="幻灯片放映模式">
+
+// 页码指示器
+<div role="status" aria-live="polite" aria-label={`第 ${current} 张，共 ${total} 张`}>
+
+// 缩略图导航
+<div role="dialog" aria-label="幻灯片导航">
+  <button role="button" aria-label={`跳转到第 ${index + 1} 张幻灯片`}>
+```
+
+### 屏幕阅读器支持
+
+- 切换幻灯片时通过 `aria-live` 区域通知页码变化
+- 缩略图按钮包含清晰的 `aria-label`
+- 键盘快捷键在帮助文档中说明
+
+## 动画和过渡
+
+### 幻灯片切换动画
+
+**默认无动画**:
+- 直接切换幻灯片内容，无过渡效果
+- 保持简洁，避免干扰内容
+
+**未来扩展**:
+- 可选的淡入淡出效果（`opacity` 过渡）
+- 配置项：`transitionType: 'none' | 'fade'`
+- 过渡时长：300ms
+
+### 缩略图导航动画
+
+**打开/关闭**:
+- 遮罩淡入淡出：`transition: opacity 200ms ease-in-out`
+- 网格容器缩放：`transition: transform 200ms ease-in-out; transform: scale(0.95) → scale(1)`
+
+**悬停效果**:
+- 缩略图边框颜色过渡：`transition: border-color 150ms ease`
+
 ## 性能优化
 
 **缩略图懒加载**:
-- 缩略图导航打开时才渲染缩略图
+- 缩略图导航打开时才渲染缩略图网格
 - 使用现有的 `useSlideThumbnails` 缓存机制
+- 缩略图关闭后不销毁已生成的缩略图，保留在内存中
 
-**Excalidraw 实例复用**:
+**Excalidraw 实例管理**:
 - 每次切换幻灯片时使用 `key={slideId}` 强制重新挂载
+- 这是现有 `SlideCanvas` 的行为，保持一致
 - 避免复杂的状态同步问题
 
-**键盘事件防抖**:
-- 快速按键时使用 `requestAnimationFrame` 限制切换频率
-- 避免动画卡顿
+**键盘事件节流**:
+- 使用状态标志防止快速连续切换
+- 切换动画进行中时忽略新的导航键
+- 避免 Excalidraw 重复挂载导致的卡顿
+
+**内存管理**:
+- 放映模式退出时，缩略图缓存保留（由 `useSlideThumbnails` 管理）
+- Excalidraw 实例在组件卸载时自动清理
+- 不需要手动管理内存释放
+
+**性能目标**:
+- 幻灯片切换延迟 < 300ms（包括 Excalidraw 重新挂载）
+- 缩略图导航打开延迟 < 500ms
+- 50+ 张幻灯片的放映流畅度：60fps
 
 ## 测试策略
 
@@ -373,38 +444,49 @@ export async function setFullscreen(fullscreen: boolean): Promise<void> {
 - [ ] Windows 全屏功能
 - [ ] Linux 全屏功能（如果支持）
 
+**无障碍访问测试**:
+- [ ] 键盘焦点管理正确
+- [ ] ARIA 标签被屏幕阅读器正确读取
+- [ ] Tab 键可以在缩略图间导航
+- [ ] 页码变化通过 aria-live 通知
+
 **性能测试**:
-- [ ] 50+ 张幻灯片的放映流畅度
-- [ ] 缩略图导航的加载速度
+- [ ] 50+ 张幻灯片的放映流畅度（目标：60fps）
+- [ ] 缩略图导航打开延迟 < 500ms
+- [ ] 幻灯片切换延迟 < 300ms
 - [ ] 快速切换幻灯片无卡顿
 
 ### 潜在问题预判
 
-**Excalidraw 状态同步**:
-- 问题: 切换幻灯片时可能有短暂的白屏
-- 解决: 使用 loading 状态或过渡动画
+**Excalidraw viewModeEnabled 兼容性**:
+- 问题: 需要验证 Excalidraw 0.18 是否完全支持 `viewModeEnabled`
+- 解决: 在实现前先测试该属性的行为
 
 **全屏 API 兼容性**:
 - 问题: 某些 Linux 桌面环境可能不支持
 - 解决: 已有降级方案（非全屏放映视图）
 
 **键盘事件冲突**:
-- 问题: Excalidraw 可能捕获某些键盘事件
-- 解决: 在放映容器层面监听，使用 `capture` 阶段
+- 问题: 即使 `viewModeEnabled={true}`，Excalidraw 可能仍捕获某些键
+- 解决: 在放映容器层面监听，使用事件捕获阶段
+
+**内存泄漏风险**:
+- 问题: 频繁挂载/卸载 Excalidraw 实例可能导致内存泄漏
+- 解决: 在开发过程中使用 Chrome DevTools 监控内存使用
 
 ## 实现顺序
 
 建议按以下顺序实现：
 
-1. **状态管理扩展** - 修改 `useSlideStore`
-2. **Rust 后端命令** - 添加 `set_fullscreen` 命令
-3. **SlideRenderer 组件** - 封装 Excalidraw 渲染逻辑
-4. **PresentationMode 核心组件** - 键盘导航和状态管理
-5. **PreviewPresentation 组件** - 预览模式实现
-6. **FullscreenPresentation 组件** - 全屏放映实现
-7. **ThumbnailNavigator 组件** - 缩略图导航
-8. **UI 触发按钮** - 工具栏和预览面板按钮
-9. **App.tsx 路由集成** - 连接所有组件
+1. **状态管理扩展** - 修改 `useSlideStore`，添加 `presentationMode` 状态
+2. **扩展 SlideCanvas** - 添加 `viewMode` prop，支持只读视图
+3. **PresentationMode 核心组件** - 键盘导航和状态管理
+4. **PreviewPresentation 组件** - 预览模式实现
+5. **FullscreenPresentation 组件** - 全屏放映实现（使用 Tauri API）
+6. **ThumbnailNavigator 组件** - 缩略图导航
+7. **UI 触发按钮** - 工具栏和预览面板按钮
+8. **App.tsx 路由集成** - 连接所有组件
+9. **无障碍访问** - 添加 ARIA 标签和焦点管理
 10. **样式优化和测试** - 视觉调整和功能测试
 
 ## 未来扩展
