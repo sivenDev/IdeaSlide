@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { useSlideStore } from "../hooks/useSlideStore";
 import { useAutoSave } from "../hooks/useAutoSave";
+import { useSlideThumbnails } from "../hooks/useSlideThumbnails";
 import { Toolbar } from "./Toolbar";
 import { SlidePreviewPanel } from "./SlidePreviewPanel";
 import { SlideCanvas } from "./SlideCanvas";
@@ -11,6 +12,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 export function EditorLayout() {
   const { state, dispatch } = useSlideStore();
   const [isSaving, setIsSaving] = useState(false);
+  const thumbnails = useSlideThumbnails(state.slides);
 
   useAutoSave({
     filePath: state.filePath,
@@ -106,6 +108,7 @@ export function EditorLayout() {
         <SlidePreviewPanel
           slides={state.slides}
           currentSlideIndex={state.currentSlideIndex}
+          thumbnails={thumbnails}
           onSlideSelect={(index) =>
             dispatch({ type: "SET_CURRENT_SLIDE", payload: { index } })
           }

@@ -1,8 +1,10 @@
 import type { Slide } from "../types";
+import { SlideThumbnail } from "./SlideThumbnail";
 
 interface SlidePreviewPanelProps {
   slides: Slide[];
   currentSlideIndex: number;
+  thumbnails: Map<string, SVGSVGElement>;
   onSlideSelect: (index: number) => void;
   onAddSlide: () => void;
   onDeleteSlide: (index: number) => void;
@@ -11,6 +13,7 @@ interface SlidePreviewPanelProps {
 export function SlidePreviewPanel({
   slides,
   currentSlideIndex,
+  thumbnails,
   onSlideSelect,
   onAddSlide,
   onDeleteSlide,
@@ -37,11 +40,11 @@ export function SlidePreviewPanel({
             }`}
             onClick={() => onSlideSelect(index)}
           >
-            <div className="aspect-video bg-white flex items-center justify-center text-gray-400">
-              <div className="text-center">
-                <div className="text-2xl font-bold">{index + 1}</div>
-                <div className="text-xs">Slide {index + 1}</div>
-              </div>
+            <div className="aspect-video bg-white">
+              <SlideThumbnail
+                svgElement={thumbnails.get(slide.id)}
+                slideIndex={index}
+              />
             </div>
 
             {slides.length > 1 && (
