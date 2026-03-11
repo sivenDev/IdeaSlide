@@ -1,8 +1,5 @@
 @import "tailwindcss";
 
-/* Excalidraw styles */
-@import "@excalidraw/excalidraw/index.css";
-
 /* Global resets */
 * {
   margin: 0;
