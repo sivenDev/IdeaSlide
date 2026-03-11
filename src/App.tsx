@@ -11,7 +11,7 @@ function AppContent() {
   function handleFileOpened(filePath: string, slides: any[]) {
     dispatch({
       type: "LOAD_PRESENTATION",
-      payload: { slides, filePath },
+      payload: { slides, filePath: filePath || undefined },
     });
     setShowEditor(true);
   }
@@ -22,7 +22,7 @@ function AppContent() {
 
   return (
     <ErrorBoundary>
-      <EditorLayout />
+      <EditorLayout onGoHome={() => setShowEditor(false)} />
     </ErrorBoundary>
   );
 }
