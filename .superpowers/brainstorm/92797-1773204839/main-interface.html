@@ -1,0 +1,87 @@
+<h2>ideaSlide 主界面布局</h2>
+<p class="subtitle">展示工具栏、预览区和编辑区的空间分配</p>
+
+<div class="mockup">
+  <div class="mockup-header">主界面布局</div>
+  <div class="mockup-body" style="padding: 0;">
+    <!-- 工具栏 -->
+    <div style="background: #2c3e50; color: white; padding: 12px 20px; display: flex; align-items: center; gap: 20px; border-bottom: 2px solid #34495e;">
+      <div style="font-weight: bold;">ideaSlide</div>
+      <div style="display: flex; gap: 8px; font-size: 0.9em;">
+        <span style="padding: 4px 8px; background: #34495e; border-radius: 4px;">矩形</span>
+        <span style="padding: 4px 8px; background: #34495e; border-radius: 4px;">圆形</span>
+        <span style="padding: 4px 8px; background: #34495e; border-radius: 4px;">线条</span>
+        <span style="padding: 4px 8px; background: #34495e; border-radius: 4px;">文本</span>
+        <span style="padding: 4px 8px; background: #34495e; border-radius: 4px;">箭头</span>
+      </div>
+      <div style="margin-left: auto; display: flex; gap: 8px; font-size: 0.9em;">
+        <span style="padding: 4px 8px; background: #34495e; border-radius: 4px;">撤销</span>
+        <span style="padding: 4px 8px; background: #34495e; border-radius: 4px;">重做</span>
+      </div>
+    </div>
+
+    <!-- 主内容区 -->
+    <div style="display: flex; height: 500px;">
+      <!-- 左侧预览区 -->
+      <div style="width: 200px; background: #ecf0f1; border-right: 2px solid #bdc3c7; padding: 10px; overflow-y: auto;">
+        <div style="font-size: 0.85em; font-weight: bold; margin-bottom: 10px; color: #7f8c8d;">Slides</div>
+        <div style="background: white; border: 2px solid #3498db; padding: 8px; margin-bottom: 8px; border-radius: 4px;">
+          <div style="background: #f8f9fa; height: 80px; display: flex; align-items: center; justify-content: center; font-size: 0.8em; color: #95a5a6;">Slide 1</div>
+          <div style="font-size: 0.75em; margin-top: 4px; text-align: center;">当前</div>
+        </div>
+        <div style="background: white; border: 1px solid #ddd; padding: 8px; margin-bottom: 8px; border-radius: 4px;">
+          <div style="background: #f8f9fa; height: 80px; display: flex; align-items: center; justify-content: center; font-size: 0.8em; color: #95a5a6;">Slide 2</div>
+        </div>
+        <div style="background: white; border: 1px solid #ddd; padding: 8px; margin-bottom: 8px; border-radius: 4px;">
+          <div style="background: #f8f9fa; height: 80px; display: flex; align-items: center; justify-content: center; font-size: 0.8em; color: #95a5a6;">Slide 3</div>
+        </div>
+      </div>
+
+      <!-- 右侧编辑区 -->
+      <div style="flex: 1; background: white; display: flex; align-items: center; justify-content: center; position: relative;">
+        <div style="border: 2px dashed #bdc3c7; width: 80%; height: 80%; display: flex; align-items: center; justify-content: center; color: #95a5a6;">
+          Excalidraw 编辑画布区域
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 30px;">
+  <h3>关于左侧预览区的宽度</h3>
+  <p>预览区需要平衡可见性和编辑空间，你更倾向于：</p>
+
+  <div class="options">
+    <div class="option" data-choice="narrow" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>窄预览 (150-180px)</h3>
+        <p>节省空间给编辑区，缩略图较小但能看清大致内容</p>
+      </div>
+    </div>
+
+    <div class="option" data-choice="medium" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>中等预览 (200-250px)</h3>
+        <p>平衡空间分配，缩略图清晰度适中</p>
+      </div>
+    </div>
+
+    <div class="option" data-choice="wide" onclick="toggleSelect(this)">
+      <div class="letter">C</div>
+      <div class="content">
+        <h3>宽预览 (280-320px)</h3>
+        <p>缩略图更清晰，但占用较多编辑空间</p>
+      </div>
+    </div>
+
+    <div class="option" data-choice="resizable" onclick="toggleSelect(this)">
+      <div class="letter">D</div>
+      <div class="content">
+        <h3>可调节宽度</h3>
+        <p>用户可以拖动边界调整预览区宽度，默认 200px</p>
+      </div>
+    </div>
+  </div>
+</div>

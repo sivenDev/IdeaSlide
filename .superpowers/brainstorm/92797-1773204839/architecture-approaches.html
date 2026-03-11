@@ -1,0 +1,104 @@
+<h2>ideaSlide 架构方案</h2>
+<p class="subtitle">三种技术架构的对比</p>
+
+<div class="options">
+  <div class="option" data-choice="approach-a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>轻量集成方案（推荐）</h3>
+      <p><strong>前端：</strong>React + Excalidraw 库（使用其渲染引擎 rough.js）+ 自定义工具栏</p>
+      <p><strong>后端：</strong>Tauri v2 Rust - 文件 I/O、zip 操作、PDF 导出</p>
+      <p><strong>MCP：</strong>内嵌 Rust 模块，可选连接外部服务器</p>
+
+      <div class="pros-cons" style="margin-top: 15px;">
+        <div class="pros">
+          <h4>优势</h4>
+          <ul>
+            <li>开发速度快 - 复用 Excalidraw 的核心能力</li>
+            <li>手绘风格原生支持 - rough.js 久经考验</li>
+            <li>数据格式兼容 - 可以导入/导出 Excalidraw 文件</li>
+            <li>社区生态 - Excalidraw 有丰富的插件和工具</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>权衡</h4>
+          <ul>
+            <li>依赖 Excalidraw 的更新节奏</li>
+            <li>定制 UI 需要覆盖默认样式</li>
+            <li>包体积稍大（Excalidraw + rough.js）</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="approach-b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>深度定制方案</h3>
+      <p><strong>前端：</strong>React + Canvas API + rough.js（只用渲染库）+ 完全自研编辑器</p>
+      <p><strong>后端：</strong>Tauri v2 Rust - 同方案 A</p>
+      <p><strong>MCP：</strong>同方案 A</p>
+
+      <div class="pros-cons" style="margin-top: 15px;">
+        <div class="pros">
+          <h4>优势</h4>
+          <ul>
+            <li>完全控制 UI/UX - 打造独特体验</li>
+            <li>性能优化空间大 - 只实现需要的功能</li>
+            <li>包体积小 - 只依赖 rough.js</li>
+            <li>更容易集成 MCP 绘图能力</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>权衡</h4>
+          <ul>
+            <li>开发周期长 - 需要实现选择、拖拽、缩放等基础交互</li>
+            <li>需要处理大量边界情况</li>
+            <li>失去 Excalidraw 生态</li>
+            <li>维护成本高</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="approach-c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>渐进式方案</h3>
+      <p><strong>第一阶段：</strong>完全使用 Excalidraw 组件，快速验证产品</p>
+      <p><strong>第二阶段：</strong>逐步替换工具栏和交互层，保留渲染引擎</p>
+      <p><strong>第三阶段：</strong>根据需求决定是否深度定制</p>
+
+      <div class="pros-cons" style="margin-top: 15px;">
+        <div class="pros">
+          <h4>优势</h4>
+          <ul>
+            <li>快速上线 - 先验证核心价值</li>
+            <li>降低风险 - 分阶段投入</li>
+            <li>灵活调整 - 根据用户反馈决定定制深度</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>权衡</h4>
+          <ul>
+            <li>可能需要重构 - 如果后期深度定制</li>
+            <li>技术债务 - 过渡期代码复杂度增加</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-left: 4px solid #3498db;">
+  <h3>我的推荐：方案 A（轻量集成）</h3>
+  <p>理由：</p>
+  <ul style="line-height: 1.8;">
+    <li><strong>快速验证产品价值</strong> - 你的核心创新是"快速想法记录 + MCP 大模型绘图"，不是重新发明绘图编辑器</li>
+    <li><strong>MCP 集成更容易</strong> - Excalidraw 的数据格式简单清晰，大模型可以直接生成 JSON</li>
+    <li><strong>手绘风格成熟</strong> - rough.js 是业界标准，效果好且稳定</li>
+    <li><strong>后续可扩展</strong> - 如果需要深度定制，可以逐步替换组件（类似方案 C）</li>
+  </ul>
+</div>

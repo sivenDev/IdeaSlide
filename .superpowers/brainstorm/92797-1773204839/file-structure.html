@@ -1,0 +1,69 @@
+<h2>ideaSlide 文件结构预览</h2>
+<p class="subtitle">这是 .is 文件（zip 包）解压后的目录结构</p>
+
+<div class="mockup">
+  <div class="mockup-header">.is 文件内部结构</div>
+  <div class="mockup-body" style="font-family: monospace; padding: 20px; background: #f8f9fa;">
+    <div style="margin-bottom: 20px;">
+      <strong>example-presentation.is</strong> (实际是 zip 文件)
+    </div>
+    <div style="padding-left: 20px; line-height: 1.8;">
+      📄 manifest.json<br>
+      <span style="color: #666; font-size: 0.9em; padding-left: 20px;">// 元数据：slide 顺序、标题、创建时间、版本等</span><br><br>
+
+      📁 slides/<br>
+      <span style="padding-left: 20px;">
+        📄 slide-1.json<br>
+        📄 slide-2.json<br>
+        📄 slide-3.json<br>
+        <span style="color: #666; font-size: 0.9em;">// 每个 slide 的 Excalidraw 数据</span>
+      </span><br><br>
+
+      📁 media/<br>
+      <span style="padding-left: 20px;">
+        🖼️ image-abc123.png<br>
+        🖼️ image-def456.jpg<br>
+        <span style="color: #666; font-size: 0.9em;">// 用户插入的图片、附件</span>
+      </span><br><br>
+
+      📁 thumbnails/<br>
+      <span style="padding-left: 20px;">
+        🖼️ slide-1.png<br>
+        🖼️ slide-2.png<br>
+        🖼️ slide-3.png<br>
+        <span style="color: #666; font-size: 0.9em;">// 预览缩略图，用于最近文件列表和左侧预览区</span>
+      </span>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 30px;">
+  <h3>关于缩略图生成</h3>
+  <p>缩略图可以在保存时自动生成，有几种策略：</p>
+
+  <div class="options">
+    <div class="option" data-choice="eager" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>实时生成</h3>
+        <p>每次编辑后立即更新缩略图，保证预览始终最新，但频繁操作时可能影响性能</p>
+      </div>
+    </div>
+
+    <div class="option" data-choice="lazy" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>延迟生成</h3>
+        <p>保存文件时才生成缩略图，性能好但预览可能不是最新状态</p>
+      </div>
+    </div>
+
+    <div class="option" data-choice="hybrid" onclick="toggleSelect(this)">
+      <div class="letter">C</div>
+      <div class="content">
+        <h3>混合策略</h3>
+        <p>编辑时用内存缓存的预览，保存时才写入 thumbnails/，平衡性能和体验</p>
+      </div>
+    </div>
+  </div>
+</div>
