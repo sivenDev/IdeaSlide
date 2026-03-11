@@ -188,11 +188,19 @@ export function EditorLayout({ onGoHome }: EditorLayoutProps) {
         fileName={fileName}
         isDirty={state.isDirty}
         isSaving={isSaving}
+        showPreview={showPreview}
         onNewIdea={handleNewIdea}
         onOpenFile={handleOpenFile}
         onSave={handleSave}
         onSaveAs={handleSaveAs}
         onGoHome={handleGoHome}
+        onTogglePreview={() => setShowPreview((prev) => !prev)}
+        onStartPreview={() => dispatch({ type: 'START_PRESENTATION', payload: { mode: 'preview' } })}
+        onStartFullscreen={() => dispatch({ type: 'START_PRESENTATION', payload: { mode: 'fullscreen' } })}
+        onStartFromBeginning={() => {
+          dispatch({ type: 'SET_CURRENT_SLIDE', payload: { index: 0 } });
+          dispatch({ type: 'START_PRESENTATION', payload: { mode: 'fullscreen' } });
+        }}
       />
 
       <div className="flex-1 flex overflow-hidden">
@@ -208,6 +216,7 @@ export function EditorLayout({ onGoHome }: EditorLayoutProps) {
             onDeleteSlide={(index) =>
               dispatch({ type: "DELETE_SLIDE", payload: { index } })
             }
+            onStartPresentation={() => dispatch({ type: 'START_PRESENTATION', payload: { mode: 'fullscreen' } })}
           />
         </div>
 

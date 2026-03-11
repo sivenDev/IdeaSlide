@@ -2,10 +2,11 @@ import { useState } from "react";
 import { SlideStoreProvider, useSlideStore } from "./hooks/useSlideStore";
 import { LaunchScreen } from "./components/LaunchScreen";
 import { EditorLayout } from "./components/EditorLayout";
+import { PresentationMode } from "./components/PresentationMode";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 function AppContent() {
-  const { dispatch } = useSlideStore();
+  const { state, dispatch } = useSlideStore();
   const [showEditor, setShowEditor] = useState(false);
 
   function handleFileOpened(filePath: string, slides: any[]) {
@@ -18,6 +19,18 @@ function AppContent() {
 
   if (!showEditor) {
     return <LaunchScreen onFileOpened={handleFileOpened} />;
+  }
+
+  // Presentation mode takes priority over editor
+  if (state.presentationMode !== 'none') {
+    return (
+      <PresentationMode
+        slides={state.slides}
+        startIndex={state.currentSlideIndex}
+        mode={state.presentationMode as 'preview' | 'fullscreen'}
+        onExit={() => dispatch({ type: 'EXIT_PRESENTATION' })}
+      />
+    );
   }
 
   return (
