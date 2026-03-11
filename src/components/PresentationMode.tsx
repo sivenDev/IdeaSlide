@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { SlideCanvas } from "./SlideCanvas";
+import { ThumbnailNavigator } from "./ThumbnailNavigator";
 import { ErrorBoundary } from "./ErrorBoundary";
 import type { Slide } from "../types";
 
@@ -137,6 +138,19 @@ export function PresentationMode({ slides, startIndex, mode, onExit }: Presentat
           />
         </ErrorBoundary>
       </div>
+
+      {/* Thumbnail navigator overlay */}
+      {showThumbnails && (
+        <ThumbnailNavigator
+          slides={slides}
+          currentIndex={currentIndex}
+          onSelect={(index) => {
+            setCurrentIndex(index);
+            setShowThumbnails(false);
+          }}
+          onClose={() => setShowThumbnails(false)}
+        />
+      )}
 
       {/* Page indicator */}
       <div
