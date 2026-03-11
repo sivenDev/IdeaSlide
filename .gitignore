@@ -7,10 +7,21 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
 dist
 dist-ssr
 *.local
+
+# Tauri / Rust
+src-tauri/target
+src-tauri/WixTools
+*.rs.bk
+*.pdb
+
+# Build outputs
+*.is.bak
+*.is.tmp
 
 # Editor directories and files
 .vscode/*
@@ -22,3 +33,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Superpowers (optional - uncomment if you don't want to commit brainstorm sessions)
+# .superpowers/brainstorm/
