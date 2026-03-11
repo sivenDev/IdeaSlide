@@ -8,9 +8,13 @@ import { SlideCanvas } from "./SlideCanvas";
 import { ResizableDivider } from "./ResizableDivider";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { createNewPresentation, openFile, saveFile, addRecentFile } from "../lib/tauriCommands";
-import { save, message } from "@tauri-apps/plugin-dialog";
+import { save, message, ask } from "@tauri-apps/plugin-dialog";
 
-export function EditorLayout() {
+interface EditorLayoutProps {
+  onGoHome: () => void;
+}
+
+export function EditorLayout({ onGoHome }: EditorLayoutProps) {
   const { state, dispatch } = useSlideStore();
   const [isSaving, setIsSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
@@ -121,6 +125,27 @@ export function EditorLayout() {
     }
   }
 
+  const handleGoHome = useCallback(async () => {
+    if (state.isDirty) {
+      try {
+        const shouldLeave = await ask(
+          "You have unsaved changes. Leave without saving?",
+          {
+            title: "Unsaved Changes",
+            kind: "warning",
+            okLabel: "Leave",
+            cancelLabel: "Stay",
+          }
+        );
+        if (!shouldLeave) return;
+      } catch (err) {
+        console.error("Dialog error:", err);
+        return;
+      }
+    }
+    onGoHome();
+  }, [state.isDirty, onGoHome]);
+
   // Track element versions to detect actual content changes
   function buildFingerprint(elements: readonly any[]) {
     return elements.map((el: any) => `${el.id}:${el.version}`).join(",");
@@ -167,6 +192,7 @@ export function EditorLayout() {
         onOpenFile={handleOpenFile}
         onSave={handleSave}
         onSaveAs={handleSaveAs}
+        onGoHome={handleGoHome}
       />
 
       <div className="flex-1 flex overflow-hidden">
