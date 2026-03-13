@@ -5,11 +5,12 @@ interface SlideCanvasProps {
   slideId: string;
   elements: readonly any[];
   appState: Partial<any>;
-  onChange: (elements: readonly any[], appState: Partial<any>) => void;
+  files: Record<string, any>;
+  onChange: (elements: readonly any[], appState: Partial<any>, files: Record<string, any>) => void;
   viewMode?: boolean;
 }
 
-export function SlideCanvas({ slideId, elements, appState, onChange, viewMode }: SlideCanvasProps) {
+export function SlideCanvas({ slideId, elements, appState, files, onChange, viewMode }: SlideCanvasProps) {
   // Use a ref to always have the latest onChange without causing re-renders
   const onChangeRef = useRef(onChange);
   useEffect(() => {
@@ -24,14 +25,13 @@ export function SlideCanvas({ slideId, elements, appState, onChange, viewMode }:
   }, [slideId]);
 
   // Stable callback that never changes identity
-  const stableOnChange = useRef((els: readonly any[], state: any) => {
+  const stableOnChange = useRef((els: readonly any[], state: any, sceneFiles: Record<string, any>) => {
     if (isInitialLoad.current) {
       isInitialLoad.current = false;
       return;
     }
-    onChangeRef.current(els, state);
+    onChangeRef.current(els, state, sceneFiles || {});
   }).current;
-
   const mainMenu = useMemo(
     () => (
       <MainMenu>
@@ -60,6 +60,7 @@ export function SlideCanvas({ slideId, elements, appState, onChange, viewMode }:
               zenModeEnabled: true,
             }),
           },
+          files,
         }}
         onChange={viewMode ? undefined : stableOnChange}
         UIOptions={{

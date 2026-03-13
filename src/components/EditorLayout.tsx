@@ -146,28 +146,42 @@ export function EditorLayout({ onGoHome }: EditorLayoutProps) {
     onGoHome();
   }, [state.isDirty, onGoHome]);
 
-  // Track element versions to detect actual content changes
-  function buildFingerprint(elements: readonly any[]) {
+  // Track element/file versions to detect actual slide content changes.
+  function buildElementsFingerprint(elements: readonly any[]) {
     return elements.map((el: any) => `${el.id}:${el.version}`).join(",");
   }
-  const lastElementsFingerprintRef = useRef(buildFingerprint(currentSlide.elements));
+
+  function buildFilesFingerprint(files: Record<string, any>) {
+    return Object.values(files)
+      .map((file: any) => {
+        const id = file?.id ?? "";
+        const mimeType = file?.mimeType ?? "";
+        const size = file?.size ?? 0;
+        return `${id}:${mimeType}:${size}`;
+      })
+      .sort()
+      .join(",");
+  }
+
+  const lastContentFingerprintRef = useRef(
+    `${buildElementsFingerprint(currentSlide.elements)}|${buildFilesFingerprint(currentSlide.files)}`
+  );
 
   // Use a ref for currentSlideIndex to avoid re-creating the callback
   const currentSlideIndexRef = useRef(state.currentSlideIndex);
   if (currentSlideIndexRef.current !== state.currentSlideIndex) {
-    // Initialize fingerprint with the new slide's elements so the first
-    // onChange after mount doesn't falsely trigger isDirty
+    // Initialize fingerprint with the new slide's full content so the first
+    // onChange after mount doesn't falsely trigger isDirty.
     const newSlide = state.slides[state.currentSlideIndex];
-    lastElementsFingerprintRef.current = buildFingerprint(newSlide.elements);
+    lastContentFingerprintRef.current = `${buildElementsFingerprint(newSlide.elements)}|${buildFilesFingerprint(newSlide.files)}`;
   }
   currentSlideIndexRef.current = state.currentSlideIndex;
 
   const handleSlideChange = useCallback(
-    (elements: readonly any[], appState: Partial<any>) => {
-      // Build a lightweight fingerprint from element count + versions
-      const fingerprint = buildFingerprint(elements);
-      const elementsChanged = fingerprint !== lastElementsFingerprintRef.current;
-      lastElementsFingerprintRef.current = fingerprint;
+    (elements: readonly any[], appState: Partial<any>, files: Record<string, any>) => {
+      const contentFingerprint = `${buildElementsFingerprint(elements)}|${buildFilesFingerprint(files)}`;
+      const contentChanged = contentFingerprint !== lastContentFingerprintRef.current;
+      lastContentFingerprintRef.current = contentFingerprint;
 
       dispatch({
         type: "UPDATE_SLIDE",
@@ -175,7 +189,8 @@ export function EditorLayout({ onGoHome }: EditorLayoutProps) {
           index: currentSlideIndexRef.current,
           elements,
           appState,
-          elementsChanged,
+          files,
+          contentChanged,
         },
       });
     },
@@ -232,6 +247,7 @@ export function EditorLayout({ onGoHome }: EditorLayoutProps) {
                 slideId={currentSlide.id}
                 elements={currentSlide.elements}
                 appState={currentSlide.appState}
+                files={currentSlide.files}
                 onChange={handleSlideChange}
               />
             </ErrorBoundary>

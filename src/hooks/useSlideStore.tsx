@@ -16,7 +16,8 @@ type SlideStoreAction =
         index: number;
         elements: readonly any[];
         appState: Partial<any>;
-        elementsChanged: boolean;
+        files: Record<string, any>;
+        contentChanged: boolean;
       };
     }
   | { type: "MARK_SAVED" }
@@ -25,7 +26,7 @@ type SlideStoreAction =
   | { type: "EXIT_PRESENTATION" };
 
 const initialState: SlideStoreState = {
-  slides: [{ id: crypto.randomUUID(), elements: [], appState: {} }],
+  slides: [{ id: crypto.randomUUID(), elements: [], appState: {}, files: {} }],
   currentSlideIndex: 0,
   isDirty: false,
   presentationMode: 'none',
@@ -50,6 +51,7 @@ function slideStoreReducer(
         id: crypto.randomUUID(),
         elements: [],
         appState: {},
+        files: {},
       };
       const insertIndex = action.payload?.index ?? state.currentSlideIndex + 1;
       const newSlides = [...state.slides];
@@ -91,11 +93,12 @@ function slideStoreReducer(
         ...newSlides[action.payload.index],
         elements: action.payload.elements,
         appState: action.payload.appState,
+        files: action.payload.files,
       };
       return {
         ...state,
         slides: newSlides,
-        isDirty: state.isDirty || action.payload.elementsChanged,
+        isDirty: state.isDirty || action.payload.contentChanged,
       };
     }
 

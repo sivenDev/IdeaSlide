@@ -114,7 +114,10 @@ export function PresentationMode({ slides, startIndex, mode, onExit }: Presentat
     };
   }, [mode]);
 
-  const noopOnChange = useCallback(() => {}, []);
+  const noopOnChange = useCallback(
+    (_elements: readonly any[], _appState: Partial<any>, _files: Record<string, any>) => {},
+    []
+  );
 
   return (
     <div
@@ -133,6 +136,7 @@ export function PresentationMode({ slides, startIndex, mode, onExit }: Presentat
             slideId={currentSlide.id}
             elements={currentSlide.elements}
             appState={currentSlide.appState}
+            files={currentSlide.files}
             onChange={noopOnChange}
             viewMode={true}
           />

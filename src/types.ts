@@ -1,8 +1,11 @@
 // Use any for Excalidraw types to avoid import issues
+export type ExcalidrawFiles = Record<string, any>;
+
 export interface Slide {
   id: string;
   elements: readonly any[];
   appState: Partial<any>;
+  files: ExcalidrawFiles;
 }
 
 export interface Presentation {
@@ -15,7 +18,7 @@ export interface Presentation {
 export interface RecentFile {
   path: string;
   name: string;
-  lastOpened: number;
+  modified: string;
 }
 
 export interface FileManifest {
