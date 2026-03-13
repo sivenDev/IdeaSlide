@@ -32,7 +32,7 @@ export function useSlideThumbnails(slides: Slide[], debounceMs = 500) {
               exportBackground: true,
               exportPadding: 10,
             },
-            files: null,
+            files: slide.files as any,
           });
 
           svg.setAttribute("width", "100%");

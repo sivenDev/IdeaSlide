@@ -107,7 +107,7 @@ export function useSlideThumbnails(slides: Slide[], debounceMs = 500) {
 Run: `npx tsc --noEmit`
 Expected: No errors related to `useSlideThumbnails.ts`
 
-- [ ] **Step 3: Commit** (deferred — all changes committed together)
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/hooks/useSlideThumbnails.ts
@@ -176,7 +176,7 @@ export const SlideThumbnail = memo(function SlideThumbnail({
 Run: `npx tsc --noEmit`
 Expected: No errors related to `SlideThumbnail.tsx`
 
-- [ ] **Step 3: Commit** (deferred — all changes committed together)
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/components/SlideThumbnail.tsx
@@ -231,7 +231,7 @@ Test these scenarios:
 4. Draw on second slide -> its thumbnail updates independently
 5. Delete a slide -> thumbnails update correctly
 
-- [ ] **Step 5: Commit** (pending — all changes not yet committed)
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/components/SlidePreviewPanel.tsx src/components/EditorLayout.tsx

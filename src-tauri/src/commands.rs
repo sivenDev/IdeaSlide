@@ -18,12 +18,6 @@ pub fn open_file(path: String) -> Result<IsFileData, String> {
 pub fn save_file(path: String, data: IsFileData) -> Result<(), String> {
     let path = PathBuf::from(&path);
 
-    // Create backup before saving
-    if path.exists() {
-        let backup_path = path.with_extension("is.bak");
-        let _ = std::fs::copy(&path, &backup_path);
-    }
-
     // Update modified timestamp
     let mut data = data;
     data.manifest.modified = chrono::Utc::now().to_rfc3339();

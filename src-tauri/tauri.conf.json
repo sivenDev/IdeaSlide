@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "idea-slide",
+  "productName": "IdeaSlide",
   "version": "0.1.0",
   "identifier": "com.zhengxiwan.idea-slide",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "ideaSlide",
+        "title": "IdeaSlide",
         "width": 1200,
         "height": 800,
         "minWidth": 800,
@@ -32,6 +32,15 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
+    ],
+    "fileAssociations": [
+      {
+        "ext": ["is"],
+        "name": "IdeaSlide",
+        "description": "IdeaSlide file",
+        "role": "Editor",
+        "mimeType": "application/x-ideaslide"
+      }
     ]
   }
 }

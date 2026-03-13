@@ -174,6 +174,38 @@ function getSerializedMedia(fileIds: string[], fileById: Map<string, any>): Medi
   return media;
 }
 
+function getSlideFileById(files: unknown, fileId: string): any {
+  if (!files) return undefined;
+
+  if (files instanceof Map) {
+    if (files.has(fileId)) {
+      return files.get(fileId);
+    }
+
+    for (const candidate of files.values()) {
+      if (typeof candidate?.id === "string" && candidate.id === fileId) {
+        return candidate;
+      }
+    }
+
+    return undefined;
+  }
+
+  const recordFiles = files as Record<string, any>;
+  const directMatch = recordFiles[fileId];
+  if (directMatch) {
+    return directMatch;
+  }
+
+  for (const candidate of Object.values(recordFiles)) {
+    if (typeof candidate?.id === "string" && candidate.id === fileId) {
+      return candidate;
+    }
+  }
+
+  return undefined;
+}
+
 function buildSerializedSlides(slides: Slide[]) {
   const allUsedFileIds = new Set<string>();
   const fileById = new Map<string, any>();
@@ -190,7 +222,7 @@ function buildSerializedSlides(slides: Slide[]) {
 
     const trimmedFiles: Record<string, any> = {};
     for (const fileId of usedFileIds) {
-      const file = slide.files?.[fileId];
+      const file = getSlideFileById(slide.files, fileId);
       if (!file) continue;
 
       trimmedFiles[fileId] = file;
@@ -428,6 +460,12 @@ export async function openFile(): Promise<{ path: string; slides: Slide[] }> {
   return { path: filePath, slides };
 }
 
+export function createNewPresentation(): { slides: Slide[] } {
+  return {
+    slides: [{ id: crypto.randomUUID(), elements: [], appState: {}, files: {} }],
+  };
+}
+
 export async function saveFile(path: string, slides: Slide[]): Promise<void> {
   const createdTimestamp = createdTimestampByPath.get(path);
   const data = convertToIsFileData(slides, createdTimestamp);
@@ -443,14 +481,12 @@ export async function getRecentFiles(): Promise<RecentFile[]> {
   }
 }
 
-export function createNewPresentation(): { slides: Slide[] } {
-  return {
-    slides: [{ id: crypto.randomUUID(), elements: [], appState: {}, files: {} }],
-  };
-}
-
 export async function addRecentFile(path: string): Promise<void> {
   await invoke("add_recent_file", { path });
+}
+
+export async function getOpenedFile(): Promise<string | null> {
+  return await invoke<string | null>("get_opened_file");
 }
 
 export async function openRecentFile(path: string): Promise<Slide[]> {
