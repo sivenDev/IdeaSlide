@@ -40,3 +40,6 @@ Thumbs.db
 
 # Superpowers (optional - uncomment if you don't want to commit brainstorm sessions)
 # .superpowers/brainstorm/
+
+# Local git worktrees
+.worktrees/
