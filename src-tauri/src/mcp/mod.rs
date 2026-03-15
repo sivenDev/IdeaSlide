@@ -282,14 +282,15 @@ impl IdeaSlideServer {
         &self,
         Parameters(params): Parameters<SlideIdParam>,
     ) -> Result<String, String> {
-        let renderer_ready = Arc::clone(&self.renderer_ready);
-        let path = params.path;
-        let slide_id = params.slide_id;
-        tokio::task::spawn_blocking(move || {
-            preview_tools::handle_preview_slide(&renderer_ready, &path, &slide_id)
-        })
+        preview_tools::handle_preview_slide(
+            &self.renderer_ready,
+            &self.app_handle,
+            &self.file_service,
+            &self.slide_service,
+            &params.path,
+            &params.slide_id,
+        )
         .await
-        .map_err(|e| format!("Task join error: {}", e))?
     }
 
     #[tool(
@@ -300,13 +301,14 @@ impl IdeaSlideServer {
         &self,
         Parameters(params): Parameters<PathParam>,
     ) -> Result<String, String> {
-        let renderer_ready = Arc::clone(&self.renderer_ready);
-        let path = params.path;
-        tokio::task::spawn_blocking(move || {
-            preview_tools::handle_preview_presentation(&renderer_ready, &path)
-        })
+        preview_tools::handle_preview_presentation(
+            &self.renderer_ready,
+            &self.app_handle,
+            &self.file_service,
+            &self.slide_service,
+            &params.path,
+        )
         .await
-        .map_err(|e| format!("Task join error: {}", e))?
     }
 }
 

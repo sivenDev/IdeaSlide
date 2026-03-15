@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { SlideStoreProvider, useSlideStore } from "./hooks/useSlideStore";
 import { LaunchScreen } from "./components/LaunchScreen";
 import { EditorLayout } from "./components/EditorLayout";
 import { PresentationMode } from "./components/PresentationMode";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { openRecentFile, addRecentFile, getOpenedFile } from "./lib/tauriCommands";
+import { initMcpRenderer } from "./lib/mcpRenderer";
 
 function AppContent() {
   const { state, dispatch } = useSlideStore();
@@ -28,6 +30,13 @@ function AppContent() {
     });
     setShowEditor(true);
   }
+
+  // MCP renderer mode: initialize headless Excalidraw renderer
+  useEffect(() => {
+    if (getCurrentWindow().label === 'mcp-renderer') {
+      initMcpRenderer().catch(console.error);
+    }
+  }, []);
 
   // Cold start: check if app was launched by opening a .is file
   useEffect(() => {
