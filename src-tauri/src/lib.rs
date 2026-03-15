@@ -1,5 +1,6 @@
 mod commands;
 mod file_format;
+mod mcp;
 mod recent_files;
 
 use std::sync::Mutex;

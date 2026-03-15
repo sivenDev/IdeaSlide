@@ -27,4 +27,5 @@ zip = "2"
 chrono = { version = "0.4", features = ["serde"] }
 dirs = "6"
 base64 = "0.22"
+rmcp = { version = "0.17", features = ["server", "transport-io"] }
 
