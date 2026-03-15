@@ -85,6 +85,24 @@ impl IdeaSlideServer {
             tool_router: Self::tool_router(),
         }
     }
+
+    /// Create a server with a shared `renderer_ready` flag so the caller can
+    /// set it from outside (e.g. from a Tauri command fired by the hidden
+    /// mcp-renderer webview once Excalidraw is initialised).
+    pub fn new_with_renderer_ready(
+        app_handle: tauri::AppHandle,
+        renderer_ready: Arc<AtomicBool>,
+    ) -> Self {
+        let file_service = Arc::new(FileService::new());
+        let slide_service = Arc::new(SlideService);
+        Self {
+            file_service,
+            slide_service,
+            renderer_ready,
+            app_handle,
+            tool_router: Self::tool_router(),
+        }
+    }
 }
 
 #[tool_router(router = tool_router)]
@@ -296,8 +314,19 @@ impl IdeaSlideServer {
 impl ServerHandler for IdeaSlideServer {}
 
 /// Start the MCP server on stdio transport.
-pub async fn start_server(app_handle: tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    let server = IdeaSlideServer::new(app_handle);
+///
+/// If `renderer_ready` is `Some`, the server will use that shared flag so the
+/// hidden mcp-renderer webview can signal readiness via the
+/// `mcp_renderer_ready` Tauri command.  Pass `None` to let the server create
+/// its own internal flag (legacy / testing path).
+pub async fn start_server(
+    app_handle: tauri::AppHandle,
+    renderer_ready: Option<Arc<AtomicBool>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let server = match renderer_ready {
+        Some(flag) => IdeaSlideServer::new_with_renderer_ready(app_handle, flag),
+        None => IdeaSlideServer::new(app_handle),
+    };
     let transport = rmcp::transport::io::stdio();
     let service = server.serve(transport).await?;
     service.waiting().await?;
