@@ -108,14 +108,14 @@ AI Client (Claude Code 等)
 
 ### ServerHandler 实现
 
-使用 `rmcp` 的 `#[tool]` 宏定义 tools，而非自建 registry：
+使用 `rmcp` 的 `#[tool]` 宏定义 tools，所有 `#[tool]` 方法集中在单个 `#[tool(tool_box)] impl` 块中（rmcp 宏生成 trait impl，多个 `#[tool(tool_box)]` 块会导致编译冲突）：
 
 ```rust
 use rmcp::{ServerHandler, model::*, tool};
 
 #[derive(Clone)]
 pub struct IdeaSlideServer {
-    file_service: Arc<FileService>,
+    file_service: Arc<FileService>,  // FileService 不需要 Clone，通过 Arc 共享
     slide_service: Arc<SlideService>,
     app_handle: tauri::AppHandle,
 }
@@ -125,10 +125,18 @@ impl IdeaSlideServer {
     #[tool(description = "Create a new .is presentation file. Errors if file already exists.")]
     async fn create_presentation(&self, #[tool(param)] path: String) -> Result<CallToolResult, McpError> {
         let file_service = self.file_service.clone();
+        // 整个 read_and_modify（含锁获取）在 spawn_blocking 内执行，
+        // 避免 Mutex guard 跨越 async/sync 边界
         let result = tokio::task::spawn_blocking(move || {
             file_service.create(Path::new(&path))
-        }).await??;
-        Ok(CallToolResult::success(serde_json::to_string(&result)?))
+        }).await.map_err(|e| McpError::internal(e.to_string()))?
+          .map_err(|e| McpError::internal(e.to_string()))?;
+        let json = serde_json::to_string(&result)
+            .map_err(|e| McpError::internal(e.to_string()))?;
+        Ok(CallToolResult {
+            content: vec![Content::text(json)],
+            is_error: None,
+        })
     }
 
     #[tool(description = "Get the full Excalidraw JSON content of a slide")]
@@ -150,30 +158,35 @@ impl ServerHandler for IdeaSlideServer {
 }
 ```
 
+注：`#[tool(tool_box)]` 在 `impl ServerHandler` 上是 rmcp 要求的，用于将 tool 列表注入 handler，与 inherent impl 上的 `#[tool(tool_box)]` 不冲突。
+
 ### 扩展方式
 
 新增 Tool 的步骤：
-1. 在 `IdeaSlideServer` 上添加新的 `#[tool]` 方法
+1. 在 `IdeaSlideServer` 的 `#[tool(tool_box)] impl` 块中添加新的 `#[tool]` 方法
 2. 如果需要新的 Service，在 `IdeaSlideServer` 中添加字段
 3. 编译即完成注册
 
-模块化组织：将 `#[tool]` 方法按功能拆分到不同文件，通过 `impl` 块分散定义：
+模块化组织：虽然所有 `#[tool]` 方法必须在同一个 `impl` 块中，但可以通过模块化的 helper 函数保持代码整洁：
 
 ```rust
-// tools/file_tools.rs
-#[tool(tool_box)]
-impl IdeaSlideServer {
-    #[tool(description = "...")]
-    async fn create_presentation(&self, ...) { ... }
-    // ...
-}
+// tools/file_tools.rs — 业务逻辑
+pub async fn handle_create_presentation(file_service: &FileService, path: String) -> Result<CallToolResult, McpError> { ... }
 
-// tools/slide_tools.rs
+// tools/slide_tools.rs — 业务逻辑
+pub async fn handle_add_slide(file_service: &FileService, slide_service: &SlideService, ...) -> Result<CallToolResult, McpError> { ... }
+
+// mcp/mod.rs — 统一注册，每个 #[tool] 方法委托给对应 handler
 #[tool(tool_box)]
 impl IdeaSlideServer {
     #[tool(description = "...")]
-    async fn add_slide(&self, ...) { ... }
-    // ...
+    async fn create_presentation(&self, #[tool(param)] path: String) -> Result<CallToolResult, McpError> {
+        file_tools::handle_create_presentation(&self.file_service, path).await
+    }
+    #[tool(description = "...")]
+    async fn add_slide(&self, ...) -> Result<CallToolResult, McpError> {
+        slide_tools::handle_add_slide(&self.file_service, &self.slide_service, ...).await
+    }
 }
 ```
 
@@ -181,15 +194,19 @@ impl IdeaSlideServer {
 
 ### FileService
 
-封装 `file_format.rs`，提供高阶操作。所有方法为同步（在 `spawn_blocking` 中调用）：
+封装 `file_format.rs`，提供高阶操作。所有方法为同步，整体在 `spawn_blocking` 中调用（包括锁获取），避免 `Mutex` guard 跨越 async/sync 边界：
 
 ```rust
 pub struct FileService {
-    locks: Mutex<HashMap<PathBuf, Arc<Mutex<()>>>>,
+    /// per-file 锁表。外层 Mutex 仅保护 HashMap 查找（纳秒级），
+    /// 内层 Arc<Mutex<()>> 序列化同一文件的读-改-写操作。
+    locks: std::sync::Mutex<HashMap<PathBuf, Arc<std::sync::Mutex<()>>>>,
 }
 
 impl FileService {
-    /// 创建新 .is 文件。如果文件已存在则返回错误。
+    /// 创建新 .is 文件。
+    /// 注意：底层 file_format::create_is_file 不检查文件是否存在，
+    /// 此方法在调用前先检查 path.exists()，存在则返回 FileAlreadyExists。
     pub fn create(&self, path: &Path) -> Result<IsFileData, ToolError>;
     /// 读取 .is 文件
     pub fn read(&self, path: &Path) -> Result<IsFileData, ToolError>;
@@ -201,13 +218,14 @@ impl FileService {
 }
 ```
 
-`read_and_modify` 内部流程：
-1. 获取该路径的 `Arc<Mutex<()>>` 锁
-2. 锁定
-3. `read_is_file(path)`
-4. 调用闭包 `f(&mut data)`
-5. `write_is_file(path, &data)`（原子写入：.tmp + rename）
-6. 释放锁
+`read_and_modify` 内部流程（全部在 `spawn_blocking` 内同步执行）：
+1. 规范化路径 `path.canonicalize()`
+2. 获取外层锁 → 查找或插入该路径的 `Arc<Mutex<()>>` → 立即释放外层锁
+3. 锁定 per-file mutex
+4. `read_is_file(path)`
+5. 调用闭包 `f(&mut data)`
+6. `write_is_file(path, &data)`（原子写入：.tmp + rename）
+7. 释放 per-file mutex
 
 ### SlideService
 
@@ -274,6 +292,15 @@ pub enum ToolError {
 ```
 
 所有 `ToolError` 映射为 MCP 标准错误响应（`isError: true`），附带人类可读的错误描述，LLM 可据此自行修正。
+
+## 优雅关闭
+
+当 stdio transport 的 stdin 关闭（AI 客户端断开连接）时，`rmcp` 的 server loop 自动退出。退出时执行清理：
+1. 清理 `$TMPDIR/idea-slide-mcp/` 临时目录
+2. 关闭隐藏 webview 窗口
+3. 退出 Tauri 应用进程
+
+通过 `tokio::select!` 或 `rmcp` 的 shutdown signal 监听 stdin EOF，触发清理逻辑。
 
 ## MCP Server 启动
 
