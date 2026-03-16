@@ -1,5 +1,5 @@
 mod commands;
-mod file_format;
+pub(crate) mod file_format;
 mod mcp;
 mod recent_files;
 
@@ -13,6 +13,14 @@ struct PendingFile(Mutex<Option<String>>);
 /// Managed state for MCP mode: holds the renderer_ready flag when running
 /// with --mcp, None otherwise.
 struct McpRendererReady(Option<Arc<AtomicBool>>);
+
+/// Whether the MCP server is running in visible mode (--mcp --visible).
+struct McpVisible(bool);
+
+#[command]
+fn is_mcp_visible(state: tauri::State<'_, McpVisible>) -> bool {
+    state.0
+}
 
 /// Called by the hidden mcp-renderer webview once Excalidraw has initialised.
 #[command]
@@ -30,6 +38,7 @@ fn get_opened_file(state: tauri::State<'_, PendingFile>) -> Option<String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mcp_mode = std::env::args().any(|a| a == "--mcp");
+    let mcp_visible = mcp_mode && std::env::args().any(|a| a == "--visible");
 
     // Prepare the renderer_ready Arc up-front so we can share it between
     // the managed state and the MCP server.
@@ -46,6 +55,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(PendingFile(Mutex::new(None)))
         .manage(McpRendererReady(renderer_ready_for_state))
+        .manage(McpVisible(mcp_visible))
         .invoke_handler(tauri::generate_handler![
             commands::create_file,
             commands::open_file,
@@ -55,16 +65,27 @@ pub fn run() {
             recent_files::add_recent_file,
             get_opened_file,
             mcp_renderer_ready,
+            is_mcp_visible,
         ]);
 
     if mcp_mode {
-        // Create a hidden webview window for Excalidraw rendering.
         builder = builder.setup(move |app| {
+            // Create a hidden webview window for Excalidraw rendering.
             let _renderer_window =
                 tauri::WebviewWindowBuilder::new(app, "mcp-renderer", tauri::WebviewUrl::App("index.html".into()))
                     .title("MCP Renderer")
                     .visible(false)
                     .build()?;
+
+            // The default "main" window is created by tauri.conf.json.
+            // In headless MCP mode, hide it; in visible mode, keep it shown.
+            if let Some(main_window) = app.get_webview_window("main") {
+                if mcp_visible {
+                    main_window.set_title("IdeaSlide (MCP)").ok();
+                } else {
+                    main_window.hide().ok();
+                }
+            }
 
             // Spawn the MCP server on the async runtime.
             let app_handle = app.handle().clone();

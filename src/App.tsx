@@ -6,12 +6,14 @@ import { LaunchScreen } from "./components/LaunchScreen";
 import { EditorLayout } from "./components/EditorLayout";
 import { PresentationMode } from "./components/PresentationMode";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { openRecentFile, addRecentFile, getOpenedFile } from "./lib/tauriCommands";
+import { invoke } from "@tauri-apps/api/core";
+import { openRecentFile, addRecentFile, getOpenedFile, convertFromIsFileData } from "./lib/tauriCommands";
 import { initMcpRenderer } from "./lib/mcpRenderer";
 
 function AppContent() {
   const { state, dispatch } = useSlideStore();
   const [showEditor, setShowEditor] = useState(false);
+  const [mcpVisible, setMcpVisible] = useState(false);
 
   async function loadFileFromPath(filePath: string) {
     const slides = await openRecentFile(filePath);
@@ -37,6 +39,28 @@ function AppContent() {
       initMcpRenderer().catch(console.error);
     }
   }, []);
+
+  // MCP visible mode: check on startup and listen for state changes
+  useEffect(() => {
+    invoke<boolean>("is_mcp_visible").then((visible) => {
+      setMcpVisible(visible);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!mcpVisible) return;
+    const unlisten = listen<{ path: string; data: any }>("mcp-state-changed", (event) => {
+      const slides = convertFromIsFileData(event.payload.data);
+      dispatch({
+        type: "LOAD_PRESENTATION",
+        payload: { slides, filePath: event.payload.path },
+      });
+      setShowEditor(true);
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [mcpVisible, dispatch]);
 
   // Cold start: check if app was launched by opening a .is file
   useEffect(() => {
@@ -81,7 +105,7 @@ function AppContent() {
 
   return (
     <ErrorBoundary>
-      <EditorLayout onGoHome={() => setShowEditor(false)} />
+      <EditorLayout onGoHome={() => setShowEditor(false)} readOnly={mcpVisible} />
     </ErrorBoundary>
   );
 }

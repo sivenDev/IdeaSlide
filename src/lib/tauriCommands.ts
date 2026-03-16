@@ -384,7 +384,7 @@ function encodeMediaFromFile(file: any): { mimeType: string; bytesBase64: string
   throw new Error(`Image file payload is missing or invalid for file id ${String(file?.id ?? "")}`);
 }
 
-function convertFromIsFileData(data: IsFileData): Slide[] {
+export function convertFromIsFileData(data: IsFileData): Slide[] {
   const hasMediaArray = Array.isArray(data.media);
   const mediaById = new Map<string, MediaItem>();
 

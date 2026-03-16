@@ -12,9 +12,11 @@ use rmcp::schemars;
 use rmcp::schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use tauri::{Emitter, Manager};
+
 use crate::mcp::services::file_service::FileService;
 use crate::mcp::services::slide_service::SlideService;
-use crate::mcp::tools::{file_tools, preview_tools, slide_tools};
+use crate::mcp::tools::{file_tools, help_tools, preview_tools, slide_tools};
 
 // --- Parameter types for tools ---
 
@@ -60,6 +62,24 @@ pub struct ReorderSlidesParam {
     pub slide_ids: Vec<String>,
 }
 
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct PreviewSlideParam {
+    /// Absolute path to the .is presentation file.
+    pub path: String,
+    /// The unique ID of the slide.
+    pub slide_id: String,
+    /// Optional output path for the PNG file. If not provided, returns base64-encoded data.
+    pub output_path: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct PreviewPresentationParam {
+    /// Absolute path to the .is presentation file.
+    pub path: String,
+    /// Optional output directory for PNG files. If not provided, returns base64-encoded data.
+    pub output_dir: Option<String>,
+}
+
 // --- Server ---
 
 #[derive(Clone)]
@@ -86,6 +106,38 @@ impl IdeaSlideServer {
         }
     }
 
+    /// After a mutating tool call, emit state to the main window (if it exists)
+    /// so the UI can refresh. In headless mode there is no main window and this
+    /// is a no-op.
+    fn emit_state_changed(&self, path: &str) {
+        let main_window = self.app_handle.get_webview_window("main");
+        let main_window = match main_window {
+            Some(w) => w,
+            None => return,
+        };
+
+        let fs = Arc::clone(&self.file_service);
+        let path_owned = path.to_string();
+        let data = match fs.read(std::path::Path::new(&path_owned)) {
+            Ok(d) => d,
+            Err(e) => {
+                eprintln!("emit_state_changed: failed to read {path_owned}: {e}");
+                return;
+            }
+        };
+
+        #[derive(Clone, Serialize)]
+        struct StateChangedPayload {
+            path: String,
+            data: crate::file_format::IsFileData,
+        }
+
+        let _ = main_window.emit("mcp-state-changed", StateChangedPayload {
+            path: path_owned,
+            data,
+        });
+    }
+
     /// Create a server with a shared `renderer_ready` flag so the caller can
     /// set it from outside (e.g. from a Tauri command fired by the hidden
     /// mcp-renderer webview once Excalidraw is initialised).
@@ -108,6 +160,14 @@ impl IdeaSlideServer {
 #[tool_router(router = tool_router)]
 impl IdeaSlideServer {
     #[tool(
+        name = "read_me",
+        description = "Returns the Excalidraw element format reference. Call this ONCE before creating slide content. Provides color palette, element types, layout guidelines, and examples."
+    )]
+    async fn read_me(&self) -> Result<String, String> {
+        help_tools::handle_read_me()
+    }
+
+    #[tool(
         name = "create_presentation",
         description = "Create a new .is presentation file. Errors if file already exists at the given path."
     )]
@@ -117,11 +177,16 @@ impl IdeaSlideServer {
     ) -> Result<String, String> {
         let fs = Arc::clone(&self.file_service);
         let path = params.path;
-        tokio::task::spawn_blocking(move || {
+        let path_for_emit = path.clone();
+        let result = tokio::task::spawn_blocking(move || {
             file_tools::handle_create_presentation(&fs, &path)
         })
         .await
-        .map_err(|e| format!("Task join error: {}", e))?
+        .map_err(|e| format!("Task join error: {}", e))?;
+        if result.is_ok() {
+            self.emit_state_changed(&path_for_emit);
+        }
+        result
     }
 
     #[tool(
@@ -188,13 +253,18 @@ impl IdeaSlideServer {
         let fs = Arc::clone(&self.file_service);
         let ss = Arc::clone(&self.slide_service);
         let path = params.path;
+        let path_for_emit = path.clone();
         let index = params.index;
         let content = params.content;
-        tokio::task::spawn_blocking(move || {
+        let result = tokio::task::spawn_blocking(move || {
             slide_tools::handle_add_slide(&fs, &ss, &path, index, content)
         })
         .await
-        .map_err(|e| format!("Task join error: {}", e))?
+        .map_err(|e| format!("Task join error: {}", e))?;
+        if result.is_ok() {
+            self.emit_state_changed(&path_for_emit);
+        }
+        result
     }
 
     #[tool(
@@ -208,12 +278,17 @@ impl IdeaSlideServer {
         let fs = Arc::clone(&self.file_service);
         let ss = Arc::clone(&self.slide_service);
         let path = params.path;
+        let path_for_emit = path.clone();
         let slide_id = params.slide_id;
-        tokio::task::spawn_blocking(move || {
+        let result = tokio::task::spawn_blocking(move || {
             slide_tools::handle_delete_slide(&fs, &ss, &path, &slide_id)
         })
         .await
-        .map_err(|e| format!("Task join error: {}", e))?
+        .map_err(|e| format!("Task join error: {}", e))?;
+        if result.is_ok() {
+            self.emit_state_changed(&path_for_emit);
+        }
+        result
     }
 
     #[tool(
@@ -246,13 +321,18 @@ impl IdeaSlideServer {
         let fs = Arc::clone(&self.file_service);
         let ss = Arc::clone(&self.slide_service);
         let path = params.path;
+        let path_for_emit = path.clone();
         let slide_id = params.slide_id;
         let content = params.content;
-        tokio::task::spawn_blocking(move || {
+        let result = tokio::task::spawn_blocking(move || {
             slide_tools::handle_set_slide_content(&fs, &ss, &path, &slide_id, &content)
         })
         .await
-        .map_err(|e| format!("Task join error: {}", e))?
+        .map_err(|e| format!("Task join error: {}", e))?;
+        if result.is_ok() {
+            self.emit_state_changed(&path_for_emit);
+        }
+        result
     }
 
     #[tool(
@@ -266,21 +346,26 @@ impl IdeaSlideServer {
         let fs = Arc::clone(&self.file_service);
         let ss = Arc::clone(&self.slide_service);
         let path = params.path;
+        let path_for_emit = path.clone();
         let slide_ids = params.slide_ids;
-        tokio::task::spawn_blocking(move || {
+        let result = tokio::task::spawn_blocking(move || {
             slide_tools::handle_reorder_slides(&fs, &ss, &path, &slide_ids)
         })
         .await
-        .map_err(|e| format!("Task join error: {}", e))?
+        .map_err(|e| format!("Task join error: {}", e))?;
+        if result.is_ok() {
+            self.emit_state_changed(&path_for_emit);
+        }
+        result
     }
 
     #[tool(
         name = "preview_slide",
-        description = "Render a slide to a PNG image file. Returns the local file path to the rendered image."
+        description = "Render a slide to a PNG image. If output_path is provided, saves to that file and returns {\"path\": \"...\"}. Otherwise returns base64-encoded PNG data: {\"base64\": \"...\"}"
     )]
     async fn preview_slide(
         &self,
-        Parameters(params): Parameters<SlideIdParam>,
+        Parameters(params): Parameters<PreviewSlideParam>,
     ) -> Result<String, String> {
         preview_tools::handle_preview_slide(
             &self.renderer_ready,
@@ -289,17 +374,18 @@ impl IdeaSlideServer {
             &self.slide_service,
             &params.path,
             &params.slide_id,
+            params.output_path.as_deref(),
         )
         .await
     }
 
     #[tool(
         name = "preview_presentation",
-        description = "Render all slides to PNG thumbnails. Returns array of local file paths."
+        description = "Render all slides to PNG thumbnails. If output_dir is provided, saves files there and returns paths. Otherwise returns base64-encoded data: {\"previews\": [{\"slide_id\": \"...\", \"base64\": \"...\"}]}"
     )]
     async fn preview_presentation(
         &self,
-        Parameters(params): Parameters<PathParam>,
+        Parameters(params): Parameters<PreviewPresentationParam>,
     ) -> Result<String, String> {
         preview_tools::handle_preview_presentation(
             &self.renderer_ready,
@@ -307,6 +393,7 @@ impl IdeaSlideServer {
             &self.file_service,
             &self.slide_service,
             &params.path,
+            params.output_dir.as_deref(),
         )
         .await
     }

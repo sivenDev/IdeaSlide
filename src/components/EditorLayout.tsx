@@ -12,9 +12,10 @@ import { save, message, ask } from "@tauri-apps/plugin-dialog";
 
 interface EditorLayoutProps {
   onGoHome: () => void;
+  readOnly?: boolean;
 }
 
-export function EditorLayout({ onGoHome }: EditorLayoutProps) {
+export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) {
   const { state, dispatch } = useSlideStore();
   const [isSaving, setIsSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
@@ -23,7 +24,7 @@ export function EditorLayout({ onGoHome }: EditorLayoutProps) {
   useAutoSave({
     filePath: state.filePath,
     slides: state.slides,
-    isDirty: state.isDirty,
+    isDirty: readOnly ? false : state.isDirty,
     onSaveStart: () => setIsSaving(true),
     onSaveComplete: () => {
       setIsSaving(false);

@@ -27,10 +27,11 @@ struct RenderResponse {
 const RENDER_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Render a single slide by emitting to the frontend renderer and waiting for a response.
+/// If output_path is provided, saves to that file. Otherwise returns base64-encoded data.
 async fn render_slide(
     app_handle: &tauri::AppHandle,
     slide_content: &serde_json::Value,
-    slide_id: &str,
+    output_path: Option<&str>,
 ) -> Result<String, ToolError> {
     let request_id = uuid::Uuid::new_v4().to_string();
     let content_str = serde_json::to_string(slide_content)
@@ -73,23 +74,26 @@ async fn render_slide(
                 return Err(ToolError::IoError(format!("Render error: {}", err)));
             }
 
-            // Write PNG to temp file
-            let tmp_dir = std::env::temp_dir().join("idea-slide-mcp");
-            std::fs::create_dir_all(&tmp_dir)
-                .map_err(|e| ToolError::IoError(format!("Failed to create temp dir: {}", e)))?;
-
-            let png_path = tmp_dir.join(format!("preview-{}.png", slide_id));
-            std::fs::write(&png_path, &response.png_bytes)
-                .map_err(|e| ToolError::IoError(format!("Failed to write PNG: {}", e)))?;
-
-            Ok(png_path.to_string_lossy().to_string())
+            // If output_path is provided, write to file
+            if let Some(path) = output_path {
+                std::fs::write(path, &response.png_bytes)
+                    .map_err(|e| ToolError::IoError(format!("Failed to write PNG: {}", e)))?;
+                Ok(path.to_string())
+            } else {
+                // Return base64-encoded PNG data
+                use base64::Engine;
+                let base64_data = base64::engine::general_purpose::STANDARD.encode(&response.png_bytes);
+                Ok(base64_data)
+            }
         }
         Ok(Err(_)) => Err(ToolError::RenderTimeout),
         Err(_) => Err(ToolError::RenderTimeout),
     }
 }
 
-/// Preview a single slide — renders to PNG and returns the file path.
+/// Preview a single slide — renders to PNG.
+/// If output_path is provided, saves to file and returns {"path": "..."}.
+/// Otherwise returns base64-encoded data: {"base64": "..."}.
 pub async fn handle_preview_slide(
     renderer_ready: &Arc<AtomicBool>,
     app_handle: &tauri::AppHandle,
@@ -97,6 +101,7 @@ pub async fn handle_preview_slide(
     slide_service: &Arc<SlideService>,
     path: &str,
     slide_id: &str,
+    output_path: Option<&str>,
 ) -> Result<String, String> {
     if !renderer_ready.load(Ordering::Relaxed) {
         return Err(ToolError::RenderNotReady.to_string());
@@ -108,20 +113,27 @@ pub async fn handle_preview_slide(
         .get_content(&data, slide_id)
         .map_err(|e| e.to_string())?;
 
-    let png_path = render_slide(app_handle, &content, slide_id)
+    let result = render_slide(app_handle, &content, output_path)
         .await
         .map_err(|e| e.to_string())?;
 
-    Ok(serde_json::json!({ "path": png_path }).to_string())
+    if output_path.is_some() {
+        Ok(serde_json::json!({ "path": result }).to_string())
+    } else {
+        Ok(serde_json::json!({ "base64": result }).to_string())
+    }
 }
 
-/// Preview all slides — renders each to PNG and returns array of file paths.
+/// Preview all slides — renders each to PNG.
+/// If output_dir is provided, saves files there and returns paths.
+/// Otherwise returns base64-encoded data: {"previews": [{"slide_id": "...", "base64": "..."}]}.
 pub async fn handle_preview_presentation(
     renderer_ready: &Arc<AtomicBool>,
     app_handle: &tauri::AppHandle,
     file_service: &Arc<FileService>,
     slide_service: &Arc<SlideService>,
     path: &str,
+    output_dir: Option<&str>,
 ) -> Result<String, String> {
     if !renderer_ready.load(Ordering::Relaxed) {
         return Err(ToolError::RenderNotReady.to_string());
@@ -130,19 +142,38 @@ pub async fn handle_preview_presentation(
     let file_path = Path::new(path);
     let data = file_service.read(file_path).map_err(|e| e.to_string())?;
 
-    let mut paths = Vec::new();
+    // If output_dir is provided, create it
+    if let Some(dir) = output_dir {
+        std::fs::create_dir_all(dir)
+            .map_err(|e| format!("Failed to create output directory: {}", e))?;
+    }
+
+    let mut previews = Vec::new();
     for slide in &data.slides {
         let content = slide_service
             .get_content(&data, &slide.id)
             .map_err(|e| e.to_string())?;
-        let png_path = render_slide(app_handle, &content, &slide.id)
+
+        let output_path = output_dir.map(|dir| {
+            Path::new(dir).join(format!("slide-{}.png", slide.id)).to_string_lossy().to_string()
+        });
+
+        let result = render_slide(app_handle, &content, output_path.as_deref())
             .await
             .map_err(|e| e.to_string())?;
-        paths.push(serde_json::json!({
-            "slide_id": slide.id,
-            "path": png_path,
-        }));
+
+        if output_dir.is_some() {
+            previews.push(serde_json::json!({
+                "slide_id": slide.id,
+                "path": result,
+            }));
+        } else {
+            previews.push(serde_json::json!({
+                "slide_id": slide.id,
+                "base64": result,
+            }));
+        }
     }
 
-    Ok(serde_json::json!({ "previews": paths }).to_string())
+    Ok(serde_json::json!({ "previews": previews }).to_string())
 }
