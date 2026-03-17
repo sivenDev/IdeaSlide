@@ -9,7 +9,7 @@ function formatRelativeTime(isoString: string): string {
     const opened = new Date(isoString);
 
     if (isNaN(opened.getTime())) {
-      return "未知时间";
+      return "unknown";
     }
 
     const diffMs = now.getTime() - opened.getTime();
@@ -17,19 +17,19 @@ function formatRelativeTime(isoString: string): string {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return "刚刚";
-    if (diffMins < 60) return `${diffMins} 分钟前`;
-    if (diffHours < 24) return `${diffHours} 小时前`;
+    if (diffMins < 1) return "just now";
+    if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? '' : 's'} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
 
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
-    if (opened.toDateString() === yesterday.toDateString()) return "昨天";
+    if (opened.toDateString() === yesterday.toDateString()) return "yesterday";
 
-    if (diffDays < 7) return `${diffDays} 天前`;
+    if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
 
-    return opened.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' });
+    return opened.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
   } catch {
-    return "未知时间";
+    return "unknown";
   }
 }
 
