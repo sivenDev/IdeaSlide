@@ -51,11 +51,29 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Enable ad-hoc signing fallback for unsigned macOS builds
+        if: runner.os == 'macOS' && secrets.APPLE_CERTIFICATE == ''
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("src-tauri/tauri.conf.json")
+          data = json.loads(path.read_text())
+          data.setdefault("bundle", {}).setdefault("macOS", {})["signingIdentity"] = "-"
+          path.write_text(json.dumps(data, indent=2) + "\n")
+          PY
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macos_deployment_target }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: IdeaSlide ${{ github.ref_name }}
