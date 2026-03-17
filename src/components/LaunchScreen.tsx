@@ -210,8 +210,8 @@ export function LaunchScreen({ onFileOpened }: LaunchScreenProps) {
           </div>
         ) : (
           <div className="text-center py-8">
-            <div className="text-sm text-gray-400">暂无最近文件</div>
-            <div className="text-xs text-gray-300 mt-1">打开或创建文件后会显示在这里</div>
+            <div className="text-sm text-gray-400">No recent files</div>
+            <div className="text-xs text-gray-300 mt-1">Open or create a file to get started</div>
           </div>
         )}
       </div>
