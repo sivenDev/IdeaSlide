@@ -94,16 +94,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Enable ad-hoc signing fallback for unsigned macOS builds
+      - name: Check Apple signing configuration
         if: runner.os == 'macOS'
+        id: signing
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
         run: |
           if [ -n "$APPLE_CERTIFICATE" ]; then
-            echo "Apple certificate configured; skipping ad-hoc signing fallback."
-            exit 0
+            echo "has_certs=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_certs=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Enable ad-hoc signing for unsigned macOS builds
+        if: runner.os == 'macOS' && steps.signing.outputs.has_certs == 'false'
+        run: |
           python3 - <<'PY'
           import json
           from pathlib import Path
@@ -114,7 +119,8 @@ jobs:
           path.write_text(json.dumps(data, indent=2) + "\n")
           PY
 
-      - name: Build Tauri app
+      - name: Build Tauri app (signed)
+        if: runner.os != 'macOS' || steps.signing.outputs.has_certs == 'true'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -124,6 +130,20 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: IdeaSlide ${{ github.ref_name }}
+          releaseDraft: true
+          prerelease: false
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+          args: --target ${{ matrix.target }}
+
+      - name: Build Tauri app (unsigned)
+        if: runner.os == 'macOS' && steps.signing.outputs.has_certs == 'false'
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macos_deployment_target }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: IdeaSlide ${{ github.ref_name }}
