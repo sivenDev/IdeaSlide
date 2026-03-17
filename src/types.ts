@@ -19,6 +19,7 @@ export interface RecentFile {
   path: string;
   name: string;
   modified: string;
+  opened_at: string;
 }
 
 export interface FileManifest {
