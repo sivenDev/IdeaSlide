@@ -23,21 +23,23 @@ fn user_config_path() -> Result<PathBuf, String> {
     Ok(app_dir.join("user.json"))
 }
 
-fn load_recent_files() -> Result<Vec<RecentFile>, String> {
+fn load_user_config() -> Result<UserConfig, String> {
     let path = user_config_path()?;
     if !path.exists() {
-        return Ok(vec![]);
+        return Ok(UserConfig {
+            recent_files: vec![],
+        });
     }
     let content =
-        fs::read_to_string(&path).map_err(|e| format!("Failed to read recent files: {e}"))?;
-    serde_json::from_str(&content).map_err(|e| format!("Failed to parse recent files: {e}"))
+        fs::read_to_string(&path).map_err(|e| format!("Failed to read user config: {e}"))?;
+    serde_json::from_str(&content).map_err(|e| format!("Failed to parse user config: {e}"))
 }
 
-fn save_recent_files(files: &[RecentFile]) -> Result<(), String> {
+fn save_user_config(config: &UserConfig) -> Result<(), String> {
     let path = user_config_path()?;
-    let json = serde_json::to_string_pretty(files)
-        .map_err(|e| format!("Failed to serialize recent files: {e}"))?;
-    fs::write(&path, json).map_err(|e| format!("Failed to write recent files: {e}"))
+    let json = serde_json::to_string_pretty(config)
+        .map_err(|e| format!("Failed to serialize user config: {e}"))?;
+    fs::write(&path, json).map_err(|e| format!("Failed to write user config: {e}"))
 }
 
 #[command]
