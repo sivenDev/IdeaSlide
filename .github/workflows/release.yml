@@ -75,6 +75,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Sync version from git tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          python3 - "$VERSION" <<'PY'
+          import json, sys
+          from pathlib import Path
+
+          version = sys.argv[1]
+
+          tauri_conf = Path("src-tauri/tauri.conf.json")
+          data = json.loads(tauri_conf.read_text())
+          data["version"] = version
+          tauri_conf.write_text(json.dumps(data, indent=2) + "\n")
+
+          cargo_toml = Path("src-tauri/Cargo.toml")
+          lines = cargo_toml.read_text().splitlines(True)
+          for i, line in enumerate(lines):
+              if line.startswith("version = "):
+                  lines[i] = f'version = "{version}"\n'
+                  break
+          cargo_toml.write_text("".join(lines))
+
+          pkg = Path("package.json")
+          pkg_data = json.loads(pkg.read_text())
+          pkg_data["version"] = version
+          pkg.write_text(json.dumps(pkg_data, indent=2) + "\n")
+
+          print(f"Synced version to {version}")
+          PY
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
