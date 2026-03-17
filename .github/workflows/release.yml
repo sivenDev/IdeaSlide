@@ -9,7 +9,50 @@ permissions:
   contents: write
 
 jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create.outputs.result }}
+    steps:
+      - uses: actions/github-script@v7
+        id: create
+        with:
+          script: |
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: context.ref.replace('refs/tags/', ''),
+              name: `IdeaSlide ${context.ref.replace('refs/tags/', '')}`,
+              body: [
+                '## Installation',
+                '',
+                '| Platform | File |',
+                '|----------|------|',
+                '| macOS (Apple Silicon) | `.dmg` (aarch64) |',
+                '| macOS (Intel) | `.dmg` (x64) |',
+                '| Windows | `.msi` |',
+                '',
+                '### macOS',
+                '',
+                'This app is not notarized with Apple. On first launch macOS will block it. To open:',
+                '',
+                '1. **Right-click** the app → **Open** → click **Open** in the dialog',
+                '2. Or go to **System Settings → Privacy & Security** → scroll down and click **Open Anyway**',
+                '3. Or run in Terminal: `xattr -cr /Applications/IdeaSlide.app`',
+                '',
+                'This is only needed once. After that the app opens normally.',
+                '',
+                '### Windows',
+                '',
+                'Windows SmartScreen may show a warning. Click **More info** → **Run anyway**.',
+              ].join('\n'),
+              draft: true,
+              prerelease: false,
+            });
+            return data.id;
+
   build:
+    needs: create-release
     strategy:
       fail-fast: false
       matrix:
@@ -84,7 +127,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: IdeaSlide ${{ github.ref_name }}
-          releaseBody: See the assets below to download the installer for your platform.
           releaseDraft: true
           prerelease: false
+          releaseId: ${{ needs.create-release.outputs.release_id }}
           args: --target ${{ matrix.target }}
