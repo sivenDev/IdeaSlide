@@ -63,6 +63,7 @@ pub fn run() {
             commands::write_file_bytes,
             recent_files::get_recent_files,
             recent_files::add_recent_file,
+            recent_files::remove_recent_file,
             get_opened_file,
             mcp_renderer_ready,
             is_mcp_visible,
