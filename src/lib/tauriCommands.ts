@@ -485,6 +485,10 @@ export async function addRecentFile(path: string): Promise<void> {
   await invoke("add_recent_file", { path });
 }
 
+export async function removeRecentFile(path: string): Promise<void> {
+  await invoke("remove_recent_file", { path });
+}
+
 export async function getOpenedFile(): Promise<string | null> {
   return await invoke<string | null>("get_opened_file");
 }
