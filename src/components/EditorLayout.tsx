@@ -219,6 +219,15 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
         }}
       />
 
+      {state.activeSessions.size > 0 && (
+        <div className="bg-blue-50 border-b border-blue-200 px-4 py-2 text-sm flex items-center gap-2">
+          <span className="inline-block w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+          <span className="text-blue-700">
+            Streaming: {Array.from(state.activeSessions.values()).map(s => `${s.elements.length} elements`).join(', ')}
+          </span>
+        </div>
+      )}
+
       <div className="flex-1 flex overflow-hidden">
         <div className={`transition-all duration-300 overflow-hidden flex-shrink-0 ${showPreview ? "w-64" : "w-0"}`}>
           <SlidePreviewPanel

@@ -57,8 +57,35 @@ function AppContent() {
       });
       setShowEditor(true);
     });
+
+    const unlistenSession = listen<{
+      type: string;
+      session_id: string;
+      path?: string;
+      elements?: any[];
+      total_elements?: number;
+    }>("mcp-session-event", (event) => {
+      const { type, session_id, path, elements } = event.payload;
+      switch (type) {
+        case "elements_appended":
+          if (path && !showEditor) {
+            dispatch({ type: "SESSION_STARTED", sessionId: session_id, path });
+            setShowEditor(true);
+          }
+          if (elements) {
+            dispatch({ type: "SESSION_ELEMENTS_UPDATED", sessionId: session_id, elements });
+          }
+          break;
+        case "session_committed":
+        case "session_aborted":
+          dispatch({ type: "SESSION_ENDED", sessionId: session_id });
+          break;
+      }
+    });
+
     return () => {
       unlisten.then((fn) => fn());
+      unlistenSession.then((fn) => fn());
     };
   }, [mcpVisible, dispatch]);
 

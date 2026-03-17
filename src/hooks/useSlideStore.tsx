@@ -3,6 +3,13 @@ import type { Presentation, Slide } from "../types";
 
 interface SlideStoreState extends Presentation {
   presentationMode: 'none' | 'preview' | 'fullscreen';
+  activeSessions: Map<string, SessionState>;
+}
+
+interface SessionState {
+  sessionId: string;
+  path: string;
+  elements: any[];
 }
 
 type SlideStoreAction =
@@ -23,13 +30,17 @@ type SlideStoreAction =
   | { type: "MARK_SAVED" }
   | { type: "MARK_DIRTY" }
   | { type: "START_PRESENTATION"; payload: { mode: 'preview' | 'fullscreen' } }
-  | { type: "EXIT_PRESENTATION" };
+  | { type: "EXIT_PRESENTATION" }
+  | { type: "SESSION_STARTED"; sessionId: string; path: string }
+  | { type: "SESSION_ELEMENTS_UPDATED"; sessionId: string; elements: any[] }
+  | { type: "SESSION_ENDED"; sessionId: string };
 
 const initialState: SlideStoreState = {
   slides: [{ id: crypto.randomUUID(), elements: [], appState: {}, files: {} }],
   currentSlideIndex: 0,
   isDirty: false,
   presentationMode: 'none',
+  activeSessions: new Map(),
 };
 
 function slideStoreReducer(
@@ -125,6 +136,33 @@ function slideStoreReducer(
         ...state,
         presentationMode: 'none',
       };
+
+    case "SESSION_STARTED": {
+      const newSessions = new Map(state.activeSessions);
+      newSessions.set(action.sessionId, {
+        sessionId: action.sessionId,
+        path: action.path,
+        elements: [],
+      });
+      return { ...state, activeSessions: newSessions };
+    }
+
+    case "SESSION_ELEMENTS_UPDATED": {
+      const session = state.activeSessions.get(action.sessionId);
+      if (!session) return state;
+      const newSessions = new Map(state.activeSessions);
+      newSessions.set(action.sessionId, {
+        ...session,
+        elements: action.elements,
+      });
+      return { ...state, activeSessions: newSessions };
+    }
+
+    case "SESSION_ENDED": {
+      const newSessions = new Map(state.activeSessions);
+      newSessions.delete(action.sessionId);
+      return { ...state, activeSessions: newSessions };
+    }
 
     default:
       return state;

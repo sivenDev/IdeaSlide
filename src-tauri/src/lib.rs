@@ -70,13 +70,6 @@ pub fn run() {
 
     if mcp_mode {
         builder = builder.setup(move |app| {
-            // Create a hidden webview window for Excalidraw rendering.
-            let _renderer_window =
-                tauri::WebviewWindowBuilder::new(app, "mcp-renderer", tauri::WebviewUrl::App("index.html".into()))
-                    .title("MCP Renderer")
-                    .visible(false)
-                    .build()?;
-
             // The default "main" window is created by tauri.conf.json.
             // In headless MCP mode, hide it; in visible mode, keep it shown.
             if let Some(main_window) = app.get_webview_window("main") {
@@ -87,11 +80,31 @@ pub fn run() {
                 }
             }
 
-            // Spawn the MCP server on the async runtime.
-            let app_handle = app.handle().clone();
+            // Create the mcp-renderer webview after the main window is set up.
+            // Delay creation slightly to avoid interfering with main window rendering.
+            let app_handle_renderer = app.handle().clone();
+            let app_handle_mcp = app.handle().clone();
             let flag = renderer_ready.clone();
+
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = mcp::start_server(app_handle, flag).await {
+                // Give the main window time to initialize its webview.
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+                // Create hidden renderer webview for Excalidraw PNG export.
+                if let Err(e) = tauri::WebviewWindowBuilder::new(
+                    &app_handle_renderer,
+                    "mcp-renderer",
+                    tauri::WebviewUrl::App("index.html".into()),
+                )
+                .title("MCP Renderer")
+                .visible(false)
+                .build()
+                {
+                    eprintln!("Failed to create mcp-renderer window: {e}");
+                }
+
+                // Start the MCP server on stdio.
+                if let Err(e) = mcp::start_server(app_handle_mcp, flag).await {
                     eprintln!("MCP server error: {e}");
                 }
             });

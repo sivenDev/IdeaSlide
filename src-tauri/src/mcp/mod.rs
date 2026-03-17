@@ -15,8 +15,9 @@ use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
 
 use crate::mcp::services::file_service::FileService;
+use crate::mcp::services::session_manager::SessionManager;
 use crate::mcp::services::slide_service::SlideService;
-use crate::mcp::tools::{file_tools, help_tools, preview_tools, slide_tools};
+use crate::mcp::tools::{file_tools, help_tools, preview_tools, session_tools, slide_tools};
 
 // --- Parameter types for tools ---
 
@@ -80,12 +81,35 @@ pub struct PreviewPresentationParam {
     pub output_dir: Option<String>,
 }
 
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct BeginSlideStreamParam {
+    /// Absolute path to the .is presentation file.
+    pub path: String,
+    /// Optional zero-based index at which to insert the new slide.
+    pub index: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct AppendElementsParam {
+    /// The session ID returned by begin_slide_stream.
+    pub session_id: String,
+    /// Array of Excalidraw elements to append (JSON objects).
+    pub elements: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct SessionIdParam {
+    /// The session ID returned by begin_slide_stream.
+    pub session_id: String,
+}
+
 // --- Server ---
 
 #[derive(Clone)]
 pub struct IdeaSlideServer {
     file_service: Arc<FileService>,
     slide_service: Arc<SlideService>,
+    session_manager: Arc<SessionManager>,
     renderer_ready: Arc<AtomicBool>,
     #[allow(dead_code)]
     app_handle: tauri::AppHandle,
@@ -96,10 +120,12 @@ impl IdeaSlideServer {
     pub fn new(app_handle: tauri::AppHandle) -> Self {
         let file_service = Arc::new(FileService::new());
         let slide_service = Arc::new(SlideService);
+        let session_manager = Arc::new(SessionManager::new());
         let renderer_ready = Arc::new(AtomicBool::new(false));
         Self {
             file_service,
             slide_service,
+            session_manager,
             renderer_ready,
             app_handle,
             tool_router: Self::tool_router(),
@@ -147,9 +173,11 @@ impl IdeaSlideServer {
     ) -> Self {
         let file_service = Arc::new(FileService::new());
         let slide_service = Arc::new(SlideService);
+        let session_manager = Arc::new(SessionManager::new());
         Self {
             file_service,
             slide_service,
+            session_manager,
             renderer_ready,
             app_handle,
             tool_router: Self::tool_router(),
@@ -397,10 +425,133 @@ impl IdeaSlideServer {
         )
         .await
     }
+
+    #[tool(
+        name = "begin_slide_stream",
+        description = "Start a streaming session to build a slide incrementally. Returns a session_id for subsequent append_elements calls."
+    )]
+    async fn begin_slide_stream(
+        &self,
+        Parameters(params): Parameters<BeginSlideStreamParam>,
+    ) -> Result<String, String> {
+        let sm = Arc::clone(&self.session_manager);
+        let path = params.path;
+        let index = params.index;
+        tokio::task::spawn_blocking(move || {
+            session_tools::handle_begin_slide_stream(&sm, &path, index)
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    #[tool(
+        name = "append_elements",
+        description = "Append Excalidraw elements to an active streaming session. Can be called multiple times to build the slide progressively."
+    )]
+    async fn append_elements(
+        &self,
+        Parameters(params): Parameters<AppendElementsParam>,
+    ) -> Result<String, String> {
+        let sm = Arc::clone(&self.session_manager);
+        let session_id = params.session_id.clone();
+        let elements = params.elements;
+
+        let result = tokio::task::spawn_blocking(move || {
+            session_tools::handle_append_elements(&sm, &session_id, elements)
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))??;
+
+        // Emit event to frontend for live preview
+        if let Ok(session) = self.session_manager.get_session(&params.session_id) {
+            let _ = self.app_handle.emit("mcp-session-event", serde_json::json!({
+                "type": "elements_appended",
+                "session_id": params.session_id,
+                "path": session.path,
+                "elements": session.elements,
+                "total_elements": session.elements.len(),
+            }));
+        }
+
+        Ok(result)
+    }
+
+    #[tool(
+        name = "commit_slide",
+        description = "Commit the streaming session and write the slide to the .is file. Returns the new slide_id."
+    )]
+    async fn commit_slide(
+        &self,
+        Parameters(params): Parameters<SessionIdParam>,
+    ) -> Result<String, String> {
+        let sm = Arc::clone(&self.session_manager);
+        let fs = Arc::clone(&self.file_service);
+        let ss = Arc::clone(&self.slide_service);
+        let session_id = params.session_id.clone();
+
+        let path = self.session_manager.get_session(&session_id)
+            .map(|s| s.path.clone())
+            .unwrap_or_default();
+
+        let result = tokio::task::spawn_blocking(move || {
+            session_tools::handle_commit_slide(&sm, &fs, &ss, &session_id)
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))??;
+
+        if !path.is_empty() {
+            self.emit_state_changed(&path);
+        }
+
+        let _ = self.app_handle.emit("mcp-session-event", serde_json::json!({
+            "type": "session_committed",
+            "session_id": params.session_id,
+        }));
+
+        Ok(result)
+    }
+
+    #[tool(
+        name = "abort_slide_stream",
+        description = "Abort an active streaming session without saving. Discards all appended elements."
+    )]
+    async fn abort_slide_stream(
+        &self,
+        Parameters(params): Parameters<SessionIdParam>,
+    ) -> Result<String, String> {
+        let sm = Arc::clone(&self.session_manager);
+        let session_id = params.session_id.clone();
+
+        tokio::task::spawn_blocking(move || {
+            session_tools::handle_abort_slide_stream(&sm, &session_id)
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))??;
+
+        let _ = self.app_handle.emit("mcp-session-event", serde_json::json!({
+            "type": "session_aborted",
+            "session_id": params.session_id,
+        }));
+
+        Ok(serde_json::json!({ "aborted": true }).to_string())
+    }
 }
 
 #[tool_handler(router = self.tool_router)]
-impl ServerHandler for IdeaSlideServer {}
+impl ServerHandler for IdeaSlideServer {
+    fn get_info(&self) -> rmcp::model::ServerInfo {
+        rmcp::model::ServerInfo::new(
+            rmcp::model::ServerCapabilities::builder()
+                .enable_tools()
+                .build(),
+        )
+        .with_server_info(rmcp::model::Implementation::new(
+            "idea-slide",
+            env!("CARGO_PKG_VERSION"),
+        ))
+        .with_instructions("IdeaSlide MCP server for creating and modifying slide presentations. Call read_me first to get the Excalidraw format reference.")
+    }
+}
 
 /// Start the MCP server on stdio transport.
 ///
