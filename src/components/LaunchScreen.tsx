@@ -170,24 +170,42 @@ export function LaunchScreen({ onFileOpened }: LaunchScreenProps) {
         ) : recentFiles.length > 0 ? (
           <div className="flex-1 overflow-y-auto -mx-3">
             {recentFiles.map((file, i) => (
-              <button
+              <div
                 key={file.path}
-                onClick={() => handleOpenRecent(file.path)}
-                className={`w-full text-left px-3 py-3 rounded-lg hover:bg-gray-50 transition-colors ${i > 0 ? "border-t border-gray-100" : ""}`}
+                className={`group relative px-3 py-3 rounded-lg hover:bg-gray-50 transition-colors ${i > 0 ? "border-t border-gray-100" : ""}`}
+                data-no-drag
               >
-                <div className="font-medium text-gray-900 text-sm">{file.name}</div>
-                <div className="flex items-center justify-between mt-1">
-                  <div className="text-xs text-gray-400 truncate mr-4">{file.path}</div>
-                  <div className="text-xs text-gray-400 flex-shrink-0">
-                    {file.modified
-                      ? new Date(file.modified).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                        })
-                      : ""}
-                  </div>
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    onClick={() => handleOpenRecent(file.path)}
+                    className="flex-1 text-left min-w-0"
+                  >
+                    <div className="font-medium text-gray-900 text-sm truncate">{file.name}</div>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveRecent(file.path);
+                    }}
+                    className="hidden group-hover:flex items-center justify-center w-[18px] h-[18px] rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors flex-shrink-0"
+                    aria-label="Remove from recent files"
+                    data-no-drag
+                  >
+                    <span className="text-[13px] font-semibold leading-none">×</span>
+                  </button>
                 </div>
-              </button>
+                <button
+                  onClick={() => handleOpenRecent(file.path)}
+                  className="w-full text-left"
+                >
+                  <div className="flex items-center justify-between mt-1">
+                    <div className="text-xs text-gray-400 truncate mr-4">{file.path}</div>
+                    <div className="text-xs text-gray-600 font-medium flex-shrink-0">
+                      {formatRelativeTime(file.opened_at)}
+                    </div>
+                  </div>
+                </button>
+              </div>
             ))}
           </div>
         ) : (
