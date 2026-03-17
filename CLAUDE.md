@@ -79,3 +79,7 @@ Registered in `src-tauri/src/lib.rs`:
 - **Excalidraw 0.18**
 - **Vite 7**
 - **TypeScript** — strict mode, no unused locals/params
+
+## Localization
+
+The application UI is in English. All user-facing text should be in English.
