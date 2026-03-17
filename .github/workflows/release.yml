@@ -52,8 +52,15 @@ jobs:
         run: npm ci
 
       - name: Enable ad-hoc signing fallback for unsigned macOS builds
-        if: runner.os == 'macOS' && secrets.APPLE_CERTIFICATE == ''
+        if: runner.os == 'macOS'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
         run: |
+          if [ -n "$APPLE_CERTIFICATE" ]; then
+            echo "Apple certificate configured; skipping ad-hoc signing fallback."
+            exit 0
+          fi
+
           python3 - <<'PY'
           import json
           from pathlib import Path
