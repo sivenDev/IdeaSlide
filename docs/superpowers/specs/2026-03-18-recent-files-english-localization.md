@@ -20,11 +20,18 @@ The `formatRelativeTime` function (lines 6-34 in `LaunchScreen.tsx`) contains Ch
 | Chinese | English |
 |---------|---------|
 | `"刚刚"` | `"just now"` |
-| `"分钟前"` | `"min ago"` / `"mins ago"` (singular/plural) |
+| `"分钟前"` | `"minute ago"` / `"minutes ago"` (singular/plural) |
 | `"小时前"` | `"hour ago"` / `"hours ago"` (singular/plural) |
 | `"天前"` | `"day ago"` / `"days ago"` (singular/plural) |
 | `"昨天"` | `"yesterday"` |
 | `"未知时间"` | `"unknown"` |
+
+**Pluralization logic:**
+```typescript
+if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? '' : 's'} ago`;
+if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+```
 
 ### 2. Empty State Messages
 
@@ -37,7 +44,9 @@ Lines 213-214 contain the empty state text:
 
 ### 3. Locale Setting
 
-Line 30: Update `toLocaleDateString('zh-CN', ...)` to `toLocaleDateString('en-US', ...)`
+Line 30: Update `toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })` to `toLocaleDateString('en-US', { month: 'long', day: 'numeric' })`
+
+This will produce English date formats like "January 15" instead of "1月15日".
 
 ## Implementation Notes
 
@@ -48,7 +57,7 @@ Line 30: Update `toLocaleDateString('zh-CN', ...)` to `toLocaleDateString('en-US
 
 ## Documentation Update
 
-Update `CLAUDE.md` to document that the application UI language is English:
+Add a new "Localization" section to `CLAUDE.md` after the "Tech Stack" section:
 
 ```markdown
 ## Localization
