@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { getRecentFiles, createNewPresentation, openFile, openRecentFile, addRecentFile } from "../lib/tauriCommands";
+import { getRecentFiles, createNewPresentation, openFile, openRecentFile, addRecentFile, removeRecentFile } from "../lib/tauriCommands";
 import type { RecentFile } from "../types";
 
 function formatRelativeTime(isoString: string): string {
@@ -82,6 +82,15 @@ export function LaunchScreen({ onFileOpened }: LaunchScreenProps) {
       onFileOpened(filePath, slides);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to open file");
+    }
+  }
+
+  async function handleRemoveRecent(path: string) {
+    try {
+      await removeRecentFile(path);
+      setRecentFiles(files => files.filter(f => f.path !== path));
+    } catch (err) {
+      console.error("Failed to remove recent file:", err);
     }
   }
 
