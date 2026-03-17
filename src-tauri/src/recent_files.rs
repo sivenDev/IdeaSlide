@@ -8,17 +8,23 @@ pub struct RecentFile {
     pub path: String,
     pub name: String,
     pub modified: String,
+    pub opened_at: String,
 }
 
-fn recent_files_path() -> Result<PathBuf, String> {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserConfig {
+    pub recent_files: Vec<RecentFile>,
+}
+
+fn user_config_path() -> Result<PathBuf, String> {
     let config_dir = dirs::config_dir().ok_or("Could not find config directory")?;
     let app_dir = config_dir.join("ideaslide");
     fs::create_dir_all(&app_dir).map_err(|e| format!("Failed to create config dir: {e}"))?;
-    Ok(app_dir.join("recent_files.json"))
+    Ok(app_dir.join("user.json"))
 }
 
 fn load_recent_files() -> Result<Vec<RecentFile>, String> {
-    let path = recent_files_path()?;
+    let path = user_config_path()?;
     if !path.exists() {
         return Ok(vec![]);
     }
@@ -28,7 +34,7 @@ fn load_recent_files() -> Result<Vec<RecentFile>, String> {
 }
 
 fn save_recent_files(files: &[RecentFile]) -> Result<(), String> {
-    let path = recent_files_path()?;
+    let path = user_config_path()?;
     let json = serde_json::to_string_pretty(files)
         .map_err(|e| format!("Failed to serialize recent files: {e}"))?;
     fs::write(&path, json).map_err(|e| format!("Failed to write recent files: {e}"))
@@ -70,6 +76,7 @@ pub fn add_recent_file(path: String) -> Result<(), String> {
         path,
         name,
         modified,
+        opened_at: String::new(),
     });
 
     // Keep max 20 entries
@@ -88,6 +95,7 @@ mod tests {
             path: "/tmp/test.is".to_string(),
             name: "test.is".to_string(),
             modified: "2026-03-11T00:00:00Z".to_string(),
+            opened_at: String::new(),
         }];
         let json = serde_json::to_string(&files).unwrap();
         let parsed: Vec<RecentFile> = serde_json::from_str(&json).unwrap();
