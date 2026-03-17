@@ -69,23 +69,30 @@ pub fn add_recent_file(path: String) -> Result<(), String> {
         })
         .unwrap_or_default();
 
-    let mut files = load_recent_files().unwrap_or_default();
+    let opened_at = chrono::Utc::now().to_rfc3339();
 
-    // Remove existing entry for same path
-    files.retain(|f| f.path != path);
-
-    // Add to front
-    files.insert(0, RecentFile {
-        path,
-        name,
-        modified,
-        opened_at: String::new(),
+    let mut config = load_user_config().unwrap_or_else(|_| UserConfig {
+        recent_files: vec![],
     });
 
-    // Keep max 20 entries
-    files.truncate(20);
+    // Remove existing entry for same path
+    config.recent_files.retain(|f| f.path != path);
 
-    save_recent_files(&files)
+    // Add to front
+    config.recent_files.insert(
+        0,
+        RecentFile {
+            path,
+            name,
+            modified,
+            opened_at,
+        },
+    );
+
+    // Keep max 20 entries
+    config.recent_files.truncate(20);
+
+    save_user_config(&config)
 }
 
 #[cfg(test)]
