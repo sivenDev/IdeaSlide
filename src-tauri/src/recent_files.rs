@@ -44,7 +44,8 @@ fn save_user_config(config: &UserConfig) -> Result<(), String> {
 
 #[command]
 pub fn get_recent_files() -> Result<Vec<RecentFile>, String> {
-    let mut files = load_recent_files()?;
+    let config = load_user_config()?;
+    let mut files = config.recent_files;
     // Filter out files that no longer exist
     files.retain(|f| PathBuf::from(&f.path).exists());
     Ok(files)
