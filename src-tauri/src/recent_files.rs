@@ -95,6 +95,13 @@ pub fn add_recent_file(path: String) -> Result<(), String> {
     save_user_config(&config)
 }
 
+#[command]
+pub fn remove_recent_file(path: String) -> Result<(), String> {
+    let mut config = load_user_config()?;
+    config.recent_files.retain(|f| f.path != path);
+    save_user_config(&config)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
