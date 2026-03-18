@@ -11,7 +11,15 @@ pub fn create_file(path: String) -> Result<IsFileData, String> {
 #[command]
 pub fn open_file(path: String) -> Result<IsFileData, String> {
     let path = PathBuf::from(&path);
-    file_format::read_is_file(&path)
+    let data = file_format::read_is_file(&path)?;
+
+    // Opening a file should always refresh its recent-file timestamp, but a
+    // failure to write user config must not block the actual file open.
+    if let Err(err) = crate::recent_files::add_recent_file(path.to_string_lossy().to_string()) {
+        eprintln!("[IdeaSlide] Failed to refresh recent file entry after open: {err}");
+    }
+
+    Ok(data)
 }
 
 #[command]

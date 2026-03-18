@@ -340,6 +340,7 @@ export function PresentationMode({ slides, startIndex, mode, transitionSpeed, on
           cameras={cameras}
           currentCameraIndex={currentCameraIndex}
           elements={currentSlide.elements}
+          appState={currentSlide.appState}
           files={currentSlide.files}
           onSelect={(index: number) => {
             setCurrentCameraIndex(index);

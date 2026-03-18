@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["main", "mcp-renderer", "camera-renderer"],
+  "windows": ["main", "mcp-renderer", "preview-renderer"],
   "permissions": [
     "core:default",
     "core:event:default",

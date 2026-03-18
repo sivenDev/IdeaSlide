@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { getRecentFiles, createNewPresentation, openFile, openRecentFile, addRecentFile, removeRecentFile } from "../lib/tauriCommands";
+import { getRecentFiles, createNewPresentation, openFile, openRecentFile, removeRecentFile } from "../lib/tauriCommands";
 import type { RecentFile } from "../types";
 
 function formatRelativeTime(isoString: string): string {
@@ -66,7 +66,6 @@ export function LaunchScreen({ onFileOpened }: LaunchScreenProps) {
     try {
       setError(null);
       const { path, slides } = await openFile();
-      addRecentFile(path).catch(console.error);
       onFileOpened(path, slides);
     } catch (err) {
       if (err instanceof Error && err.message !== "File selection cancelled") {

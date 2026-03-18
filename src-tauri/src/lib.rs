@@ -10,8 +10,8 @@ use tauri::{command, Emitter, Manager, RunEvent};
 /// Stores the file path when the app is launched by opening a .is file.
 struct PendingFile(Mutex<Option<String>>);
 
-/// Readiness flag for the hidden camera thumbnail renderer window.
-struct CameraRendererReady(Arc<AtomicBool>);
+/// Readiness flag for the hidden preview renderer window.
+struct PreviewRendererReady(Arc<AtomicBool>);
 
 /// Managed state for MCP mode: holds the renderer_ready flag when running
 /// with --mcp, None otherwise.
@@ -26,17 +26,17 @@ fn is_mcp_visible(state: tauri::State<'_, McpVisible>) -> bool {
 }
 
 #[command]
-fn is_camera_renderer_ready(state: tauri::State<'_, CameraRendererReady>) -> bool {
+fn is_preview_renderer_ready(state: tauri::State<'_, PreviewRendererReady>) -> bool {
     state.0.load(Ordering::Acquire)
 }
 
 #[command]
-fn camera_renderer_ready(
+fn preview_renderer_ready(
     app_handle: tauri::AppHandle,
-    state: tauri::State<'_, CameraRendererReady>,
+    state: tauri::State<'_, PreviewRendererReady>,
 ) {
     state.0.store(true, Ordering::Release);
-    let _ = app_handle.emit("camera-renderer-ready", true);
+    let _ = app_handle.emit("preview-renderer-ready", true);
 }
 
 /// Called by the hidden mcp-renderer webview once Excalidraw has initialised.
@@ -56,7 +56,7 @@ fn get_opened_file(state: tauri::State<'_, PendingFile>) -> Option<String> {
 pub fn run() {
     let mcp_mode = std::env::args().any(|a| a == "--mcp");
     let mcp_visible = mcp_mode && std::env::args().any(|a| a == "--visible");
-    let camera_renderer_ready_flag = Arc::new(AtomicBool::new(false));
+    let preview_renderer_ready_flag = Arc::new(AtomicBool::new(false));
 
     // Prepare the renderer_ready Arc up-front so we can share it between
     // the managed state and the MCP server.
@@ -72,7 +72,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(PendingFile(Mutex::new(None)))
-        .manage(CameraRendererReady(camera_renderer_ready_flag))
+        .manage(PreviewRendererReady(preview_renderer_ready_flag))
         .manage(McpRendererReady(renderer_ready_for_state))
         .manage(McpVisible(mcp_visible))
         .invoke_handler(tauri::generate_handler![
@@ -84,35 +84,35 @@ pub fn run() {
             recent_files::add_recent_file,
             recent_files::remove_recent_file,
             get_opened_file,
-            camera_renderer_ready,
-            is_camera_renderer_ready,
+            preview_renderer_ready,
+            is_preview_renderer_ready,
             mcp_renderer_ready,
             is_mcp_visible,
         ]);
 
     builder = builder.setup(move |app| {
-        let app_handle_camera = app.handle().clone();
+        let app_handle_preview = app.handle().clone();
 
         tauri::async_runtime::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_millis(250)).await;
 
-            if app_handle_camera
-                .get_webview_window("camera-renderer")
+            if app_handle_preview
+                .get_webview_window("preview-renderer")
                 .is_some()
             {
                 return;
             }
 
             if let Err(e) = tauri::WebviewWindowBuilder::new(
-                &app_handle_camera,
-                "camera-renderer",
+                &app_handle_preview,
+                "preview-renderer",
                 tauri::WebviewUrl::App("index.html".into()),
             )
-            .title("Camera Renderer")
+            .title("Preview Renderer")
             .visible(false)
             .build()
             {
-                eprintln!("Failed to create camera-renderer window: {e}");
+                eprintln!("Failed to create preview-renderer window: {e}");
             }
         });
 

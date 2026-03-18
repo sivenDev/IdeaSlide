@@ -22,6 +22,13 @@ type SlideStoreAction =
   | { type: "DELETE_SLIDE"; payload: { index: number } }
   | { type: "SET_CURRENT_SLIDE"; payload: { index: number } }
   | {
+      type: "COMMIT_SLIDE";
+      payload: {
+        index: number;
+        slide: Slide;
+      };
+    }
+  | {
       type: "UPDATE_SLIDE";
       payload: {
         index: number;
@@ -107,6 +114,27 @@ function slideStoreReducer(
         currentCameraIndex: 0,
       };
 
+    case "COMMIT_SLIDE": {
+      const oldSlide = state.slides[action.payload.index];
+      const nextSlide = action.payload.slide;
+
+      if (
+        oldSlide?.elements === nextSlide.elements &&
+        oldSlide?.appState === nextSlide.appState &&
+        oldSlide?.files === nextSlide.files
+      ) {
+        return state.isDirty ? state : { ...state, isDirty: true };
+      }
+
+      const newSlides = [...state.slides];
+      newSlides[action.payload.index] = nextSlide;
+      return {
+        ...state,
+        slides: newSlides,
+        isDirty: true,
+      };
+    }
+
     case "UPDATE_SLIDE": {
       const oldSlide = state.slides[action.payload.index];
       const newSlide = {
@@ -135,12 +163,18 @@ function slideStoreReducer(
     }
 
     case "MARK_SAVED":
+      if (!state.isDirty) {
+        return state;
+      }
       return {
         ...state,
         isDirty: false,
       };
 
     case "MARK_DIRTY":
+      if (state.isDirty) {
+        return state;
+      }
       return {
         ...state,
         isDirty: true,

@@ -6,6 +6,7 @@ interface CameraNavigatorProps {
   cameras: Camera[];
   currentCameraIndex: number;
   elements: readonly any[];
+  appState: Partial<any>;
   files: Record<string, any>;
   onSelect: (index: number) => void;
   onClose: () => void;
@@ -80,11 +81,12 @@ export function CameraNavigator({
   cameras,
   currentCameraIndex,
   elements,
+  appState,
   files,
   onSelect,
   onClose,
 }: CameraNavigatorProps) {
-  const thumbnails = useCameraThumbnails(cameras, elements, files, 0);
+  const thumbnails = useCameraThumbnails(cameras, elements, appState, files, 0);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

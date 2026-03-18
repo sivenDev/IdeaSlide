@@ -1,6 +1,7 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useSlideStore } from "../hooks/useSlideStore";
 import { useAutoSave } from "../hooks/useAutoSave";
+import { useEditorSession } from "../hooks/useEditorSession";
 import { useSlideThumbnails } from "../hooks/useSlideThumbnails";
 import { Toolbar } from "./Toolbar";
 import { SlidePreviewPanel } from "./SlidePreviewPanel";
@@ -9,9 +10,10 @@ import { SlideCanvas } from "./SlideCanvas";
 import { ResizableDivider } from "./ResizableDivider";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { createNewPresentation, openFile, saveFile, addRecentFile } from "../lib/tauriCommands";
-import { extractCameras, getSelectedCameraId, reorderCameras } from "../lib/cameraUtils";
+import { extractCameras, reorderCameras } from "../lib/cameraUtils";
 import { useCameraThumbnails } from "../hooks/useCameraThumbnails";
 import { isCameraThumbnailGenerationEnabled } from "../lib/cameraThumbnail";
+import { isTargetWithinNode } from "../lib/domTargets";
 import { save, message, ask } from "@tauri-apps/plugin-dialog";
 
 interface EditorLayoutProps {
@@ -22,18 +24,78 @@ interface EditorLayoutProps {
 export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) {
   const { state, dispatch } = useSlideStore();
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedCameraId, setSelectedCameraId] = useState<string | undefined>(undefined);
   const [showPreview, setShowPreview] = useState(true);
   const [bottomTab, setBottomTab] = useState<'cameras' | 'slides'>('cameras');
   const excalidrawApiRef = useRef<any>(null);
-  const thumbnails = useSlideThumbnails(state.slides);
+  const cameraListRef = useRef<HTMLDivElement>(null);
 
   const currentSlide = state.slides[state.currentSlideIndex];
+  const { draft, flushDraft, hasPendingCommit, slidesForPersistence, updateDraft } = useEditorSession({
+    slide: currentSlide,
+    slideIndex: state.currentSlideIndex,
+    slides: state.slides,
+    onCommit: (index, payload) => {
+      dispatch({
+        type: "COMMIT_SLIDE",
+        payload: {
+          index,
+          slide: payload.slide,
+        },
+      });
+    },
+    onDirty: () => {
+      if (!readOnly) {
+        dispatch({ type: "MARK_DIRTY" });
+      }
+    },
+  });
+  const updateDraftRef = useRef(updateDraft);
 
-  const cameras = extractCameras(currentSlide.elements);
-  const activeCameraId = getSelectedCameraId(
-    cameras,
-    currentSlide.appState.selectedElementIds as Record<string, boolean> | undefined,
+  useEffect(() => {
+    updateDraftRef.current = updateDraft;
+  }, [updateDraft]);
+
+  // Keep the editor canvas mounted against the slide-switch snapshot only.
+  // Live typing stays inside Excalidraw and no longer round-trips through
+  // parent props on every change, which avoids text flicker during preview work.
+  const canvasInitialScene = useMemo(
+    () => ({
+      slideId: currentSlide.id,
+      elements: currentSlide.elements,
+      appState: currentSlide.appState,
+      files: currentSlide.files,
+    }),
+    [currentSlide.id],
   );
+
+  const slidePreviewSlides = useMemo(() => {
+    const nextSlides = [...state.slides];
+    nextSlides[state.currentSlideIndex] = {
+      id: draft.slideId,
+      elements: draft.elements,
+      appState: draft.appState,
+      files: draft.files,
+    };
+    return nextSlides;
+  }, [
+    draft.appState,
+    draft.elements,
+    draft.files,
+    draft.slideId,
+    state.currentSlideIndex,
+    state.slides,
+  ]);
+
+  const thumbnails = useSlideThumbnails(slidePreviewSlides, {
+    enabled: showPreview && bottomTab === "slides",
+  });
+
+  const cameras = extractCameras(draft.elements);
+  const activeCameraId =
+    selectedCameraId && cameras.some((camera) => camera.id === selectedCameraId)
+      ? selectedCameraId
+      : undefined;
   const cameraThumbnailsEnabled = isCameraThumbnailGenerationEnabled({
     showPreview,
     bottomTab,
@@ -41,17 +103,22 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
 
   const cameraThumbnails = useCameraThumbnails(
     cameras,
-    currentSlide.elements,
-    currentSlide.files,
+    draft.elements,
+    draft.appState,
+    draft.files,
     250,
     cameraThumbnailsEnabled
   );
+  const effectiveIsDirty = !readOnly && (state.isDirty || hasPendingCommit);
 
   useAutoSave({
     filePath: state.filePath,
-    slides: state.slides,
-    isDirty: readOnly ? false : state.isDirty,
-    onSaveStart: () => setIsSaving(true),
+    slides: slidesForPersistence,
+    isDirty: effectiveIsDirty,
+    onSaveStart: () => {
+      flushDraft();
+      setIsSaving(true);
+    },
     onSaveComplete: () => {
       setIsSaving(false);
       dispatch({ type: "MARK_SAVED" });
@@ -63,6 +130,28 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
   });
 
   const fileName = state.filePath?.split("/").pop();
+
+  useEffect(() => {
+    setSelectedCameraId(undefined);
+  }, [currentSlide.id]);
+
+  useEffect(() => {
+    setSelectedCameraId((previousSelectedCameraId) => {
+      if (!previousSelectedCameraId) {
+        return undefined;
+      }
+
+      return cameras.some((camera) => camera.id === previousSelectedCameraId)
+        ? previousSelectedCameraId
+        : undefined;
+    });
+  }, [cameras]);
+
+  useEffect(() => {
+    if (bottomTab !== "cameras") {
+      setSelectedCameraId(undefined);
+    }
+  }, [bottomTab]);
 
   function handleNewIdea() {
     const { slides } = createNewPresentation();
@@ -79,7 +168,6 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
         type: "LOAD_PRESENTATION",
         payload: { slides, filePath: path },
       });
-      addRecentFile(path).catch(console.error);
     } catch (err) {
       console.error("Failed to open file:", err);
     }
@@ -89,7 +177,8 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
     if (state.filePath) {
       try {
         setIsSaving(true);
-        await saveFile(state.filePath, state.slides);
+        flushDraft();
+        await saveFile(state.filePath, slidesForPersistence);
         dispatch({ type: "MARK_SAVED" });
         addRecentFile(state.filePath).catch(console.error);
       } catch (err) {
@@ -111,7 +200,8 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
 
   const handleSaveCallback = useCallback(handleSave, [
     state.filePath,
-    state.slides,
+    slidesForPersistence,
+    flushDraft,
     dispatch,
   ]);
 
@@ -140,10 +230,11 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
 
       if (!filePath) return;
 
-      await saveFile(filePath, state.slides);
+      flushDraft();
+      await saveFile(filePath, slidesForPersistence);
       dispatch({
         type: "LOAD_PRESENTATION",
-        payload: { slides: state.slides, filePath },
+        payload: { slides: slidesForPersistence, filePath },
       });
       addRecentFile(filePath).catch(console.error);
     } catch (err) {
@@ -152,7 +243,7 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
   }
 
   const handleGoHome = useCallback(async () => {
-    if (state.isDirty) {
+    if (effectiveIsDirty) {
       try {
         const shouldLeave = await ask(
           "You have unsaved changes. Leave without saving?",
@@ -169,60 +260,15 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
         return;
       }
     }
+    flushDraft();
     onGoHome();
-  }, [state.isDirty, onGoHome]);
-
-  // Track element/file versions to detect actual slide content changes.
-  function buildElementsFingerprint(elements: readonly any[]) {
-    return elements.map((el: any) => `${el.id}:${el.version}`).join(",");
-  }
-
-  function buildFilesFingerprint(files: Record<string, any>) {
-    return Object.values(files)
-      .map((file: any) => {
-        const id = file?.id ?? "";
-        const mimeType = file?.mimeType ?? "";
-        const size = file?.size ?? 0;
-        return `${id}:${mimeType}:${size}`;
-      })
-      .sort()
-      .join(",");
-  }
-
-  const lastContentFingerprintRef = useRef(
-    `${buildElementsFingerprint(currentSlide.elements)}|${buildFilesFingerprint(currentSlide.files)}`
-  );
-
-  // Use a ref for currentSlideIndex to avoid re-creating the callback
-  const currentSlideIndexRef = useRef(state.currentSlideIndex);
-  const slidesRef = useRef(state.slides);
-  slidesRef.current = state.slides;
-  if (currentSlideIndexRef.current !== state.currentSlideIndex) {
-    // Initialize fingerprint with the new slide's full content so the first
-    // onChange after mount doesn't falsely trigger isDirty.
-    const newSlide = state.slides[state.currentSlideIndex];
-    lastContentFingerprintRef.current = `${buildElementsFingerprint(newSlide.elements)}|${buildFilesFingerprint(newSlide.files)}`;
-  }
-  currentSlideIndexRef.current = state.currentSlideIndex;
+  }, [effectiveIsDirty, onGoHome, flushDraft]);
 
   const handleSlideChange = useCallback(
     (elements: readonly any[], appState: Partial<any>, files: Record<string, any>) => {
-      const contentFingerprint = `${buildElementsFingerprint(elements)}|${buildFilesFingerprint(files)}`;
-      const contentChanged = contentFingerprint !== lastContentFingerprintRef.current;
-      lastContentFingerprintRef.current = contentFingerprint;
-
-      dispatch({
-        type: "UPDATE_SLIDE",
-        payload: {
-          index: currentSlideIndexRef.current,
-          elements,
-          appState,
-          files,
-          contentChanged,
-        },
-      });
+      updateDraftRef.current(elements, appState, files);
     },
-    [dispatch]
+    []
   );
 
   const handleCanvasApiReady = useCallback((api: any) => {
@@ -230,10 +276,23 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
   }, []);
 
   return (
-    <div className="h-screen flex flex-col">
+    <div
+      className="h-screen flex flex-col"
+      onPointerDownCapture={(event) => {
+        if (!selectedCameraId || bottomTab !== "cameras") {
+          return;
+        }
+
+        if (isTargetWithinNode(cameraListRef.current, event.target)) {
+          return;
+        }
+
+        setSelectedCameraId(undefined);
+      }}
+    >
       <Toolbar
         fileName={fileName}
-        isDirty={state.isDirty}
+        isDirty={effectiveIsDirty}
         isSaving={isSaving}
         showPreview={showPreview}
         onNewIdea={handleNewIdea}
@@ -242,10 +301,20 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
         onSaveAs={handleSaveAs}
         onGoHome={handleGoHome}
         onTogglePreview={() => setShowPreview((prev) => !prev)}
-        onAddSlide={() => dispatch({ type: "ADD_SLIDE" })}
-        onStartPreview={() => dispatch({ type: 'START_PRESENTATION', payload: { mode: 'preview' } })}
-        onStartFullscreen={() => dispatch({ type: 'START_PRESENTATION', payload: { mode: 'fullscreen' } })}
+        onAddSlide={() => {
+          flushDraft();
+          dispatch({ type: "ADD_SLIDE" });
+        }}
+        onStartPreview={() => {
+          flushDraft();
+          dispatch({ type: 'START_PRESENTATION', payload: { mode: 'preview' } });
+        }}
+        onStartFullscreen={() => {
+          flushDraft();
+          dispatch({ type: 'START_PRESENTATION', payload: { mode: 'fullscreen' } });
+        }}
         onStartFromBeginning={() => {
+          flushDraft();
           dispatch({ type: 'SET_CURRENT_SLIDE', payload: { index: 0 } });
           dispatch({ type: 'START_PRESENTATION', payload: { mode: 'fullscreen' } });
         }}
@@ -265,10 +334,10 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
           <div className="absolute inset-0">
             <ErrorBoundary>
               <SlideCanvas
-                slideId={currentSlide.id}
-                elements={currentSlide.elements}
-                appState={currentSlide.appState}
-                files={currentSlide.files}
+                slideId={canvasInitialScene.slideId}
+                elements={canvasInitialScene.elements}
+                appState={canvasInitialScene.appState}
+                files={canvasInitialScene.files}
                 onChange={handleSlideChange}
                 onApiReady={handleCanvasApiReady}
               />
@@ -308,64 +377,75 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
 
           {/* Tab content */}
           {bottomTab === 'cameras' ? (
-            <CameraList
-              cameras={cameras}
-              thumbnails={cameraThumbnails}
-              activeCameraId={activeCameraId}
-              onCameraSelect={(camera) => {
-                const api = excalidrawApiRef.current;
-                if (api) {
-                  const cameraElement = api
-                    .getSceneElements()
-                    .find((el: any) => el.id === camera.id);
+            <div ref={cameraListRef}>
+              <CameraList
+                cameras={cameras}
+                thumbnails={cameraThumbnails}
+                activeCameraId={activeCameraId}
+                onCameraSelect={(camera) => {
+                  const api = excalidrawApiRef.current;
+                  if (api) {
+                    setSelectedCameraId(camera.id);
+                    const cameraElement = api
+                      .getSceneElements()
+                      .find((el: any) => el.id === camera.id);
 
-                  if (!cameraElement) {
-                    return;
-                  }
+                    if (!cameraElement) {
+                      return;
+                    }
 
-                  api.setActiveTool({ type: "selection" });
-                  api.updateScene({
-                    appState: {
-                      selectedElementIds: { [camera.id]: true },
-                    },
-                  });
-                  api.scrollToContent(
-                    [cameraElement],
-                    { fitToContent: true, animate: true, duration: 300 }
-                  );
-                }
-              }}
-              onCameraDelete={(cameraId) => {
-                const api = excalidrawApiRef.current;
-                if (api) {
-                  const newElements = currentSlide.elements.filter((el: any) => el.id !== cameraId);
-                  const sceneUpdate: any = { elements: newElements };
-                  if (activeCameraId === cameraId) {
-                    sceneUpdate.appState = { selectedElementIds: {} };
+                    api.setActiveTool({ type: "selection" });
+                    api.updateScene({
+                      appState: {
+                        selectedElementIds: { [camera.id]: true },
+                      },
+                    });
+                    api.scrollToContent(
+                      [cameraElement],
+                      { fitToContent: true, animate: true, duration: 300 }
+                    );
                   }
-                  api.updateScene(sceneUpdate);
-                }
-              }}
-              onReorder={(orderedIds) => {
-                const api = excalidrawApiRef.current;
-                if (api) {
-                  const newElements = reorderCameras(currentSlide.elements, orderedIds);
-                  api.updateScene({ elements: newElements });
-                }
-              }}
-            />
+                }}
+                onCameraDelete={(cameraId) => {
+                  const api = excalidrawApiRef.current;
+                  if (api) {
+                    if (activeCameraId === cameraId) {
+                      setSelectedCameraId(undefined);
+                    }
+                    const newElements = draft.elements.filter((el: any) => el.id !== cameraId);
+                    const sceneUpdate: any = { elements: newElements };
+                    if (activeCameraId === cameraId) {
+                      sceneUpdate.appState = { selectedElementIds: {} };
+                    }
+                    api.updateScene(sceneUpdate);
+                  }
+                }}
+                onReorder={(orderedIds) => {
+                  const api = excalidrawApiRef.current;
+                  if (api) {
+                    const newElements = reorderCameras(draft.elements, orderedIds);
+                    api.updateScene({ elements: newElements });
+                  }
+                }}
+              />
+            </div>
           ) : (
             <SlidePreviewPanel
               slides={state.slides}
               currentSlideIndex={state.currentSlideIndex}
               thumbnails={thumbnails}
-              onSlideSelect={(index) =>
-                dispatch({ type: "SET_CURRENT_SLIDE", payload: { index } })
-              }
-              onAddSlide={() => dispatch({ type: "ADD_SLIDE" })}
-              onDeleteSlide={(index) =>
-                dispatch({ type: "DELETE_SLIDE", payload: { index } })
-              }
+              onSlideSelect={(index) => {
+                flushDraft();
+                dispatch({ type: "SET_CURRENT_SLIDE", payload: { index } });
+              }}
+              onAddSlide={() => {
+                flushDraft();
+                dispatch({ type: "ADD_SLIDE" });
+              }}
+              onDeleteSlide={(index) => {
+                flushDraft();
+                dispatch({ type: "DELETE_SLIDE", payload: { index } });
+              }}
             />
           )}
         </div>

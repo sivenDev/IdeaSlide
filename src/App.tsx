@@ -7,9 +7,9 @@ import { EditorLayout } from "./components/EditorLayout";
 import { PresentationMode } from "./components/PresentationMode";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { invoke } from "@tauri-apps/api/core";
-import { openRecentFile, addRecentFile, getOpenedFile, convertFromIsFileData } from "./lib/tauriCommands";
+import { openRecentFile, getOpenedFile, convertFromIsFileData } from "./lib/tauriCommands";
 import { initMcpRenderer } from "./lib/mcpRenderer";
-import { initCameraThumbnailRenderer } from "./lib/cameraThumbnailRenderer";
+import { initPreviewRenderer } from "./lib/previewRenderer";
 
 function AppContent() {
   const { state, dispatch } = useSlideStore();
@@ -17,11 +17,10 @@ function AppContent() {
   const [mcpVisible, setMcpVisible] = useState(false);
   const windowLabel = getCurrentWindow().label;
   const isRendererWindow =
-    windowLabel === "mcp-renderer" || windowLabel === "camera-renderer";
+    windowLabel === "mcp-renderer" || windowLabel === "preview-renderer";
 
   async function loadFileFromPath(filePath: string) {
     const slides = await openRecentFile(filePath);
-    await addRecentFile(filePath);
     dispatch({
       type: "LOAD_PRESENTATION",
       payload: { slides, filePath },
@@ -42,8 +41,8 @@ function AppContent() {
     if (windowLabel === "mcp-renderer") {
       initMcpRenderer().catch(console.error);
     }
-    if (windowLabel === "camera-renderer") {
-      initCameraThumbnailRenderer().catch(console.error);
+    if (windowLabel === "preview-renderer") {
+      initPreviewRenderer().catch(console.error);
     }
   }, [windowLabel]);
 

@@ -1,27 +1,36 @@
 import { useEffect, useRef, useState } from "react";
 import type { Camera } from "../lib/cameraUtils";
-import {
-  buildCameraSignature,
-  buildCameraThumbnailRenderKey,
-  parseSvgMarkup,
-} from "../lib/cameraThumbnail";
-import { cameraThumbnailRendererClient } from "../lib/cameraThumbnailRenderer";
-import { buildSceneFingerprint } from "../lib/sceneFingerprint";
+import { parseSvgMarkup } from "../lib/cameraThumbnail";
+import { buildCameraPreviewKey, extractPreviewAppState } from "../lib/previewKeys";
+import { previewRendererClient } from "../lib/previewRenderer";
 
 export function useCameraThumbnails(
   cameras: Camera[],
   elements: readonly any[],
+  appState: Partial<any>,
   files: Record<string, any>,
   debounceMs = 500,
-  enabled = true
+  enabled = true,
 ) {
   const [thumbnails, setThumbnails] = useState<Map<string, SVGSVGElement>>(new Map());
   const timeoutRef = useRef<number | null>(null);
   const requestVersionRef = useRef(0);
+  const renderPayloadRef = useRef({
+    cameras,
+    elements,
+    appState: extractPreviewAppState(appState),
+    files,
+  });
 
-  const cameraSignature = buildCameraSignature(cameras);
-  const sceneFingerprint = buildSceneFingerprint(elements, files);
-  const renderKey = buildCameraThumbnailRenderKey(sceneFingerprint, cameraSignature);
+  const previewAppState = extractPreviewAppState(appState);
+  renderPayloadRef.current = {
+    cameras,
+    elements,
+    appState: previewAppState,
+    files,
+  };
+
+  const renderKey = buildCameraPreviewKey(elements, files, cameras, previewAppState);
 
   useEffect(() => {
     const cancelPendingWork = () => {
@@ -48,11 +57,13 @@ export function useCameraThumbnails(
       timeoutRef.current = null;
 
       try {
-        const result = await cameraThumbnailRendererClient.render({
+        const renderPayload = renderPayloadRef.current;
+        const result = await previewRendererClient.renderCameras({
           renderKey,
-          cameras,
-          elements,
-          files,
+          cameras: renderPayload.cameras,
+          elements: renderPayload.elements,
+          appState: renderPayload.appState,
+          files: renderPayload.files,
         });
 
         if (
@@ -65,7 +76,7 @@ export function useCameraThumbnails(
         setThumbnails(() => {
           const next = new Map<string, SVGSVGElement>();
 
-          for (const camera of cameras) {
+          for (const camera of renderPayload.cameras) {
             const svgMarkup = result.value.get(camera.id);
             if (!svgMarkup) {
               continue;
@@ -88,7 +99,7 @@ export function useCameraThumbnails(
     }, debounceMs);
 
     return cancelPendingWork;
-  }, [cameraSignature, renderKey, sceneFingerprint, debounceMs, enabled]);
+  }, [debounceMs, enabled, renderKey]);
 
   return thumbnails;
 }

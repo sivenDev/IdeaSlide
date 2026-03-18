@@ -17,7 +17,10 @@ pub struct UserConfig {
 }
 
 fn user_config_path() -> Result<PathBuf, String> {
-    let config_dir = dirs::config_dir().ok_or("Could not find config directory")?;
+    let config_dir = std::env::var_os("IDEASLIDE_CONFIG_DIR")
+        .map(PathBuf::from)
+        .or_else(dirs::config_dir)
+        .ok_or("Could not find config directory")?;
     let app_dir = config_dir.join("ideaslide");
     fs::create_dir_all(&app_dir).map_err(|e| format!("Failed to create config dir: {e}"))?;
     Ok(app_dir.join("user.json"))
@@ -105,6 +108,16 @@ pub fn remove_recent_file(path: String) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::commands;
+    use crate::file_format;
+    use std::sync::{Mutex, OnceLock};
+    use std::time::Duration;
+    use tempfile::TempDir;
+
+    fn config_env_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
 
     #[test]
     fn test_recent_files_roundtrip() {
@@ -118,5 +131,32 @@ mod tests {
         let parsed: Vec<RecentFile> = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.len(), 1);
         assert_eq!(parsed[0].name, "test.is");
+    }
+
+    #[test]
+    fn test_open_file_refreshes_recent_file_timestamp() {
+        let _guard = config_env_lock().lock().unwrap();
+        let config_dir = TempDir::new().unwrap();
+        let scene_dir = TempDir::new().unwrap();
+        let scene_path = scene_dir.path().join("recent-refresh.is");
+
+        std::env::set_var("IDEASLIDE_CONFIG_DIR", config_dir.path());
+
+        file_format::create_is_file(&scene_path).unwrap();
+
+        let scene_path_string = scene_path.to_string_lossy().to_string();
+        add_recent_file(scene_path_string.clone()).unwrap();
+        let initial_opened_at = get_recent_files().unwrap()[0].opened_at.clone();
+
+        std::thread::sleep(Duration::from_millis(10));
+
+        commands::open_file(scene_path_string.clone()).unwrap();
+
+        let recent_files = get_recent_files().unwrap();
+        assert_eq!(recent_files.len(), 1);
+        assert_eq!(recent_files[0].path, scene_path_string);
+        assert_ne!(recent_files[0].opened_at, initial_opened_at);
+
+        std::env::remove_var("IDEASLIDE_CONFIG_DIR");
     }
 }

@@ -31,7 +31,7 @@ const CameraThumbnail = memo(function CameraThumbnail({
 
   if (!svgElement) {
     return (
-      <div className="w-full h-full flex items-center justify-center text-gray-400">
+      <div className="w-full h-full flex items-center justify-center text-gray-400 pointer-events-none select-none">
         <div className="text-center">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto mb-1 opacity-40">
             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
@@ -46,7 +46,7 @@ const CameraThumbnail = memo(function CameraThumbnail({
   return (
     <div
       ref={containerRef}
-      className="w-full h-full overflow-hidden bg-white [&>svg]:w-full [&>svg]:h-full [&>svg]:object-contain"
+      className="w-full h-full overflow-hidden bg-white pointer-events-none select-none [&>svg]:w-full [&>svg]:h-full [&>svg]:object-contain"
     />
   );
 });
@@ -114,7 +114,7 @@ export function CameraList({
                 }}
                 disabled={index === 0}
                 title="Move camera left"
-                className="w-5 h-5 rounded bg-white/95 text-gray-600 shadow-sm ring-1 ring-gray-200 disabled:cursor-not-allowed disabled:opacity-35 hover:bg-amber-50 hover:text-amber-600"
+                className="w-5 h-5 rounded bg-white/95 text-gray-600 shadow-sm ring-1 ring-gray-200 disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-35 hover:bg-amber-50 hover:text-amber-600"
               >
                 {"<"}
               </button>
@@ -125,7 +125,7 @@ export function CameraList({
                 }}
                 disabled={index === cameras.length - 1}
                 title="Move camera right"
-                className="w-5 h-5 rounded bg-white/95 text-gray-600 shadow-sm ring-1 ring-gray-200 disabled:cursor-not-allowed disabled:opacity-35 hover:bg-amber-50 hover:text-amber-600"
+                className="w-5 h-5 rounded bg-white/95 text-gray-600 shadow-sm ring-1 ring-gray-200 disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-35 hover:bg-amber-50 hover:text-amber-600"
               >
                 {">"}
               </button>
@@ -137,7 +137,7 @@ export function CameraList({
               e.stopPropagation();
               onCameraDelete(camera.id);
             }}
-            className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-xs"
+            className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded opacity-0 pointer-events-none transition-opacity flex items-center justify-center text-xs group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
           >
             ×
           </button>
