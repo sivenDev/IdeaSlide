@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useSlideStore } from "../hooks/useSlideStore";
 import { useAutoSave } from "../hooks/useAutoSave";
 import { useSlideThumbnails } from "../hooks/useSlideThumbnails";
@@ -9,8 +9,9 @@ import { SlideCanvas } from "./SlideCanvas";
 import { ResizableDivider } from "./ResizableDivider";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { createNewPresentation, openFile, saveFile, addRecentFile } from "../lib/tauriCommands";
-import { extractCameras, reorderCameras } from "../lib/cameraUtils";
+import { extractCameras, getSelectedCameraId, reorderCameras } from "../lib/cameraUtils";
 import { useCameraThumbnails } from "../hooks/useCameraThumbnails";
+import { isCameraThumbnailGenerationEnabled } from "../lib/cameraThumbnail";
 import { save, message, ask } from "@tauri-apps/plugin-dialog";
 
 interface EditorLayoutProps {
@@ -28,18 +29,22 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
 
   const currentSlide = state.slides[state.currentSlideIndex];
 
-  // Memoize cameras with stable signature to prevent unnecessary re-renders
-  const cameras = useMemo(() => {
-    return extractCameras(currentSlide.elements);
-  }, [
-    currentSlide.elements.filter((el: any) => el.customData?.type === 'camera' && !el.isDeleted)
-      .map((el: any) => `${el.id}:${el.customData?.order}`).join(',')
-  ]);
+  const cameras = extractCameras(currentSlide.elements);
+  const activeCameraId = getSelectedCameraId(
+    cameras,
+    currentSlide.appState.selectedElementIds as Record<string, boolean> | undefined,
+  );
+  const cameraThumbnailsEnabled = isCameraThumbnailGenerationEnabled({
+    showPreview,
+    bottomTab,
+  });
 
   const cameraThumbnails = useCameraThumbnails(
     cameras,
     currentSlide.elements,
-    currentSlide.files
+    currentSlide.files,
+    250,
+    cameraThumbnailsEnabled
   );
 
   useAutoSave({
@@ -220,6 +225,10 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
     [dispatch]
   );
 
+  const handleCanvasApiReady = useCallback((api: any) => {
+    excalidrawApiRef.current = api;
+  }, []);
+
   return (
     <div className="h-screen flex flex-col">
       <Toolbar
@@ -261,7 +270,7 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
                 appState={currentSlide.appState}
                 files={currentSlide.files}
                 onChange={handleSlideChange}
-                onApiReady={(api: any) => { excalidrawApiRef.current = api; }}
+                onApiReady={handleCanvasApiReady}
               />
             </ErrorBoundary>
           </div>
@@ -302,11 +311,26 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
             <CameraList
               cameras={cameras}
               thumbnails={cameraThumbnails}
+              activeCameraId={activeCameraId}
               onCameraSelect={(camera) => {
                 const api = excalidrawApiRef.current;
                 if (api) {
+                  const cameraElement = api
+                    .getSceneElements()
+                    .find((el: any) => el.id === camera.id);
+
+                  if (!cameraElement) {
+                    return;
+                  }
+
+                  api.setActiveTool({ type: "selection" });
+                  api.updateScene({
+                    appState: {
+                      selectedElementIds: { [camera.id]: true },
+                    },
+                  });
                   api.scrollToContent(
-                    currentSlide.elements.filter((el: any) => el.id === camera.id),
+                    [cameraElement],
                     { fitToContent: true, animate: true, duration: 300 }
                   );
                 }
@@ -315,7 +339,11 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
                 const api = excalidrawApiRef.current;
                 if (api) {
                   const newElements = currentSlide.elements.filter((el: any) => el.id !== cameraId);
-                  api.updateScene({ elements: newElements });
+                  const sceneUpdate: any = { elements: newElements };
+                  if (activeCameraId === cameraId) {
+                    sceneUpdate.appState = { selectedElementIds: {} };
+                  }
+                  api.updateScene(sceneUpdate);
                 }
               }}
               onReorder={(orderedIds) => {

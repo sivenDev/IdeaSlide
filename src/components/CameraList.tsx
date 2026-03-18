@@ -1,5 +1,5 @@
-import { memo, useRef, useEffect, useState, useCallback } from "react";
-import type { Camera } from "../lib/cameraUtils";
+import { memo, useRef, useEffect, useCallback } from "react";
+import { moveItemByOffset, type Camera } from "../lib/cameraUtils";
 
 interface CameraListProps {
   cameras: Camera[];
@@ -59,42 +59,20 @@ export function CameraList({
   onCameraDelete,
   onReorder,
 }: CameraListProps) {
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const handleMove = useCallback(
+    (index: number, offset: -1 | 1) => {
+      const ids = moveItemByOffset(
+        cameras.map((camera) => camera.id),
+        index,
+        offset,
+      );
 
-  const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
-    setDragIndex(index);
-    e.dataTransfer.effectAllowed = "move";
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    setDropIndex(index);
-  }, []);
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      if (dragIndex === null || dropIndex === null || dragIndex === dropIndex) {
-        setDragIndex(null);
-        setDropIndex(null);
-        return;
+      if (ids.some((id, itemIndex) => id !== cameras[itemIndex]?.id)) {
+        onReorder(ids);
       }
-      const ids = cameras.map((c) => c.id);
-      const [moved] = ids.splice(dragIndex, 1);
-      ids.splice(dropIndex, 0, moved);
-      onReorder(ids);
-      setDragIndex(null);
-      setDropIndex(null);
     },
-    [dragIndex, dropIndex, cameras, onReorder]
+    [cameras, onReorder],
   );
-
-  const handleDragEnd = useCallback(() => {
-    setDragIndex(null);
-    setDropIndex(null);
-  }, []);
 
   if (cameras.length === 0) {
     return (
@@ -109,18 +87,11 @@ export function CameraList({
       {cameras.map((camera, index) => (
         <div
           key={camera.id}
-          draggable
-          onDragStart={(e) => handleDragStart(e, index)}
-          onDragOver={(e) => handleDragOver(e, index)}
-          onDrop={handleDrop}
-          onDragEnd={handleDragEnd}
           className={`relative group cursor-pointer border-2 rounded-lg overflow-hidden transition-all flex-shrink-0 w-[160px] h-[100px] ${
             camera.id === activeCameraId
-              ? "border-amber-500 shadow-md"
-              : dropIndex === index && dragIndex !== null
-              ? "border-amber-300 border-dashed"
+              ? "border-amber-500 bg-amber-50 shadow-md ring-1 ring-amber-200"
               : "border-gray-200 hover:border-gray-300"
-          } ${dragIndex === index ? "opacity-50" : ""}`}
+          }`}
           onClick={() => onCameraSelect(camera)}
         >
           <div className="w-full h-full bg-white">
@@ -133,6 +104,33 @@ export function CameraList({
           <span className="absolute bottom-1 left-2 text-[11px] text-gray-400">
             {camera.order}
           </span>
+
+          {cameras.length > 1 && (
+            <div className="absolute top-1 left-1 flex items-center gap-1 opacity-0 pointer-events-none transition-opacity group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleMove(index, -1);
+                }}
+                disabled={index === 0}
+                title="Move camera left"
+                className="w-5 h-5 rounded bg-white/95 text-gray-600 shadow-sm ring-1 ring-gray-200 disabled:cursor-not-allowed disabled:opacity-35 hover:bg-amber-50 hover:text-amber-600"
+              >
+                {"<"}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleMove(index, 1);
+                }}
+                disabled={index === cameras.length - 1}
+                title="Move camera right"
+                className="w-5 h-5 rounded bg-white/95 text-gray-600 shadow-sm ring-1 ring-gray-200 disabled:cursor-not-allowed disabled:opacity-35 hover:bg-amber-50 hover:text-amber-600"
+              >
+                {">"}
+              </button>
+            </div>
+          )}
 
           <button
             onClick={(e) => {

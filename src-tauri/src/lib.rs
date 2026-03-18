@@ -10,6 +10,9 @@ use tauri::{command, Emitter, Manager, RunEvent};
 /// Stores the file path when the app is launched by opening a .is file.
 struct PendingFile(Mutex<Option<String>>);
 
+/// Readiness flag for the hidden camera thumbnail renderer window.
+struct CameraRendererReady(Arc<AtomicBool>);
+
 /// Managed state for MCP mode: holds the renderer_ready flag when running
 /// with --mcp, None otherwise.
 struct McpRendererReady(Option<Arc<AtomicBool>>);
@@ -20,6 +23,20 @@ struct McpVisible(bool);
 #[command]
 fn is_mcp_visible(state: tauri::State<'_, McpVisible>) -> bool {
     state.0
+}
+
+#[command]
+fn is_camera_renderer_ready(state: tauri::State<'_, CameraRendererReady>) -> bool {
+    state.0.load(Ordering::Acquire)
+}
+
+#[command]
+fn camera_renderer_ready(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, CameraRendererReady>,
+) {
+    state.0.store(true, Ordering::Release);
+    let _ = app_handle.emit("camera-renderer-ready", true);
 }
 
 /// Called by the hidden mcp-renderer webview once Excalidraw has initialised.
@@ -39,6 +56,7 @@ fn get_opened_file(state: tauri::State<'_, PendingFile>) -> Option<String> {
 pub fn run() {
     let mcp_mode = std::env::args().any(|a| a == "--mcp");
     let mcp_visible = mcp_mode && std::env::args().any(|a| a == "--visible");
+    let camera_renderer_ready_flag = Arc::new(AtomicBool::new(false));
 
     // Prepare the renderer_ready Arc up-front so we can share it between
     // the managed state and the MCP server.
@@ -54,6 +72,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(PendingFile(Mutex::new(None)))
+        .manage(CameraRendererReady(camera_renderer_ready_flag))
         .manage(McpRendererReady(renderer_ready_for_state))
         .manage(McpVisible(mcp_visible))
         .invoke_handler(tauri::generate_handler![
@@ -65,12 +84,39 @@ pub fn run() {
             recent_files::add_recent_file,
             recent_files::remove_recent_file,
             get_opened_file,
+            camera_renderer_ready,
+            is_camera_renderer_ready,
             mcp_renderer_ready,
             is_mcp_visible,
         ]);
 
-    if mcp_mode {
-        builder = builder.setup(move |app| {
+    builder = builder.setup(move |app| {
+        let app_handle_camera = app.handle().clone();
+
+        tauri::async_runtime::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+
+            if app_handle_camera
+                .get_webview_window("camera-renderer")
+                .is_some()
+            {
+                return;
+            }
+
+            if let Err(e) = tauri::WebviewWindowBuilder::new(
+                &app_handle_camera,
+                "camera-renderer",
+                tauri::WebviewUrl::App("index.html".into()),
+            )
+            .title("Camera Renderer")
+            .visible(false)
+            .build()
+            {
+                eprintln!("Failed to create camera-renderer window: {e}");
+            }
+        });
+
+        if mcp_mode {
             // The default "main" window is created by tauri.conf.json.
             // In headless MCP mode, hide it; in visible mode, keep it shown.
             if let Some(main_window) = app.get_webview_window("main") {
@@ -109,10 +155,10 @@ pub fn run() {
                     eprintln!("MCP server error: {e}");
                 }
             });
+        }
 
-            Ok(())
-        });
-    }
+        Ok(())
+    });
 
     builder
         .build(tauri::generate_context!())

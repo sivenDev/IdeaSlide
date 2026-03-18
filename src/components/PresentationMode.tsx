@@ -5,7 +5,8 @@ import { ThumbnailNavigator } from "./ThumbnailNavigator";
 import { CameraNavigator } from "./CameraNavigator";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { extractCameras, filterCameraElements } from "../lib/cameraUtils";
-import type { Camera } from "../lib/cameraUtils";
+import { calculateViewportTarget, createViewportAnimator } from "../lib/cameraViewport";
+import type { ViewportTarget } from "../lib/cameraViewport";
 import type { Slide } from "../types";
 
 type TransitionSpeed = 'fast' | 'medium' | 'slow';
@@ -15,6 +16,17 @@ const SPEED_MS: Record<TransitionSpeed, number> = {
   medium: 1000,
   slow: 1800,
 };
+
+const CAMERA_PADDING_FACTOR = 0.9;
+
+function readViewport(api: any): ViewportTarget {
+  const appState = api.getAppState();
+  return {
+    scrollX: appState.scrollX ?? 0,
+    scrollY: appState.scrollY ?? 0,
+    zoom: appState.zoom?.value ?? 1,
+  };
+}
 
 interface PresentationModeProps {
   slides: Slide[];
@@ -31,9 +43,11 @@ export function PresentationMode({ slides, startIndex, mode, transitionSpeed, on
   const [showCameraNav, setShowCameraNav] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [speed, setSpeed] = useState<TransitionSpeed>(transitionSpeed);
+  const [apiReadyVersion, setApiReadyVersion] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const excalidrawApiRef = useRef<any>(null);
-  const animationRef = useRef<number | null>(null);
+  const apiSlideIdRef = useRef<string | null>(null);
+  const animatorRef = useRef<ReturnType<typeof createViewportAnimator> | null>(null);
 
   const currentSlide = slides[currentSlideIndex];
   const cameras = useMemo(() => extractCameras(currentSlide.elements), [currentSlide.elements]);
@@ -45,73 +59,81 @@ export function PresentationMode({ slides, startIndex, mode, transitionSpeed, on
     [currentSlide.elements]
   );
 
-  // Animate viewport to a camera's bounds
-  const animateToCamera = useCallback((camera: Camera) => {
-    const api = excalidrawApiRef.current;
-    if (!api) return;
-
-    // Cancel any ongoing animation
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current);
-      animationRef.current = null;
-    }
-
-    const appState = api.getAppState();
-    const canvasWidth = appState.width ?? 800;
-    const canvasHeight = appState.height ?? 600;
-
-    // Calculate target zoom to fit camera bounds
-    const zoomX = canvasWidth / camera.bounds.width;
-    const zoomY = canvasHeight / camera.bounds.height;
-    const targetZoom = Math.min(zoomX, zoomY) * 0.95; // 5% padding
-
-    const targetScrollX = -(camera.bounds.x + camera.bounds.width / 2) * targetZoom + canvasWidth / 2;
-    const targetScrollY = -(camera.bounds.y + camera.bounds.height / 2) * targetZoom + canvasHeight / 2;
-
-    const startScrollX = appState.scrollX ?? 0;
-    const startScrollY = appState.scrollY ?? 0;
-    const startZoom = appState.zoom?.value ?? 1;
-
-    const duration = SPEED_MS[speed];
-    const startTime = performance.now();
-
-    function easeInOut(t: number): number {
-      return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-    }
-
-    function step(now: number) {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = easeInOut(progress);
-
-      const scrollX = startScrollX + (targetScrollX - startScrollX) * eased;
-      const scrollY = startScrollY + (targetScrollY - startScrollY) * eased;
-      const zoom = startZoom + (targetZoom - startZoom) * eased;
-
-      api.updateScene({
-        appState: {
-          scrollX,
-          scrollY,
-          zoom: { value: zoom },
-        },
-      });
-
-      if (progress < 1) {
-        animationRef.current = requestAnimationFrame(step);
-      } else {
-        animationRef.current = null;
-      }
-    }
-
-    animationRef.current = requestAnimationFrame(step);
-  }, [speed]);
+  const handleApiReady = useCallback((api: any) => {
+    apiSlideIdRef.current = currentSlide.id;
+    excalidrawApiRef.current = api;
+    animatorRef.current?.cancel();
+    animatorRef.current = createViewportAnimator({
+      getCurrentViewport: () => readViewport(api),
+      onUpdate: (next) => {
+        api.updateScene({
+          appState: {
+            scrollX: next.scrollX,
+            scrollY: next.scrollY,
+            zoom: { value: next.zoom },
+          },
+        });
+      },
+    });
+    setApiReadyVersion((value) => value + 1);
+  }, [currentSlide.id]);
 
   // Navigate to camera when index changes
   useEffect(() => {
-    if (hasCameras && cameras[currentCameraIndex]) {
-      animateToCamera(cameras[currentCameraIndex]);
+    const api = excalidrawApiRef.current;
+    const animator = animatorRef.current;
+    const camera = cameras[currentCameraIndex];
+
+    if (
+      !api ||
+      !animator ||
+      !hasCameras ||
+      !camera ||
+      apiSlideIdRef.current !== currentSlide.id
+    ) {
+      return;
     }
-  }, [currentCameraIndex, currentSlideIndex, hasCameras, cameras, animateToCamera]);
+
+    let cancelled = false;
+    let frameId: number | null = null;
+
+    const animateWhenReady = () => {
+      if (cancelled) {
+        return;
+      }
+
+      const appState = api.getAppState();
+      const viewportWidth = appState.width ?? 0;
+      const viewportHeight = appState.height ?? 0;
+
+      if (viewportWidth <= 0 || viewportHeight <= 0) {
+        frameId = requestAnimationFrame(animateWhenReady);
+        return;
+      }
+
+      const target = calculateViewportTarget({
+        cameraBounds: camera.bounds,
+        viewportWidth,
+        viewportHeight,
+        paddingFactor: CAMERA_PADDING_FACTOR,
+      });
+
+      animator.animateTo(target, {
+        durationMs: SPEED_MS[speed],
+        easing: "ease-in-out",
+      });
+    };
+
+    animateWhenReady();
+
+    return () => {
+      cancelled = true;
+      animator.cancel();
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+    };
+  }, [apiReadyVersion, cameras, currentCameraIndex, currentSlide.id, hasCameras, speed]);
 
   const goNext = useCallback(() => {
     if (hasCameras && currentCameraIndex < cameras.length - 1) {
@@ -238,7 +260,9 @@ export function PresentationMode({ slides, startIndex, mode, transitionSpeed, on
   // Cleanup animation on unmount
   useEffect(() => {
     return () => {
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      animatorRef.current?.cancel();
+      excalidrawApiRef.current = null;
+      apiSlideIdRef.current = null;
     };
   }, []);
 
@@ -246,6 +270,25 @@ export function PresentationMode({ slides, startIndex, mode, transitionSpeed, on
     (_elements: readonly any[], _appState: Partial<any>, _files: Record<string, any>) => {},
     []
   );
+
+  const presentationAppState = useMemo(() => {
+    const baseAppState = {
+      ...currentSlide.appState,
+      viewModeEnabled: true,
+      zenModeEnabled: true,
+    };
+
+    if (!hasCameras) {
+      return baseAppState;
+    }
+
+    return {
+      ...baseAppState,
+      scrollX: 0,
+      scrollY: 0,
+      zoom: { value: 1 },
+    };
+  }, [currentSlide.appState, hasCameras]);
 
   // Build page indicator text
   const pageIndicator = hasCameras
@@ -268,17 +311,11 @@ export function PresentationMode({ slides, startIndex, mode, transitionSpeed, on
             key={currentSlide.id}
             slideId={currentSlide.id}
             elements={presentationElements}
-            appState={currentSlide.appState}
+            appState={presentationAppState}
             files={currentSlide.files}
             onChange={noopOnChange}
             viewMode={true}
-            onApiReady={(api: any) => {
-              excalidrawApiRef.current = api;
-              // If we have cameras, navigate to the first one after API is ready
-              if (hasCameras && cameras[currentCameraIndex]) {
-                setTimeout(() => animateToCamera(cameras[currentCameraIndex]), 100);
-              }
-            }}
+            onApiReady={handleApiReady}
           />
         </ErrorBoundary>
       </div>

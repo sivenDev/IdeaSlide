@@ -9,11 +9,15 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { invoke } from "@tauri-apps/api/core";
 import { openRecentFile, addRecentFile, getOpenedFile, convertFromIsFileData } from "./lib/tauriCommands";
 import { initMcpRenderer } from "./lib/mcpRenderer";
+import { initCameraThumbnailRenderer } from "./lib/cameraThumbnailRenderer";
 
 function AppContent() {
   const { state, dispatch } = useSlideStore();
   const [showEditor, setShowEditor] = useState(false);
   const [mcpVisible, setMcpVisible] = useState(false);
+  const windowLabel = getCurrentWindow().label;
+  const isRendererWindow =
+    windowLabel === "mcp-renderer" || windowLabel === "camera-renderer";
 
   async function loadFileFromPath(filePath: string) {
     const slides = await openRecentFile(filePath);
@@ -33,21 +37,26 @@ function AppContent() {
     setShowEditor(true);
   }
 
-  // MCP renderer mode: initialize headless Excalidraw renderer
+  // Hidden renderer windows boot only the renderer event handlers.
   useEffect(() => {
-    if (getCurrentWindow().label === 'mcp-renderer') {
+    if (windowLabel === "mcp-renderer") {
       initMcpRenderer().catch(console.error);
     }
-  }, []);
+    if (windowLabel === "camera-renderer") {
+      initCameraThumbnailRenderer().catch(console.error);
+    }
+  }, [windowLabel]);
 
   // MCP visible mode: check on startup and listen for state changes
   useEffect(() => {
+    if (isRendererWindow) return;
     invoke<boolean>("is_mcp_visible").then((visible) => {
       setMcpVisible(visible);
     }).catch(() => {});
-  }, []);
+  }, [isRendererWindow]);
 
   useEffect(() => {
+    if (isRendererWindow) return;
     if (!mcpVisible) return;
     const unlisten = listen<{ path: string; data: any }>("mcp-state-changed", (event) => {
       const slides = convertFromIsFileData(event.payload.data);
@@ -87,10 +96,11 @@ function AppContent() {
       unlisten.then((fn) => fn());
       unlistenSession.then((fn) => fn());
     };
-  }, [mcpVisible, dispatch]);
+  }, [isRendererWindow, mcpVisible, dispatch]);
 
   // Cold start: check if app was launched by opening a .is file
   useEffect(() => {
+    if (isRendererWindow) return;
     getOpenedFile().then((filePath) => {
       if (filePath) {
         loadFileFromPath(filePath).catch((err) =>
@@ -98,10 +108,11 @@ function AppContent() {
         );
       }
     });
-  }, []);
+  }, [isRendererWindow]);
 
   // Hot start: listen for file-open events while app is running
   useEffect(() => {
+    if (isRendererWindow) return;
     const unlisten = listen<string>("file-open", async (event) => {
       try {
         await loadFileFromPath(event.payload);
@@ -112,7 +123,11 @@ function AppContent() {
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, [dispatch]);
+  }, [isRendererWindow, dispatch]);
+
+  if (isRendererWindow) {
+    return null;
+  }
 
   if (!showEditor) {
     return <LaunchScreen onFileOpened={handleFileOpened} />;

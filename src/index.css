@@ -34,6 +34,11 @@ html, body, #root {
   display: none !important;
 }
 
+/* Hide Excalidraw's built-in footer help button */
+.excalidraw .help-icon {
+  display: none !important;
+}
+
 /* Presentation mode animations */
 @keyframes fadeIn {
   from { opacity: 0; }

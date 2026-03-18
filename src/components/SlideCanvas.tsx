@@ -1,6 +1,25 @@
 import { Excalidraw, MainMenu } from "@excalidraw/excalidraw";
-import { useRef, useEffect, useMemo, useState, useCallback } from "react";
+import { memo, useRef, useEffect, useMemo, useState, useCallback } from "react";
 import { getNextCameraOrder } from "../lib/cameraUtils";
+import { areSlideCanvasPropsEqual } from "../lib/slideCanvasProps";
+
+const CAMERA_PREVIEW_ID = "camera-preview";
+
+function getScenePointerFromEvent(api: any, event: PointerEvent) {
+  const appState = api.getAppState();
+  const { scrollX, scrollY, zoom } = appState;
+  const canvas = document.querySelector(".excalidraw__canvas") as HTMLElement | null;
+  const rect = canvas?.getBoundingClientRect();
+
+  if (!rect) {
+    return null;
+  }
+
+  return {
+    x: (event.clientX - rect.left) / zoom.value - scrollX,
+    y: (event.clientY - rect.top) / zoom.value - scrollY,
+  };
+}
 
 interface SlideCanvasProps {
   slideId: string;
@@ -12,7 +31,7 @@ interface SlideCanvasProps {
   onApiReady?: (api: any) => void;
 }
 
-export function SlideCanvas({ slideId, elements, appState, files, onChange, viewMode, onApiReady }: SlideCanvasProps) {
+function SlideCanvasInner({ slideId, elements, appState, files, onChange, viewMode, onApiReady }: SlideCanvasProps) {
   // Use a ref to always have the latest onChange without causing re-renders
   const onChangeRef = useRef(onChange);
   useEffect(() => {
@@ -32,6 +51,13 @@ export function SlideCanvas({ slideId, elements, appState, files, onChange, view
       isInitialLoad.current = false;
       return;
     }
+
+    // The preview rectangle is purely local UI state for drag feedback and
+    // should not be persisted into the slide store.
+    if (els.some((element: any) => element.id === CAMERA_PREVIEW_ID)) {
+      return;
+    }
+
     onChangeRef.current(els, state, sceneFiles || {});
   }).current;
 
@@ -62,20 +88,9 @@ export function SlideCanvas({ slideId, elements, appState, files, onChange, view
 
     const unsubscribe = api.onPointerDown((activeTool: any, _pointerDownState: any, event: PointerEvent) => {
       if (activeTool.type === "custom" && activeTool.customType === "camera") {
-        const appState = api.getAppState();
-        const { scrollX, scrollY, zoom } = appState;
-
-        // Get canvas bounding rect for proper coordinate conversion
-        const canvas = document.querySelector('.excalidraw__canvas') as HTMLElement;
-        const rect = canvas?.getBoundingClientRect();
-
-        if (!rect) return;
-
-        // Convert screen coordinates to canvas coordinates
-        const canvasX = (event.clientX - rect.left - scrollX) / zoom.value;
-        const canvasY = (event.clientY - rect.top - scrollY) / zoom.value;
-
-        drawStartRef.current = { x: canvasX, y: canvasY };
+        const pointer = getScenePointerFromEvent(api, event);
+        if (!pointer) return;
+        drawStartRef.current = pointer;
       }
     });
 
@@ -85,39 +100,30 @@ export function SlideCanvas({ slideId, elements, appState, files, onChange, view
   // Handle pointer move - show preview while dragging
   useEffect(() => {
     const api = excalidrawApiRef.current;
-    if (!api || !isDrawingCamera || !drawStartRef.current) return;
+    if (!api || !isDrawingCamera) return;
 
     const handlePointerMove = (event: PointerEvent) => {
       if (!drawStartRef.current) return;
-
-      const appState = api.getAppState();
-      const { scrollX, scrollY, zoom } = appState;
-
-      // Get canvas bounding rect for proper coordinate conversion
-      const canvas = document.querySelector('.excalidraw__canvas') as HTMLElement;
-      const rect = canvas?.getBoundingClientRect();
-
-      if (!rect) return;
-
-      // Convert screen coordinates to canvas coordinates
-      const canvasX = (event.clientX - rect.left - scrollX) / zoom.value;
-      const canvasY = (event.clientY - rect.top - scrollY) / zoom.value;
+      const pointer = getScenePointerFromEvent(api, event);
+      if (!pointer) return;
 
       const startX = drawStartRef.current.x;
       const startY = drawStartRef.current.y;
 
       // Calculate rectangle bounds
-      const x = Math.min(startX, canvasX);
-      const y = Math.min(startY, canvasY);
-      const width = Math.abs(canvasX - startX);
-      const height = Math.abs(canvasY - startY);
+      const x = Math.min(startX, pointer.x);
+      const y = Math.min(startY, pointer.y);
+      const width = Math.abs(pointer.x - startX);
+      const height = Math.abs(pointer.y - startY);
 
       // Get current elements and filter out any existing preview
-      const currentElements = api.getSceneElements().filter((el: any) => el.id !== "camera-preview");
+      const currentElements = api
+        .getSceneElements()
+        .filter((el: any) => el.id !== CAMERA_PREVIEW_ID);
 
       // Create preview rectangle
       const previewElement = {
-        id: "camera-preview",
+        id: CAMERA_PREVIEW_ID,
         type: "rectangle",
         x,
         y,
@@ -152,7 +158,7 @@ export function SlideCanvas({ slideId, elements, appState, files, onChange, view
 
     window.addEventListener("pointermove", handlePointerMove);
     return () => window.removeEventListener("pointermove", handlePointerMove);
-  }, [isDrawingCamera, drawStartRef.current]);
+  }, [isDrawingCamera]);
 
   // Handle pointer up - finish drawing camera rectangle
   useEffect(() => {
@@ -161,30 +167,22 @@ export function SlideCanvas({ slideId, elements, appState, files, onChange, view
 
     const unsubscribe = api.onPointerUp((activeTool: any, _pointerDownState: any, event: PointerEvent) => {
       if (activeTool.type === "custom" && activeTool.customType === "camera" && drawStartRef.current) {
-        const appState = api.getAppState();
-        const { scrollX, scrollY, zoom } = appState;
-
-        // Get canvas bounding rect for proper coordinate conversion
-        const canvas = document.querySelector('.excalidraw__canvas') as HTMLElement;
-        const rect = canvas?.getBoundingClientRect();
-
-        if (!rect) return;
-
-        // Convert screen coordinates to canvas coordinates
-        const canvasX = (event.clientX - rect.left - scrollX) / zoom.value;
-        const canvasY = (event.clientY - rect.top - scrollY) / zoom.value;
+        const pointer = getScenePointerFromEvent(api, event);
+        if (!pointer) return;
 
         const startX = drawStartRef.current.x;
         const startY = drawStartRef.current.y;
 
         // Calculate rectangle bounds
-        const x = Math.min(startX, canvasX);
-        const y = Math.min(startY, canvasY);
-        const width = Math.abs(canvasX - startX);
-        const height = Math.abs(canvasY - startY);
+        const x = Math.min(startX, pointer.x);
+        const y = Math.min(startY, pointer.y);
+        const width = Math.abs(pointer.x - startX);
+        const height = Math.abs(pointer.y - startY);
 
         // Remove preview and get clean elements
-        const currentElements = api.getSceneElements().filter((el: any) => el.id !== "camera-preview");
+        const currentElements = api
+          .getSceneElements()
+          .filter((el: any) => el.id !== CAMERA_PREVIEW_ID);
 
         // Only create camera if drag was significant (> 10px)
         if (width > 10 && height > 10) {
@@ -239,6 +237,27 @@ export function SlideCanvas({ slideId, elements, appState, files, onChange, view
     });
 
     return unsubscribe;
+  }, [isDrawingCamera]);
+
+  useEffect(() => {
+    if (isDrawingCamera) {
+      return;
+    }
+
+    const api = excalidrawApiRef.current;
+    if (!api) {
+      return;
+    }
+
+    drawStartRef.current = null;
+    const sceneElements = api.getSceneElements();
+    if (!sceneElements.some((el: any) => el.id === CAMERA_PREVIEW_ID)) {
+      return;
+    }
+
+    api.updateScene({
+      elements: sceneElements.filter((el: any) => el.id !== CAMERA_PREVIEW_ID),
+    });
   }, [isDrawingCamera]);
 
   // Render custom UI in top-right corner
@@ -306,3 +325,5 @@ export function SlideCanvas({ slideId, elements, appState, files, onChange, view
     </div>
   );
 }
+
+export const SlideCanvas = memo(SlideCanvasInner, areSlideCanvasPropsEqual);
