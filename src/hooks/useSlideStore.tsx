@@ -1,8 +1,12 @@
 import { createContext, useContext, useReducer, ReactNode } from "react";
 import type { Presentation, Slide } from "../types";
 
+type TransitionSpeed = 'fast' | 'medium' | 'slow';
+
 interface SlideStoreState extends Presentation {
   presentationMode: 'none' | 'preview' | 'fullscreen';
+  currentCameraIndex: number;
+  transitionSpeed: TransitionSpeed;
   activeSessions: Map<string, SessionState>;
 }
 
@@ -31,6 +35,8 @@ type SlideStoreAction =
   | { type: "MARK_DIRTY" }
   | { type: "START_PRESENTATION"; payload: { mode: 'preview' | 'fullscreen' } }
   | { type: "EXIT_PRESENTATION" }
+  | { type: "SET_CAMERA_INDEX"; payload: { index: number } }
+  | { type: "SET_TRANSITION_SPEED"; payload: { speed: TransitionSpeed } }
   | { type: "SESSION_STARTED"; sessionId: string; path: string }
   | { type: "SESSION_ELEMENTS_UPDATED"; sessionId: string; elements: any[] }
   | { type: "SESSION_ENDED"; sessionId: string };
@@ -40,6 +46,8 @@ const initialState: SlideStoreState = {
   currentSlideIndex: 0,
   isDirty: false,
   presentationMode: 'none',
+  currentCameraIndex: 0,
+  transitionSpeed: 'slow',
   activeSessions: new Map(),
 };
 
@@ -96,16 +104,29 @@ function slideStoreReducer(
       return {
         ...state,
         currentSlideIndex: action.payload.index,
+        currentCameraIndex: 0,
       };
 
     case "UPDATE_SLIDE": {
-      const newSlides = [...state.slides];
-      newSlides[action.payload.index] = {
-        ...newSlides[action.payload.index],
+      const oldSlide = state.slides[action.payload.index];
+      const newSlide = {
+        ...oldSlide,
         elements: action.payload.elements,
         appState: action.payload.appState,
         files: action.payload.files,
       };
+
+      // Avoid creating new array if slide didn't actually change
+      if (
+        oldSlide.elements === action.payload.elements &&
+        oldSlide.appState === action.payload.appState &&
+        oldSlide.files === action.payload.files
+      ) {
+        return state;
+      }
+
+      const newSlides = [...state.slides];
+      newSlides[action.payload.index] = newSlide;
       return {
         ...state,
         slides: newSlides,
@@ -129,12 +150,26 @@ function slideStoreReducer(
       return {
         ...state,
         presentationMode: action.payload.mode,
+        currentCameraIndex: 0,
       };
 
     case "EXIT_PRESENTATION":
       return {
         ...state,
         presentationMode: 'none',
+        currentCameraIndex: 0,
+      };
+
+    case "SET_CAMERA_INDEX":
+      return {
+        ...state,
+        currentCameraIndex: action.payload.index,
+      };
+
+    case "SET_TRANSITION_SPEED":
+      return {
+        ...state,
+        transitionSpeed: action.payload.speed,
       };
 
     case "SESSION_STARTED": {

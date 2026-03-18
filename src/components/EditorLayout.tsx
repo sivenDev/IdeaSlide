@@ -1,13 +1,16 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useSlideStore } from "../hooks/useSlideStore";
 import { useAutoSave } from "../hooks/useAutoSave";
 import { useSlideThumbnails } from "../hooks/useSlideThumbnails";
 import { Toolbar } from "./Toolbar";
 import { SlidePreviewPanel } from "./SlidePreviewPanel";
+import { CameraList } from "./CameraList";
 import { SlideCanvas } from "./SlideCanvas";
 import { ResizableDivider } from "./ResizableDivider";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { createNewPresentation, openFile, saveFile, addRecentFile } from "../lib/tauriCommands";
+import { extractCameras, reorderCameras } from "../lib/cameraUtils";
+import { useCameraThumbnails } from "../hooks/useCameraThumbnails";
 import { save, message, ask } from "@tauri-apps/plugin-dialog";
 
 interface EditorLayoutProps {
@@ -19,7 +22,25 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
   const { state, dispatch } = useSlideStore();
   const [isSaving, setIsSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
+  const [bottomTab, setBottomTab] = useState<'cameras' | 'slides'>('cameras');
+  const excalidrawApiRef = useRef<any>(null);
   const thumbnails = useSlideThumbnails(state.slides);
+
+  const currentSlide = state.slides[state.currentSlideIndex];
+
+  // Memoize cameras with stable signature to prevent unnecessary re-renders
+  const cameras = useMemo(() => {
+    return extractCameras(currentSlide.elements);
+  }, [
+    currentSlide.elements.filter((el: any) => el.customData?.type === 'camera' && !el.isDeleted)
+      .map((el: any) => `${el.id}:${el.customData?.order}`).join(',')
+  ]);
+
+  const cameraThumbnails = useCameraThumbnails(
+    cameras,
+    currentSlide.elements,
+    currentSlide.files
+  );
 
   useAutoSave({
     filePath: state.filePath,
@@ -36,7 +57,6 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
     },
   });
 
-  const currentSlide = state.slides[state.currentSlideIndex];
   const fileName = state.filePath?.split("/").pop();
 
   function handleNewIdea() {
@@ -170,6 +190,8 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
 
   // Use a ref for currentSlideIndex to avoid re-creating the callback
   const currentSlideIndexRef = useRef(state.currentSlideIndex);
+  const slidesRef = useRef(state.slides);
+  slidesRef.current = state.slides;
   if (currentSlideIndexRef.current !== state.currentSlideIndex) {
     // Initialize fingerprint with the new slide's full content so the first
     // onChange after mount doesn't falsely trigger isDirty.
@@ -211,6 +233,7 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
         onSaveAs={handleSaveAs}
         onGoHome={handleGoHome}
         onTogglePreview={() => setShowPreview((prev) => !prev)}
+        onAddSlide={() => dispatch({ type: "ADD_SLIDE" })}
         onStartPreview={() => dispatch({ type: 'START_PRESENTATION', payload: { mode: 'preview' } })}
         onStartFullscreen={() => dispatch({ type: 'START_PRESENTATION', payload: { mode: 'fullscreen' } })}
         onStartFromBeginning={() => {
@@ -228,28 +251,7 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
         </div>
       )}
 
-      <div className="flex-1 flex overflow-hidden">
-        <div className={`transition-all duration-300 overflow-hidden flex-shrink-0 ${showPreview ? "w-64" : "w-0"}`}>
-          <SlidePreviewPanel
-            slides={state.slides}
-            currentSlideIndex={state.currentSlideIndex}
-            thumbnails={thumbnails}
-            onSlideSelect={(index) =>
-              dispatch({ type: "SET_CURRENT_SLIDE", payload: { index } })
-            }
-            onAddSlide={() => dispatch({ type: "ADD_SLIDE" })}
-            onDeleteSlide={(index) =>
-              dispatch({ type: "DELETE_SLIDE", payload: { index } })
-            }
-            onStartPresentation={() => dispatch({ type: 'START_PRESENTATION', payload: { mode: 'fullscreen' } })}
-          />
-        </div>
-
-        <ResizableDivider
-          isVisible={showPreview}
-          onToggle={() => setShowPreview((prev) => !prev)}
-        />
-
+      <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 relative">
           <div className="absolute inset-0">
             <ErrorBoundary>
@@ -259,9 +261,85 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
                 appState={currentSlide.appState}
                 files={currentSlide.files}
                 onChange={handleSlideChange}
+                onApiReady={(api: any) => { excalidrawApiRef.current = api; }}
               />
             </ErrorBoundary>
           </div>
+        </div>
+
+        <ResizableDivider
+          isVisible={showPreview}
+          onToggle={() => setShowPreview((prev) => !prev)}
+        />
+
+        <div className={`transition-all duration-300 overflow-hidden ${showPreview ? "h-[182px]" : "h-0"}`}>
+          {/* Tab switcher */}
+          <div className="flex items-center bg-gray-50 border-b border-gray-200 px-3 h-8 flex-shrink-0">
+            <button
+              onClick={() => setBottomTab('cameras')}
+              className={`px-3 py-1 text-xs font-medium rounded-t transition-colors ${
+                bottomTab === 'cameras'
+                  ? 'text-amber-600 bg-white border border-b-0 border-gray-200 -mb-px'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Cameras
+            </button>
+            <button
+              onClick={() => setBottomTab('slides')}
+              className={`px-3 py-1 text-xs font-medium rounded-t transition-colors ${
+                bottomTab === 'slides'
+                  ? 'text-blue-600 bg-white border border-b-0 border-gray-200 -mb-px'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Slides
+            </button>
+          </div>
+
+          {/* Tab content */}
+          {bottomTab === 'cameras' ? (
+            <CameraList
+              cameras={cameras}
+              thumbnails={cameraThumbnails}
+              onCameraSelect={(camera) => {
+                const api = excalidrawApiRef.current;
+                if (api) {
+                  api.scrollToContent(
+                    currentSlide.elements.filter((el: any) => el.id === camera.id),
+                    { fitToContent: true, animate: true, duration: 300 }
+                  );
+                }
+              }}
+              onCameraDelete={(cameraId) => {
+                const api = excalidrawApiRef.current;
+                if (api) {
+                  const newElements = currentSlide.elements.filter((el: any) => el.id !== cameraId);
+                  api.updateScene({ elements: newElements });
+                }
+              }}
+              onReorder={(orderedIds) => {
+                const api = excalidrawApiRef.current;
+                if (api) {
+                  const newElements = reorderCameras(currentSlide.elements, orderedIds);
+                  api.updateScene({ elements: newElements });
+                }
+              }}
+            />
+          ) : (
+            <SlidePreviewPanel
+              slides={state.slides}
+              currentSlideIndex={state.currentSlideIndex}
+              thumbnails={thumbnails}
+              onSlideSelect={(index) =>
+                dispatch({ type: "SET_CURRENT_SLIDE", payload: { index } })
+              }
+              onAddSlide={() => dispatch({ type: "ADD_SLIDE" })}
+              onDeleteSlide={(index) =>
+                dispatch({ type: "DELETE_SLIDE", payload: { index } })
+              }
+            />
+          )}
         </div>
       </div>
     </div>

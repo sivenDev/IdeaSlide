@@ -125,6 +125,7 @@ function AppContent() {
         slides={state.slides}
         startIndex={state.currentSlideIndex}
         mode={state.presentationMode as 'preview' | 'fullscreen'}
+        transitionSpeed={state.transitionSpeed}
         onExit={() => dispatch({ type: 'EXIT_PRESENTATION' })}
       />
     );
