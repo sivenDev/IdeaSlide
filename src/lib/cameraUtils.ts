@@ -2,6 +2,7 @@ export interface Camera {
   id: string;
   order: number;
   bounds: { x: number; y: number; width: number; height: number };
+  strokeColor?: string;
 }
 
 function normalizeBounds(bounds: { x: number; y: number; width: number; height: number }) {
@@ -28,6 +29,7 @@ export function extractCameras(elements: readonly any[]): Camera[] {
         id: el.id,
         order: el.customData.order ?? 0,
         bounds,
+        strokeColor: el.strokeColor,
       };
     })
     .sort((a, b) => a.order - b.order);

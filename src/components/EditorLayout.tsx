@@ -9,6 +9,7 @@ import { CameraList } from "./CameraList";
 import { SlideCanvas } from "./SlideCanvas";
 import { ResizableDivider } from "./ResizableDivider";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/Tabs";
 import { createNewPresentation, openFile, saveFile, addRecentFile } from "../lib/tauriCommands";
 import { extractCameras, reorderCameras } from "../lib/cameraUtils";
 import { useCameraThumbnails } from "../hooks/useCameraThumbnails";
@@ -21,12 +22,14 @@ interface EditorLayoutProps {
   readOnly?: boolean;
 }
 
+type BottomTab = "cameras" | "slides";
+
 export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) {
   const { state, dispatch } = useSlideStore();
   const [isSaving, setIsSaving] = useState(false);
   const [selectedCameraId, setSelectedCameraId] = useState<string | undefined>(undefined);
   const [showPreview, setShowPreview] = useState(true);
-  const [bottomTab, setBottomTab] = useState<'cameras' | 'slides'>('cameras');
+  const [bottomTab, setBottomTab] = useState<BottomTab>("cameras");
   const excalidrawApiRef = useRef<any>(null);
   const cameraListRef = useRef<HTMLDivElement>(null);
 
@@ -275,6 +278,10 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
     excalidrawApiRef.current = api;
   }, []);
 
+  const handleBottomTabChange = useCallback((value: string) => {
+    setBottomTab(value === "slides" ? "slides" : "cameras");
+  }, []);
+
   return (
     <div
       className="h-screen flex flex-col"
@@ -351,103 +358,101 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
         />
 
         <div className={`transition-all duration-300 overflow-hidden ${showPreview ? "h-[182px]" : "h-0"}`}>
-          {/* Tab switcher */}
-          <div className="flex items-center bg-gray-50 border-b border-gray-200 px-3 h-8 flex-shrink-0">
-            <button
-              onClick={() => setBottomTab('cameras')}
-              className={`px-3 py-1 text-xs font-medium rounded-t transition-colors ${
-                bottomTab === 'cameras'
-                  ? 'text-amber-600 bg-white border border-b-0 border-gray-200 -mb-px'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Cameras
-            </button>
-            <button
-              onClick={() => setBottomTab('slides')}
-              className={`px-3 py-1 text-xs font-medium rounded-t transition-colors ${
-                bottomTab === 'slides'
-                  ? 'text-blue-600 bg-white border border-b-0 border-gray-200 -mb-px'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Slides
-            </button>
-          </div>
+          <Tabs
+            value={bottomTab}
+            onValueChange={handleBottomTabChange}
+            className="h-full flex flex-col"
+          >
+            <TabsList className="flex items-center bg-gray-50 border-b border-gray-200 px-3 h-8 flex-shrink-0">
+              <TabsTrigger
+                value="cameras"
+                className="data-[state=active]:text-amber-600 data-[state=active]:border-gray-200 data-[state=active]:border-b-white data-[state=active]:-mb-px"
+              >
+                Cameras
+              </TabsTrigger>
+              <TabsTrigger
+                value="slides"
+                className="data-[state=active]:text-blue-600 data-[state=active]:border-gray-200 data-[state=active]:border-b-white data-[state=active]:-mb-px"
+              >
+                Slides
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Tab content */}
-          {bottomTab === 'cameras' ? (
-            <div ref={cameraListRef}>
-              <CameraList
-                cameras={cameras}
-                thumbnails={cameraThumbnails}
-                activeCameraId={activeCameraId}
-                onCameraSelect={(camera) => {
-                  const api = excalidrawApiRef.current;
-                  if (api) {
-                    setSelectedCameraId(camera.id);
-                    const cameraElement = api
-                      .getSceneElements()
-                      .find((el: any) => el.id === camera.id);
+            <TabsContent value="cameras">
+              <div ref={cameraListRef}>
+                <CameraList
+                  cameras={cameras}
+                  thumbnails={cameraThumbnails}
+                  activeCameraId={activeCameraId}
+                  onCameraSelect={(camera) => {
+                    const api = excalidrawApiRef.current;
+                    if (api) {
+                      setSelectedCameraId(camera.id);
+                      const cameraElement = api
+                        .getSceneElements()
+                        .find((el: any) => el.id === camera.id);
 
-                    if (!cameraElement) {
-                      return;
+                      if (!cameraElement) {
+                        return;
+                      }
+
+                      api.setActiveTool({ type: "selection" });
+                      api.updateScene({
+                        appState: {
+                          selectedElementIds: { [camera.id]: true },
+                        },
+                      });
+                      api.scrollToContent(
+                        [cameraElement],
+                        { fitToContent: true, animate: true, duration: 300 }
+                      );
                     }
+                  }}
+                  onCameraDelete={(cameraId) => {
+                    const api = excalidrawApiRef.current;
+                    if (api) {
+                      if (activeCameraId === cameraId) {
+                        setSelectedCameraId(undefined);
+                      }
+                      const newElements = draft.elements.filter((el: any) => el.id !== cameraId);
+                      const sceneUpdate: any = { elements: newElements };
+                      if (activeCameraId === cameraId) {
+                        sceneUpdate.appState = { selectedElementIds: {} };
+                      }
+                      api.updateScene(sceneUpdate);
+                    }
+                  }}
+                  onReorder={(orderedIds) => {
+                    const api = excalidrawApiRef.current;
+                    if (api) {
+                      const newElements = reorderCameras(draft.elements, orderedIds);
+                      api.updateScene({ elements: newElements });
+                    }
+                  }}
+                />
+              </div>
+            </TabsContent>
 
-                    api.setActiveTool({ type: "selection" });
-                    api.updateScene({
-                      appState: {
-                        selectedElementIds: { [camera.id]: true },
-                      },
-                    });
-                    api.scrollToContent(
-                      [cameraElement],
-                      { fitToContent: true, animate: true, duration: 300 }
-                    );
-                  }
+            <TabsContent value="slides">
+              <SlidePreviewPanel
+                slides={state.slides}
+                currentSlideIndex={state.currentSlideIndex}
+                thumbnails={thumbnails}
+                onSlideSelect={(index) => {
+                  flushDraft();
+                  dispatch({ type: "SET_CURRENT_SLIDE", payload: { index } });
                 }}
-                onCameraDelete={(cameraId) => {
-                  const api = excalidrawApiRef.current;
-                  if (api) {
-                    if (activeCameraId === cameraId) {
-                      setSelectedCameraId(undefined);
-                    }
-                    const newElements = draft.elements.filter((el: any) => el.id !== cameraId);
-                    const sceneUpdate: any = { elements: newElements };
-                    if (activeCameraId === cameraId) {
-                      sceneUpdate.appState = { selectedElementIds: {} };
-                    }
-                    api.updateScene(sceneUpdate);
-                  }
+                onAddSlide={() => {
+                  flushDraft();
+                  dispatch({ type: "ADD_SLIDE" });
                 }}
-                onReorder={(orderedIds) => {
-                  const api = excalidrawApiRef.current;
-                  if (api) {
-                    const newElements = reorderCameras(draft.elements, orderedIds);
-                    api.updateScene({ elements: newElements });
-                  }
+                onDeleteSlide={(index) => {
+                  flushDraft();
+                  dispatch({ type: "DELETE_SLIDE", payload: { index } });
                 }}
               />
-            </div>
-          ) : (
-            <SlidePreviewPanel
-              slides={state.slides}
-              currentSlideIndex={state.currentSlideIndex}
-              thumbnails={thumbnails}
-              onSlideSelect={(index) => {
-                flushDraft();
-                dispatch({ type: "SET_CURRENT_SLIDE", payload: { index } });
-              }}
-              onAddSlide={() => {
-                flushDraft();
-                dispatch({ type: "ADD_SLIDE" });
-              }}
-              onDeleteSlide={(index) => {
-                flushDraft();
-                dispatch({ type: "DELETE_SLIDE", payload: { index } });
-              }}
-            />
-          )}
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>
