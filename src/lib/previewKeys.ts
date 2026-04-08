@@ -2,11 +2,6 @@ import type { Camera } from "./cameraUtils.ts";
 import { buildCameraSignature } from "./cameraThumbnail.ts";
 import { buildSceneFingerprint } from "./sceneFingerprint.ts";
 
-export interface CameraPreviewState {
-  cameraSignature: string;
-  background: string;
-}
-
 export function extractPreviewAppState(appState: Partial<any> | undefined) {
   return {
     viewBackgroundColor: appState?.viewBackgroundColor ?? "#ffffff",
@@ -15,10 +10,6 @@ export function extractPreviewAppState(appState: Partial<any> | undefined) {
 
 function buildPreviewAppStateFingerprint(appState: Partial<any> | undefined) {
   return JSON.stringify(extractPreviewAppState(appState));
-}
-
-export function buildCameraPreviewStateKey(state: CameraPreviewState) {
-  return `camera:${state.cameraSignature}::${state.background}`;
 }
 
 export function buildSlidePreviewKey(
