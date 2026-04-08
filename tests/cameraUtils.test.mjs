@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  buildCameraCollectionSignature,
   getElementsInCamera,
   getSelectedCameraId,
   intersectsRegion,
@@ -89,6 +90,36 @@ test('getSelectedCameraId returns the selected camera and ignores non-camera sel
     }),
     undefined,
   );
+});
+
+test('buildCameraCollectionSignature is stable for equivalent camera metadata and changes with geometry', () => {
+  const first = buildCameraCollectionSignature([
+    {
+      id: 'camera-1',
+      order: 1,
+      bounds: { x: 10, y: 20, width: 100, height: 80 },
+      strokeColor: '#1e90ff',
+    },
+  ]);
+  const second = buildCameraCollectionSignature([
+    {
+      id: 'camera-1',
+      order: 1,
+      bounds: { x: 10, y: 20, width: 100, height: 80 },
+      strokeColor: '#1e90ff',
+    },
+  ]);
+  const moved = buildCameraCollectionSignature([
+    {
+      id: 'camera-1',
+      order: 1,
+      bounds: { x: 12, y: 20, width: 100, height: 80 },
+      strokeColor: '#1e90ff',
+    },
+  ]);
+
+  assert.equal(first, second);
+  assert.notEqual(first, moved);
 });
 
 test('moveItemByOffset moves a camera one slot to the left', () => {

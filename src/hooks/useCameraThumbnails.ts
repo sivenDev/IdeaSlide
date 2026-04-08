@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Camera } from "../lib/cameraUtils";
+import { buildCameraCollectionSignature, type Camera } from "../lib/cameraUtils";
 import { parseSvgMarkup } from "../lib/cameraThumbnail";
 import { buildCameraPreviewKey, extractPreviewAppState } from "../lib/previewKeys";
 import { previewRendererClient } from "../lib/previewRenderer";
@@ -30,7 +30,10 @@ export function useCameraThumbnails(
     files,
   };
 
-  const renderKey = buildCameraPreviewKey(elements, files, cameras, previewAppState);
+  const renderKey = buildCameraPreviewKey({
+    cameraSignature: buildCameraCollectionSignature(cameras),
+    background: previewAppState.viewBackgroundColor,
+  });
 
   useEffect(() => {
     const cancelPendingWork = () => {

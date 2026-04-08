@@ -35,6 +35,15 @@ export function extractCameras(elements: readonly any[]): Camera[] {
     .sort((a, b) => a.order - b.order);
 }
 
+export function buildCameraCollectionSignature(cameras: readonly Camera[]) {
+  return cameras
+    .map((camera) => {
+      const { id, order, bounds, strokeColor = "" } = camera;
+      return `${id}@${order}:${bounds.x},${bounds.y},${bounds.width},${bounds.height}:${strokeColor}`;
+    })
+    .join("|");
+}
+
 export function getNextCameraOrder(elements: readonly any[]): number {
   const cameras = extractCameras(elements);
   if (cameras.length === 0) return 1;
