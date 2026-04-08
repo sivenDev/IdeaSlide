@@ -1,4 +1,11 @@
+import type { Camera } from "./cameraUtils.ts";
+import { buildCameraSignature } from "./cameraThumbnail.ts";
 import { buildSceneFingerprint } from "./sceneFingerprint.ts";
+
+export interface CameraPreviewState {
+  cameraSignature: string;
+  background: string;
+}
 
 export function extractPreviewAppState(appState: Partial<any> | undefined) {
   return {
@@ -10,6 +17,10 @@ function buildPreviewAppStateFingerprint(appState: Partial<any> | undefined) {
   return JSON.stringify(extractPreviewAppState(appState));
 }
 
+export function buildCameraPreviewStateKey(state: CameraPreviewState) {
+  return `camera:${state.cameraSignature}::${state.background}`;
+}
+
 export function buildSlidePreviewKey(
   elements: readonly any[],
   files: Record<string, any>,
@@ -18,11 +29,11 @@ export function buildSlidePreviewKey(
   return `slide:${buildSceneFingerprint(elements, files)}::${buildPreviewAppStateFingerprint(appState)}`;
 }
 
-export interface CameraPreviewState {
-  cameraSignature: string;
-  background: string;
-}
-
-export function buildCameraPreviewKey(state: CameraPreviewState) {
-  return `camera:${state.cameraSignature}::${state.background}`;
+export function buildCameraPreviewKey(
+  elements: readonly any[],
+  files: Record<string, any>,
+  cameras: Camera[],
+  appState: Partial<any> = {}
+) {
+  return `camera:${buildSceneFingerprint(elements, files)}::${buildCameraSignature(cameras)}::${buildPreviewAppStateFingerprint(appState)}`;
 }

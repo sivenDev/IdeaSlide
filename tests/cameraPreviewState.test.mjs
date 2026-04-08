@@ -9,16 +9,16 @@ async function loadModule() {
   }
 }
 
-test('buildCameraPreviewKey ignores non-camera scene changes when camera preview state is reused', async () => {
-  const { buildCameraPreviewKey } = await loadModule();
+test('buildCameraPreviewStateKey ignores non-camera scene changes when camera preview state is reused', async () => {
+  const { buildCameraPreviewStateKey } = await loadModule();
 
-  assert.equal(typeof buildCameraPreviewKey, 'function');
+  assert.equal(typeof buildCameraPreviewStateKey, 'function');
 
-  const first = buildCameraPreviewKey({
+  const first = buildCameraPreviewStateKey({
     cameraSignature: 'camera-1@1:10,20,100,80:#1e90ff',
     background: '#ffffff',
   });
-  const second = buildCameraPreviewKey({
+  const second = buildCameraPreviewStateKey({
     cameraSignature: 'camera-1@1:10,20,100,80:#1e90ff',
     background: '#ffffff',
   });
@@ -26,16 +26,16 @@ test('buildCameraPreviewKey ignores non-camera scene changes when camera preview
   assert.equal(first, second);
 });
 
-test('buildCameraPreviewKey changes when camera geometry changes', async () => {
-  const { buildCameraPreviewKey } = await loadModule();
+test('buildCameraPreviewStateKey changes when camera geometry changes', async () => {
+  const { buildCameraPreviewStateKey } = await loadModule();
 
-  assert.equal(typeof buildCameraPreviewKey, 'function');
+  assert.equal(typeof buildCameraPreviewStateKey, 'function');
 
-  const first = buildCameraPreviewKey({
+  const first = buildCameraPreviewStateKey({
     cameraSignature: 'camera-1@1:10,20,100,80:#1e90ff',
     background: '#ffffff',
   });
-  const second = buildCameraPreviewKey({
+  const second = buildCameraPreviewStateKey({
     cameraSignature: 'camera-1@1:12,20,100,80:#1e90ff',
     background: '#ffffff',
   });

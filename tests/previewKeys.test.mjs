@@ -79,6 +79,25 @@ test('buildSlidePreviewKey changes when the exported background changes', async 
   assert.notEqual(first, second);
 });
 
+test('buildCameraPreviewKey changes when non-camera scene content changes', async () => {
+  const { buildCameraPreviewKey } = await loadModule();
+
+  assert.equal(typeof buildCameraPreviewKey, 'function');
+
+  const first = buildCameraPreviewKey(
+    [{ id: 'shape-1', version: 1, x: 0, y: 0, width: 10, height: 10 }],
+    {},
+    [{ id: 'camera-1', order: 1, bounds: { x: 10, y: 20, width: 100, height: 80 } }],
+  );
+  const second = buildCameraPreviewKey(
+    [{ id: 'shape-1', version: 2, x: 0, y: 0, width: 10, height: 10 }],
+    {},
+    [{ id: 'camera-1', order: 1, bounds: { x: 10, y: 20, width: 100, height: 80 } }],
+  );
+
+  assert.notEqual(first, second);
+});
+
 test('buildCameraPreviewKey changes when camera bounds change', async () => {
   const { buildCameraPreviewKey } = await loadModule();
 
@@ -87,12 +106,12 @@ test('buildCameraPreviewKey changes when camera bounds change', async () => {
   const first = buildCameraPreviewKey(
     [{ id: 'shape-1', version: 1, x: 0, y: 0, width: 10, height: 10 }],
     {},
-    [{ id: 'camera-1', bounds: { x: 10, y: 20, width: 100, height: 80 } }],
+    [{ id: 'camera-1', order: 1, bounds: { x: 10, y: 20, width: 100, height: 80 } }],
   );
   const second = buildCameraPreviewKey(
     [{ id: 'shape-1', version: 1, x: 0, y: 0, width: 10, height: 10 }],
     {},
-    [{ id: 'camera-1', bounds: { x: 12, y: 20, width: 100, height: 80 } }],
+    [{ id: 'camera-1', order: 1, bounds: { x: 12, y: 20, width: 100, height: 80 } }],
   );
 
   assert.notEqual(first, second);
@@ -106,13 +125,13 @@ test('buildCameraPreviewKey changes when the exported background changes', async
   const first = buildCameraPreviewKey(
     [{ id: 'shape-1', version: 1, x: 0, y: 0, width: 10, height: 10 }],
     {},
-    [{ id: 'camera-1', bounds: { x: 10, y: 20, width: 100, height: 80 } }],
+    [{ id: 'camera-1', order: 1, bounds: { x: 10, y: 20, width: 100, height: 80 } }],
     { viewBackgroundColor: '#ffffff' },
   );
   const second = buildCameraPreviewKey(
     [{ id: 'shape-1', version: 1, x: 0, y: 0, width: 10, height: 10 }],
     {},
-    [{ id: 'camera-1', bounds: { x: 10, y: 20, width: 100, height: 80 } }],
+    [{ id: 'camera-1', order: 1, bounds: { x: 10, y: 20, width: 100, height: 80 } }],
     { viewBackgroundColor: '#f5f5f5' },
   );
 
@@ -127,7 +146,7 @@ test('buildCameraPreviewKey ignores transient selection and scroll state', async
   const first = buildCameraPreviewKey(
     [{ id: 'shape-1', version: 1, x: 0, y: 0, width: 10, height: 10 }],
     {},
-    [{ id: 'camera-1', bounds: { x: 10, y: 20, width: 100, height: 80 } }],
+    [{ id: 'camera-1', order: 1, bounds: { x: 10, y: 20, width: 100, height: 80 } }],
     {
       viewBackgroundColor: '#ffffff',
       selectedElementIds: { 'camera-1': true },
@@ -138,7 +157,7 @@ test('buildCameraPreviewKey ignores transient selection and scroll state', async
   const second = buildCameraPreviewKey(
     [{ id: 'shape-1', version: 1, x: 0, y: 0, width: 10, height: 10 }],
     {},
-    [{ id: 'camera-1', bounds: { x: 10, y: 20, width: 100, height: 80 } }],
+    [{ id: 'camera-1', order: 1, bounds: { x: 10, y: 20, width: 100, height: 80 } }],
     {
       viewBackgroundColor: '#ffffff',
       selectedElementIds: {},
