@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Slide } from "../types";
 import {
-  applySlideCommitToSlides,
   buildEditorDraftFromSlide,
-  buildSlideCommitPayload,
+  buildSlidesForPersistence,
+  createDraftChangeSummary,
   flushEditorDraft,
   type EditorSlideDraft,
   type SlideCommitPayload,
@@ -17,6 +17,8 @@ interface UseEditorSessionOptions {
   onDirty: () => void;
 }
 
+const PREVIEW_SYNC_DEBOUNCE_MS = 250;
+
 export function useEditorSession({
   slide,
   slideIndex,
@@ -24,28 +26,56 @@ export function useEditorSession({
   onCommit,
   onDirty,
 }: UseEditorSessionOptions) {
-  const [baseSlide, setBaseSlide] = useState(slide);
-  const [draft, setDraft] = useState<EditorSlideDraft>(() =>
-    buildEditorDraftFromSlide(slide)
-  );
+  const initialDraft = buildEditorDraftFromSlide(slide);
+  const initialSummary = createDraftChangeSummary(slide, initialDraft);
+  const [draft, setDraft] = useState<EditorSlideDraft>(initialDraft);
+  const [hasPendingCommit, setHasPendingCommit] = useState(initialSummary.hasPersistedChange);
+  const [autoSaveVersion, setAutoSaveVersion] = useState(0);
+  const baseSlideRef = useRef(slide);
+  const draftRef = useRef(initialDraft);
+  const changeSummaryRef = useRef(initialSummary);
+  const previewSyncTimeoutRef = useRef<number | null>(null);
+
+  const clearPreviewSyncTimeout = useCallback(() => {
+    if (previewSyncTimeoutRef.current !== null) {
+      clearTimeout(previewSyncTimeoutRef.current);
+      previewSyncTimeoutRef.current = null;
+    }
+  }, []);
+
+  const syncPreviewDraft = useCallback(() => {
+    setDraft(draftRef.current);
+    setAutoSaveVersion((value) => value + 1);
+  }, []);
 
   useEffect(() => {
-    if (slide === baseSlide && slide.id === draft.slideId) {
+    if (slide === baseSlideRef.current && slide.id === draftRef.current.slideId) {
       return;
     }
 
-    setBaseSlide(slide);
-    setDraft(buildEditorDraftFromSlide(slide));
-  }, [baseSlide, draft.slideId, slide]);
+    clearPreviewSyncTimeout();
+    const nextDraft = buildEditorDraftFromSlide(slide);
+    const nextSummary = createDraftChangeSummary(slide, nextDraft);
+    baseSlideRef.current = slide;
+    draftRef.current = nextDraft;
+    changeSummaryRef.current = nextSummary;
+    setDraft(nextDraft);
+    setHasPendingCommit(nextSummary.hasPersistedChange);
+    setAutoSaveVersion((value) => value + 1);
+  }, [clearPreviewSyncTimeout, slide]);
 
-  const pendingCommit = useMemo(
-    () => buildSlideCommitPayload(baseSlide, draft),
-    [baseSlide, draft]
-  );
+  useEffect(() => clearPreviewSyncTimeout, [clearPreviewSyncTimeout]);
 
-  const slidesForPersistence = useMemo(
-    () => applySlideCommitToSlides(slides, slideIndex, pendingCommit),
-    [pendingCommit, slideIndex, slides]
+  const getSlidesForPersistence = useCallback(
+    () =>
+      buildSlidesForPersistence(
+        slides,
+        slideIndex,
+        baseSlideRef.current,
+        draftRef.current,
+        changeSummaryRef.current
+      ),
+    [slideIndex, slides]
   );
 
   const updateDraft = useCallback(
@@ -54,43 +84,60 @@ export function useEditorSession({
       appState: Partial<any>,
       files: Record<string, any>
     ) => {
-      setDraft((previousDraft) => {
-        const nextDraft = {
-          ...previousDraft,
-          elements,
-          appState,
-          files,
-        };
+      const previousSummary = changeSummaryRef.current;
+      const nextDraft = {
+        ...draftRef.current,
+        elements,
+        appState,
+        files,
+      };
+      const nextSummary = createDraftChangeSummary(baseSlideRef.current, nextDraft);
 
-        if (buildSlideCommitPayload(baseSlide, nextDraft)) {
-          onDirty();
-        }
+      draftRef.current = nextDraft;
+      changeSummaryRef.current = nextSummary;
+      setHasPendingCommit((previousValue) =>
+        previousValue === nextSummary.hasPersistedChange ? previousValue : nextSummary.hasPersistedChange
+      );
 
-        return nextDraft;
-      });
+      if (!previousSummary.hasPersistedChange && nextSummary.hasPersistedChange) {
+        onDirty();
+      }
+
+      clearPreviewSyncTimeout();
+      previewSyncTimeoutRef.current = window.setTimeout(() => {
+        previewSyncTimeoutRef.current = null;
+        syncPreviewDraft();
+      }, PREVIEW_SYNC_DEBOUNCE_MS);
     },
-    [baseSlide, onDirty]
+    [clearPreviewSyncTimeout, onDirty, syncPreviewDraft]
   );
 
   const flushDraft = useCallback(() => {
-    const flushed = flushEditorDraft(baseSlide, draft);
+    clearPreviewSyncTimeout();
+
+    const flushed = flushEditorDraft(baseSlideRef.current, draftRef.current);
     const { commitPayload } = flushed;
-    if (!commitPayload) {
-      return null;
+
+    if (commitPayload) {
+      onCommit(slideIndex, commitPayload);
     }
 
-    onCommit(slideIndex, commitPayload);
-    setBaseSlide(flushed.baseSlide);
+    baseSlideRef.current = flushed.baseSlide;
+    draftRef.current = flushed.draft;
+    changeSummaryRef.current = createDraftChangeSummary(flushed.baseSlide, flushed.draft);
     setDraft(flushed.draft);
+    setHasPendingCommit(changeSummaryRef.current.hasPersistedChange);
+    setAutoSaveVersion((value) => value + 1);
+
     return commitPayload;
-  }, [baseSlide, draft, onCommit, slideIndex]);
+  }, [clearPreviewSyncTimeout, onCommit, slideIndex]);
 
   return {
+    autoSaveVersion,
     draft,
     flushDraft,
-    hasPendingCommit: pendingCommit !== null,
-    pendingCommit,
-    slidesForPersistence,
+    getSlidesForPersistence,
+    hasPendingCommit,
     updateDraft,
   };
 }

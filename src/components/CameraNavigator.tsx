@@ -1,6 +1,11 @@
-import { useEffect, useRef, memo } from "react";
+import { useEffect, useRef, memo, useMemo } from "react";
 import { useCameraThumbnails } from "../hooks/useCameraThumbnails";
 import type { Camera } from "../lib/cameraUtils";
+import { buildCameraCollectionSignature } from "../lib/cameraUtils";
+import {
+  buildLiveCameraPreviewState,
+  extractPreviewAppState,
+} from "../lib/previewKeys";
 
 interface CameraNavigatorProps {
   cameras: Camera[];
@@ -86,7 +91,24 @@ export function CameraNavigator({
   onSelect,
   onClose,
 }: CameraNavigatorProps) {
-  const thumbnails = useCameraThumbnails(cameras, elements, appState, files, 0);
+  const previewAppState = useMemo(
+    () => extractPreviewAppState(appState),
+    [appState?.viewBackgroundColor]
+  );
+  const snapshot = useMemo(() => {
+    const previewState = buildLiveCameraPreviewState(elements, files, cameras, appState);
+
+    return {
+      cameras,
+      elements,
+      appState: previewAppState,
+      files,
+      cameraSignature: buildCameraCollectionSignature(cameras),
+      background: JSON.stringify(previewAppState),
+      sceneFingerprint: previewState.sceneFingerprint,
+    };
+  }, [appState, cameras, elements, files, previewAppState]);
+  const thumbnails = useCameraThumbnails({ snapshot, debounceMs: 0, enabled: true });
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

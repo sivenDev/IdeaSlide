@@ -131,7 +131,6 @@ function SlideCanvasInner({ slideId, elements, appState, files, onChange, viewMo
       return;
     }
 
-    syncCameraBadgesRef.current(els, state);
     onChangeRef.current(els, state, sceneFiles || {});
   }).current;
 

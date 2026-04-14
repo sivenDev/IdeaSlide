@@ -7,7 +7,7 @@ interface UseAutoSaveOptions {
   filePath?: string;
   slides: Slide[];
   isDirty: boolean;
-  onSaveStart: () => void;
+  onSaveStart: () => Slide[] | void;
   onSaveComplete: () => void;
   onSaveError: (error: Error) => void;
   debounceMs?: number;
@@ -55,14 +55,14 @@ export function useAutoSave({
     timeoutRef.current = window.setTimeout(async () => {
       timeoutRef.current = null;
       isSavingRef.current = true;
-      onSaveStartRef.current();
+      const nextSlides = onSaveStartRef.current() ?? slidesRef.current;
 
       try {
         if (!filePathRef.current) {
           return;
         }
 
-        await saveFile(filePathRef.current, slidesRef.current);
+        await saveFile(filePathRef.current, nextSlides);
         onSaveCompleteRef.current();
       } catch (error) {
         onSaveErrorRef.current(error as Error);

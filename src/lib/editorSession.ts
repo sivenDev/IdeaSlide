@@ -9,12 +9,17 @@ export interface EditorSlideDraft {
   elements: readonly any[];
   appState: Partial<any>;
   files: Record<string, any>;
-  baseSceneFingerprint: string;
 }
 
 export interface SlideCommitPayload {
   slide: Slide;
   contentChanged: boolean;
+}
+
+export interface DraftChangeSummary {
+  contentChanged: boolean;
+  appStateChanged: boolean;
+  hasPersistedChange: boolean;
 }
 
 export function extractPersistedAppState(appState: Partial<any> | undefined) {
@@ -49,24 +54,39 @@ export function buildEditorDraftFromSlide(slide: Slide): EditorSlideDraft {
     elements: slide.elements,
     appState: slide.appState,
     files: slide.files,
-    baseSceneFingerprint: buildSceneFingerprint(slide.elements, slide.files),
+  };
+}
+
+export function createDraftChangeSummary(
+  previousSlide: Slide,
+  nextDraftLike: Pick<EditorSlideDraft, "elements" | "appState" | "files">
+): DraftChangeSummary {
+  const previousAppState = normalizePersistedAppStateForComparison(
+    extractPersistedAppState(previousSlide.appState)
+  );
+  const nextAppState = normalizePersistedAppStateForComparison(
+    extractPersistedAppState(nextDraftLike.appState)
+  );
+  const previousSceneFingerprint = buildSceneFingerprint(previousSlide.elements, previousSlide.files);
+  const nextSceneFingerprint = buildSceneFingerprint(nextDraftLike.elements, nextDraftLike.files);
+
+  const contentChanged = previousSceneFingerprint !== nextSceneFingerprint;
+  const appStateChanged =
+    JSON.stringify(previousAppState) !== JSON.stringify(nextAppState);
+
+  return {
+    contentChanged,
+    appStateChanged,
+    hasPersistedChange: contentChanged || appStateChanged,
   };
 }
 
 export function buildSlideCommitPayload(
   previousSlide: Slide,
-  draft: EditorSlideDraft
+  draft: EditorSlideDraft,
+  summary: DraftChangeSummary = createDraftChangeSummary(previousSlide, draft)
 ): SlideCommitPayload | null {
-  const nextAppState = extractPersistedAppState(draft.appState);
-  const previousAppState = extractPersistedAppState(previousSlide.appState);
-  const normalizedNextAppState = normalizePersistedAppStateForComparison(nextAppState);
-  const normalizedPreviousAppState = normalizePersistedAppStateForComparison(previousAppState);
-  const sceneFingerprint = buildSceneFingerprint(draft.elements, draft.files);
-  const contentChanged = sceneFingerprint !== draft.baseSceneFingerprint;
-  const appStateChanged =
-    JSON.stringify(normalizedPreviousAppState) !== JSON.stringify(normalizedNextAppState);
-
-  if (!contentChanged && !appStateChanged) {
+  if (!summary.hasPersistedChange) {
     return null;
   }
 
@@ -74,10 +94,10 @@ export function buildSlideCommitPayload(
     slide: {
       id: previousSlide.id,
       elements: draft.elements,
-      appState: nextAppState,
+      appState: extractPersistedAppState(draft.appState),
       files: draft.files,
     },
-    contentChanged,
+    contentChanged: summary.contentChanged,
   };
 }
 
@@ -93,6 +113,20 @@ export function applySlideCommitToSlides(
   const nextSlides = [...slides];
   nextSlides[slideIndex] = commitPayload.slide;
   return nextSlides;
+}
+
+export function buildSlidesForPersistence(
+  slides: Slide[],
+  slideIndex: number,
+  previousSlide: Slide,
+  draft: EditorSlideDraft,
+  summary: DraftChangeSummary = createDraftChangeSummary(previousSlide, draft)
+) {
+  return applySlideCommitToSlides(
+    slides,
+    slideIndex,
+    buildSlideCommitPayload(previousSlide, draft, summary)
+  );
 }
 
 export function flushEditorDraft(previousSlide: Slide, draft: EditorSlideDraft) {

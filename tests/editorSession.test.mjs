@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
 
 async function loadModule() {
   try {
@@ -49,6 +50,52 @@ test('buildEditorDraftFromSlide preserves scene data and tags the draft with the
   assert.equal(draft.elements, slide.elements);
   assert.equal(draft.files, slide.files);
   assert.equal(draft.appState, slide.appState);
+});
+
+test('useEditorSession keeps live edits in refs and debounces preview sync before React state catches up', async () => {
+  const sourcePath = new URL('../src/hooks/useEditorSession.ts', import.meta.url);
+  const source = await fs.readFile(sourcePath, 'utf8');
+
+  assert.match(source, /const PREVIEW_SYNC_DEBOUNCE_MS = 250;/);
+  assert.match(source, /const draftRef = useRef\(initialDraft\);/);
+  assert.match(source, /draftRef\.current = nextDraft;/);
+  assert.match(source, /previewSyncTimeoutRef\.current = window\.setTimeout\(\(\) => \{/s);
+  assert.match(source, /syncPreviewDraft\(\);/);
+  assert.doesNotMatch(source, /setDraft\(\(previousDraft\) => \{/);
+});
+
+test('buildSlidesForPersistence applies the latest live draft snapshot to the current slide', async () => {
+  const { buildSlidesForPersistence } = await loadModule();
+
+  assert.equal(typeof buildSlidesForPersistence, 'function');
+
+  const slides = [
+    { id: 'slide-1', elements: [{ id: 'a', version: 1 }], appState: {}, files: {} },
+    { id: 'slide-2', elements: [{ id: 'b', version: 1 }], appState: {}, files: {} },
+  ];
+  const liveDraft = {
+    slideId: 'slide-2',
+    elements: [{ id: 'b', version: 3 }],
+    appState: { viewBackgroundColor: '#f5f5f5', selectedElementIds: { b: true } },
+    files: {},
+  };
+
+  assert.deepEqual(
+    buildSlidesForPersistence(slides, 1, slides[1], liveDraft, {
+      contentChanged: true,
+      appStateChanged: true,
+      hasPersistedChange: true,
+    }),
+    [
+      slides[0],
+      {
+        id: 'slide-2',
+        elements: [{ id: 'b', version: 3 }],
+        appState: { viewBackgroundColor: '#f5f5f5' },
+        files: {},
+      },
+    ],
+  );
 });
 
 test('buildSlideCommitPayload returns null when only transient appState changed', async () => {
@@ -128,6 +175,69 @@ test('buildSlideCommitPayload returns persisted slide data when scene content ch
     },
     contentChanged: true,
   });
+});
+
+test('createDraftChangeSummary marks element changes without recomputing persisted appState noise', async () => {
+  const { createDraftChangeSummary } = await loadModule();
+
+  assert.equal(typeof createDraftChangeSummary, 'function');
+
+  const slide = {
+    id: 'slide-1',
+    elements: [{ id: 'shape-1', version: 1 }],
+    appState: { viewBackgroundColor: '#ffffff' },
+    files: {},
+  };
+
+  assert.deepEqual(
+    createDraftChangeSummary(slide, {
+      elements: [{ id: 'shape-1', version: 2 }],
+      appState: { viewBackgroundColor: '#ffffff', selectedElementIds: { 'shape-1': true } },
+      files: {},
+    }),
+    {
+      contentChanged: true,
+      appStateChanged: false,
+      hasPersistedChange: true,
+    },
+  );
+});
+
+test('buildSlideCommitPayload can use a precomputed change summary', async () => {
+  const { buildSlideCommitPayload } = await loadModule();
+
+  assert.equal(typeof buildSlideCommitPayload, 'function');
+
+  const slide = {
+    id: 'slide-1',
+    elements: [{ id: 'shape-1', version: 1 }],
+    appState: {},
+    files: {},
+  };
+
+  const draft = {
+    slideId: 'slide-1',
+    elements: [{ id: 'shape-1', version: 2 }],
+    appState: {},
+    files: {},
+  };
+
+  assert.deepEqual(
+    buildSlideCommitPayload(slide, draft, {
+      contentChanged: true,
+      appStateChanged: false,
+      hasPersistedChange: true,
+    }),
+    {
+      slide: {
+        id: 'slide-1',
+        elements: [{ id: 'shape-1', version: 2 }],
+        appState: {},
+        files: {},
+      },
+      contentChanged: true,
+    },
+  );
 });
 
 test('applySlideCommitToSlides replaces only the current persisted slide snapshot', async () => {

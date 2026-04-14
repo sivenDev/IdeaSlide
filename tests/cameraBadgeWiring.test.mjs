@@ -6,18 +6,41 @@ async function readSource(path) {
   return readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 }
 
-test('SlideCanvas wires a non-interactive camera badge overlay for edit mode only', async () => {
+test('SlideCanvas keeps camera badge sync out of the persisted onChange fast path', async () => {
   const source = await readSource('src/components/SlideCanvas.tsx');
 
-  assert.match(source, /from "\.\.\/lib\/cameraBadges"/);
-  assert.match(source, /onScrollChange/);
-  assert.match(source, /const containerRef = useRef<HTMLDivElement>\(null\)/);
-  assert.match(source, /containerRef\.current\?\.getBoundingClientRect\(\)/);
-  assert.match(source, /new ResizeObserver/);
-  assert.match(source, /ref=\{containerRef\}/);
-  assert.match(source, /pointer-events-none absolute inset-0 z-20 overflow-hidden/);
-  assert.match(source, /!viewMode && cameraBadges.length > 0/);
-  assert.match(source, /backgroundColor: getBadgeBackgroundColor\(badge\.strokeColor\)/);
-  assert.match(source, /transform: "translate\(-28%, -52%\)"/);
-  assert.match(source, /const alpha = 0\.76/);
+  assert.match(source, /const stableOnChange = useRef\(/);
+  assert.match(source, /onChangeRef\.current\(els, state, sceneFiles \|\| \{\}\);/);
+  assert.doesNotMatch(source, /syncCameraBadgesRef\.current\(els, state\);\s*onChangeRef\.current\(els, state, sceneFiles \|\| \{\}\);/);
+});
+
+test('PresentationMode applies the first camera viewport immediately before animating later camera changes', async () => {
+  const source = await readSource('src/components/PresentationMode.tsx');
+
+  assert.match(source, /const hasAppliedInitialCameraViewportRef = useRef\(false\);/);
+  assert.match(source, /hasAppliedInitialCameraViewportRef\.current = false;/);
+  assert.match(source, /if \(!hasAppliedInitialCameraViewportRef\.current\) \{/);
+  assert.match(source, /api\.updateScene\(\{\s*appState: \{\s*scrollX: target\.scrollX,/s);
+  assert.match(source, /animator\.animateTo\(target, \{/);
+});
+
+test('camera thumbnails build a snapshot-backed render request and parse SVGs once per completed render', async () => {
+  const hookSource = await readSource('src/hooks/useCameraThumbnails.ts');
+  const navigatorSource = await readSource('src/components/CameraNavigator.tsx');
+
+  assert.match(hookSource, /export interface CameraPreviewSnapshot \{/);
+  assert.match(hookSource, /snapshot: CameraPreviewSnapshot \| null;/);
+  assert.match(hookSource, /const snapshotRef = useRef<CameraPreviewSnapshot \| null>\(snapshot\);/);
+  assert.match(hookSource, /const renderKey = snapshot[\s\S]*buildCameraPreviewKey\(\{[\s\S]*sceneFingerprint: snapshot\.sceneFingerprint,[\s\S]*cameraSignature: snapshot\.cameraSignature,[\s\S]*background: snapshot\.background,[\s\S]*\}\)[\s\S]*: null;/);
+  assert.match(hookSource, /useEffect\([\s\S]*\}, \[debounceMs, enabled, renderKey\]\);/);
+  assert.match(hookSource, /buildCameraPreviewKey\(\{[\s\S]*sceneFingerprint: snapshot\.sceneFingerprint,[\s\S]*cameraSignature: snapshot\.cameraSignature,[\s\S]*background: snapshot\.background,[\s\S]*\}\)/);
+  assert.match(hookSource, /const svgElement = parseSvgMarkup\(svgMarkup\);/);
+  assert.match(hookSource, /next\.set\(camera\.id, svgElement\);/);
+
+  assert.match(navigatorSource, /const previewAppState = useMemo\(/);
+  assert.match(navigatorSource, /extractPreviewAppState\(appState\)/);
+  assert.match(navigatorSource, /const previewState = buildLiveCameraPreviewState\(elements, files, cameras, appState\);/);
+  assert.match(navigatorSource, /cameraSignature: buildCameraCollectionSignature\(cameras\)/);
+  assert.match(navigatorSource, /sceneFingerprint: previewState\.sceneFingerprint/);
+  assert.match(navigatorSource, /const thumbnails = useCameraThumbnails\(\{ snapshot, debounceMs: 0, enabled: true \}\);/);
 });

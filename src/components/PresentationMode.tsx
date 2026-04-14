@@ -48,6 +48,7 @@ export function PresentationMode({ slides, startIndex, mode, transitionSpeed, on
   const excalidrawApiRef = useRef<any>(null);
   const apiSlideIdRef = useRef<string | null>(null);
   const animatorRef = useRef<ReturnType<typeof createViewportAnimator> | null>(null);
+  const hasAppliedInitialCameraViewportRef = useRef(false);
 
   const currentSlide = slides[currentSlideIndex];
   const cameras = useMemo(() => extractCameras(currentSlide.elements), [currentSlide.elements]);
@@ -75,6 +76,7 @@ export function PresentationMode({ slides, startIndex, mode, transitionSpeed, on
         });
       },
     });
+    hasAppliedInitialCameraViewportRef.current = false;
     setApiReadyVersion((value) => value + 1);
   }, [currentSlide.id]);
 
@@ -97,7 +99,7 @@ export function PresentationMode({ slides, startIndex, mode, transitionSpeed, on
     let cancelled = false;
     let frameId: number | null = null;
 
-    const animateWhenReady = () => {
+    const updateCameraViewport = () => {
       if (cancelled) {
         return;
       }
@@ -107,7 +109,7 @@ export function PresentationMode({ slides, startIndex, mode, transitionSpeed, on
       const viewportHeight = appState.height ?? 0;
 
       if (viewportWidth <= 0 || viewportHeight <= 0) {
-        frameId = requestAnimationFrame(animateWhenReady);
+        frameId = requestAnimationFrame(updateCameraViewport);
         return;
       }
 
@@ -118,13 +120,26 @@ export function PresentationMode({ slides, startIndex, mode, transitionSpeed, on
         paddingFactor: CAMERA_PADDING_FACTOR,
       });
 
+      if (!hasAppliedInitialCameraViewportRef.current) {
+        hasAppliedInitialCameraViewportRef.current = true;
+        animator.cancel();
+        api.updateScene({
+          appState: {
+            scrollX: target.scrollX,
+            scrollY: target.scrollY,
+            zoom: { value: target.zoom },
+          },
+        });
+        return;
+      }
+
       animator.animateTo(target, {
         durationMs: SPEED_MS[speed],
         easing: "ease-in-out",
       });
     };
 
-    animateWhenReady();
+    updateCameraViewport();
 
     return () => {
       cancelled = true;

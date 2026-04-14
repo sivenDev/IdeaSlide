@@ -2,19 +2,16 @@ import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useSlideStore } from "../hooks/useSlideStore";
 import { useAutoSave } from "../hooks/useAutoSave";
 import { useEditorSession } from "../hooks/useEditorSession";
-import { useSlideThumbnails } from "../hooks/useSlideThumbnails";
 import { Toolbar } from "./Toolbar";
-import { SlidePreviewPanel } from "./SlidePreviewPanel";
-import { CameraList } from "./CameraList";
 import { SlideCanvas } from "./SlideCanvas";
-import { ResizableDivider } from "./ResizableDivider";
 import { ErrorBoundary } from "./ErrorBoundary";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/Tabs";
+import {
+  extractCameras,
+  moveItemByOffset,
+  reorderCameras,
+  type Camera,
+} from "../lib/cameraUtils";
 import { createNewPresentation, openFile, saveFile, addRecentFile } from "../lib/tauriCommands";
-import { extractCameras, reorderCameras } from "../lib/cameraUtils";
-import { useCameraThumbnails } from "../hooks/useCameraThumbnails";
-import { isCameraThumbnailGenerationEnabled } from "../lib/cameraThumbnail";
-import { isTargetWithinNode } from "../lib/domTargets";
 import { save, message, ask } from "@tauri-apps/plugin-dialog";
 
 interface EditorLayoutProps {
@@ -22,19 +19,21 @@ interface EditorLayoutProps {
   readOnly?: boolean;
 }
 
-type BottomTab = "cameras" | "slides";
-
 export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) {
   const { state, dispatch } = useSlideStore();
   const [isSaving, setIsSaving] = useState(false);
   const [selectedCameraId, setSelectedCameraId] = useState<string | undefined>(undefined);
-  const [showPreview, setShowPreview] = useState(true);
-  const [bottomTab, setBottomTab] = useState<BottomTab>("cameras");
   const excalidrawApiRef = useRef<any>(null);
-  const cameraListRef = useRef<HTMLDivElement>(null);
 
   const currentSlide = state.slides[state.currentSlideIndex];
-  const { draft, flushDraft, hasPendingCommit, slidesForPersistence, updateDraft } = useEditorSession({
+  const {
+    autoSaveVersion,
+    draft,
+    flushDraft,
+    getSlidesForPersistence,
+    hasPendingCommit,
+    updateDraft,
+  } = useEditorSession({
     slide: currentSlide,
     slideIndex: state.currentSlideIndex,
     slides: state.slides,
@@ -72,45 +71,15 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
     [currentSlide.id],
   );
 
-  const slidePreviewSlides = useMemo(() => {
-    const nextSlides = [...state.slides];
-    nextSlides[state.currentSlideIndex] = {
-      id: draft.slideId,
-      elements: draft.elements,
-      appState: draft.appState,
-      files: draft.files,
-    };
-    return nextSlides;
-  }, [
-    draft.appState,
-    draft.elements,
-    draft.files,
-    draft.slideId,
-    state.currentSlideIndex,
-    state.slides,
-  ]);
-
-  const thumbnails = useSlideThumbnails(slidePreviewSlides, {
-    enabled: showPreview && bottomTab === "slides",
-  });
-
-  const cameras = extractCameras(draft.elements);
+  const cameras = useMemo(() => extractCameras(draft.elements), [draft.elements]);
   const activeCameraId =
     selectedCameraId && cameras.some((camera) => camera.id === selectedCameraId)
       ? selectedCameraId
       : undefined;
-  const cameraThumbnailsEnabled = isCameraThumbnailGenerationEnabled({
-    showPreview,
-    bottomTab,
-  });
 
-  const cameraThumbnails = useCameraThumbnails(
-    cameras,
-    draft.elements,
-    draft.appState,
-    draft.files,
-    250,
-    cameraThumbnailsEnabled
+  const slidesForPersistence = useMemo(
+    () => getSlidesForPersistence(),
+    [autoSaveVersion, getSlidesForPersistence]
   );
   const effectiveIsDirty = !readOnly && (state.isDirty || hasPendingCommit);
 
@@ -121,6 +90,7 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
     onSaveStart: () => {
       flushDraft();
       setIsSaving(true);
+      return getSlidesForPersistence();
     },
     onSaveComplete: () => {
       setIsSaving(false);
@@ -150,12 +120,6 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
     });
   }, [cameras]);
 
-  useEffect(() => {
-    if (bottomTab !== "cameras") {
-      setSelectedCameraId(undefined);
-    }
-  }, [bottomTab]);
-
   function handleNewIdea() {
     const { slides } = createNewPresentation();
     dispatch({
@@ -181,7 +145,8 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
       try {
         setIsSaving(true);
         flushDraft();
-        await saveFile(state.filePath, slidesForPersistence);
+        const nextSlides = getSlidesForPersistence();
+        await saveFile(state.filePath, nextSlides);
         dispatch({ type: "MARK_SAVED" });
         addRecentFile(state.filePath).catch(console.error);
       } catch (err) {
@@ -213,7 +178,6 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
     const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
 
     const handleKeyDown = async (e: KeyboardEvent) => {
-      // Check for Cmd+S (Mac) or Ctrl+S (Windows/Linux)
       if ((isMac ? e.metaKey : e.ctrlKey) && e.key === "s") {
         e.preventDefault();
         await handleSaveCallback();
@@ -234,10 +198,11 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
       if (!filePath) return;
 
       flushDraft();
-      await saveFile(filePath, slidesForPersistence);
+      const nextSlides = getSlidesForPersistence();
+      await saveFile(filePath, nextSlides);
       dispatch({
         type: "LOAD_PRESENTATION",
-        payload: { slides: slidesForPersistence, filePath },
+        payload: { slides: nextSlides, filePath },
       });
       addRecentFile(filePath).catch(console.error);
     } catch (err) {
@@ -278,52 +243,120 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
     excalidrawApiRef.current = api;
   }, []);
 
-  const handleBottomTabChange = useCallback((value: string) => {
-    setBottomTab(value === "slides" ? "slides" : "cameras");
+  const handleSelectSlide = useCallback((index: number) => {
+    flushDraft();
+    dispatch({ type: "SET_CURRENT_SLIDE", payload: { index } });
+  }, [dispatch, flushDraft]);
+
+  const handleAddSlide = useCallback(() => {
+    flushDraft();
+    dispatch({ type: "ADD_SLIDE" });
+  }, [dispatch, flushDraft]);
+
+  const handleDeleteSlide = useCallback((index: number) => {
+    flushDraft();
+    dispatch({ type: "DELETE_SLIDE", payload: { index } });
+  }, [dispatch, flushDraft]);
+
+  const handleSelectCamera = useCallback((camera: Camera) => {
+    const api = excalidrawApiRef.current;
+    if (!api) {
+      return;
+    }
+
+    setSelectedCameraId(camera.id);
+    const cameraElement = api
+      .getSceneElements()
+      .find((el: any) => el.id === camera.id);
+
+    if (!cameraElement) {
+      return;
+    }
+
+    api.setActiveTool({ type: "selection" });
+    api.updateScene({
+      appState: {
+        selectedElementIds: { [camera.id]: true },
+      },
+    });
+    api.scrollToContent([cameraElement], {
+      fitToContent: true,
+      animate: true,
+      duration: 300,
+    });
   }, []);
 
+  const handleDeleteCamera = useCallback((cameraId: string) => {
+    const api = excalidrawApiRef.current;
+    if (!api) {
+      return;
+    }
+
+    if (activeCameraId === cameraId) {
+      setSelectedCameraId(undefined);
+    }
+
+    const newElements = draft.elements.filter((el: any) => el.id !== cameraId);
+    const sceneUpdate: any = { elements: newElements };
+    if (activeCameraId === cameraId) {
+      sceneUpdate.appState = { selectedElementIds: {} };
+    }
+    api.updateScene(sceneUpdate);
+  }, [activeCameraId, draft.elements]);
+
+  const handleReorderCamera = useCallback((cameraId: string, offset: -1 | 1) => {
+    const api = excalidrawApiRef.current;
+    if (!api) {
+      return;
+    }
+
+    const currentIndex = cameras.findIndex((camera) => camera.id === cameraId);
+    if (currentIndex === -1) {
+      return;
+    }
+
+    const reorderedCameras = moveItemByOffset(cameras, currentIndex, offset);
+    if (reorderedCameras[currentIndex]?.id === cameraId) {
+      return;
+    }
+
+    const orderedIds = reorderedCameras.map((camera) => camera.id);
+    const newElements = reorderCameras(draft.elements, orderedIds);
+    api.updateScene({ elements: newElements });
+  }, [cameras, draft.elements]);
+
   return (
-    <div
-      className="h-screen flex flex-col"
-      onPointerDownCapture={(event) => {
-        if (!selectedCameraId || bottomTab !== "cameras") {
-          return;
-        }
-
-        if (isTargetWithinNode(cameraListRef.current, event.target)) {
-          return;
-        }
-
-        setSelectedCameraId(undefined);
-      }}
-    >
+    <div className="h-screen flex flex-col">
       <Toolbar
         fileName={fileName}
         isDirty={effectiveIsDirty}
         isSaving={isSaving}
-        showPreview={showPreview}
+        currentSlideIndex={state.currentSlideIndex}
+        slideCount={state.slides.length}
+        cameras={cameras}
+        activeCameraId={activeCameraId}
         onNewIdea={handleNewIdea}
         onOpenFile={handleOpenFile}
         onSave={handleSave}
-        onSaveAs={handleSaveAs}
         onGoHome={handleGoHome}
-        onTogglePreview={() => setShowPreview((prev) => !prev)}
-        onAddSlide={() => {
-          flushDraft();
-          dispatch({ type: "ADD_SLIDE" });
-        }}
+        onSelectSlide={handleSelectSlide}
+        onAddSlide={handleAddSlide}
+        onDeleteSlide={handleDeleteSlide}
+        onSelectCamera={handleSelectCamera}
+        onDeleteCamera={handleDeleteCamera}
+        onReorderCamera={handleReorderCamera}
         onStartPreview={() => {
           flushDraft();
-          dispatch({ type: 'START_PRESENTATION', payload: { mode: 'preview' } });
+          dispatch({ type: "START_PRESENTATION", payload: { mode: "preview" } });
         }}
         onStartFullscreen={() => {
           flushDraft();
-          dispatch({ type: 'START_PRESENTATION', payload: { mode: 'fullscreen' } });
+          dispatch({ type: "START_PRESENTATION", payload: { mode: "fullscreen" } });
         }}
         onStartFromBeginning={() => {
           flushDraft();
-          dispatch({ type: 'SET_CURRENT_SLIDE', payload: { index: 0 } });
-          dispatch({ type: 'START_PRESENTATION', payload: { mode: 'fullscreen' } });
+          dispatch({ type: "SET_CURRENT_SLIDE", payload: { index: 0 } });
+          dispatch({ type: "START_PRESENTATION", payload: { mode: "fullscreen" } });
         }}
       />
 
@@ -331,128 +364,23 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
         <div className="bg-blue-50 border-b border-blue-200 px-4 py-2 text-sm flex items-center gap-2">
           <span className="inline-block w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
           <span className="text-blue-700">
-            Streaming: {Array.from(state.activeSessions.values()).map(s => `${s.elements.length} elements`).join(', ')}
+            Streaming: {Array.from(state.activeSessions.values()).map((s) => `${s.elements.length} elements`).join(", ")}
           </span>
         </div>
       )}
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 relative">
-          <div className="absolute inset-0">
-            <ErrorBoundary>
-              <SlideCanvas
-                slideId={canvasInitialScene.slideId}
-                elements={canvasInitialScene.elements}
-                appState={canvasInitialScene.appState}
-                files={canvasInitialScene.files}
-                onChange={handleSlideChange}
-                onApiReady={handleCanvasApiReady}
-              />
-            </ErrorBoundary>
-          </div>
-        </div>
-
-        <ResizableDivider
-          isVisible={showPreview}
-          onToggle={() => setShowPreview((prev) => !prev)}
-        />
-
-        <div className={`transition-all duration-300 overflow-hidden ${showPreview ? "h-[182px]" : "h-0"}`}>
-          <Tabs
-            value={bottomTab}
-            onValueChange={handleBottomTabChange}
-            className="h-full flex flex-col"
-          >
-            <TabsList className="flex items-center bg-gray-50 border-b border-gray-200 px-3 h-8 flex-shrink-0">
-              <TabsTrigger
-                value="cameras"
-                className="data-[state=active]:text-amber-600 data-[state=active]:border-gray-200 data-[state=active]:border-b-white data-[state=active]:-mb-px"
-              >
-                Cameras
-              </TabsTrigger>
-              <TabsTrigger
-                value="slides"
-                className="data-[state=active]:text-blue-600 data-[state=active]:border-gray-200 data-[state=active]:border-b-white data-[state=active]:-mb-px"
-              >
-                Slides
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="cameras">
-              <div ref={cameraListRef}>
-                <CameraList
-                  cameras={cameras}
-                  thumbnails={cameraThumbnails}
-                  activeCameraId={activeCameraId}
-                  onCameraSelect={(camera) => {
-                    const api = excalidrawApiRef.current;
-                    if (api) {
-                      setSelectedCameraId(camera.id);
-                      const cameraElement = api
-                        .getSceneElements()
-                        .find((el: any) => el.id === camera.id);
-
-                      if (!cameraElement) {
-                        return;
-                      }
-
-                      api.setActiveTool({ type: "selection" });
-                      api.updateScene({
-                        appState: {
-                          selectedElementIds: { [camera.id]: true },
-                        },
-                      });
-                      api.scrollToContent(
-                        [cameraElement],
-                        { fitToContent: true, animate: true, duration: 300 }
-                      );
-                    }
-                  }}
-                  onCameraDelete={(cameraId) => {
-                    const api = excalidrawApiRef.current;
-                    if (api) {
-                      if (activeCameraId === cameraId) {
-                        setSelectedCameraId(undefined);
-                      }
-                      const newElements = draft.elements.filter((el: any) => el.id !== cameraId);
-                      const sceneUpdate: any = { elements: newElements };
-                      if (activeCameraId === cameraId) {
-                        sceneUpdate.appState = { selectedElementIds: {} };
-                      }
-                      api.updateScene(sceneUpdate);
-                    }
-                  }}
-                  onReorder={(orderedIds) => {
-                    const api = excalidrawApiRef.current;
-                    if (api) {
-                      const newElements = reorderCameras(draft.elements, orderedIds);
-                      api.updateScene({ elements: newElements });
-                    }
-                  }}
-                />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="slides">
-              <SlidePreviewPanel
-                slides={state.slides}
-                currentSlideIndex={state.currentSlideIndex}
-                thumbnails={thumbnails}
-                onSlideSelect={(index) => {
-                  flushDraft();
-                  dispatch({ type: "SET_CURRENT_SLIDE", payload: { index } });
-                }}
-                onAddSlide={() => {
-                  flushDraft();
-                  dispatch({ type: "ADD_SLIDE" });
-                }}
-                onDeleteSlide={(index) => {
-                  flushDraft();
-                  dispatch({ type: "DELETE_SLIDE", payload: { index } });
-                }}
-              />
-            </TabsContent>
-          </Tabs>
+      <div className="flex-1 relative overflow-hidden">
+        <div className="absolute inset-0">
+          <ErrorBoundary>
+            <SlideCanvas
+              slideId={canvasInitialScene.slideId}
+              elements={canvasInitialScene.elements}
+              appState={canvasInitialScene.appState}
+              files={canvasInitialScene.files}
+              onChange={handleSlideChange}
+              onApiReady={handleCanvasApiReady}
+            />
+          </ErrorBoundary>
         </div>
       </div>
     </div>
