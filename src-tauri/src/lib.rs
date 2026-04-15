@@ -52,6 +52,10 @@ fn get_opened_file(state: tauri::State<'_, PendingFile>) -> Option<String> {
     state.0.lock().unwrap().take()
 }
 
+fn should_exit_on_main_window_close(label: &str, mcp_mode: bool) -> bool {
+    !mcp_mode && label == "main"
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mcp_mode = std::env::args().any(|a| a == "--mcp");
@@ -163,7 +167,17 @@ pub fn run() {
     builder
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|app_handle, event| {
+        .run(move |app_handle, event| {
+            if let RunEvent::WindowEvent { label, event, .. } = &event {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    if should_exit_on_main_window_close(label, mcp_mode) {
+                        api.prevent_close();
+                        app_handle.exit(0);
+                        return;
+                    }
+                }
+            }
+
             #[cfg(target_os = "macos")]
             if let RunEvent::Opened { urls } = &event {
                 for url in urls {
@@ -181,4 +195,20 @@ pub fn run() {
                 }
             }
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_exit_on_main_window_close;
+
+    #[test]
+    fn closing_main_window_exits_in_standard_mode() {
+        assert!(should_exit_on_main_window_close("main", false));
+    }
+
+    #[test]
+    fn closing_non_main_or_mcp_windows_does_not_force_exit() {
+        assert!(!should_exit_on_main_window_close("preview-renderer", false));
+        assert!(!should_exit_on_main_window_close("main", true));
+    }
 }

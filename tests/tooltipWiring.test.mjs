@@ -64,6 +64,14 @@ test('shared DropdownMenu exposes the unified shell, motion, and item state styl
   assert.match(source, /data-\[highlighted\]:text-gray-950/);
 });
 
+test('shared DropdownMenu disables modal focus trapping so sibling triggers can switch menus in one click', async () => {
+  const source = await readSource('src/components/ui/DropdownMenu.tsx');
+
+  assert.match(source, /DropdownMenuPrimitive\.Root/);
+  assert.match(source, /modal=\{false\}/);
+  assert.doesNotMatch(source, /export const DropdownMenu = DropdownMenuPrimitive\.Root/);
+});
+
 test('shared Tooltip exposes the unified shell, motion, and arrow styling', async () => {
   const source = await readSource('src/components/ui/Tooltip.tsx');
 
