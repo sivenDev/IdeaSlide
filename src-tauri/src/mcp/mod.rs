@@ -7,9 +7,9 @@ use std::sync::Arc;
 
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
-use rmcp::{ServerHandler, ServiceExt, tool, tool_handler, tool_router};
 use rmcp::schemars;
 use rmcp::schemars::JsonSchema;
+use rmcp::{tool, tool_handler, tool_router, ServerHandler, ServiceExt};
 use serde::{Deserialize, Serialize};
 
 use tauri::{Emitter, Manager};
@@ -158,10 +158,13 @@ impl IdeaSlideServer {
             data: crate::file_format::IsFileData,
         }
 
-        let _ = main_window.emit("mcp-state-changed", StateChangedPayload {
-            path: path_owned,
-            data,
-        });
+        let _ = main_window.emit(
+            "mcp-state-changed",
+            StateChangedPayload {
+                path: path_owned,
+                data,
+            },
+        );
     }
 
     /// Create a server with a shared `renderer_ready` flag so the caller can
@@ -206,11 +209,10 @@ impl IdeaSlideServer {
         let fs = Arc::clone(&self.file_service);
         let path = params.path;
         let path_for_emit = path.clone();
-        let result = tokio::task::spawn_blocking(move || {
-            file_tools::handle_create_presentation(&fs, &path)
-        })
-        .await
-        .map_err(|e| format!("Task join error: {}", e))?;
+        let result =
+            tokio::task::spawn_blocking(move || file_tools::handle_create_presentation(&fs, &path))
+                .await
+                .map_err(|e| format!("Task join error: {}", e))?;
         if result.is_ok() {
             self.emit_state_changed(&path_for_emit);
         }
@@ -228,11 +230,9 @@ impl IdeaSlideServer {
         let fs = Arc::clone(&self.file_service);
         let ss = Arc::clone(&self.slide_service);
         let path = params.path;
-        tokio::task::spawn_blocking(move || {
-            file_tools::handle_open_presentation(&fs, &ss, &path)
-        })
-        .await
-        .map_err(|e| format!("Task join error: {}", e))?
+        tokio::task::spawn_blocking(move || file_tools::handle_open_presentation(&fs, &ss, &path))
+            .await
+            .map_err(|e| format!("Task join error: {}", e))?
     }
 
     #[tool(
@@ -245,11 +245,9 @@ impl IdeaSlideServer {
     ) -> Result<String, String> {
         let fs = Arc::clone(&self.file_service);
         let path = params.path;
-        tokio::task::spawn_blocking(move || {
-            file_tools::handle_get_presentation_info(&fs, &path)
-        })
-        .await
-        .map_err(|e| format!("Task join error: {}", e))?
+        tokio::task::spawn_blocking(move || file_tools::handle_get_presentation_info(&fs, &path))
+            .await
+            .map_err(|e| format!("Task join error: {}", e))?
     }
 
     #[tool(
@@ -263,11 +261,9 @@ impl IdeaSlideServer {
         let fs = Arc::clone(&self.file_service);
         let ss = Arc::clone(&self.slide_service);
         let path = params.path;
-        tokio::task::spawn_blocking(move || {
-            slide_tools::handle_list_slides(&fs, &ss, &path)
-        })
-        .await
-        .map_err(|e| format!("Task join error: {}", e))?
+        tokio::task::spawn_blocking(move || slide_tools::handle_list_slides(&fs, &ss, &path))
+            .await
+            .map_err(|e| format!("Task join error: {}", e))?
     }
 
     #[tool(
@@ -464,13 +460,16 @@ impl IdeaSlideServer {
 
         // Emit event to frontend for live preview
         if let Ok(session) = self.session_manager.get_session(&params.session_id) {
-            let _ = self.app_handle.emit("mcp-session-event", serde_json::json!({
-                "type": "elements_appended",
-                "session_id": params.session_id,
-                "path": session.path,
-                "elements": session.elements,
-                "total_elements": session.elements.len(),
-            }));
+            let _ = self.app_handle.emit(
+                "mcp-session-event",
+                serde_json::json!({
+                    "type": "elements_appended",
+                    "session_id": params.session_id,
+                    "path": session.path,
+                    "elements": session.elements,
+                    "total_elements": session.elements.len(),
+                }),
+            );
         }
 
         Ok(result)
@@ -489,7 +488,9 @@ impl IdeaSlideServer {
         let ss = Arc::clone(&self.slide_service);
         let session_id = params.session_id.clone();
 
-        let path = self.session_manager.get_session(&session_id)
+        let path = self
+            .session_manager
+            .get_session(&session_id)
             .map(|s| s.path.clone())
             .unwrap_or_default();
 
@@ -503,10 +504,13 @@ impl IdeaSlideServer {
             self.emit_state_changed(&path);
         }
 
-        let _ = self.app_handle.emit("mcp-session-event", serde_json::json!({
-            "type": "session_committed",
-            "session_id": params.session_id,
-        }));
+        let _ = self.app_handle.emit(
+            "mcp-session-event",
+            serde_json::json!({
+                "type": "session_committed",
+                "session_id": params.session_id,
+            }),
+        );
 
         Ok(result)
     }
@@ -528,10 +532,13 @@ impl IdeaSlideServer {
         .await
         .map_err(|e| format!("Task join error: {}", e))??;
 
-        let _ = self.app_handle.emit("mcp-session-event", serde_json::json!({
-            "type": "session_aborted",
-            "session_id": params.session_id,
-        }));
+        let _ = self.app_handle.emit(
+            "mcp-session-event",
+            serde_json::json!({
+                "type": "session_aborted",
+                "session_id": params.session_id,
+            }),
+        );
 
         Ok(serde_json::json!({ "aborted": true }).to_string())
     }

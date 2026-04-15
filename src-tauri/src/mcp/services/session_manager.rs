@@ -32,33 +32,47 @@ impl SessionManager {
             elements: Vec::new(),
             app_state: None,
         };
-        self.sessions.lock().unwrap().insert(session_id.clone(), session);
+        self.sessions
+            .lock()
+            .unwrap()
+            .insert(session_id.clone(), session);
         session_id
     }
 
-    pub fn append_elements(&self, session_id: &str, elements: Vec<serde_json::Value>) -> Result<usize, String> {
+    pub fn append_elements(
+        &self,
+        session_id: &str,
+        elements: Vec<serde_json::Value>,
+    ) -> Result<usize, String> {
         let mut sessions = self.sessions.lock().unwrap();
-        let session = sessions.get_mut(session_id)
+        let session = sessions
+            .get_mut(session_id)
             .ok_or_else(|| format!("Session not found: {}", session_id))?;
         session.elements.extend(elements);
         Ok(session.elements.len())
     }
 
     pub fn get_session(&self, session_id: &str) -> Result<SlideSession, String> {
-        self.sessions.lock().unwrap()
+        self.sessions
+            .lock()
+            .unwrap()
             .get(session_id)
             .cloned()
             .ok_or_else(|| format!("Session not found: {}", session_id))
     }
 
     pub fn remove_session(&self, session_id: &str) -> Result<SlideSession, String> {
-        self.sessions.lock().unwrap()
+        self.sessions
+            .lock()
+            .unwrap()
             .remove(session_id)
             .ok_or_else(|| format!("Session not found: {}", session_id))
     }
 
     pub fn abort_session(&self, session_id: &str) -> Result<(), String> {
-        self.sessions.lock().unwrap()
+        self.sessions
+            .lock()
+            .unwrap()
             .remove(session_id)
             .ok_or_else(|| format!("Session not found: {}", session_id))?;
         Ok(())
@@ -96,8 +110,12 @@ mod tests {
         let manager = SessionManager::new();
         let session_id = manager.create_session("/test.is".to_string(), None);
 
-        manager.append_elements(&session_id, vec![serde_json::json!({"type": "rectangle"})]).unwrap();
-        manager.append_elements(&session_id, vec![serde_json::json!({"type": "text"})]).unwrap();
+        manager
+            .append_elements(&session_id, vec![serde_json::json!({"type": "rectangle"})])
+            .unwrap();
+        manager
+            .append_elements(&session_id, vec![serde_json::json!({"type": "text"})])
+            .unwrap();
 
         let session = manager.get_session(&session_id).unwrap();
         assert_eq!(session.elements.len(), 2);

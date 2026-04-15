@@ -54,9 +54,7 @@ pub fn handle_delete_slide(
     let p = Path::new(path);
     let sid = slide_id.to_string();
     file_service
-        .read_and_modify(p, |data| {
-            slide_service.delete(data, &sid)
-        })
+        .read_and_modify(p, |data| slide_service.delete(data, &sid))
         .map_err(|e| e.to_string())?;
 
     Ok(format!("Slide {} deleted", slide_id))
@@ -108,9 +106,7 @@ pub fn handle_reorder_slides(
     let p = Path::new(path);
     let ids = slide_ids.to_vec();
     file_service
-        .read_and_modify(p, |data| {
-            slide_service.reorder(data, &ids)
-        })
+        .read_and_modify(p, |data| slide_service.reorder(data, &ids))
         .map_err(|e| e.to_string())?;
 
     Ok("Slides reordered".to_string())

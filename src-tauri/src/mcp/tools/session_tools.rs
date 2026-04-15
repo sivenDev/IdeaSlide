@@ -1,8 +1,8 @@
-use std::sync::Arc;
-use serde_json::Value;
-use crate::mcp::services::session_manager::SessionManager;
 use crate::mcp::services::file_service::FileService;
+use crate::mcp::services::session_manager::SessionManager;
 use crate::mcp::services::slide_service::SlideService;
+use serde_json::Value;
+use std::sync::Arc;
 
 pub fn handle_begin_slide_stream(
     session_manager: &Arc<SessionManager>,
@@ -22,7 +22,8 @@ pub fn handle_append_elements(
     Ok(serde_json::json!({
         "session_id": session_id,
         "total_elements": count
-    }).to_string())
+    })
+    .to_string())
 }
 
 pub fn handle_commit_slide(
@@ -42,10 +43,12 @@ pub fn handle_commit_slide(
 
     let path = std::path::Path::new(&session.path);
     let mut new_id = String::new();
-    file_service.read_and_modify(path, |data| {
-        new_id = slide_service.add(data, session.index, Some(content))?;
-        Ok(())
-    }).map_err(|e| e.to_string())?;
+    file_service
+        .read_and_modify(path, |data| {
+            new_id = slide_service.add(data, session.index, Some(content))?;
+            Ok(())
+        })
+        .map_err(|e| e.to_string())?;
 
     session_manager.remove_session(session_id)?;
 

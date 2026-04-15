@@ -82,7 +82,8 @@ async fn render_slide(
             } else {
                 // Return base64-encoded PNG data
                 use base64::Engine;
-                let base64_data = base64::engine::general_purpose::STANDARD.encode(&response.png_bytes);
+                let base64_data =
+                    base64::engine::general_purpose::STANDARD.encode(&response.png_bytes);
                 Ok(base64_data)
             }
         }
@@ -155,7 +156,10 @@ pub async fn handle_preview_presentation(
             .map_err(|e| e.to_string())?;
 
         let output_path = output_dir.map(|dir| {
-            Path::new(dir).join(format!("slide-{}.png", slide.id)).to_string_lossy().to_string()
+            Path::new(dir)
+                .join(format!("slide-{}.png", slide.id))
+                .to_string_lossy()
+                .to_string()
         });
 
         let result = render_slide(app_handle, &content, output_path.as_deref())

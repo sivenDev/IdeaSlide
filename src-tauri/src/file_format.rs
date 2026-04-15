@@ -148,12 +148,18 @@ fn read_media_from_index<R: Read + Seek>(
 
     for item in index_items {
         if !is_valid_media_id(&item.id) {
-            eprintln!("[IdeaSlide] Skip media with invalid id from index: {}", item.id);
+            eprintln!(
+                "[IdeaSlide] Skip media with invalid id from index: {}",
+                item.id
+            );
             continue;
         }
 
         if !is_valid_media_ext(&item.ext) {
-            eprintln!("[IdeaSlide] Skip media with invalid ext from index: {}", item.ext);
+            eprintln!(
+                "[IdeaSlide] Skip media with invalid ext from index: {}",
+                item.ext
+            );
             continue;
         }
 
@@ -169,7 +175,10 @@ fn read_media_from_index<R: Read + Seek>(
         let bytes = match read_zip_entry_bytes(archive, &item.path) {
             Ok(bytes) => bytes,
             Err(err) => {
-                eprintln!("[IdeaSlide] Skip missing/unreadable media {}: {}", item.path, err);
+                eprintln!(
+                    "[IdeaSlide] Skip missing/unreadable media {}: {}",
+                    item.path, err
+                );
                 continue;
             }
         };
@@ -185,7 +194,9 @@ fn read_media_from_index<R: Read + Seek>(
     media
 }
 
-fn read_media_from_fallback_scan<R: Read + Seek>(archive: &mut zip::ZipArchive<R>) -> Vec<MediaEntry> {
+fn read_media_from_fallback_scan<R: Read + Seek>(
+    archive: &mut zip::ZipArchive<R>,
+) -> Vec<MediaEntry> {
     let mut media_entry_paths = Vec::new();
 
     for index in 0..archive.len() {
@@ -228,7 +239,10 @@ fn read_media_from_fallback_scan<R: Read + Seek>(archive: &mut zip::ZipArchive<R
         let bytes = match read_zip_entry_bytes(archive, &path) {
             Ok(bytes) => bytes,
             Err(err) => {
-                eprintln!("[IdeaSlide] Skip unreadable fallback media {}: {}", path, err);
+                eprintln!(
+                    "[IdeaSlide] Skip unreadable fallback media {}: {}",
+                    path, err
+                );
                 continue;
             }
         };
@@ -252,7 +266,10 @@ fn read_media_entries<R: Read + Seek>(archive: &mut zip::ZipArchive<R>) -> Vec<M
     let index_json = match read_zip_entry_string(archive, "media/index.json") {
         Ok(index_json) => Some(index_json),
         Err(err) => {
-            eprintln!("[IdeaSlide] media/index.json unavailable, fallback scan: {}", err);
+            eprintln!(
+                "[IdeaSlide] media/index.json unavailable, fallback scan: {}",
+                err
+            );
             None
         }
     };

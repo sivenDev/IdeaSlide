@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
 use crate::file_format::{IsFileData, SlideData, SlideEntry};
 use crate::mcp::error::ToolError;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SlideInfo {
@@ -12,14 +12,23 @@ pub struct SlideService;
 
 impl SlideService {
     pub fn list(&self, data: &IsFileData) -> Vec<SlideInfo> {
-        data.manifest.slides.iter().map(|entry| SlideInfo {
-            id: entry.id.clone(),
-            title: entry.title.clone(),
-        }).collect()
+        data.manifest
+            .slides
+            .iter()
+            .map(|entry| SlideInfo {
+                id: entry.id.clone(),
+                title: entry.title.clone(),
+            })
+            .collect()
     }
 
-    pub fn get_content(&self, data: &IsFileData, slide_id: &str) -> Result<serde_json::Value, ToolError> {
-        data.slides.iter()
+    pub fn get_content(
+        &self,
+        data: &IsFileData,
+        slide_id: &str,
+    ) -> Result<serde_json::Value, ToolError> {
+        data.slides
+            .iter()
             .find(|s| s.id == slide_id)
             .map(|s| s.content.clone())
             .ok_or_else(|| ToolError::SlideNotFound(slide_id.to_string()))
@@ -31,7 +40,9 @@ impl SlideService {
         slide_id: &str,
         content: serde_json::Value,
     ) -> Result<(), ToolError> {
-        let slide = data.slides.iter_mut()
+        let slide = data
+            .slides
+            .iter_mut()
             .find(|s| s.id == slide_id)
             .ok_or_else(|| ToolError::SlideNotFound(slide_id.to_string()))?;
         slide.content = content;
@@ -45,9 +56,8 @@ impl SlideService {
         content: Option<serde_json::Value>,
     ) -> Result<String, ToolError> {
         let id = uuid::Uuid::new_v4().to_string();
-        let slide_content = content.unwrap_or_else(|| {
-            serde_json::json!({"elements": [], "appState": {}})
-        });
+        let slide_content =
+            content.unwrap_or_else(|| serde_json::json!({"elements": [], "appState": {}}));
 
         let slide_data = SlideData {
             id: id.clone(),
@@ -66,7 +76,10 @@ impl SlideService {
     }
 
     pub fn delete(&self, data: &mut IsFileData, slide_id: &str) -> Result<(), ToolError> {
-        let slide_idx = data.slides.iter().position(|s| s.id == slide_id)
+        let slide_idx = data
+            .slides
+            .iter()
+            .position(|s| s.id == slide_id)
             .ok_or_else(|| ToolError::SlideNotFound(slide_id.to_string()))?;
         data.slides.remove(slide_idx);
 
@@ -88,7 +101,8 @@ impl SlideService {
         if slide_ids.len() != data.slides.len() {
             return Err(ToolError::InvalidContent(format!(
                 "Expected {} slide IDs but got {}. All slides must be included.",
-                data.slides.len(), slide_ids.len()
+                data.slides.len(),
+                slide_ids.len()
             )));
         }
 
@@ -97,7 +111,13 @@ impl SlideService {
 
         for id in slide_ids {
             let slide = data.slides.iter().find(|s| s.id == *id).unwrap().clone();
-            let entry = data.manifest.slides.iter().find(|s| s.id == *id).unwrap().clone();
+            let entry = data
+                .manifest
+                .slides
+                .iter()
+                .find(|s| s.id == *id)
+                .unwrap()
+                .clone();
             new_slides.push(slide);
             new_manifest_slides.push(entry);
         }
@@ -122,8 +142,14 @@ mod tests {
                 created: "2026-01-01T00:00:00Z".to_string(),
                 modified: "2026-01-01T00:00:00Z".to_string(),
                 slides: vec![
-                    SlideEntry { id: "slide-1".into(), title: "Slide 1".into() },
-                    SlideEntry { id: "slide-2".into(), title: "Slide 2".into() },
+                    SlideEntry {
+                        id: "slide-1".into(),
+                        title: "Slide 1".into(),
+                    },
+                    SlideEntry {
+                        id: "slide-2".into(),
+                        title: "Slide 2".into(),
+                    },
                 ],
             },
             slides: vec![
@@ -227,7 +253,8 @@ mod tests {
     fn test_reorder_slides() {
         let svc = SlideService;
         let mut data = make_test_data();
-        svc.reorder(&mut data, &["slide-2".into(), "slide-1".into()]).unwrap();
+        svc.reorder(&mut data, &["slide-2".into(), "slide-1".into()])
+            .unwrap();
         assert_eq!(data.slides[0].id, "slide-2");
         assert_eq!(data.slides[1].id, "slide-1");
         assert_eq!(data.manifest.slides[0].id, "slide-2");

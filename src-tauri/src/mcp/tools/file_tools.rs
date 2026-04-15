@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use crate::mcp::services::file_service::FileService;
-use crate::mcp::services::slide_service::{SlideService, SlideInfo};
+use crate::mcp::services::slide_service::{SlideInfo, SlideService};
 
 /// Create a new .is presentation file. Returns manifest JSON.
 pub fn handle_create_presentation(

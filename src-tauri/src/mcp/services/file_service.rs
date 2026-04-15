@@ -21,7 +21,10 @@ impl FileService {
     fn get_lock(&self, path: &Path) -> Arc<Mutex<()>> {
         let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
         let mut locks = self.locks.lock().unwrap();
-        locks.entry(canonical).or_insert_with(|| Arc::new(Mutex::new(()))).clone()
+        locks
+            .entry(canonical)
+            .or_insert_with(|| Arc::new(Mutex::new(())))
+            .clone()
     }
 
     pub fn create(&self, path: &Path) -> Result<IsFileData, ToolError> {
@@ -99,7 +102,8 @@ mod tests {
         svc.read_and_modify(&path, |data| {
             assert_eq!(data.slides.len(), 1);
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
     }
 
     #[test]
