@@ -173,19 +173,19 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
     dispatch,
   ]);
 
-  // Keyboard shortcut: Cmd+S (macOS) or Ctrl+S (Windows/Linux) to save
+  // Capture save shortcuts before Excalidraw can handle native scene exports.
   useEffect(() => {
     const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
 
     const handleKeyDown = async (e: KeyboardEvent) => {
-      if ((isMac ? e.metaKey : e.ctrlKey) && e.key === "s") {
+      if ((isMac ? e.metaKey : e.ctrlKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
         await handleSaveCallback();
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [handleSaveCallback]);
 
   async function handleSaveAs() {

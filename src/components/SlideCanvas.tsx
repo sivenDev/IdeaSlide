@@ -66,6 +66,16 @@ interface SlideCanvasProps {
   onApiReady?: (api: any) => void;
 }
 
+const excalidrawCanvasActions = {
+  loadScene: false,
+  export: {
+    saveFileToDisk: false,
+  },
+  saveAsImage: false,
+  saveToActiveFile: false,
+  saveFileToDisk: false,
+};
+
 function SlideCanvasInner({ slideId, elements, appState, files, onChange, viewMode, onApiReady }: SlideCanvasProps) {
   // Use a ref to always have the latest onChange without causing re-renders
   const containerRef = useRef<HTMLDivElement>(null);
@@ -440,11 +450,7 @@ function SlideCanvasInner({ slideId, elements, appState, files, onChange, viewMo
         onChange={viewMode ? undefined : stableOnChange}
         renderTopRightUI={renderTopRightUI}
         UIOptions={{
-          canvasActions: {
-            loadScene: false,
-            export: false,
-            saveAsImage: false,
-          },
+          canvasActions: excalidrawCanvasActions,
         }}
       >
         {!viewMode && mainMenu}

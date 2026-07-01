@@ -23,6 +23,15 @@ test('EditorLayout removes the bottom preview shell from the default editor path
   assert.doesNotMatch(source, /<Tabs/);
 });
 
+test('EditorLayout captures all save shortcuts before Excalidraw can export native files', async () => {
+  const source = await readSource('src/components/EditorLayout.tsx');
+
+  assert.match(source, /e\.key\.toLowerCase\(\) === "s"/);
+  assert.match(source, /window\.addEventListener\("keydown", handleKeyDown, true\)/);
+  assert.match(source, /window\.removeEventListener\("keydown", handleKeyDown, true\)/);
+  assert.doesNotMatch(source, /e\.key === "s"/);
+});
+
 test('Toolbar keeps slide actions inside compact slide rows for the previewless editor shell', async () => {
   const source = await readSource('src/components/Toolbar.tsx');
 

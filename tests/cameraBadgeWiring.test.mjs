@@ -14,6 +14,14 @@ test('SlideCanvas keeps camera badge sync out of the persisted onChange fast pat
   assert.doesNotMatch(source, /syncCameraBadgesRef\.current\(els, state\);\s*onChangeRef\.current\(els, state, sceneFiles \|\| \{\}\);/);
 });
 
+test('SlideCanvas disables Excalidraw native save actions so saves stay in IdeaSlide', async () => {
+  const source = await readSource('src/components/SlideCanvas.tsx');
+
+  assert.match(source, /export:\s*\{\s*saveFileToDisk:\s*false,\s*\}/);
+  assert.match(source, /saveToActiveFile:\s*false/);
+  assert.match(source, /saveToActiveFile:\s*false,\s*saveFileToDisk:\s*false/s);
+});
+
 test('PresentationMode applies the first camera viewport immediately before animating later camera changes', async () => {
   const source = await readSource('src/components/PresentationMode.tsx');
 
