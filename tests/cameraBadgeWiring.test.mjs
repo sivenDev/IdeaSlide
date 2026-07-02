@@ -22,6 +22,18 @@ test('SlideCanvas disables Excalidraw native save actions so saves stay in IdeaS
   assert.match(source, /saveToActiveFile:\s*false,\s*saveFileToDisk:\s*false/s);
 });
 
+test('SlideCanvas refreshes Excalidraw after presentation exit layout changes settle', async () => {
+  const source = await readSource('src/components/SlideCanvas.tsx');
+
+  assert.match(source, /editorRefreshToken: number;/);
+  assert.match(source, /const refreshEditorCanvas = \(\) => \{\s*api\.refresh\(\);/);
+  assert.match(source, /requestAnimationFrame\(\(\) => \{\s*refreshFrameId = requestAnimationFrame\(refreshEditorCanvas\);/);
+  assert.match(source, /window\.setTimeout\(refreshEditorCanvas, 120\)/);
+  assert.match(source, /cancelAnimationFrame\(firstFrameId\)/);
+  assert.match(source, /cancelAnimationFrame\(refreshFrameId\)/);
+  assert.match(source, /window\.clearTimeout\(timeoutId\)/);
+});
+
 test('PresentationMode applies the first camera viewport immediately before animating later camera changes', async () => {
   const source = await readSource('src/components/PresentationMode.tsx');
 

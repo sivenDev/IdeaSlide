@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { SlideStoreProvider, useSlideStore } from "./hooks/useSlideStore";
@@ -15,6 +15,7 @@ function AppContent() {
   const { state, dispatch } = useSlideStore();
   const [showEditor, setShowEditor] = useState(false);
   const [mcpVisible, setMcpVisible] = useState(false);
+  const [editorRefreshToken, setEditorRefreshToken] = useState(0);
   const windowLabel = getCurrentWindow().label;
   const isRendererWindow =
     windowLabel === "mcp-renderer" || windowLabel === "preview-renderer";
@@ -35,6 +36,11 @@ function AppContent() {
     });
     setShowEditor(true);
   }
+
+  const handlePresentationExit = useCallback(() => {
+    dispatch({ type: 'EXIT_PRESENTATION' });
+    setEditorRefreshToken((value) => value + 1);
+  }, [dispatch]);
 
   // Hidden renderer windows boot only the renderer event handlers.
   useEffect(() => {
@@ -140,14 +146,18 @@ function AppContent() {
         startIndex={state.currentSlideIndex}
         mode={state.presentationMode as 'preview' | 'fullscreen'}
         transitionSpeed={state.transitionSpeed}
-        onExit={() => dispatch({ type: 'EXIT_PRESENTATION' })}
+        onExit={handlePresentationExit}
       />
     );
   }
 
   return (
     <ErrorBoundary>
-      <EditorLayout onGoHome={() => setShowEditor(false)} readOnly={mcpVisible} />
+      <EditorLayout
+        onGoHome={() => setShowEditor(false)}
+        readOnly={mcpVisible}
+        editorRefreshToken={editorRefreshToken}
+      />
     </ErrorBoundary>
   );
 }

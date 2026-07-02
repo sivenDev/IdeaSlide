@@ -32,6 +32,25 @@ test('EditorLayout captures all save shortcuts before Excalidraw can export nati
   assert.doesNotMatch(source, /e\.key === "s"/);
 });
 
+test('App increments an editor refresh token when presentation mode exits', async () => {
+  const source = await readSource('src/App.tsx');
+
+  assert.match(source, /const \[editorRefreshToken, setEditorRefreshToken\] = useState\(0\)/);
+  assert.match(source, /const handlePresentationExit = useCallback\(\(\) => \{/);
+  assert.match(source, /dispatch\(\{ type: ['"]EXIT_PRESENTATION['"] \}\)/);
+  assert.match(source, /setEditorRefreshToken\(\(value\) => value \+ 1\)/);
+  assert.match(source, /onExit=\{handlePresentationExit\}/);
+  assert.match(source, /editorRefreshToken=\{editorRefreshToken\}/);
+});
+
+test('EditorLayout forwards the presentation-exit refresh token to SlideCanvas', async () => {
+  const source = await readSource('src/components/EditorLayout.tsx');
+
+  assert.match(source, /interface EditorLayoutProps \{[\s\S]*editorRefreshToken: number;[\s\S]*\}/);
+  assert.match(source, /export function EditorLayout\(\{ onGoHome, readOnly = false, editorRefreshToken \}: EditorLayoutProps\)/);
+  assert.match(source, /<SlideCanvas[\s\S]*editorRefreshToken=\{editorRefreshToken\}/);
+});
+
 test('Toolbar keeps slide actions inside compact slide rows for the previewless editor shell', async () => {
   const source = await readSource('src/components/Toolbar.tsx');
 
