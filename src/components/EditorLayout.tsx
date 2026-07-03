@@ -17,9 +17,10 @@ import { save, message, ask } from "@tauri-apps/plugin-dialog";
 interface EditorLayoutProps {
   onGoHome: () => void;
   readOnly?: boolean;
+  editorRefreshToken: number;
 }
 
-export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) {
+export function EditorLayout({ onGoHome, readOnly = false, editorRefreshToken }: EditorLayoutProps) {
   const { state, dispatch } = useSlideStore();
   const [isSaving, setIsSaving] = useState(false);
   const [selectedCameraId, setSelectedCameraId] = useState<string | undefined>(undefined);
@@ -379,6 +380,7 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
               files={canvasInitialScene.files}
               onChange={handleSlideChange}
               onApiReady={handleCanvasApiReady}
+              editorRefreshToken={editorRefreshToken}
             />
           </ErrorBoundary>
         </div>
