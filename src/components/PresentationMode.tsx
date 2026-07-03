@@ -331,7 +331,6 @@ export function PresentationMode({ slides, startIndex, mode, transitionSpeed, on
             onChange={noopOnChange}
             viewMode={true}
             onApiReady={handleApiReady}
-            editorRefreshToken={0}
           />
         </ErrorBoundary>
       </div>

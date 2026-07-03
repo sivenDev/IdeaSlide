@@ -34,18 +34,3 @@
 2. 检查系统 Downloads 目录。
 
 期望：所有保存触发都只走 IdeaSlide 的 `.is` 保存流程。／ 实际：Excalidraw 原生保存会下载 `Untitled-*.excalidraw` 文件到 Downloads。
-
-## B002: Presentation exit leaves canvas visually corrupted until zoom
-
-- status: done
-- created: 2026-07-02
-
-复现步骤：
-1. 进入投屏/Present 模式。
-2. 关闭投屏回到编辑器。
-3. 观察编辑画布。
-
-期望：退出投屏后编辑画布立即以正确 viewport/布局渲染。
-实际：画布出现错位、残影或内容乱糟糟的视觉状态；手动缩放一下后恢复正常。
-
-备注：截图显示 Excalidraw canvas 区域在退出投屏后渲染状态异常，缩放触发重绘后恢复，疑似 viewport/resize/scene refresh 时序问题。

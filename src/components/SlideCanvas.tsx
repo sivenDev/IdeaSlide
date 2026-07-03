@@ -64,7 +64,6 @@ interface SlideCanvasProps {
   onChange: (elements: readonly any[], appState: Partial<any>, files: Record<string, any>) => void;
   viewMode?: boolean;
   onApiReady?: (api: any) => void;
-  editorRefreshToken: number;
 }
 
 const excalidrawCanvasActions = {
@@ -77,7 +76,7 @@ const excalidrawCanvasActions = {
   saveFileToDisk: false,
 };
 
-function SlideCanvasInner({ slideId, elements, appState, files, onChange, viewMode, onApiReady, editorRefreshToken }: SlideCanvasProps) {
+function SlideCanvasInner({ slideId, elements, appState, files, onChange, viewMode, onApiReady }: SlideCanvasProps) {
   // Use a ref to always have the latest onChange without causing re-renders
   const containerRef = useRef<HTMLDivElement>(null);
   const onChangeRef = useRef(onChange);
@@ -191,30 +190,6 @@ function SlideCanvasInner({ slideId, elements, appState, files, onChange, viewMo
       resizeObserver?.disconnect();
     };
   }, [apiReadyVersion, slideId]);
-
-  useEffect(() => {
-    const api = excalidrawApiRef.current;
-    if (!api || editorRefreshToken === 0) {
-      return;
-    }
-
-    const refreshEditorCanvas = () => {
-      api.refresh();
-    };
-    let refreshFrameId: number | null = null;
-    const firstFrameId = requestAnimationFrame(() => {
-      refreshFrameId = requestAnimationFrame(refreshEditorCanvas);
-    });
-    const timeoutId = window.setTimeout(refreshEditorCanvas, 120);
-
-    return () => {
-      cancelAnimationFrame(firstFrameId);
-      if (refreshFrameId !== null) {
-        cancelAnimationFrame(refreshFrameId);
-      }
-      window.clearTimeout(timeoutId);
-    };
-  }, [apiReadyVersion, editorRefreshToken]);
 
   // Start camera drawing mode
   const startCameraDrawing = useCallback(() => {
