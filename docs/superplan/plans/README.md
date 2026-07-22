@@ -4,10 +4,10 @@
 
 ## Status
 
-| Type | Plans | Complete |
-| --- | --- | --- |
-| `feature` | 1 | 1 |
-| `bugfix` | 3 | 3 |
+| Type | Plans | Draft | Complete |
+| --- | --- | --- | --- |
+| `feature` | 2 | 1 | 1 |
+| `bugfix` | 3 | 0 | 3 |
 
 ## Plan Groups
 
@@ -16,6 +16,7 @@
 | ID | Plan | Status | Created |
 | --- | --- | --- | --- |
 | `F001` | [Enable Excalidraw Image Export](features/F001-enable-excalidraw-image-export.md) | `complete` | 2026-07-22 |
+| `F002` | [Optimize Slide and Camera Organizers](features/F002-optimize-slide-camera-organizers.md) | `draft` | 2026-07-22 |
 
 ### Bugfix Plans
 

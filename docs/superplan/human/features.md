@@ -28,3 +28,10 @@
 - created: 2026-07-22
 
 在画布左上角菜单中，恢复显示并允许使用 Excalidraw 原生的“导出图片”功能。
+
+## F002: Optimize slide and camera organizers
+
+- status: accepted
+- created: 2026-07-22
+
+Replace the compact toolbar dropdown contents with consistent organizer popovers. Slides support selection, inline custom names, vertical drag reorder, add, and delete; cameras support selection, vertical drag reorder, delete, and a clear empty state. Preserve the active slide and pending editor draft during reorder, persist slide titles and order through the existing .is manifest without a format-version change, and keep long organizer lists internally scrollable. Camera naming, slide thumbnails, batch actions, and presentation-mode changes are out of scope.
