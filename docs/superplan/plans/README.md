@@ -4,7 +4,7 @@
 
 ## Status
 
-| Type | Plans | Draft | Complete |
+| Type | Plans | In Progress | Complete |
 | --- | --- | --- | --- |
 | `feature` | 2 | 1 | 1 |
 | `bugfix` | 3 | 0 | 3 |
@@ -16,7 +16,7 @@
 | ID | Plan | Status | Created |
 | --- | --- | --- | --- |
 | `F001` | [Enable Excalidraw Image Export](features/F001-enable-excalidraw-image-export.md) | `complete` | 2026-07-22 |
-| `F002` | [Build an Extensible Workspace Resource Explorer](features/F002-workspace-resource-explorer.md) | `draft` | 2026-07-22 |
+| `F002` | [Build an Extensible Workspace Resource Explorer](features/F002-workspace-resource-explorer.md) | `in_progress` | 2026-07-22 |
 
 ### Bugfix Plans
 

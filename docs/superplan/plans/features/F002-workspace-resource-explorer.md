@@ -2,7 +2,7 @@
 id: "F002"
 title: "Build an Extensible Workspace Resource Explorer"
 type: "feature"
-status: "draft"
+status: "in_progress"
 summary: "Deliver a versioned workspace resource tree, canvas editor, and compact canvas-scoped camera list with explicit legacy migration."
 source: "docs/superplan/human/features.md"
 created: "2026-07-22"
