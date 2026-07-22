@@ -162,6 +162,7 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
+          tauriScript: npm run tauri
           tagName: ${{ github.ref_name }}
           releaseName: IdeaSlide ${{ github.ref_name }}
           releaseDraft: true
@@ -176,6 +177,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macos_deployment_target }}
         with:
+          tauriScript: npm run tauri
           tagName: ${{ github.ref_name }}
           releaseName: IdeaSlide ${{ github.ref_name }}
           releaseDraft: true

@@ -6,7 +6,7 @@
 
 | Type | Plans | Complete |
 | --- | --- | --- |
-| `bugfix` | 2 | 2 |
+| `bugfix` | 3 | 3 |
 
 ## Plan Groups
 
@@ -16,3 +16,4 @@
 | --- | --- | --- | --- |
 | `B001` | [Disable Excalidraw Native Save Paths](bugs/B001-disable-excalidraw-native-save.md) | `complete` | 2026-07-01 |
 | `B002` | [Refresh Editor After Presentation Exit](bugs/B002-refresh-editor-after-presentation-exit.md) | `complete` | 2026-07-02 |
+| `B003` | [Fix Release Package Manager Selection](bugs/B003-fix-release-package-manager-selection.md) | `complete` | 2026-07-22 |

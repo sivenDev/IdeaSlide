@@ -49,3 +49,17 @@
 实际：画布出现错位、残影或内容乱糟糟的视觉状态；手动缩放一下后恢复正常。
 
 备注：截图显示 Excalidraw canvas 区域在退出投屏后渲染状态异常，缩放触发重绘后恢复，疑似 viewport/resize/scene refresh 时序问题。
+
+## B003: GitHub release packaging selects the wrong package manager
+
+- status: done
+- created: 2026-07-22
+
+复现步骤：
+1. 推送版本标签触发 Release workflow。
+2. 等待 Windows 与 macOS 构建进入 tauri-action。
+
+期望：工作流沿用 npm ci 安装的依赖并执行 Tauri 打包。
+实际：tauri-action 检测到 pnpm-lock.yaml 后改用 pnpm tauri build，三个平台的构建任务均失败。
+
+证据：Release run 26559228461（v0.1.11）中 Windows 和两项 macOS build 均在 Tauri build 步骤失败；Windows annotation 为 Command pnpm [tauri,build,...] failed with exit code 1。
