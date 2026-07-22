@@ -114,6 +114,7 @@ parent: ""
 
 ## References
 - `docs/superplan/human/features.md`
+- `docs/mockups/f002-organizers.html`
 - `docs/superplan/plans/features/F001-enable-excalidraw-image-export.md`
 - `src/components/Toolbar.tsx`
 - `src/components/EditorLayout.tsx`
