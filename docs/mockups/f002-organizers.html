@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>IdeaSlide Right Drawer Concept</title>
+  <title>IdeaSlide Three-Pane Editor Concept</title>
   <style>
     :root {
       --blue: #2563eb;
@@ -14,7 +14,8 @@
       --amber-line: #fde68a;
       --ink: #1e293b;
       --muted: #64748b;
-      --line: #e2e8f0;
+      --line: #dbe3ec;
+      --panel: #f8fafc;
       --canvas: #fbfcfe;
       --danger: #dc2626;
     }
@@ -23,7 +24,7 @@
 
     body {
       margin: 0;
-      min-width: 1100px;
+      min-width: 1120px;
       background: #e8edf5;
       color: var(--ink);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
@@ -36,9 +37,9 @@
       width: 100vw;
       height: 100vh;
       min-height: 760px;
-      padding: 30px;
+      padding: 28px;
       background:
-        radial-gradient(circle at 12% 0%, rgba(37, 99, 235, .08), transparent 34%),
+        radial-gradient(circle at 10% 0%, rgba(37, 99, 235, .07), transparent 34%),
         #eef2f7;
     }
 
@@ -50,25 +51,23 @@
       padding: 0 4px;
     }
 
-    .board-title { font-size: 22px; font-weight: 730; letter-spacing: -.025em; }
+    .board-title { font-size: 22px; font-weight: 740; letter-spacing: -.025em; }
     .board-note { margin-top: 5px; color: var(--muted); font-size: 13px; }
     .version { padding-top: 7px; color: var(--muted); font-size: 12px; }
 
     .app {
       position: relative;
-      height: calc(100vh - 118px);
+      height: calc(100vh - 114px);
       min-height: 650px;
       overflow: hidden;
       border: 1px solid #cbd5e1;
       border-radius: 17px;
-      background: var(--canvas);
+      background: white;
       box-shadow: 0 22px 55px rgba(15, 23, 42, .15);
     }
 
     .toolbar {
-      position: relative;
-      z-index: 12;
-      height: 68px;
+      height: 66px;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -95,38 +94,18 @@
     }
 
     .icon-button:hover { background: #f1f5f9; }
-    .icon-button svg, .tool-pill svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; }
+    .icon-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; }
     .separator { width: 1px; height: 30px; margin: 0 8px; background: #dbe2ea; }
-    .spacer { flex: 1; min-width: 20px; }
-
-    .tool-pill {
-      height: 43px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 0 11px;
-      border: 1.5px solid var(--blue);
-      border-radius: 11px;
-      background: #f8fbff;
-      color: var(--blue);
-      font-size: 14px;
-      font-weight: 690;
-      white-space: nowrap;
-      cursor: pointer;
-      transition: background .16s ease, box-shadow .16s ease, transform .16s ease;
-    }
-
-    .tool-pill:hover { background: var(--blue-soft); }
-    .tool-pill:active { transform: translateY(1px); }
-    .tool-pill.active { background: var(--blue-soft); box-shadow: 0 0 0 3px rgba(37, 99, 235, .09); }
-    .badge { min-width: 28px; padding: 3px 7px; border-radius: 999px; background: #fff; text-align: center; font-size: 12px; }
+    .file-name { color: #334155; font-size: 14px; font-weight: 650; }
+    .saved { color: #94a3b8; font-size: 12px; }
+    .spacer { flex: 1; }
 
     .present {
-      height: 43px;
+      height: 42px;
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 0 17px;
+      padding: 0 18px;
       border: 0;
       border-radius: 11px;
       background: #2f7df4;
@@ -138,275 +117,265 @@
 
     .present svg { width: 15px; height: 15px; fill: currentColor; }
 
-    .excalibar {
+    .workspace {
+      height: calc(100% - 66px);
+      display: flex;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .side {
       position: relative;
       z-index: 3;
-      height: 58px;
+      flex: 0 0 auto;
       display: flex;
-      align-items: center;
-      gap: 11px;
-      padding: 0 20px;
-      border-bottom: 1px solid #e5e7eb;
-      background: rgba(255, 255, 255, .97);
-      color: #475569;
+      flex-direction: column;
+      overflow: visible;
+      background: var(--panel);
+      transition: width .25s cubic-bezier(.2, .8, .2, 1);
     }
 
-    .draw-tool {
-      width: 35px;
-      height: 35px;
-      display: grid;
-      place-items: center;
-      border: 1px solid transparent;
-      border-radius: 8px;
-      background: white;
+    .side-left { width: 242px; border-right: 1px solid var(--line); }
+    .side-right { width: 292px; border-left: 1px solid var(--line); }
+    .workspace.left-collapsed .side-left, .workspace.right-collapsed .side-right { width: 42px; }
+
+    .side-content {
+      min-width: 0;
+      min-height: 0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      opacity: 1;
+      transition: opacity .12s ease;
     }
 
-    .draw-tool.selected { border-color: #c7d2fe; background: #eef2ff; color: #4f46e5; }
-    .draw-tool svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; }
-
-    .canvas {
-      position: absolute;
-      inset: 126px 0 0;
-      overflow: hidden;
-      background:
-        linear-gradient(#eef2f7 1px, transparent 1px),
-        linear-gradient(90deg, #eef2f7 1px, transparent 1px),
-        #fbfcfe;
-      background-size: 24px 24px;
+    .left-collapsed .side-left .side-content, .right-collapsed .side-right .side-content {
+      pointer-events: none;
+      opacity: 0;
     }
 
-    .canvas-hint { position: absolute; top: 28px; left: 30px; color: #aab2bf; font-size: 13px; }
-    .canvas-title { position: absolute; top: 100px; left: 80px; color: #ef4444; font-size: 28px; font-weight: 700; transform: rotate(-1deg); }
-    .shape { position: absolute; border: 4px solid #ef4444; border-radius: 20px; opacity: .8; }
-    .shape.one { top: 165px; left: 85px; width: 310px; height: 165px; transform: rotate(-2deg); }
-    .shape.two { top: 180px; left: 500px; width: 285px; height: 170px; border-color: #1f2937; transform: rotate(1deg); }
-    .shape.three { top: 435px; left: 230px; width: 490px; height: 3px; border-width: 3px 0 0; border-radius: 0; }
-    .camera-chip {
-      position: absolute;
-      right: 80px;
-      top: 72px;
+    .side-head {
+      height: 54px;
+      flex: 0 0 54px;
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 10px 14px;
-      border: 2px solid #f59e0b;
-      border-radius: 10px;
-      background: #fffdf7;
-      color: var(--amber);
-      font-weight: 700;
-      box-shadow: 0 5px 14px rgba(217, 119, 6, .15);
-    }
-
-    .drawer {
-      position: absolute;
-      z-index: 10;
-      top: 68px;
-      right: 0;
-      bottom: 0;
-      width: 410px;
-      display: flex;
-      flex-direction: column;
-      border-left: 1px solid #d8e0ea;
-      background: rgba(255, 255, 255, .985);
-      box-shadow: -22px 0 48px rgba(15, 23, 42, .16);
-      transform: translateX(102%);
-      transition: transform .28s cubic-bezier(.2, .8, .2, 1);
-    }
-
-    .drawer.open { transform: translateX(0); }
-    .drawer-accent { height: 3px; background: var(--blue); transition: background .18s ease; }
-    .drawer.camera-mode .drawer-accent { background: #f59e0b; }
-
-    .drawer-head {
-      min-height: 70px;
-      display: flex;
-      align-items: center;
-      gap: 11px;
-      padding: 0 18px;
+      padding: 0 13px;
       border-bottom: 1px solid var(--line);
+      background: #fff;
     }
 
-    .drawer-icon {
-      width: 34px;
-      height: 34px;
+    .side-title { flex: 1; font-size: 14px; font-weight: 730; letter-spacing: -.01em; }
+    .count { min-width: 25px; padding: 3px 7px; border-radius: 999px; background: #f1f5f9; color: var(--muted); text-align: center; font-size: 11px; font-weight: 700; }
+    .add-small { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid #d7dee8; border-radius: 7px; background: white; color: #475569; font-size: 18px; }
+
+    .side-list { min-height: 0; flex: 1; overflow-y: auto; padding: 10px; scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+
+    .slide-row {
+      position: relative;
       display: grid;
-      place-items: center;
-      border-radius: 9px;
-      background: var(--blue-soft);
-      color: var(--blue);
-    }
-
-    .camera-mode .drawer-icon { background: var(--amber-soft); color: var(--amber); }
-    .drawer-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; }
-    .drawer-heading { flex: 1; min-width: 0; }
-    .drawer-title { font-size: 17px; font-weight: 750; letter-spacing: -.015em; }
-    .drawer-subtitle { margin-top: 3px; color: var(--muted); font-size: 12px; }
-
-    .close {
-      width: 34px;
-      height: 34px;
-      display: grid;
-      place-items: center;
-      border: 0;
-      border-radius: 8px;
-      background: transparent;
-      color: #64748b;
-      cursor: pointer;
-    }
-
-    .close:hover { background: #f1f5f9; }
-    .close svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; }
-
-    .panel { min-height: 0; flex: 1; display: flex; flex-direction: column; }
-    .panel[hidden] { display: none; }
-    .list { min-height: 0; flex: 1; overflow-y: auto; padding: 12px 12px 6px; scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
-
-    .row {
-      min-height: 58px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 6px;
-      padding: 8px 9px;
+      grid-template-columns: 22px 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+      padding: 7px;
       border: 1px solid transparent;
-      border-radius: 11px;
-      background: white;
+      border-radius: 10px;
+      background: transparent;
       transition: background .14s ease, border-color .14s ease, box-shadow .14s ease;
     }
 
-    .row:hover { border-color: #e2e8f0; background: #f8fafc; }
-    .row.current { border-color: var(--blue-line); background: var(--blue-soft); box-shadow: inset 3px 0 0 var(--blue); }
-    .row.camera-current { border-color: var(--amber-line); background: var(--amber-soft); box-shadow: inset 3px 0 0 #f59e0b; }
+    .slide-row:hover { border-color: #dbe3ec; background: #fff; }
+    .slide-row.current { border-color: var(--blue-line); background: var(--blue-soft); box-shadow: inset 3px 0 0 var(--blue); }
+    .slide-number { padding-top: 4px; color: #64748b; text-align: center; font-size: 12px; font-weight: 720; }
+    .slide-main { min-width: 0; }
+
+    .thumbnail {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background:
+        linear-gradient(#f1f5f9 1px, transparent 1px),
+        linear-gradient(90deg, #f1f5f9 1px, transparent 1px),
+        #fff;
+      background-size: 10px 10px;
+      box-shadow: 0 2px 5px rgba(15, 23, 42, .07);
+    }
+
+    .thumbnail::before, .thumbnail::after { content: ""; position: absolute; border: 2px solid #334155; border-radius: 4px; }
+    .thumbnail::before { top: 18%; left: 12%; width: 36%; height: 25%; }
+    .thumbnail::after { right: 10%; bottom: 12%; width: 29%; height: 38%; border-color: #ef4444; }
+    .thumb-blue::before { border-color: #2563eb; }
+    .thumb-amber::after { border-color: #f59e0b; }
+
+    .slide-title {
+      margin-top: 6px;
+      overflow: hidden;
+      color: #334155;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .slide-title-input {
+      width: 100%;
+      height: 29px;
+      margin-top: 5px;
+      padding: 0 8px;
+      border: 1.5px solid var(--blue);
+      border-radius: 6px;
+      outline: none;
+      background: white;
+      color: #1e293b;
+      font-size: 12px;
+      font-weight: 620;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, .1);
+    }
 
     .handle {
+      position: absolute;
+      top: 10px;
+      right: 10px;
       width: 22px;
-      height: 32px;
-      flex: 0 0 22px;
+      height: 24px;
       display: grid;
       grid-template-columns: repeat(2, 3px);
       grid-template-rows: repeat(3, 3px);
       align-content: center;
       justify-content: center;
       gap: 3px;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, .9);
       color: #94a3b8;
+      box-shadow: 0 1px 5px rgba(15, 23, 42, .12);
       cursor: grab;
     }
 
-    .handle:active { cursor: grabbing; }
     .handle i { width: 3px; height: 3px; border-radius: 50%; background: currentColor; }
 
-    .number {
-      width: 31px;
-      height: 31px;
-      flex: 0 0 31px;
-      display: grid;
-      place-items: center;
-      border-radius: 50%;
-      background: #f1f5f9;
-      color: #64748b;
-      font-size: 12px;
-      font-weight: 760;
-    }
-
-    .current .number { background: var(--blue); color: white; }
-    .camera-current .number { background: #f59e0b; color: white; }
-    .title { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 650; }
-
-    .rename { min-width: 0; flex: 1; display: flex; align-items: center; gap: 6px; }
-    .rename input {
-      min-width: 0;
-      width: 100%;
-      height: 36px;
-      padding: 0 10px;
-      border: 1.5px solid var(--blue);
-      border-radius: 8px;
-      outline: none;
-      background: white;
-      color: var(--ink);
-      font-size: 13px;
-      font-weight: 620;
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, .1);
-    }
-
-    .mini, .trash {
-      width: 30px;
-      height: 30px;
-      flex: 0 0 30px;
-      display: grid;
-      place-items: center;
-      border: 0;
-      border-radius: 7px;
-      background: transparent;
-      color: #94a3b8;
-    }
-
-    .mini.ok { background: #f0fdf4; color: #16a34a; }
-    .mini.cancel { background: #f1f5f9; color: #64748b; }
-    .trash:hover { background: #fef2f2; color: var(--danger); }
-    .mini svg, .trash svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; }
-
-    .drawer-foot { padding: 12px 14px 14px; border-top: 1px solid var(--line); background: #fbfdff; }
-    .add {
-      width: 100%;
-      height: 42px;
-      border: 1px solid #cbd5e1;
-      border-radius: 9px;
-      background: white;
-      color: #334155;
-      text-align: left;
-      padding: 0 13px;
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .add:hover { border-color: #93c5fd; background: var(--blue-soft); color: var(--blue); }
-    .helper { color: var(--muted); text-align: center; font-size: 12px; }
-
-    .camera-row { min-height: 82px; }
-    .thumb {
+    .camera-row {
       position: relative;
-      width: 92px;
-      height: 58px;
-      flex: 0 0 92px;
-      overflow: hidden;
-      border: 1px solid #d7dee8;
-      border-radius: 8px;
-      background:
-        linear-gradient(#f1f5f9 1px, transparent 1px),
-        linear-gradient(90deg, #f1f5f9 1px, transparent 1px),
-        #fff;
-      background-size: 10px 10px;
+      margin-bottom: 10px;
+      padding: 9px;
+      border: 1px solid #dbe3ec;
+      border-radius: 10px;
+      background: #fff;
+      transition: background .14s ease, border-color .14s ease, box-shadow .14s ease;
     }
 
-    .thumb::before, .thumb::after { content: ""; position: absolute; border: 2px solid #334155; border-radius: 4px; }
-    .thumb::before { top: 9px; left: 9px; width: 31px; height: 20px; }
-    .thumb::after { right: 8px; bottom: 7px; width: 25px; height: 27px; border-color: #ef4444; }
-    .camera-copy { min-width: 0; flex: 1; }
-    .camera-name { font-size: 14px; font-weight: 680; }
-    .camera-meta { margin-top: 4px; color: #94a3b8; font-size: 11px; }
+    .camera-row:hover { border-color: #cbd5e1; }
+    .camera-row.active { border-color: var(--amber-line); background: var(--amber-soft); box-shadow: inset 3px 0 0 #f59e0b; }
+    .camera-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .camera-number { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: #f1f5f9; color: #64748b; font-size: 11px; font-weight: 760; }
+    .active .camera-number { background: #f59e0b; color: white; }
+    .camera-name { flex: 1; font-size: 13px; font-weight: 680; }
+    .camera-meta { color: #94a3b8; font-size: 11px; }
+    .camera-row .thumbnail { aspect-ratio: 16 / 8.5; }
 
-    .drawer-callout {
+    .rail {
       position: absolute;
-      z-index: 4;
-      right: 24px;
-      bottom: 24px;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding-top: 15px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .12s ease .1s;
+    }
+
+    .left-collapsed .side-left .rail, .right-collapsed .side-right .rail { opacity: 1; pointer-events: auto; }
+    .rail-icon { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 7px; background: #fff; color: #64748b; box-shadow: 0 1px 4px rgba(15,23,42,.08); }
+    .rail-icon svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; }
+    .rail-label { writing-mode: vertical-rl; color: #64748b; font-size: 11px; font-weight: 700; letter-spacing: .04em; }
+
+    .toggle {
+      position: absolute;
+      z-index: 8;
+      top: 50%;
+      width: 22px;
+      height: 58px;
+      display: grid;
+      place-items: center;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #64748b;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, .1);
+      transform: translateY(-50%);
+    }
+
+    .toggle:hover { border-color: #93c5fd; background: var(--blue-soft); color: var(--blue); }
+    .toggle-left { right: -12px; border-radius: 0 8px 8px 0; }
+    .toggle-right { left: -12px; border-radius: 8px 0 0 8px; }
+
+    .center {
+      min-width: 0;
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .excalibar {
+      height: 58px;
+      flex: 0 0 58px;
       display: flex;
       align-items: center;
-      gap: 9px;
-      padding: 9px 12px;
-      border: 1px solid #cbd5e1;
-      border-radius: 10px;
-      background: rgba(255, 255, 255, .92);
+      gap: 11px;
+      padding: 0 20px;
+      border-bottom: 1px solid #e5e7eb;
+      background: rgba(255, 255, 255, .98);
       color: #475569;
-      font-size: 12px;
-      box-shadow: 0 9px 24px rgba(15, 23, 42, .1);
-      transition: opacity .18s ease;
     }
 
-    .drawer.open ~ .drawer-callout { opacity: 0; }
+    .draw-tool { width: 35px; height: 35px; display: grid; place-items: center; border: 1px solid transparent; border-radius: 8px; background: white; }
+    .draw-tool.selected { border-color: #c7d2fe; background: #eef2ff; color: #4f46e5; }
+    .draw-tool svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+    .tool-spacer { flex: 1; }
+    .camera-action { height: 36px; padding: 0 13px; border: 1.5px solid #f59e0b; border-radius: 9px; background: #fffdf7; color: var(--amber); font-size: 13px; font-weight: 700; }
+
+    .canvas {
+      position: relative;
+      min-height: 0;
+      flex: 1;
+      overflow: hidden;
+      background:
+        linear-gradient(#eef2f7 1px, transparent 1px),
+        linear-gradient(90deg, #eef2f7 1px, transparent 1px),
+        var(--canvas);
+      background-size: 24px 24px;
+    }
+
+    .canvas-hint { position: absolute; top: 28px; left: 30px; color: #aab2bf; font-size: 13px; }
+    .canvas-title { position: absolute; top: 92px; left: 9%; color: #ef4444; font-size: 28px; font-weight: 700; transform: rotate(-1deg); }
+    .shape { position: absolute; border: 4px solid #ef4444; border-radius: 20px; opacity: .8; }
+    .shape.one { top: 158px; left: 10%; width: 31%; height: 170px; transform: rotate(-2deg); }
+    .shape.two { top: 175px; right: 10%; width: 30%; height: 180px; border-color: #1f2937; transform: rotate(1deg); }
+    .shape.three { top: 440px; left: 23%; width: 52%; height: 3px; border-width: 3px 0 0; border-radius: 0; }
+
+    .layout-hint {
+      position: absolute;
+      right: 18px;
+      bottom: 18px;
+      padding: 8px 11px;
+      border: 1px solid #cbd5e1;
+      border-radius: 9px;
+      background: rgba(255,255,255,.92);
+      color: #64748b;
+      font-size: 11px;
+      box-shadow: 0 5px 16px rgba(15,23,42,.08);
+    }
 
     @media (prefers-reduced-motion: reduce) {
-      .drawer { transition: none; }
+      .side, .side-content, .rail { transition: none; }
     }
   </style>
 </head>
@@ -414,134 +383,89 @@
   <main class="board">
     <header class="board-head">
       <div>
-        <div class="board-title">IdeaSlide · right organizer drawer</div>
-        <div class="board-note">Click Slide or Cameras. The drawer overlays the canvas so the Excalidraw viewport does not resize.</div>
+        <div class="board-title">IdeaSlide · three-pane presentation editor</div>
+        <div class="board-note">Slides on the left, canvas in the center, cameras on the right. Click either divider marker to collapse a panel.</div>
       </div>
-      <div class="version">F002 · interactive visual direction 02</div>
+      <div class="version">F002 · interactive visual direction 03</div>
     </header>
 
     <section class="app">
       <div class="toolbar">
         <div class="traffic"><i></i><i></i><i></i></div>
+        <button class="icon-button" aria-label="Back to home"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10H3z"/><path d="M9 20v-7h6v7"/></svg></button>
+        <div class="separator"></div>
+        <span class="file-name">Product Strategy.is</span><span class="saved">Saved</span>
+        <div class="spacer"></div>
         <button class="icon-button" aria-label="New file"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16h12a2 2 0 0 0 2-2V6z"/><path d="M14 2v5h5"/></svg></button>
         <button class="icon-button" aria-label="Open file"><svg viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v11H3z"/></svg></button>
         <button class="icon-button" aria-label="Save"><svg viewBox="0 0 24 24"><path d="M5 3h12l2 2v16H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></svg></button>
         <div class="separator"></div>
-        <div class="spacer"></div>
-        <button class="tool-pill active" id="slide-trigger" aria-controls="organizer-drawer" aria-expanded="true">
-          <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>
-          <span>Slide</span><span class="badge">2 / 6</span>
-        </button>
-        <button class="tool-pill" id="camera-trigger" aria-controls="organizer-drawer" aria-expanded="false">
-          <svg viewBox="0 0 24 24"><path d="M4 7h4l2-3h4l2 3h4v12H4z"/><circle cx="12" cy="13" r="4"/></svg>
-          <span>Cameras</span><span class="badge">3</span>
-        </button>
         <button class="present"><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg>Present</button>
       </div>
 
-      <div class="excalibar">
-        <div class="draw-tool selected"><svg viewBox="0 0 24 24"><path d="M5 3l12 9-6 1-2 6z"/></svg></div>
-        <div class="draw-tool"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/></svg></div>
-        <div class="draw-tool"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg></div>
-        <div class="draw-tool"><svg viewBox="0 0 24 24"><path d="M5 19L19 5M13 5h6v6"/></svg></div>
-        <div class="draw-tool"><svg viewBox="0 0 24 24"><path d="M4 12h16"/></svg></div>
-        <div class="draw-tool"><svg viewBox="0 0 24 24"><path d="M5 19l10-10 4 4-10 10H5z"/></svg></div>
+      <div class="workspace" id="workspace">
+        <aside class="side side-left" aria-label="Slides panel">
+          <div class="side-content">
+            <header class="side-head"><div class="side-title">Slides</div><div class="count">6</div><button class="add-small" aria-label="Add slide">+</button></header>
+            <div class="side-list">
+              <div class="slide-row"><div class="slide-number">1</div><div class="slide-main"><div class="thumbnail thumb-blue"></div><div class="slide-title">Opening</div></div><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+              <div class="slide-row current"><div class="slide-number">2</div><div class="slide-main"><div class="thumbnail thumb-amber"></div><input class="slide-title-input" value="Market Opportunity" aria-label="Slide title"/></div><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+              <div class="slide-row"><div class="slide-number">3</div><div class="slide-main"><div class="thumbnail"></div><div class="slide-title">Product Demo</div></div><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+              <div class="slide-row"><div class="slide-number">4</div><div class="slide-main"><div class="thumbnail thumb-blue"></div><div class="slide-title">Architecture</div></div><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+              <div class="slide-row"><div class="slide-number">5</div><div class="slide-main"><div class="thumbnail"></div><div class="slide-title">Roadmap</div></div><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+              <div class="slide-row"><div class="slide-number">6</div><div class="slide-main"><div class="thumbnail thumb-amber"></div><div class="slide-title">Q&amp;A</div></div><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+            </div>
+          </div>
+          <div class="rail"><div class="rail-icon"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg></div><div class="rail-label">Slides · 6</div></div>
+          <button class="toggle toggle-left" id="left-toggle" aria-label="Hide slides panel" aria-expanded="true">‹</button>
+        </aside>
+
+        <main class="center">
+          <div class="excalibar">
+            <div class="draw-tool selected"><svg viewBox="0 0 24 24"><path d="M5 3l12 9-6 1-2 6z"/></svg></div>
+            <div class="draw-tool"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/></svg></div>
+            <div class="draw-tool"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg></div>
+            <div class="draw-tool"><svg viewBox="0 0 24 24"><path d="M5 19L19 5M13 5h6v6"/></svg></div>
+            <div class="draw-tool"><svg viewBox="0 0 24 24"><path d="M4 12h16"/></svg></div>
+            <div class="draw-tool"><svg viewBox="0 0 24 24"><path d="M5 19l10-10 4 4-10 10H5z"/></svg></div>
+            <div class="tool-spacer"></div><button class="camera-action">▣ Add Camera</button>
+          </div>
+          <div class="canvas"><div class="canvas-hint">Hold the spacebar while dragging to move the canvas</div><div class="canvas-title">Product narrative</div><div class="shape one"></div><div class="shape two"></div><div class="shape three"></div><div class="layout-hint">Center canvas expands when either side panel is hidden</div></div>
+        </main>
+
+        <aside class="side side-right" aria-label="Cameras panel">
+          <div class="side-content">
+            <header class="side-head"><div class="side-title">Cameras</div><div class="count">3</div></header>
+            <div class="side-list">
+              <div class="camera-row"><div class="camera-top"><div class="camera-number">1</div><div class="camera-name">Camera 1</div><div class="camera-meta">Opening</div></div><div class="thumbnail thumb-blue"></div><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+              <div class="camera-row active"><div class="camera-top"><div class="camera-number">2</div><div class="camera-name">Camera 2</div><div class="camera-meta">Active</div></div><div class="thumbnail thumb-amber"></div><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+              <div class="camera-row"><div class="camera-top"><div class="camera-number">3</div><div class="camera-name">Camera 3</div><div class="camera-meta">Closing</div></div><div class="thumbnail"></div><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+            </div>
+          </div>
+          <div class="rail"><div class="rail-icon"><svg viewBox="0 0 24 24"><path d="M4 7h4l2-3h4l2 3h4v12H4z"/><circle cx="12" cy="13" r="4"/></svg></div><div class="rail-label">Cameras · 3</div></div>
+          <button class="toggle toggle-right" id="right-toggle" aria-label="Hide cameras panel" aria-expanded="true">›</button>
+        </aside>
       </div>
-
-      <div class="canvas">
-        <div class="canvas-hint">Hold the spacebar while dragging to move the canvas</div>
-        <div class="canvas-title">Product narrative</div>
-        <div class="shape one"></div><div class="shape two"></div><div class="shape three"></div>
-        <div class="camera-chip">▣ Camera</div>
-      </div>
-
-      <aside class="drawer open" id="organizer-drawer" aria-label="Slide organizer">
-        <div class="drawer-accent"></div>
-        <header class="drawer-head">
-          <div class="drawer-icon" id="drawer-icon">
-            <svg class="slides-icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>
-            <svg class="cameras-icon" viewBox="0 0 24 24" hidden><path d="M4 7h4l2-3h4l2 3h4v12H4z"/><circle cx="12" cy="13" r="4"/></svg>
-          </div>
-          <div class="drawer-heading"><div class="drawer-title" id="drawer-title">Slides</div><div class="drawer-subtitle" id="drawer-subtitle">6 slides · drag to reorder</div></div>
-          <button class="close" id="drawer-close" aria-label="Close organizer"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-        </header>
-
-        <section class="panel" id="slides-panel">
-          <div class="list">
-            <div class="row"><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="number">1</div><div class="title">Opening</div><button class="trash"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0l1 13h8l1-13"/></svg></button></div>
-            <div class="row current"><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="number">2</div><div class="rename"><input value="Market Opportunity" aria-label="Slide title"/><button class="mini ok"><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10"/></svg></button><button class="mini cancel"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div></div>
-            <div class="row"><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="number">3</div><div class="title">Product Demo</div><button class="trash"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0l1 13h8l1-13"/></svg></button></div>
-            <div class="row"><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="number">4</div><div class="title">Architecture</div><button class="trash"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0l1 13h8l1-13"/></svg></button></div>
-            <div class="row"><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="number">5</div><div class="title">Roadmap</div><button class="trash"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0l1 13h8l1-13"/></svg></button></div>
-            <div class="row"><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="number">6</div><div class="title">Q&amp;A</div><button class="trash"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0l1 13h8l1-13"/></svg></button></div>
-          </div>
-          <footer class="drawer-foot"><button class="add">+ Add Slide</button></footer>
-        </section>
-
-        <section class="panel" id="cameras-panel" hidden>
-          <div class="list">
-            <div class="row camera-row"><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="number">1</div><div class="thumb"></div><div class="camera-copy"><div class="camera-name">Camera 1</div><div class="camera-meta">Opening view</div></div><button class="trash"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0l1 13h8l1-13"/></svg></button></div>
-            <div class="row camera-row camera-current"><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="number">2</div><div class="thumb"></div><div class="camera-copy"><div class="camera-name">Camera 2</div><div class="camera-meta">Active view</div></div><button class="trash"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0l1 13h8l1-13"/></svg></button></div>
-            <div class="row camera-row"><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="number">3</div><div class="thumb"></div><div class="camera-copy"><div class="camera-name">Camera 3</div><div class="camera-meta">Closing view</div></div><button class="trash"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0l1 13h8l1-13"/></svg></button></div>
-          </div>
-          <footer class="drawer-foot"><div class="helper">Drag to change presentation order</div></footer>
-        </section>
-      </aside>
-
-      <div class="drawer-callout">Click the toolbar buttons to switch or close the drawer · Esc closes</div>
     </section>
   </main>
 
   <script>
-    const drawer = document.getElementById("organizer-drawer");
-    const slideTrigger = document.getElementById("slide-trigger");
-    const cameraTrigger = document.getElementById("camera-trigger");
-    const closeButton = document.getElementById("drawer-close");
-    const slidesPanel = document.getElementById("slides-panel");
-    const camerasPanel = document.getElementById("cameras-panel");
-    const drawerTitle = document.getElementById("drawer-title");
-    const drawerSubtitle = document.getElementById("drawer-subtitle");
-    const slidesIcon = document.querySelector(".slides-icon");
-    const camerasIcon = document.querySelector(".cameras-icon");
-    let activePanel = "slides";
+    const workspace = document.getElementById("workspace");
+    const leftToggle = document.getElementById("left-toggle");
+    const rightToggle = document.getElementById("right-toggle");
 
-    function setDrawer(panel) {
-      const sameOpenPanel = drawer.classList.contains("open") && activePanel === panel;
-      if (sameOpenPanel) {
-        closeDrawer();
-        return;
-      }
+    leftToggle.addEventListener("click", () => {
+      const collapsed = workspace.classList.toggle("left-collapsed");
+      leftToggle.textContent = collapsed ? "›" : "‹";
+      leftToggle.setAttribute("aria-expanded", String(!collapsed));
+      leftToggle.setAttribute("aria-label", collapsed ? "Show slides panel" : "Hide slides panel");
+    });
 
-      activePanel = panel;
-      const slides = panel === "slides";
-      drawer.classList.add("open");
-      drawer.classList.toggle("camera-mode", !slides);
-      drawer.setAttribute("aria-label", slides ? "Slide organizer" : "Camera organizer");
-      slidesPanel.hidden = !slides;
-      camerasPanel.hidden = slides;
-      slidesIcon.hidden = !slides;
-      camerasIcon.hidden = slides;
-      drawerTitle.textContent = slides ? "Slides" : "Cameras";
-      drawerSubtitle.textContent = slides ? "6 slides · drag to reorder" : "3 cameras · drag to reorder";
-      slideTrigger.classList.toggle("active", slides);
-      cameraTrigger.classList.toggle("active", !slides);
-      slideTrigger.setAttribute("aria-expanded", String(slides));
-      cameraTrigger.setAttribute("aria-expanded", String(!slides));
-    }
-
-    function closeDrawer() {
-      drawer.classList.remove("open");
-      slideTrigger.classList.remove("active");
-      cameraTrigger.classList.remove("active");
-      slideTrigger.setAttribute("aria-expanded", "false");
-      cameraTrigger.setAttribute("aria-expanded", "false");
-    }
-
-    slideTrigger.addEventListener("click", () => setDrawer("slides"));
-    cameraTrigger.addEventListener("click", () => setDrawer("cameras"));
-    closeButton.addEventListener("click", closeDrawer);
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") closeDrawer();
+    rightToggle.addEventListener("click", () => {
+      const collapsed = workspace.classList.toggle("right-collapsed");
+      rightToggle.textContent = collapsed ? "‹" : "›";
+      rightToggle.setAttribute("aria-expanded", String(!collapsed));
+      rightToggle.setAttribute("aria-label", collapsed ? "Show cameras panel" : "Hide cameras panel");
     });
   </script>
 </body>

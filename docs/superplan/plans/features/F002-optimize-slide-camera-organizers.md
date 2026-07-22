@@ -3,7 +3,7 @@ id: "F002"
 title: "Optimize Slide and Camera Organizers"
 type: "feature"
 status: "draft"
-summary: "Provide consistent toolbar organizers with persistent slide names and drag reordering for slides and cameras."
+summary: "Deliver a collapsible three-pane editor with persistent slide names and sortable slide and camera sidebars."
 source: "docs/superplan/human/features.md"
 created: "2026-07-22"
 order: 2
@@ -13,12 +13,12 @@ parent: ""
 
 # Optimize Slide and Camera Organizers Plan
 
-**Goal:** Make deck and camera management faster from the editor toolbar while preserving slide identity, titles, order, and unsaved canvas work.
-**Scope:** Replace the inline Slide and Cameras dropdown contents with a shared organizer drawer that slides in from the right over the editor canvas without resizing the Excalidraw viewport. The compact toolbar buttons open the drawer in Slide or Cameras mode, switch its contents, and close it when the active button is clicked again; the close control and Escape also dismiss it. Slides support selection, inline rename, vertical drag reorder, add, and delete. Cameras support selection, vertical drag reorder, delete, and a clear empty state. Slide titles and array order persist through the existing `.is` manifest, and the current slide remains selected by id after reorder.
-**Non-Goals:** This plan does not add slide thumbnails, camera naming, multi-select or batch actions, a permanent slide/camera side panel, presentation-mode behavior, laser pointers, or an `.is` format-version change.
-**Architecture:** The slide store remains the committed presentation source of truth and gains explicit rename/reorder actions, while organizer components own only transient edit and drag state. `Toolbar` owns the active organizer mode and renders one shared, fixed-position right drawer below the toolbar; the drawer overlays rather than participates in editor layout so opening it does not trigger an Excalidraw viewport resize. A shared title-normalization boundary pairs manifest titles with slide content by id and supplies legacy/default fallbacks. `EditorLayout` flushes the active draft before slide order mutations and translates organizer callbacks into store or Excalidraw scene updates. A shared accessible Drawer/Input boundary and dnd-kit sortable behavior keep dismissal, focus, animation, and drag mechanics outside the list contents.
-**Baseline:** `Toolbar.tsx` currently embeds separate Radix dropdown lists for slides and cameras. Slide labels are regenerated as `Slide N`; the frontend `Slide` model has no title, `useSlideStore` has no rename/reorder actions, and `tauriCommands.ts` discards manifest titles on load and rebuilds them from index on save. Camera order already lives in Excalidraw camera element metadata and can be changed with arrow controls, so camera drag ordering can reuse `reorderCameras` without a persistence schema change. The editor intentionally has no permanent preview panel, and existing source-level tests lock that architecture.
-**Exit Criteria:** Clicking Slide or Cameras opens the matching right drawer without changing canvas dimensions, clicking the active trigger again switches it off, clicking the other trigger switches modes, and the close control or Escape dismisses it. Users can rename a slide with Enter/blur commit and Escape cancel; blank names retain a valid prior/default title; users can drag slides and cameras vertically from explicit handles; the active slide stays active after reorder; slide rename/order survive save and reopen; camera reorder updates the scene order used by presentation; add/delete/select remain available; a one-slide document cannot delete its last slide; long lists scroll within the drawer; focused behavior tests, the full Node test suite, production build, and editor smoke checks pass.
+**Goal:** Make deck structure, drawing, and camera sequencing continuously visible in a presentation-editor layout while preserving slide identity, titles, order, and unsaved canvas work.
+**Scope:** Replace the toolbar Slide/Cameras dropdowns with a three-pane editor: a vertical Slides sidebar on the left, the Excalidraw canvas in the center, and a vertical Cameras sidebar on the right. Each sidebar has a divider marker that independently collapses it to a narrow rail and expands it again; the center canvas takes the released space. Slides show thumbnails and support selection, inline rename, vertical drag reorder, add, and delete. Cameras show thumbnails and support selection, vertical drag reorder, delete, and an empty state. Slide titles and array order persist through the existing `.is` manifest, and the current slide remains selected by id after reorder.
+**Non-Goals:** This plan does not create a pixel-for-pixel Microsoft PowerPoint clone, add camera naming, multi-select or batch actions, add arbitrary drag resizing of sidebar widths, change presentation-mode behavior, add laser pointers, or change the `.is` format version.
+**Architecture:** `EditorLayout` owns the two independent sidebar visibility states and composes a horizontal flex layout around the existing `SlideCanvas`. The sidebars use stable expanded widths and collapsed rails; divider buttons own only toggle behavior. Existing slide/camera thumbnail hooks and renderers are reused, with generation enabled only while the corresponding sidebar is visible. Sidebar visibility changes must leave the canvas functional after its container resizes. The slide store remains the committed presentation source of truth and gains explicit rename/reorder actions; `EditorLayout` flushes the active draft before slide order mutations and translates camera ordered ids into Excalidraw scene updates. Sidebar components own only transient edit and drag state.
+**Baseline:** `Toolbar.tsx` currently embeds compact slide and camera dropdown lists, while `EditorLayout.tsx` intentionally renders only the canvas and tests lock that previewless shell. Unused horizontal `SlidePreviewPanel`, `CameraList`, and `ResizableDivider` components plus optimized `useSlideThumbnails` and `useCameraThumbnails` hooks remain in the repository and can be refactored for vertical sidebars. Slide labels are regenerated as `Slide N`; the frontend `Slide` model has no title, the store has no rename/reorder actions, and `tauriCommands.ts` discards manifest titles on load and rebuilds them from index on save. Camera order already lives in Excalidraw element metadata and can reuse `reorderCameras`.
+**Exit Criteria:** The default editor shows Slides, canvas, and Cameras in three columns; each divider marker independently collapses/expands its sidebar and the canvas fills the available center space without clipping or stale input coordinates; hidden sidebars pause their thumbnail work; users can rename and drag slides, drag cameras, and select/add/delete from the appropriate sidebar; the active slide stays active after reorder; slide rename/order survive save and reopen; camera reorder updates presentation order; the last slide cannot be deleted; long lists scroll inside their sidebar; focused behavior/performance checks, the full Node test suite, production build, and editor smoke checks pass.
 
 ## Task 1: Persist Slide Identity, Titles, and Reorder State
 
@@ -53,63 +53,68 @@ parent: ""
 - [ ] Preserve titles through editor drafts and `.is` load/save/new-presentation conversion.
 - [ ] Run the focused data/state test set and record evidence.
 
-## Task 2: Provide a Shared Sortable Right Drawer
+## Task 2: Convert Existing Preview Components into Vertical Sortable Sidebars
 
-**Outcome:** Slide and camera management share an accessible right-side drawer with conflict-free selection, editing, deletion, drag, switching, and dismissal interactions.
+**Outcome:** Slides and cameras have compact vertical thumbnail lists with accessible rename, selection, deletion, drag ordering, internal scrolling, and independent collapse controls.
 **Files:**
 - Modify: `package.json`
 - Modify: `package-lock.json`
-- Create: `src/components/ui/Drawer.tsx`
 - Create: `src/components/ui/Input.tsx`
-- Create: `src/components/SlideOrganizer.tsx`
-- Create: `src/components/CameraOrganizer.tsx`
-- Test: `tests/slideOrganizerWiring.test.mjs`
-- Test: `tests/cameraOrganizerWiring.test.mjs`
+- Modify: `src/components/SlidePreviewPanel.tsx`
+- Modify: `src/components/CameraList.tsx`
+- Modify: `src/components/ResizableDivider.tsx`
+- Test: `tests/slideSidebarWiring.test.mjs`
+- Test: `tests/cameraSidebarWiring.test.mjs`
+- Test: `tests/panelDividerWiring.test.mjs`
 
 **Change Map:**
-- `package.json` and `package-lock.json`: Radix Dialog and dnd-kit sortable dependencies
-- `src/components/ui/Drawer.tsx`: shared fixed right-drawer primitive with slide-in animation, accessible title/close behavior, Escape dismissal, and no canvas-layout participation
-- `src/components/ui/Input.tsx`: constrained shared text input used for inline slide rename
-- `src/components/SlideOrganizer.tsx`: local edit/drag state, scrollable slide rows, inline rename semantics, add/delete/select actions, and drag-handle-only sorting
-- `src/components/CameraOrganizer.tsx`: scrollable camera rows, active state, empty state, select/delete actions, and drag-handle-only sorting
+- `package.json` and `package-lock.json`: dnd-kit sortable dependencies
+- `src/components/ui/Input.tsx`: constrained shared text input for inline slide rename
+- `src/components/SlidePreviewPanel.tsx`: vertical slide thumbnails, titles, active state, local rename/drag state, add/delete/select actions, and drag-handle-only sorting
+- `src/components/CameraList.tsx`: vertical camera thumbnails, active/empty state, select/delete actions, and drag-handle-only sorting
+- `src/components/ResizableDivider.tsx`: reusable vertical left/right divider marker with correct hide/show labels and collapsed direction
 
 **Verification:**
-- `node --test tests/slideOrganizerWiring.test.mjs tests/cameraOrganizerWiring.test.mjs`
-- Source/behavior contracts: drawer mode switching and dismissal are explicit; title and delete controls stop row selection; drag starts only from handles; only one title edits at a time; keyboard rename semantics are wired; and both organizers constrain long-list overflow
+- `node --test tests/slideSidebarWiring.test.mjs tests/cameraSidebarWiring.test.mjs tests/panelDividerWiring.test.mjs`
+- Source/behavior contracts: title/delete controls do not select rows, drag starts only from handles, only one title edits at a time, Enter/blur commit and Escape cancel, each divider direction/label matches its side, and long lists own their scrolling
 
-- [ ] Add failing organizer contracts for the shared right drawer, mode/dismissal behavior, row interaction boundaries, rename keys, sortable ids, and internal scrolling.
-- [ ] Install the minimal Dialog and sortable dependencies and add shared Drawer/Input wrappers.
-- [ ] Implement `SlideOrganizer` with inline rename and vertical sortable rows.
-- [ ] Implement `CameraOrganizer` with vertical sortable rows and empty-state behavior.
-- [ ] Run the focused organizer test set and record evidence.
+- [ ] Add failing contracts for the vertical sidebar structure, thumbnail rows, rename keys, sortable ids, divider directions, and internal scrolling.
+- [ ] Install the sortable dependencies and add the shared Input primitive.
+- [ ] Refactor SlidePreviewPanel into the left sortable slide sidebar with inline rename.
+- [ ] Refactor CameraList into the right sortable camera sidebar with its existing empty state.
+- [ ] Refactor ResizableDivider into an orientation-aware collapsible panel marker.
+- [ ] Run the focused sidebar test set and record evidence.
 
-## Task 3: Integrate Organizers Without Regressing Editor Navigation
+## Task 3: Integrate the Three-Pane Editor and Visibility-Aware Thumbnails
 
-**Outcome:** The toolbar delegates management behavior to the organizers, and EditorLayout safely commits slide/camera order changes through existing state and scene boundaries.
+**Outcome:** EditorLayout renders the collapsible sidebars around a responsive canvas, while Toolbar returns to file/presentation actions and thumbnail work follows sidebar visibility.
 **Files:**
 - Modify: `src/components/Toolbar.tsx`
 - Modify: `src/components/EditorLayout.tsx`
 - Modify: `tests/editorChromeNavigation.test.mjs`
 - Modify: `tests/tooltipWiring.test.mjs`
-- Test: `tests/slideOrganizerWiring.test.mjs`
-- Test: `tests/cameraOrganizerWiring.test.mjs`
+- Modify: `tests/cameraThumbnail.test.mjs`
+- Verify: `scripts/slide-thumbnails-image-regression.mjs`
 
 **Change Map:**
-- `src/components/Toolbar.tsx`: keep compact Slide/Cameras triggers and badges, own the active organizer mode, and render one overlay drawer below the toolbar without changing canvas layout
-- `src/components/EditorLayout.tsx`: pass slide objects and rename/reorder callbacks, flush the current draft before slide reorder, and apply ordered camera ids through `reorderCameras`
-- `tests/editorChromeNavigation.test.mjs`: replace legacy inline-dropdown assertions with dedicated organizer architecture and retain previewless editor-shell boundaries
-- `tests/tooltipWiring.test.mjs`: retain shared toolbar tooltip contracts after component extraction
+- `src/components/Toolbar.tsx`: remove embedded Slide/Cameras dropdowns and their management props while retaining file and presentation actions
+- `src/components/EditorLayout.tsx`: own sidebar visibility, compose the three-pane flex layout, enable slide/camera thumbnail hooks only for visible panels, pass draft-safe rename/reorder callbacks, and keep SlideCanvas responsive to panel transitions
+- `tests/editorChromeNavigation.test.mjs`: replace previewless-shell assertions with three-pane ownership, independent collapse state, and no toolbar dropdown duplication
+- `tests/tooltipWiring.test.mjs`: retain shared tooltip contracts after toolbar/sidebar migration
+- `tests/cameraThumbnail.test.mjs`: retain visibility-gated thumbnail generation and current draft/camera render-key behavior
 
 **Verification:**
-- `node --test tests/editorChromeNavigation.test.mjs tests/tooltipWiring.test.mjs tests/slideOrganizerWiring.test.mjs tests/cameraOrganizerWiring.test.mjs`
+- `node --test tests/editorChromeNavigation.test.mjs tests/tooltipWiring.test.mjs tests/slideSidebarWiring.test.mjs tests/cameraSidebarWiring.test.mjs tests/panelDividerWiring.test.mjs tests/cameraThumbnail.test.mjs`
+- `node scripts/slide-thumbnails-image-regression.mjs`
 - `node --test tests/*.test.mjs`
 - `npm run build`
-- Editor smoke check: rename, cancel rename, drag slides, drag cameras, select/delete/add, verify the active slide and current canvas remain stable, save/reopen the deck, and exercise long-list scrolling
+- Editor smoke check: independently collapse/expand both sidebars; verify the canvas expands, pointer alignment remains correct, and panels restore; rename/cancel/drag slides; drag/select/delete cameras; add/delete/select slides; save/reopen; exercise long-list scrolling
 
-- [ ] Add/update failing wiring assertions for the overlay drawer, trigger toggling/mode switching, Escape/close dismissal, unchanged canvas layout, dedicated organizers, and draft-safe reorder callbacks.
-- [ ] Replace Toolbar's embedded slide/camera list markup with the shared right drawer and dedicated organizer contents while preserving compact triggers and counts.
-- [ ] Wire slide rename/reorder and camera ordered-id updates through EditorLayout's existing state/scene boundaries.
-- [ ] Run focused wiring checks, the full Node regression suite, and the production build.
+- [ ] Add/update failing integration assertions for the three-pane shell, independent visibility states, toolbar simplification, thumbnail visibility gates, and draft-safe reorder callbacks.
+- [ ] Remove Slide/Cameras management dropdowns from Toolbar and integrate both sidebars around SlideCanvas in EditorLayout.
+- [ ] Wire slide rename/reorder and camera ordered-id updates through the existing store/scene boundaries.
+- [ ] Gate slide/camera thumbnail generation by panel visibility and confirm canvas behavior after width transitions.
+- [ ] Run focused integration/performance checks, the full Node regression suite, and the production build.
 - [ ] Complete the editor smoke matrix and record final evidence before marking F002 complete.
 
 ## References
@@ -118,7 +123,11 @@ parent: ""
 - `docs/superplan/plans/features/F001-enable-excalidraw-image-export.md`
 - `src/components/Toolbar.tsx`
 - `src/components/EditorLayout.tsx`
-- `src/hooks/useSlideStore.tsx`
+- `src/components/SlidePreviewPanel.tsx`
+- `src/components/CameraList.tsx`
+- `src/components/ResizableDivider.tsx`
+- `src/hooks/useSlideThumbnails.ts`
+- `src/hooks/useCameraThumbnails.ts`
 - `src/lib/editorSession.ts`
 - `src/lib/tauriCommands.ts`
 - `src/lib/cameraUtils.ts`
