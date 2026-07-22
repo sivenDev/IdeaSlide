@@ -72,7 +72,7 @@ const excalidrawCanvasActions = {
   export: {
     saveFileToDisk: false,
   },
-  saveAsImage: false,
+  saveAsImage: true,
   saveToActiveFile: false,
   saveFileToDisk: false,
 };
@@ -444,6 +444,7 @@ function SlideCanvasInner({ slideId, elements, appState, files, onChange, viewMo
   const mainMenu = useMemo(
     () => (
       <MainMenu>
+        <MainMenu.DefaultItems.SaveAsImage />
         <MainMenu.DefaultItems.ToggleTheme />
         <MainMenu.DefaultItems.ChangeCanvasBackground />
         <MainMenu.DefaultItems.ClearCanvas />

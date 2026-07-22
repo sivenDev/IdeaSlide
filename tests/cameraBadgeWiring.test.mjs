@@ -14,9 +14,11 @@ test('SlideCanvas keeps camera badge sync out of the persisted onChange fast pat
   assert.doesNotMatch(source, /syncCameraBadgesRef\.current\(els, state\);\s*onChangeRef\.current\(els, state, sceneFiles \|\| \{\}\);/);
 });
 
-test('SlideCanvas disables Excalidraw native save actions so saves stay in IdeaSlide', async () => {
+test('SlideCanvas enables image export while native scene saves stay in IdeaSlide', async () => {
   const source = await readSource('src/components/SlideCanvas.tsx');
 
+  assert.match(source, /saveAsImage:\s*true/);
+  assert.match(source, /<MainMenu\.DefaultItems\.SaveAsImage\s*\/>/);
   assert.match(source, /export:\s*\{\s*saveFileToDisk:\s*false,\s*\}/);
   assert.match(source, /saveToActiveFile:\s*false/);
   assert.match(source, /saveToActiveFile:\s*false,\s*saveFileToDisk:\s*false/s);
