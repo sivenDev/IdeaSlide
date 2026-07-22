@@ -14,11 +14,11 @@ parent: ""
 # Optimize Slide and Camera Organizers Plan
 
 **Goal:** Make deck and camera management faster from the editor toolbar while preserving slide identity, titles, order, and unsaved canvas work.
-**Scope:** Replace the inline Slide and Cameras dropdown contents with dedicated, consistently styled organizer popovers. Slides support selection, inline rename, vertical drag reorder, add, and delete. Cameras support selection, vertical drag reorder, delete, and a clear empty state. Slide titles and array order persist through the existing `.is` manifest, and the current slide remains selected by id after reorder.
+**Scope:** Replace the inline Slide and Cameras dropdown contents with a shared organizer drawer that slides in from the right over the editor canvas without resizing the Excalidraw viewport. The compact toolbar buttons open the drawer in Slide or Cameras mode, switch its contents, and close it when the active button is clicked again; the close control and Escape also dismiss it. Slides support selection, inline rename, vertical drag reorder, add, and delete. Cameras support selection, vertical drag reorder, delete, and a clear empty state. Slide titles and array order persist through the existing `.is` manifest, and the current slide remains selected by id after reorder.
 **Non-Goals:** This plan does not add slide thumbnails, camera naming, multi-select or batch actions, a permanent slide/camera side panel, presentation-mode behavior, laser pointers, or an `.is` format-version change.
-**Architecture:** The slide store remains the committed presentation source of truth and gains explicit rename/reorder actions, while organizer components own only transient popover, edit, and drag state. A shared title-normalization boundary pairs manifest titles with slide content by id and supplies legacy/default fallbacks. `EditorLayout` flushes the active draft before slide order mutations and translates organizer callbacks into store or Excalidraw scene updates. Shared Radix Popover/Input primitives and dnd-kit sortable behavior keep floating-surface and drag mechanics outside `Toolbar`.
+**Architecture:** The slide store remains the committed presentation source of truth and gains explicit rename/reorder actions, while organizer components own only transient edit and drag state. `Toolbar` owns the active organizer mode and renders one shared, fixed-position right drawer below the toolbar; the drawer overlays rather than participates in editor layout so opening it does not trigger an Excalidraw viewport resize. A shared title-normalization boundary pairs manifest titles with slide content by id and supplies legacy/default fallbacks. `EditorLayout` flushes the active draft before slide order mutations and translates organizer callbacks into store or Excalidraw scene updates. A shared accessible Drawer/Input boundary and dnd-kit sortable behavior keep dismissal, focus, animation, and drag mechanics outside the list contents.
 **Baseline:** `Toolbar.tsx` currently embeds separate Radix dropdown lists for slides and cameras. Slide labels are regenerated as `Slide N`; the frontend `Slide` model has no title, `useSlideStore` has no rename/reorder actions, and `tauriCommands.ts` discards manifest titles on load and rebuilds them from index on save. Camera order already lives in Excalidraw camera element metadata and can be changed with arrow controls, so camera drag ordering can reuse `reorderCameras` without a persistence schema change. The editor intentionally has no permanent preview panel, and existing source-level tests lock that architecture.
-**Exit Criteria:** Users can rename a slide with Enter/blur commit and Escape cancel; blank names retain a valid prior/default title; users can drag slides and cameras vertically from explicit handles; the active slide stays active after reorder; slide rename/order survive save and reopen; camera reorder updates the scene order used by presentation; add/delete/select remain available; a one-slide document cannot delete its last slide; long lists scroll within the popover; focused behavior tests, the full Node test suite, production build, and editor smoke checks pass.
+**Exit Criteria:** Clicking Slide or Cameras opens the matching right drawer without changing canvas dimensions, clicking the active trigger again switches it off, clicking the other trigger switches modes, and the close control or Escape dismisses it. Users can rename a slide with Enter/blur commit and Escape cancel; blank names retain a valid prior/default title; users can drag slides and cameras vertically from explicit handles; the active slide stays active after reorder; slide rename/order survive save and reopen; camera reorder updates the scene order used by presentation; add/delete/select remain available; a one-slide document cannot delete its last slide; long lists scroll within the drawer; focused behavior tests, the full Node test suite, production build, and editor smoke checks pass.
 
 ## Task 1: Persist Slide Identity, Titles, and Reorder State
 
@@ -53,13 +53,13 @@ parent: ""
 - [ ] Preserve titles through editor drafts and `.is` load/save/new-presentation conversion.
 - [ ] Run the focused data/state test set and record evidence.
 
-## Task 2: Provide Dedicated Sortable Organizer Surfaces
+## Task 2: Provide a Shared Sortable Right Drawer
 
-**Outcome:** Slide and camera management use consistent, accessible popovers with conflict-free selection, editing, deletion, and drag interactions.
+**Outcome:** Slide and camera management share an accessible right-side drawer with conflict-free selection, editing, deletion, drag, switching, and dismissal interactions.
 **Files:**
 - Modify: `package.json`
 - Modify: `package-lock.json`
-- Create: `src/components/ui/Popover.tsx`
+- Create: `src/components/ui/Drawer.tsx`
 - Create: `src/components/ui/Input.tsx`
 - Create: `src/components/SlideOrganizer.tsx`
 - Create: `src/components/CameraOrganizer.tsx`
@@ -67,18 +67,18 @@ parent: ""
 - Test: `tests/cameraOrganizerWiring.test.mjs`
 
 **Change Map:**
-- `package.json` and `package-lock.json`: Radix Popover and dnd-kit sortable dependencies
-- `src/components/ui/Popover.tsx`: shared anchored floating-surface primitive consistent with existing Radix wrappers
+- `package.json` and `package-lock.json`: Radix Dialog and dnd-kit sortable dependencies
+- `src/components/ui/Drawer.tsx`: shared fixed right-drawer primitive with slide-in animation, accessible title/close behavior, Escape dismissal, and no canvas-layout participation
 - `src/components/ui/Input.tsx`: constrained shared text input used for inline slide rename
-- `src/components/SlideOrganizer.tsx`: local open/edit/drag state, scrollable slide rows, inline rename semantics, add/delete/select actions, and drag-handle-only sorting
+- `src/components/SlideOrganizer.tsx`: local edit/drag state, scrollable slide rows, inline rename semantics, add/delete/select actions, and drag-handle-only sorting
 - `src/components/CameraOrganizer.tsx`: scrollable camera rows, active state, empty state, select/delete actions, and drag-handle-only sorting
 
 **Verification:**
 - `node --test tests/slideOrganizerWiring.test.mjs tests/cameraOrganizerWiring.test.mjs`
-- Source/behavior contracts: title and delete controls stop row selection, drag starts only from handles, only one title edits at a time, keyboard rename semantics are wired, and both organizers constrain long-list overflow
+- Source/behavior contracts: drawer mode switching and dismissal are explicit; title and delete controls stop row selection; drag starts only from handles; only one title edits at a time; keyboard rename semantics are wired; and both organizers constrain long-list overflow
 
-- [ ] Add failing organizer contracts for shared primitives, row interaction boundaries, rename keys, sortable ids, and internal scrolling.
-- [ ] Install the minimal Popover and sortable dependencies and add shared UI wrappers.
+- [ ] Add failing organizer contracts for the shared right drawer, mode/dismissal behavior, row interaction boundaries, rename keys, sortable ids, and internal scrolling.
+- [ ] Install the minimal Dialog and sortable dependencies and add shared Drawer/Input wrappers.
 - [ ] Implement `SlideOrganizer` with inline rename and vertical sortable rows.
 - [ ] Implement `CameraOrganizer` with vertical sortable rows and empty-state behavior.
 - [ ] Run the focused organizer test set and record evidence.
@@ -95,7 +95,7 @@ parent: ""
 - Test: `tests/cameraOrganizerWiring.test.mjs`
 
 **Change Map:**
-- `src/components/Toolbar.tsx`: keep compact Slide/Cameras triggers and badges while replacing embedded list markup with organizer components
+- `src/components/Toolbar.tsx`: keep compact Slide/Cameras triggers and badges, own the active organizer mode, and render one overlay drawer below the toolbar without changing canvas layout
 - `src/components/EditorLayout.tsx`: pass slide objects and rename/reorder callbacks, flush the current draft before slide reorder, and apply ordered camera ids through `reorderCameras`
 - `tests/editorChromeNavigation.test.mjs`: replace legacy inline-dropdown assertions with dedicated organizer architecture and retain previewless editor-shell boundaries
 - `tests/tooltipWiring.test.mjs`: retain shared toolbar tooltip contracts after component extraction
@@ -106,8 +106,8 @@ parent: ""
 - `npm run build`
 - Editor smoke check: rename, cancel rename, drag slides, drag cameras, select/delete/add, verify the active slide and current canvas remain stable, save/reopen the deck, and exercise long-list scrolling
 
-- [ ] Add/update failing wiring assertions for dedicated organizers and draft-safe reorder callbacks.
-- [ ] Replace Toolbar's embedded slide/camera list markup with the dedicated organizer components while preserving compact triggers and counts.
+- [ ] Add/update failing wiring assertions for the overlay drawer, trigger toggling/mode switching, Escape/close dismissal, unchanged canvas layout, dedicated organizers, and draft-safe reorder callbacks.
+- [ ] Replace Toolbar's embedded slide/camera list markup with the shared right drawer and dedicated organizer contents while preserving compact triggers and counts.
 - [ ] Wire slide rename/reorder and camera ordered-id updates through EditorLayout's existing state/scene boundaries.
 - [ ] Run focused wiring checks, the full Node regression suite, and the production build.
 - [ ] Complete the editor smoke matrix and record final evidence before marking F002 complete.
