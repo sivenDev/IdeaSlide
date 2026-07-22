@@ -29,9 +29,9 @@
 
 在画布左上角菜单中，恢复显示并允许使用 Excalidraw 原生的“导出图片”功能。
 
-## F002: Optimize slide and camera organizers
+## F002: Evolve the editor into an extensible workspace explorer
 
 - status: accepted
 - created: 2026-07-22
 
-Adopt a presentation-editor three-pane layout: a persistent vertical Slides list on the left, the Excalidraw canvas in the center, and a persistent vertical Cameras list on the right. Each side panel has a marker on its divider that independently collapses it to a narrow rail and expands it again, allowing the center canvas to use the released space. Slides show thumbnails and support selection, inline custom names, vertical drag reorder, add, and delete; cameras show thumbnails and support selection, vertical drag reorder, delete, and a clear empty state. Preserve the active slide and pending editor draft during reorder, persist slide titles and order through the existing .is manifest without a format-version change, and pause hidden-panel thumbnail work. Camera naming, batch actions, pixel-for-pixel imitation of another product, and presentation-mode changes are out of scope.
+Treat each `.is` file as an IdeaSlide workspace rather than a traditional slide deck. Replace the slide-centric organizer with a three-pane editor: a hierarchical Workspace explorer on the left, the selected resource editor in the center, and a compact Cameras list on the right. The first resource types are folders and Excalidraw canvases, while the resource model, persisted type identifier, content reference, selection boundary, and unsupported-type fallback must allow more file types to be added later without redesigning the tree. Users can create folders and canvases, select and inline-rename them, reorder or move them through the hierarchy, and safely delete them. Cameras belong to the selected canvas. Both side panels collapse independently from divider markers. Do not render slide or camera thumbnails in this delivery. Legacy flat-slide `.is` files open as root-level canvases in their original order; the workspace tree, active canvas identity, canvas content, and camera order survive save and reopen. Non-canvas editors, arbitrary linked local files, tabs, thumbnail generation, camera naming, and a presentation-mode redesign are out of scope.

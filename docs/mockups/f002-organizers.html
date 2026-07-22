@@ -3,277 +3,436 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>IdeaSlide Three-Pane Editor Concept</title>
+  <title>IdeaSlide Workspace Explorer Concept</title>
   <style>
     :root {
-      --blue: #2563eb;
-      --blue-soft: #eff6ff;
-      --blue-line: #bfdbfe;
-      --amber: #d97706;
-      --amber-soft: #fffbeb;
-      --amber-line: #fde68a;
-      --ink: #1e293b;
-      --muted: #64748b;
-      --line: #dbe3ec;
-      --panel: #f8fafc;
+      --ink: #172033;
+      --muted: #6d7585;
+      --quiet: #98a0af;
+      --line: #dfe3ea;
+      --line-strong: #cdd3dd;
+      --shell: #e9edf3;
+      --panel: #f7f8fa;
+      --paper: #ffffff;
       --canvas: #fbfcfe;
-      --danger: #dc2626;
+      --accent: #5b5bd6;
+      --accent-deep: #4646bd;
+      --accent-soft: #efefff;
+      --camera: #c86f2d;
+      --camera-soft: #fff3e9;
+      --folder: #c88926;
+      --danger: #c73d4a;
+      --shadow: 0 24px 62px rgba(40, 48, 67, .16);
+      --ui: "Avenir Next", "Segoe UI Variable", "Segoe UI", sans-serif;
+      --utility: "SFMono-Regular", "Cascadia Code", Consolas, monospace;
     }
 
     * { box-sizing: border-box; }
 
+    html, body { width: 100%; height: 100%; }
+
     body {
       margin: 0;
-      min-width: 1120px;
-      background: #e8edf5;
+      min-width: 1040px;
+      overflow: hidden;
+      background: var(--shell);
       color: var(--ink);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+      font-family: var(--ui);
       -webkit-font-smoothing: antialiased;
     }
 
     button, input { font: inherit; }
+    button { color: inherit; }
 
-    .board {
-      width: 100vw;
-      height: 100vh;
-      min-height: 760px;
-      padding: 28px;
-      background:
-        radial-gradient(circle at 10% 0%, rgba(37, 99, 235, .07), transparent 34%),
-        #eef2f7;
+    button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
     }
 
-    .board-head {
+    .stage {
+      width: 100vw;
+      height: 100vh;
+      min-height: 720px;
+      padding: 24px 28px 28px;
+      background:
+        linear-gradient(115deg, rgba(91, 91, 214, .065), transparent 28%),
+        radial-gradient(circle at 88% 0%, rgba(200, 111, 45, .055), transparent 26%),
+        var(--shell);
+    }
+
+    .concept-head {
       height: 58px;
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
-      padding: 0 4px;
+      padding: 0 3px;
     }
 
-    .board-title { font-size: 22px; font-weight: 740; letter-spacing: -.025em; }
-    .board-note { margin-top: 5px; color: var(--muted); font-size: 13px; }
-    .version { padding-top: 7px; color: var(--muted); font-size: 12px; }
+    .concept-kicker {
+      color: var(--accent-deep);
+      font-family: var(--utility);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+
+    .concept-title {
+      margin-top: 4px;
+      font-size: 21px;
+      font-weight: 700;
+      letter-spacing: -.035em;
+    }
+
+    .concept-note {
+      max-width: 600px;
+      padding-top: 4px;
+      color: var(--muted);
+      text-align: right;
+      font-size: 12px;
+      line-height: 1.5;
+    }
 
     .app {
       position: relative;
-      height: calc(100vh - 114px);
-      min-height: 650px;
+      height: calc(100vh - 110px);
+      min-height: 625px;
       overflow: hidden;
-      border: 1px solid #cbd5e1;
-      border-radius: 17px;
-      background: white;
-      box-shadow: 0 22px 55px rgba(15, 23, 42, .15);
+      border: 1px solid var(--line-strong);
+      border-radius: 16px;
+      background: var(--paper);
+      box-shadow: var(--shadow);
     }
 
-    .toolbar {
-      height: 66px;
+    .titlebar {
+      height: 58px;
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 0 16px 0 24px;
+      padding: 0 15px 0 20px;
       border-bottom: 1px solid var(--line);
-      background: #fff;
+      background: rgba(255, 255, 255, .97);
     }
 
-    .traffic { display: flex; gap: 7px; margin-right: 12px; }
-    .traffic i { width: 10px; height: 10px; display: block; border-radius: 50%; }
-    .traffic i:nth-child(1) { background: #ff5f57; }
-    .traffic i:nth-child(2) { background: #febc2e; }
-    .traffic i:nth-child(3) { background: #28c840; }
+    .traffic { display: flex; gap: 7px; margin-right: 10px; }
+    .traffic i { width: 10px; height: 10px; border-radius: 50%; }
+    .traffic i:nth-child(1) { background: #ff605c; }
+    .traffic i:nth-child(2) { background: #ffbd44; }
+    .traffic i:nth-child(3) { background: #00ca4e; }
 
     .icon-button {
-      width: 36px;
-      height: 36px;
+      width: 34px;
+      height: 34px;
       display: grid;
       place-items: center;
       border: 0;
       border-radius: 8px;
       background: transparent;
-      color: #64748b;
+      color: #697181;
+      cursor: pointer;
     }
 
-    .icon-button:hover { background: #f1f5f9; }
-    .icon-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; }
-    .separator { width: 1px; height: 30px; margin: 0 8px; background: #dbe2ea; }
-    .file-name { color: #334155; font-size: 14px; font-weight: 650; }
-    .saved { color: #94a3b8; font-size: 12px; }
-    .spacer { flex: 1; }
+    .icon-button:hover { background: #f0f2f6; color: var(--ink); }
+    .icon-button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+    .title-divider { width: 1px; height: 27px; margin: 0 7px; background: var(--line); }
+    .workspace-name { font-size: 13px; font-weight: 690; letter-spacing: -.01em; }
+    .save-state { color: var(--quiet); font-size: 11px; }
+    .title-spacer { flex: 1; }
 
-    .present {
-      height: 42px;
+    .present-button {
+      height: 36px;
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 0 18px;
+      gap: 7px;
+      padding: 0 14px;
       border: 0;
-      border-radius: 11px;
-      background: #2f7df4;
+      border-radius: 9px;
+      background: var(--ink);
       color: white;
-      font-size: 14px;
-      font-weight: 720;
-      box-shadow: 0 5px 13px rgba(37, 99, 235, .22);
+      font-size: 12px;
+      font-weight: 680;
+      cursor: pointer;
+      box-shadow: 0 5px 12px rgba(23, 32, 51, .16);
     }
 
-    .present svg { width: 15px; height: 15px; fill: currentColor; }
+    .present-button svg { width: 13px; height: 13px; fill: currentColor; }
 
     .workspace {
-      height: calc(100% - 66px);
+      height: calc(100% - 58px);
       display: flex;
       overflow: hidden;
-      background: #fff;
+      background: var(--paper);
     }
 
     .side {
       position: relative;
-      z-index: 3;
+      z-index: 4;
       flex: 0 0 auto;
-      display: flex;
-      flex-direction: column;
+      min-height: 0;
       overflow: visible;
       background: var(--panel);
-      transition: width .25s cubic-bezier(.2, .8, .2, 1);
+      transition: width .22s cubic-bezier(.22, .8, .28, 1);
     }
 
-    .side-left { width: 242px; border-right: 1px solid var(--line); }
-    .side-right { width: 292px; border-left: 1px solid var(--line); }
-    .workspace.left-collapsed .side-left, .workspace.right-collapsed .side-right { width: 42px; }
+    .side-left { width: 282px; border-right: 1px solid var(--line); }
+    .side-right { width: 252px; border-left: 1px solid var(--line); }
+    .workspace.left-collapsed .side-left,
+    .workspace.right-collapsed .side-right { width: 40px; }
 
     .side-content {
-      min-width: 0;
+      width: 100%;
+      height: 100%;
       min-height: 0;
-      flex: 1;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
       opacity: 1;
-      transition: opacity .12s ease;
+      transition: opacity .1s ease;
     }
 
-    .left-collapsed .side-left .side-content, .right-collapsed .side-right .side-content {
+    .left-collapsed .side-left .side-content,
+    .right-collapsed .side-right .side-content {
       pointer-events: none;
       opacity: 0;
     }
 
-    .side-head {
-      height: 54px;
-      flex: 0 0 54px;
+    .panel-head {
+      height: 51px;
+      flex: 0 0 51px;
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 0 13px;
+      padding: 0 11px 0 13px;
       border-bottom: 1px solid var(--line);
-      background: #fff;
+      background: rgba(255, 255, 255, .8);
     }
 
-    .side-title { flex: 1; font-size: 14px; font-weight: 730; letter-spacing: -.01em; }
-    .count { min-width: 25px; padding: 3px 7px; border-radius: 999px; background: #f1f5f9; color: var(--muted); text-align: center; font-size: 11px; font-weight: 700; }
-    .add-small { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid #d7dee8; border-radius: 7px; background: white; color: #475569; font-size: 18px; }
+    .panel-title {
+      min-width: 0;
+      flex: 1;
+      font-size: 12px;
+      font-weight: 760;
+      letter-spacing: .02em;
+      text-transform: uppercase;
+    }
 
-    .side-list { min-height: 0; flex: 1; overflow-y: auto; padding: 10px; scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+    .count {
+      min-width: 22px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: #e9ecf1;
+      color: #7d8491;
+      text-align: center;
+      font-family: var(--utility);
+      font-size: 9px;
+    }
 
-    .slide-row {
-      position: relative;
+    .small-action {
+      width: 27px;
+      height: 27px;
       display: grid;
-      grid-template-columns: 22px 1fr;
-      gap: 8px;
-      margin-bottom: 10px;
-      padding: 7px;
-      border: 1px solid transparent;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: #657080;
+      cursor: pointer;
+    }
+
+    .small-action:hover { border-color: #b9bfd0; color: var(--accent-deep); }
+    .small-action svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+
+    .create-wrap { position: relative; }
+
+    .create-menu {
+      position: absolute;
+      z-index: 20;
+      top: 34px;
+      right: 0;
+      width: 210px;
+      padding: 6px;
+      border: 1px solid var(--line-strong);
       border-radius: 10px;
-      background: transparent;
-      transition: background .14s ease, border-color .14s ease, box-shadow .14s ease;
+      background: white;
+      box-shadow: 0 14px 34px rgba(31, 39, 58, .18);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-4px);
+      transition: opacity .12s ease, transform .12s ease;
     }
 
-    .slide-row:hover { border-color: #dbe3ec; background: #fff; }
-    .slide-row.current { border-color: var(--blue-line); background: var(--blue-soft); box-shadow: inset 3px 0 0 var(--blue); }
-    .slide-number { padding-top: 4px; color: #64748b; text-align: center; font-size: 12px; font-weight: 720; }
-    .slide-main { min-width: 0; }
+    .create-menu.open { opacity: 1; pointer-events: auto; transform: translateY(0); }
 
-    .thumbnail {
-      position: relative;
+    .menu-item {
       width: 100%;
-      aspect-ratio: 16 / 9;
-      overflow: hidden;
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      background:
-        linear-gradient(#f1f5f9 1px, transparent 1px),
-        linear-gradient(90deg, #f1f5f9 1px, transparent 1px),
-        #fff;
-      background-size: 10px 10px;
-      box-shadow: 0 2px 5px rgba(15, 23, 42, .07);
+      min-height: 35px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 9px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      text-align: left;
+      font-size: 12px;
+      cursor: pointer;
     }
 
-    .thumbnail::before, .thumbnail::after { content: ""; position: absolute; border: 2px solid #334155; border-radius: 4px; }
-    .thumbnail::before { top: 18%; left: 12%; width: 36%; height: 25%; }
-    .thumbnail::after { right: 10%; bottom: 12%; width: 29%; height: 38%; border-color: #ef4444; }
-    .thumb-blue::before { border-color: #2563eb; }
-    .thumb-amber::after { border-color: #f59e0b; }
+    .menu-item:hover { background: #f1f2f7; }
+    .menu-item.disabled { color: #a3a8b3; cursor: default; }
+    .menu-item.disabled:hover { background: transparent; }
+    .menu-icon { width: 19px; color: var(--accent); text-align: center; font-family: var(--utility); font-weight: 800; }
+    .menu-meta { margin-left: auto; color: #a3a8b3; font-family: var(--utility); font-size: 8px; letter-spacing: .06em; text-transform: uppercase; }
+    .menu-rule { height: 1px; margin: 5px 6px; background: var(--line); }
 
-    .slide-title {
-      margin-top: 6px;
+    .tree-scroll {
+      min-height: 0;
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 8px 14px;
+      scrollbar-width: thin;
+      scrollbar-color: #c8ced8 transparent;
+    }
+
+    .tree-group { margin: 0; padding: 0; list-style: none; }
+    .tree-children { margin: 1px 0 2px 13px; padding-left: 8px; border-left: 1px solid #dfe2e8; }
+    .tree-item { position: relative; list-style: none; }
+
+    .resource-row {
+      position: relative;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 6px 0 4px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      color: #3c4556;
+      cursor: default;
+      user-select: none;
+    }
+
+    .resource-row:hover { background: #eef0f4; }
+    .resource-row.selected { border-color: #d7d7fb; background: var(--accent-soft); color: #292966; }
+    .resource-row.drop-target { box-shadow: inset 0 -2px 0 var(--accent); }
+
+    .resource-row.selected::before {
+      content: "";
+      position: absolute;
+      left: -5px;
+      width: 3px;
+      height: 20px;
+      border-radius: 3px;
+      background: var(--accent);
+    }
+
+    .twisty {
+      width: 14px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      color: #858c99;
+      font-size: 10px;
+      cursor: pointer;
+    }
+
+    .twisty.empty { visibility: hidden; }
+    .tree-item.closed > .tree-children { display: none; }
+    .tree-item.closed > .resource-row .twisty { transform: rotate(-90deg); }
+
+    .resource-icon {
+      width: 20px;
+      height: 20px;
+      flex: 0 0 20px;
+      display: grid;
+      place-items: center;
+      border-radius: 5px;
+    }
+
+    .resource-icon svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+    .resource-icon.folder { color: var(--folder); }
+    .resource-icon.canvas { background: #e8e8ff; color: var(--accent-deep); }
+
+    .resource-label {
+      min-width: 0;
+      flex: 1;
       overflow: hidden;
-      color: #334155;
       text-overflow: ellipsis;
       white-space: nowrap;
       font-size: 12px;
-      font-weight: 650;
+      font-weight: 570;
+      letter-spacing: -.005em;
     }
 
-    .slide-title-input {
-      width: 100%;
-      height: 29px;
-      margin-top: 5px;
-      padding: 0 8px;
-      border: 1.5px solid var(--blue);
-      border-radius: 6px;
-      outline: none;
-      background: white;
-      color: #1e293b;
-      font-size: 12px;
-      font-weight: 620;
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, .1);
-    }
-
-    .handle {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      width: 22px;
-      height: 24px;
-      display: grid;
-      grid-template-columns: repeat(2, 3px);
-      grid-template-rows: repeat(3, 3px);
-      align-content: center;
-      justify-content: center;
-      gap: 3px;
+    .rename-input {
+      min-width: 0;
+      height: 25px;
+      flex: 1;
+      padding: 0 6px;
+      border: 1px solid var(--accent);
       border-radius: 5px;
-      background: rgba(255, 255, 255, .9);
-      color: #94a3b8;
-      box-shadow: 0 1px 5px rgba(15, 23, 42, .12);
-      cursor: grab;
+      background: white;
+      color: var(--ink);
+      font-size: 12px;
+      box-shadow: 0 0 0 2px rgba(91, 91, 214, .1);
     }
 
-    .handle i { width: 3px; height: 3px; border-radius: 50%; background: currentColor; }
-
-    .camera-row {
-      position: relative;
-      margin-bottom: 10px;
-      padding: 9px;
-      border: 1px solid #dbe3ec;
-      border-radius: 10px;
-      background: #fff;
-      transition: background .14s ease, border-color .14s ease, box-shadow .14s ease;
+    .type-chip {
+      padding: 2px 5px;
+      border-radius: 4px;
+      background: rgba(91, 91, 214, .1);
+      color: var(--accent-deep);
+      font-family: var(--utility);
+      font-size: 7px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
     }
 
-    .camera-row:hover { border-color: #cbd5e1; }
-    .camera-row.active { border-color: var(--amber-line); background: var(--amber-soft); box-shadow: inset 3px 0 0 #f59e0b; }
-    .camera-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-    .camera-number { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: #f1f5f9; color: #64748b; font-size: 11px; font-weight: 760; }
-    .active .camera-number { background: #f59e0b; color: white; }
-    .camera-name { flex: 1; font-size: 13px; font-weight: 680; }
-    .camera-meta { color: #94a3b8; font-size: 11px; }
-    .camera-row .thumbnail { aspect-ratio: 16 / 8.5; }
+    .row-more {
+      width: 20px;
+      height: 20px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: #808796;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .resource-row:hover .row-more, .resource-row.selected .row-more { opacity: 1; }
+    .row-more:hover { background: rgba(255,255,255,.78); color: var(--ink); }
+
+    .explorer-foot {
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 12px;
+      border-top: 1px solid var(--line);
+      background: rgba(255, 255, 255, .72);
+      color: #8a919e;
+      font-size: 9px;
+      line-height: 1.35;
+    }
+
+    .registry-mark {
+      width: 18px;
+      height: 18px;
+      display: grid;
+      place-items: center;
+      border: 1px solid #d7d9f5;
+      border-radius: 5px;
+      color: var(--accent-deep);
+      font-family: var(--utility);
+      font-size: 9px;
+      font-weight: 800;
+    }
 
     .rail {
       position: absolute;
@@ -281,39 +440,50 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 10px;
+      gap: 11px;
       padding-top: 15px;
       opacity: 0;
       pointer-events: none;
-      transition: opacity .12s ease .1s;
+      transition: opacity .12s ease .08s;
     }
 
-    .left-collapsed .side-left .rail, .right-collapsed .side-right .rail { opacity: 1; pointer-events: auto; }
-    .rail-icon { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 7px; background: #fff; color: #64748b; box-shadow: 0 1px 4px rgba(15,23,42,.08); }
-    .rail-icon svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; }
-    .rail-label { writing-mode: vertical-rl; color: #64748b; font-size: 11px; font-weight: 700; letter-spacing: .04em; }
+    .left-collapsed .side-left .rail,
+    .right-collapsed .side-right .rail { opacity: 1; pointer-events: auto; }
 
-    .toggle {
-      position: absolute;
-      z-index: 8;
-      top: 50%;
-      width: 22px;
-      height: 58px;
+    .rail-icon {
+      width: 25px;
+      height: 25px;
       display: grid;
       place-items: center;
-      border: 1px solid #cbd5e1;
-      background: #fff;
-      color: #64748b;
-      font-size: 17px;
-      font-weight: 700;
+      border-radius: 7px;
+      background: white;
+      color: #6f7786;
+      box-shadow: 0 1px 5px rgba(30, 38, 54, .08);
+    }
+
+    .rail-icon svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+    .rail-label { writing-mode: vertical-rl; color: #8a919d; font-family: var(--utility); font-size: 8px; letter-spacing: .1em; text-transform: uppercase; }
+
+    .divider-toggle {
+      position: absolute;
+      z-index: 12;
+      top: 50%;
+      width: 20px;
+      height: 54px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line-strong);
+      background: white;
+      color: #7b8290;
+      font-size: 15px;
       cursor: pointer;
-      box-shadow: 0 4px 12px rgba(15, 23, 42, .1);
+      box-shadow: 0 5px 13px rgba(37, 45, 61, .1);
       transform: translateY(-50%);
     }
 
-    .toggle:hover { border-color: #93c5fd; background: var(--blue-soft); color: var(--blue); }
-    .toggle-left { right: -12px; border-radius: 0 8px 8px 0; }
-    .toggle-right { left: -12px; border-radius: 8px 0 0 8px; }
+    .divider-toggle:hover { border-color: #b8b8e8; background: var(--accent-soft); color: var(--accent-deep); }
+    .toggle-left { right: -11px; border-radius: 0 7px 7px 0; }
+    .toggle-right { left: -11px; border-radius: 7px 0 0 7px; }
 
     .center {
       min-width: 0;
@@ -321,131 +491,372 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      background: var(--paper);
+    }
+
+    .resource-bar {
+      height: 51px;
+      flex: 0 0 51px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--line);
       background: #fff;
     }
 
-    .excalibar {
-      height: 58px;
-      flex: 0 0 58px;
-      display: flex;
-      align-items: center;
-      gap: 11px;
-      padding: 0 20px;
-      border-bottom: 1px solid #e5e7eb;
-      background: rgba(255, 255, 255, .98);
-      color: #475569;
+    .active-type {
+      width: 25px;
+      height: 25px;
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      background: var(--accent);
+      color: white;
+      font-family: var(--utility);
+      font-size: 10px;
+      font-weight: 800;
     }
 
-    .draw-tool { width: 35px; height: 35px; display: grid; place-items: center; border: 1px solid transparent; border-radius: 8px; background: white; }
-    .draw-tool.selected { border-color: #c7d2fe; background: #eef2ff; color: #4f46e5; }
-    .draw-tool svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; }
-    .tool-spacer { flex: 1; }
-    .camera-action { height: 36px; padding: 0 13px; border: 1.5px solid #f59e0b; border-radius: 9px; background: #fffdf7; color: var(--amber); font-size: 13px; font-weight: 700; }
+    .breadcrumb { min-width: 0; flex: 1; display: flex; align-items: center; gap: 6px; color: #89909d; font-size: 11px; }
+    .breadcrumb span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .breadcrumb strong { color: #333b4b; font-size: 12px; font-weight: 680; }
+    .breadcrumb-sep { color: #c2c6ce; }
+    .resource-kind { color: #9399a5; font-family: var(--utility); font-size: 8px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+
+    .canvas-wrap { position: relative; min-height: 0; flex: 1; overflow: hidden; }
+
+    .draw-toolbar {
+      position: absolute;
+      z-index: 3;
+      top: 15px;
+      left: 50%;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: rgba(255, 255, 255, .96);
+      box-shadow: 0 8px 22px rgba(37, 45, 62, .12);
+      transform: translateX(-50%);
+    }
+
+    .draw-tool {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: #667080;
+    }
+
+    .draw-tool.active { background: var(--accent-soft); color: var(--accent-deep); }
+    .draw-tool svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; }
 
     .canvas {
-      position: relative;
-      min-height: 0;
-      flex: 1;
+      position: absolute;
+      inset: 0;
       overflow: hidden;
       background:
-        linear-gradient(#eef2f7 1px, transparent 1px),
-        linear-gradient(90deg, #eef2f7 1px, transparent 1px),
+        linear-gradient(#edf0f4 1px, transparent 1px),
+        linear-gradient(90deg, #edf0f4 1px, transparent 1px),
         var(--canvas);
       background-size: 24px 24px;
     }
 
-    .canvas-hint { position: absolute; top: 28px; left: 30px; color: #aab2bf; font-size: 13px; }
-    .canvas-title { position: absolute; top: 92px; left: 9%; color: #ef4444; font-size: 28px; font-weight: 700; transform: rotate(-1deg); }
-    .shape { position: absolute; border: 4px solid #ef4444; border-radius: 20px; opacity: .8; }
-    .shape.one { top: 158px; left: 10%; width: 31%; height: 170px; transform: rotate(-2deg); }
-    .shape.two { top: 175px; right: 10%; width: 30%; height: 180px; border-color: #1f2937; transform: rotate(1deg); }
-    .shape.three { top: 440px; left: 23%; width: 52%; height: 3px; border-width: 3px 0 0; border-radius: 0; }
-
-    .layout-hint {
+    .canvas-label {
       position: absolute;
-      right: 18px;
-      bottom: 18px;
-      padding: 8px 11px;
-      border: 1px solid #cbd5e1;
-      border-radius: 9px;
-      background: rgba(255,255,255,.92);
-      color: #64748b;
+      top: 86px;
+      left: 7.5%;
+      color: #7b8290;
+      font-family: var(--utility);
+      font-size: 9px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .scribble-title {
+      position: absolute;
+      top: 116px;
+      left: 8%;
+      color: #303746;
+      font-size: 29px;
+      font-weight: 690;
+      letter-spacing: -.04em;
+      transform: rotate(-1deg);
+    }
+
+    .note-card {
+      position: absolute;
+      width: 180px;
+      min-height: 95px;
+      padding: 15px 16px;
+      border: 2px solid #313a4b;
+      border-radius: 12px;
+      background: rgba(255,255,255,.88);
+      color: #485162;
+      font-size: 12px;
+      line-height: 1.45;
+      box-shadow: 3px 4px 0 rgba(49, 58, 75, .08);
+    }
+
+    .note-card strong { display: block; margin-bottom: 5px; color: #293142; font-size: 13px; }
+    .note-a { top: 194px; left: 9%; transform: rotate(-1.5deg); }
+    .note-b { top: 205px; right: 10%; border-color: var(--accent); transform: rotate(1deg); }
+    .note-c { bottom: 90px; left: 35%; border-color: var(--camera); transform: rotate(-.5deg); }
+
+    .connector { position: absolute; height: 3px; border-radius: 3px; background: #9ca3af; transform-origin: left center; }
+    .connector.a { top: 250px; left: 30%; width: 26%; transform: rotate(3deg); }
+    .connector.b { top: 301px; left: 55%; width: 18%; background: var(--accent); transform: rotate(55deg); }
+
+    .canvas-status {
+      position: absolute;
+      right: 14px;
+      bottom: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 9px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: rgba(255,255,255,.9);
+      color: #8a919d;
+      font-family: var(--utility);
+      font-size: 8px;
+      box-shadow: 0 4px 12px rgba(35, 42, 57, .07);
+    }
+
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #59a779; }
+
+    .camera-list {
+      min-height: 0;
+      flex: 1;
+      overflow-y: auto;
+      padding: 9px;
+      scrollbar-width: thin;
+      scrollbar-color: #c8ced8 transparent;
+    }
+
+    .camera-row {
+      height: 51px;
+      display: grid;
+      grid-template-columns: 28px minmax(0,1fr) 20px;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      padding: 0 7px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .camera-row:hover { border-color: var(--line); background: white; }
+    .camera-row.active { border-color: #f0cfb6; background: var(--camera-soft); }
+    .camera-row.drag-target { box-shadow: inset 0 -2px 0 var(--camera); }
+
+    .camera-index {
+      width: 25px;
+      height: 25px;
+      display: grid;
+      place-items: center;
+      border: 1px solid #d8dce3;
+      border-radius: 50%;
+      background: white;
+      color: #7b8390;
+      font-family: var(--utility);
+      font-size: 9px;
+      font-weight: 700;
+    }
+
+    .camera-row.active .camera-index { border-color: var(--camera); background: var(--camera); color: white; }
+    .camera-copy { min-width: 0; }
+    .camera-name { display: block; overflow: hidden; color: #3e4655; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 650; }
+    .camera-meta { display: block; margin-top: 2px; color: #989faa; font-family: var(--utility); font-size: 8px; }
+    .camera-handle { color: #a3a9b3; font-size: 12px; letter-spacing: -2px; cursor: grab; }
+
+    .camera-foot {
+      min-height: 54px;
+      padding: 9px 10px;
+      border-top: 1px solid var(--line);
+      background: rgba(255,255,255,.72);
+    }
+
+    .add-camera {
+      width: 100%;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: 1px dashed #d7b292;
+      border-radius: 8px;
+      background: #fffaf6;
+      color: #a75a22;
       font-size: 11px;
-      box-shadow: 0 5px 16px rgba(15,23,42,.08);
+      font-weight: 670;
+      cursor: pointer;
+    }
+
+    .add-camera:hover { border-style: solid; background: var(--camera-soft); }
+
+    .toast {
+      position: absolute;
+      z-index: 40;
+      left: 50%;
+      bottom: 18px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: rgba(23, 32, 51, .92);
+      color: white;
+      font-size: 10px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, 8px);
+      transition: opacity .16s ease, transform .16s ease;
+    }
+
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 1180px) {
+      .stage { padding: 18px; }
+      .concept-note { display: none; }
+      .app { height: calc(100vh - 92px); }
+      .side-left { width: 250px; }
+      .side-right { width: 226px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .side, .side-content, .rail { transition: none; }
+      .side, .side-content, .rail, .create-menu, .toast { transition: none; }
     }
   </style>
 </head>
 <body>
-  <main class="board">
-    <header class="board-head">
+  <main class="stage">
+    <header class="concept-head">
       <div>
-        <div class="board-title">IdeaSlide · three-pane presentation editor</div>
-        <div class="board-note">Slides on the left, canvas in the center, cameras on the right. Click either divider marker to collapse a panel.</div>
+        <div class="concept-kicker">IdeaSlide · workspace direction 04</div>
+        <div class="concept-title">Workspace resources, not slides.</div>
       </div>
-      <div class="version">F002 · interactive visual direction 03</div>
+      <div class="concept-note">The left tree is built around resource types. Canvas is the first editor; folders organize the workspace; more types can join the same model later.</div>
     </header>
 
     <section class="app">
-      <div class="toolbar">
+      <header class="titlebar">
         <div class="traffic"><i></i><i></i><i></i></div>
         <button class="icon-button" aria-label="Back to home"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10H3z"/><path d="M9 20v-7h6v7"/></svg></button>
-        <div class="separator"></div>
-        <span class="file-name">Product Strategy.is</span><span class="saved">Saved</span>
-        <div class="spacer"></div>
-        <button class="icon-button" aria-label="New file"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16h12a2 2 0 0 0 2-2V6z"/><path d="M14 2v5h5"/></svg></button>
-        <button class="icon-button" aria-label="Open file"><svg viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v11H3z"/></svg></button>
-        <button class="icon-button" aria-label="Save"><svg viewBox="0 0 24 24"><path d="M5 3h12l2 2v16H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></svg></button>
-        <div class="separator"></div>
-        <button class="present"><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg>Present</button>
-      </div>
+        <div class="title-divider"></div>
+        <span class="workspace-name">Product Discovery.is</span>
+        <span class="save-state">Saved</span>
+        <div class="title-spacer"></div>
+        <button class="icon-button" aria-label="Open workspace"><svg viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v11H3z"/></svg></button>
+        <button class="icon-button" aria-label="Save workspace"><svg viewBox="0 0 24 24"><path d="M5 3h12l2 2v16H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></svg></button>
+        <div class="title-divider"></div>
+        <button class="present-button"><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg>Present canvases</button>
+      </header>
 
       <div class="workspace" id="workspace">
-        <aside class="side side-left" aria-label="Slides panel">
+        <aside class="side side-left" aria-label="Workspace explorer">
           <div class="side-content">
-            <header class="side-head"><div class="side-title">Slides</div><div class="count">6</div><button class="add-small" aria-label="Add slide">+</button></header>
-            <div class="side-list">
-              <div class="slide-row"><div class="slide-number">1</div><div class="slide-main"><div class="thumbnail thumb-blue"></div><div class="slide-title">Opening</div></div><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
-              <div class="slide-row current"><div class="slide-number">2</div><div class="slide-main"><div class="thumbnail thumb-amber"></div><input class="slide-title-input" value="Market Opportunity" aria-label="Slide title"/></div><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
-              <div class="slide-row"><div class="slide-number">3</div><div class="slide-main"><div class="thumbnail"></div><div class="slide-title">Product Demo</div></div><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
-              <div class="slide-row"><div class="slide-number">4</div><div class="slide-main"><div class="thumbnail thumb-blue"></div><div class="slide-title">Architecture</div></div><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
-              <div class="slide-row"><div class="slide-number">5</div><div class="slide-main"><div class="thumbnail"></div><div class="slide-title">Roadmap</div></div><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
-              <div class="slide-row"><div class="slide-number">6</div><div class="slide-main"><div class="thumbnail thumb-amber"></div><div class="slide-title">Q&amp;A</div></div><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+            <header class="panel-head">
+              <div class="panel-title">Workspace</div>
+              <div class="count" id="resource-count">10</div>
+              <div class="create-wrap">
+                <button class="small-action" id="create-toggle" aria-label="Create resource" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+                <div class="create-menu" id="create-menu" role="menu">
+                  <button class="menu-item" data-create="canvas" role="menuitem"><span class="menu-icon">C</span><span>New canvas</span><span class="menu-meta">Canvas</span></button>
+                  <button class="menu-item" data-create="folder" role="menuitem"><span class="menu-icon">▰</span><span>New folder</span><span class="menu-meta">Folder</span></button>
+                  <div class="menu-rule"></div>
+                  <button class="menu-item disabled" disabled><span class="menu-icon">＋</span><span>More resource types</span><span class="menu-meta">Later</span></button>
+                </div>
+              </div>
+            </header>
+
+            <div class="tree-scroll" id="resource-tree" role="tree" aria-label="Workspace resources">
+              <ul class="tree-group">
+                <li class="tree-item" draggable="true">
+                  <div class="resource-row" data-type="folder" data-title="Product discovery" data-path="Product discovery" role="treeitem" aria-expanded="true" tabindex="0">
+                    <button class="twisty" aria-label="Collapse folder">▼</button>
+                    <span class="resource-icon folder"><svg viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v10H3z"/></svg></span>
+                    <span class="resource-label">Product discovery</span>
+                    <button class="row-more" aria-label="Resource actions">•••</button>
+                  </div>
+                  <ul class="tree-group tree-children">
+                    <li class="tree-item" draggable="true"><div class="resource-row selected" data-type="canvas" data-title="Problem map" data-path="Product discovery / Problem map" role="treeitem" aria-selected="true" tabindex="0"><button class="twisty empty">▼</button><span class="resource-icon canvas">C</span><span class="resource-label">Problem map</span><span class="type-chip">Canvas</span><button class="row-more" aria-label="Resource actions">•••</button></div></li>
+                    <li class="tree-item" draggable="true"><div class="resource-row" data-type="canvas" data-title="Interview synthesis" data-path="Product discovery / Interview synthesis" role="treeitem" aria-selected="false" tabindex="0"><button class="twisty empty">▼</button><span class="resource-icon canvas">C</span><span class="resource-label">Interview synthesis</span><button class="row-more" aria-label="Resource actions">•••</button></div></li>
+                    <li class="tree-item" draggable="true"><div class="resource-row" data-type="canvas" data-title="North-star metrics" data-path="Product discovery / North-star metrics" role="treeitem" aria-selected="false" tabindex="0"><button class="twisty empty">▼</button><span class="resource-icon canvas">C</span><span class="resource-label">North-star metrics</span><button class="row-more" aria-label="Resource actions">•••</button></div></li>
+                  </ul>
+                </li>
+
+                <li class="tree-item" draggable="true">
+                  <div class="resource-row" data-type="folder" data-title="Concepts" data-path="Concepts" role="treeitem" aria-expanded="true" tabindex="0"><button class="twisty" aria-label="Collapse folder">▼</button><span class="resource-icon folder"><svg viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v10H3z"/></svg></span><span class="resource-label">Concepts</span><button class="row-more" aria-label="Resource actions">•••</button></div>
+                  <ul class="tree-group tree-children">
+                    <li class="tree-item" draggable="true"><div class="resource-row" data-type="canvas" data-title="Sketch playground" data-path="Concepts / Sketch playground" role="treeitem" aria-selected="false" tabindex="0"><button class="twisty empty">▼</button><span class="resource-icon canvas">C</span><span class="resource-label">Sketch playground</span><button class="row-more" aria-label="Resource actions">•••</button></div></li>
+                    <li class="tree-item" draggable="true"><div class="resource-row" data-type="canvas" data-title="Flow notes" data-path="Concepts / Flow notes" role="treeitem" aria-selected="false" tabindex="0"><button class="twisty empty">▼</button><span class="resource-icon canvas">C</span><span class="resource-label">Flow notes</span><button class="row-more" aria-label="Resource actions">•••</button></div></li>
+                  </ul>
+                </li>
+
+                <li class="tree-item closed" draggable="true">
+                  <div class="resource-row" data-type="folder" data-title="Archive" data-path="Archive" role="treeitem" aria-expanded="false" tabindex="0"><button class="twisty" aria-label="Expand folder">▼</button><span class="resource-icon folder"><svg viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v10H3z"/></svg></span><span class="resource-label">Archive</span><button class="row-more" aria-label="Resource actions">•••</button></div>
+                  <ul class="tree-group tree-children"><li class="tree-item" draggable="true"><div class="resource-row" data-type="canvas" data-title="Early directions" data-path="Archive / Early directions" role="treeitem" aria-selected="false" tabindex="0"><button class="twisty empty">▼</button><span class="resource-icon canvas">C</span><span class="resource-label">Early directions</span><button class="row-more" aria-label="Resource actions">•••</button></div></li></ul>
+                </li>
+
+                <li class="tree-item" draggable="true"><div class="resource-row" data-type="canvas" data-title="Parking lot" data-path="Parking lot" role="treeitem" aria-selected="false" tabindex="0"><button class="twisty empty">▼</button><span class="resource-icon canvas">C</span><span class="resource-label">Parking lot</span><button class="row-more" aria-label="Resource actions">•••</button></div></li>
+              </ul>
             </div>
+
+            <footer class="explorer-foot"><span class="registry-mark">R</span><span>2 resource types active. New editors can join this workspace tree later.</span></footer>
           </div>
-          <div class="rail"><div class="rail-icon"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg></div><div class="rail-label">Slides · 6</div></div>
-          <button class="toggle toggle-left" id="left-toggle" aria-label="Hide slides panel" aria-expanded="true">‹</button>
+          <div class="rail"><div class="rail-icon"><svg viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v10H3z"/></svg></div><div class="rail-label">Workspace · 10</div></div>
+          <button class="divider-toggle toggle-left" id="left-toggle" aria-label="Hide workspace explorer" aria-expanded="true">‹</button>
         </aside>
 
         <main class="center">
-          <div class="excalibar">
-            <div class="draw-tool selected"><svg viewBox="0 0 24 24"><path d="M5 3l12 9-6 1-2 6z"/></svg></div>
-            <div class="draw-tool"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/></svg></div>
-            <div class="draw-tool"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg></div>
-            <div class="draw-tool"><svg viewBox="0 0 24 24"><path d="M5 19L19 5M13 5h6v6"/></svg></div>
-            <div class="draw-tool"><svg viewBox="0 0 24 24"><path d="M4 12h16"/></svg></div>
-            <div class="draw-tool"><svg viewBox="0 0 24 24"><path d="M5 19l10-10 4 4-10 10H5z"/></svg></div>
-            <div class="tool-spacer"></div><button class="camera-action">▣ Add Camera</button>
-          </div>
-          <div class="canvas"><div class="canvas-hint">Hold the spacebar while dragging to move the canvas</div><div class="canvas-title">Product narrative</div><div class="shape one"></div><div class="shape two"></div><div class="shape three"></div><div class="layout-hint">Center canvas expands when either side panel is hidden</div></div>
-        </main>
-
-        <aside class="side side-right" aria-label="Cameras panel">
-          <div class="side-content">
-            <header class="side-head"><div class="side-title">Cameras</div><div class="count">3</div></header>
-            <div class="side-list">
-              <div class="camera-row"><div class="camera-top"><div class="camera-number">1</div><div class="camera-name">Camera 1</div><div class="camera-meta">Opening</div></div><div class="thumbnail thumb-blue"></div><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
-              <div class="camera-row active"><div class="camera-top"><div class="camera-number">2</div><div class="camera-name">Camera 2</div><div class="camera-meta">Active</div></div><div class="thumbnail thumb-amber"></div><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
-              <div class="camera-row"><div class="camera-top"><div class="camera-number">3</div><div class="camera-name">Camera 3</div><div class="camera-meta">Closing</div></div><div class="thumbnail"></div><div class="handle"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+          <header class="resource-bar">
+            <div class="active-type">C</div>
+            <div class="breadcrumb" id="breadcrumb"><span>Product discovery</span><span class="breadcrumb-sep">/</span><strong>Problem map</strong></div>
+            <div class="resource-kind">Canvas resource</div>
+          </header>
+          <div class="canvas-wrap">
+            <div class="draw-toolbar" aria-label="Canvas tools">
+              <button class="draw-tool active" aria-label="Select"><svg viewBox="0 0 24 24"><path d="M5 3l12 9-6 1-2 6z"/></svg></button>
+              <button class="draw-tool" aria-label="Rectangle"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/></svg></button>
+              <button class="draw-tool" aria-label="Ellipse"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg></button>
+              <button class="draw-tool" aria-label="Arrow"><svg viewBox="0 0 24 24"><path d="M5 19L19 5M13 5h6v6"/></svg></button>
+              <button class="draw-tool" aria-label="Draw"><svg viewBox="0 0 24 24"><path d="M4 17c4-8 7 5 11-5 2-5 4-2 5 1"/></svg></button>
+              <button class="draw-tool" aria-label="Text"><svg viewBox="0 0 24 24"><path d="M5 6h14M12 6v13M8 19h8"/></svg></button>
+            </div>
+            <div class="canvas">
+              <div class="canvas-label">Active canvas</div>
+              <div class="scribble-title" id="canvas-title">Problem map</div>
+              <div class="note-card note-a"><strong>What users say</strong>Too many ideas become separate files before the thinking is connected.</div>
+              <div class="note-card note-b"><strong>Workspace model</strong>Folders organize resources. Canvas is one resource type, not the product itself.</div>
+              <div class="note-card note-c"><strong>Future direction</strong>Add new resource editors without rebuilding navigation.</div>
+              <div class="connector a"></div><div class="connector b"></div>
+              <div class="canvas-status"><span class="status-dot"></span><span>Draft synced to canvas resource</span></div>
             </div>
           </div>
+        </main>
+
+        <aside class="side side-right" aria-label="Cameras sidebar">
+          <div class="side-content">
+            <header class="panel-head"><div class="panel-title">Cameras</div><div class="count" id="camera-count">3</div></header>
+            <div class="camera-list" id="camera-list">
+              <div class="camera-row" draggable="true"><span class="camera-index">1</span><span class="camera-copy"><span class="camera-name">Camera 1</span><span class="camera-meta">Opening view</span></span><span class="camera-handle">⠿</span></div>
+              <div class="camera-row active" draggable="true"><span class="camera-index">2</span><span class="camera-copy"><span class="camera-name">Camera 2</span><span class="camera-meta">Active view</span></span><span class="camera-handle">⠿</span></div>
+              <div class="camera-row" draggable="true"><span class="camera-index">3</span><span class="camera-copy"><span class="camera-name">Camera 3</span><span class="camera-meta">Closing view</span></span><span class="camera-handle">⠿</span></div>
+            </div>
+            <footer class="camera-foot"><button class="add-camera" id="add-camera"><span>＋</span>Add camera to this canvas</button></footer>
+          </div>
           <div class="rail"><div class="rail-icon"><svg viewBox="0 0 24 24"><path d="M4 7h4l2-3h4l2 3h4v12H4z"/><circle cx="12" cy="13" r="4"/></svg></div><div class="rail-label">Cameras · 3</div></div>
-          <button class="toggle toggle-right" id="right-toggle" aria-label="Hide cameras panel" aria-expanded="true">›</button>
+          <button class="divider-toggle toggle-right" id="right-toggle" aria-label="Hide cameras sidebar" aria-expanded="true">›</button>
         </aside>
       </div>
+      <div class="toast" id="toast" role="status"></div>
     </section>
   </main>
 
@@ -453,19 +864,235 @@
     const workspace = document.getElementById("workspace");
     const leftToggle = document.getElementById("left-toggle");
     const rightToggle = document.getElementById("right-toggle");
+    const createToggle = document.getElementById("create-toggle");
+    const createMenu = document.getElementById("create-menu");
+    const resourceTree = document.getElementById("resource-tree");
+    const resourceCount = document.getElementById("resource-count");
+    const breadcrumb = document.getElementById("breadcrumb");
+    const canvasTitle = document.getElementById("canvas-title");
+    const cameraList = document.getElementById("camera-list");
+    const cameraCount = document.getElementById("camera-count");
+    const toast = document.getElementById("toast");
+    let draggedTreeItem = null;
+    let draggedCamera = null;
+    let toastTimer = null;
 
-    leftToggle.addEventListener("click", () => {
-      const collapsed = workspace.classList.toggle("left-collapsed");
-      leftToggle.textContent = collapsed ? "›" : "‹";
-      leftToggle.setAttribute("aria-expanded", String(!collapsed));
-      leftToggle.setAttribute("aria-label", collapsed ? "Show slides panel" : "Hide slides panel");
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("show"), 1700);
+    }
+
+    function setCollapsed(side, collapsed) {
+      const isLeft = side === "left";
+      const className = isLeft ? "left-collapsed" : "right-collapsed";
+      const button = isLeft ? leftToggle : rightToggle;
+      workspace.classList.toggle(className, collapsed);
+      button.textContent = isLeft ? (collapsed ? "›" : "‹") : (collapsed ? "‹" : "›");
+      button.setAttribute("aria-expanded", String(!collapsed));
+      button.setAttribute("aria-label", `${collapsed ? "Show" : "Hide"} ${isLeft ? "workspace explorer" : "cameras sidebar"}`);
+    }
+
+    leftToggle.addEventListener("click", () => setCollapsed("left", !workspace.classList.contains("left-collapsed")));
+    rightToggle.addEventListener("click", () => setCollapsed("right", !workspace.classList.contains("right-collapsed")));
+
+    createToggle.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const open = createMenu.classList.toggle("open");
+      createToggle.setAttribute("aria-expanded", String(open));
     });
 
-    rightToggle.addEventListener("click", () => {
-      const collapsed = workspace.classList.toggle("right-collapsed");
-      rightToggle.textContent = collapsed ? "‹" : "›";
-      rightToggle.setAttribute("aria-expanded", String(!collapsed));
-      rightToggle.setAttribute("aria-label", collapsed ? "Show cameras panel" : "Hide cameras panel");
+    document.addEventListener("click", () => {
+      createMenu.classList.remove("open");
+      createToggle.setAttribute("aria-expanded", "false");
+    });
+
+    createMenu.addEventListener("click", (event) => event.stopPropagation());
+
+    function updateResourceCount() {
+      resourceCount.textContent = String(resourceTree.querySelectorAll(".resource-row").length);
+    }
+
+    function selectResource(row) {
+      if (row.dataset.type === "folder") {
+        const item = row.closest(".tree-item");
+        item.classList.toggle("closed");
+        const expanded = !item.classList.contains("closed");
+        row.setAttribute("aria-expanded", String(expanded));
+        row.querySelector(".twisty").setAttribute("aria-label", `${expanded ? "Collapse" : "Expand"} folder`);
+        return;
+      }
+
+      resourceTree.querySelectorAll(".resource-row").forEach((resource) => {
+        const active = resource === row;
+        resource.classList.toggle("selected", active);
+        if (resource.dataset.type === "canvas") resource.setAttribute("aria-selected", String(active));
+        resource.querySelector(".type-chip")?.remove();
+      });
+
+      const chip = document.createElement("span");
+      chip.className = "type-chip";
+      chip.textContent = "Canvas";
+      row.insertBefore(chip, row.querySelector(".row-more"));
+
+      const parts = row.dataset.path.split(" / ");
+      breadcrumb.innerHTML = parts.map((part, index) => index === parts.length - 1 ? `<strong>${part}</strong>` : `<span>${part}</span><span class="breadcrumb-sep">/</span>`).join("");
+      canvasTitle.textContent = row.dataset.title;
+      showToast(`Opened canvas: ${row.dataset.title}`);
+    }
+
+    function beginRename(row) {
+      const label = row.querySelector(".resource-label");
+      if (!label || row.querySelector(".rename-input")) return;
+      const oldName = label.textContent;
+      const input = document.createElement("input");
+      input.className = "rename-input";
+      input.value = oldName;
+      label.replaceWith(input);
+      input.focus();
+      input.select();
+
+      const finish = (commit) => {
+        const nextName = commit && input.value.trim() ? input.value.trim() : oldName;
+        const nextLabel = document.createElement("span");
+        nextLabel.className = "resource-label";
+        nextLabel.textContent = nextName;
+        input.replaceWith(nextLabel);
+        row.dataset.title = nextName;
+        const pathParts = row.dataset.path.split(" / ");
+        pathParts[pathParts.length - 1] = nextName;
+        row.dataset.path = pathParts.join(" / ");
+        if (row.classList.contains("selected")) selectResource(row);
+        if (commit) showToast(`Renamed to ${nextName}`);
+      };
+
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") finish(true);
+        if (event.key === "Escape") finish(false);
+      });
+      input.addEventListener("blur", () => finish(true), { once: true });
+    }
+
+    resourceTree.addEventListener("click", (event) => {
+      const twisty = event.target.closest(".twisty:not(.empty)");
+      const more = event.target.closest(".row-more");
+      const row = event.target.closest(".resource-row");
+      if (!row) return;
+      if (twisty) {
+        event.stopPropagation();
+        selectResource(row);
+        return;
+      }
+      if (more) {
+        event.stopPropagation();
+        beginRename(row);
+        return;
+      }
+      selectResource(row);
+    });
+
+    resourceTree.addEventListener("dblclick", (event) => {
+      const row = event.target.closest(".resource-row");
+      if (row) beginRename(row);
+    });
+
+    resourceTree.addEventListener("keydown", (event) => {
+      const row = event.target.closest(".resource-row");
+      if (!row) return;
+      if (event.key === "F2") { event.preventDefault(); beginRename(row); }
+      if (event.key === "Enter") { event.preventDefault(); selectResource(row); }
+      if (event.key === "ArrowRight" && row.dataset.type === "folder") row.closest(".tree-item").classList.remove("closed");
+      if (event.key === "ArrowLeft" && row.dataset.type === "folder") row.closest(".tree-item").classList.add("closed");
+    });
+
+    function createResource(type) {
+      const rootList = resourceTree.querySelector(":scope > .tree-group");
+      const item = document.createElement("li");
+      item.className = "tree-item";
+      item.draggable = true;
+      const name = type === "folder" ? "New folder" : "Untitled canvas";
+      const icon = type === "folder" ? '<span class="resource-icon folder"><svg viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v10H3z"/></svg></span>' : '<span class="resource-icon canvas">C</span>';
+      item.innerHTML = `<div class="resource-row" data-type="${type}" data-title="${name}" data-path="${name}" role="treeitem" tabindex="0"><button class="twisty ${type === "folder" ? "" : "empty"}" aria-label="${type === "folder" ? "Collapse folder" : ""}">▼</button>${icon}<span class="resource-label">${name}</span><button class="row-more" aria-label="Resource actions">•••</button></div>${type === "folder" ? '<ul class="tree-group tree-children"></ul>' : ""}`;
+      rootList.appendChild(item);
+      updateResourceCount();
+      createMenu.classList.remove("open");
+      const row = item.querySelector(".resource-row");
+      if (type === "canvas") selectResource(row);
+      beginRename(row);
+    }
+
+    createMenu.querySelectorAll("[data-create]").forEach((button) => button.addEventListener("click", () => createResource(button.dataset.create)));
+
+    resourceTree.addEventListener("dragstart", (event) => {
+      draggedTreeItem = event.target.closest(".tree-item");
+      event.dataTransfer.effectAllowed = "move";
+    });
+
+    resourceTree.addEventListener("dragover", (event) => {
+      const row = event.target.closest(".resource-row");
+      if (!row || !draggedTreeItem || row.closest(".tree-item") === draggedTreeItem || draggedTreeItem.contains(row)) return;
+      event.preventDefault();
+      resourceTree.querySelectorAll(".drop-target").forEach((target) => target.classList.remove("drop-target"));
+      row.classList.add("drop-target");
+    });
+
+    resourceTree.addEventListener("drop", (event) => {
+      const row = event.target.closest(".resource-row");
+      if (!row || !draggedTreeItem) return;
+      event.preventDefault();
+      const targetItem = row.closest(".tree-item");
+      if (row.dataset.type === "folder") {
+        targetItem.classList.remove("closed");
+        targetItem.querySelector(":scope > .tree-children").appendChild(draggedTreeItem);
+        showToast(`Moved into ${row.dataset.title}`);
+      } else {
+        targetItem.parentElement.insertBefore(draggedTreeItem, targetItem);
+        showToast("Resource order updated");
+      }
+      resourceTree.querySelectorAll(".drop-target").forEach((target) => target.classList.remove("drop-target"));
+      draggedTreeItem = null;
+    });
+
+    cameraList.addEventListener("click", (event) => {
+      const row = event.target.closest(".camera-row");
+      if (!row) return;
+      cameraList.querySelectorAll(".camera-row").forEach((camera) => camera.classList.toggle("active", camera === row));
+    });
+
+    cameraList.addEventListener("dragstart", (event) => {
+      draggedCamera = event.target.closest(".camera-row");
+      event.dataTransfer.effectAllowed = "move";
+    });
+
+    cameraList.addEventListener("dragover", (event) => {
+      const row = event.target.closest(".camera-row");
+      if (!row || row === draggedCamera) return;
+      event.preventDefault();
+      cameraList.querySelectorAll(".drag-target").forEach((target) => target.classList.remove("drag-target"));
+      row.classList.add("drag-target");
+    });
+
+    cameraList.addEventListener("drop", (event) => {
+      const row = event.target.closest(".camera-row");
+      if (!row || !draggedCamera) return;
+      event.preventDefault();
+      cameraList.insertBefore(draggedCamera, row);
+      cameraList.querySelectorAll(".camera-row").forEach((camera, index) => camera.querySelector(".camera-index").textContent = String(index + 1));
+      cameraList.querySelectorAll(".drag-target").forEach((target) => target.classList.remove("drag-target"));
+      draggedCamera = null;
+      showToast("Camera order updated");
+    });
+
+    document.getElementById("add-camera").addEventListener("click", () => {
+      const index = cameraList.querySelectorAll(".camera-row").length + 1;
+      const row = document.createElement("div");
+      row.className = "camera-row";
+      row.draggable = true;
+      row.innerHTML = `<span class="camera-index">${index}</span><span class="camera-copy"><span class="camera-name">Camera ${index}</span><span class="camera-meta">New view</span></span><span class="camera-handle">⠿</span>`;
+      cameraList.appendChild(row);
+      cameraCount.textContent = String(index);
+      showToast(`Camera ${index} added to this canvas`);
     });
   </script>
 </body>
