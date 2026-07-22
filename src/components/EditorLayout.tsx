@@ -51,7 +51,10 @@ export function EditorLayout({ onGoHome, readOnly = false, editorRefreshToken }:
   const sessionCanvasResource = activeResource?.type === "canvas"
     ? activeResource
     : canvasResources[0];
-  const currentSlide = canvasContentToSlide(workspace, sessionCanvasResource);
+  const currentSlide = useMemo(
+    () => canvasContentToSlide(workspace, sessionCanvasResource),
+    [workspace, sessionCanvasResource],
+  );
 
   const {
     autoSaveVersion,

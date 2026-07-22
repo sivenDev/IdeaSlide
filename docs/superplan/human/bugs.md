@@ -63,3 +63,15 @@
 实际：tauri-action 检测到 pnpm-lock.yaml 后改用 pnpm tauri build，三个平台的构建任务均失败。
 
 证据：Release run 26559228461（v0.1.11）中 Windows 和两项 macOS build 均在 Tauri build 步骤失败；Windows annotation 为 Command pnpm [tauri,build,...] failed with exit code 1。
+
+## B004: Opening the editor triggers a maximum update depth error
+
+- status: done
+- created: 2026-07-22
+
+复现步骤：
+1. 启动 IdeaSlide 并打开工作区进入编辑器。
+2. 编辑器立即进入 ErrorBoundary。
+
+期望：三栏编辑器正常显示并可操作。
+实际：React 报 Maximum update depth exceeded，堆栈首先落在 Radix Tooltip 的组合 ref 更新。
