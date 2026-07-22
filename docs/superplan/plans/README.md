@@ -4,10 +4,10 @@
 
 ## Status
 
-| Type | Plans | Draft | Complete |
-| --- | --- | --- | --- |
-| `feature` | 1 | 1 | 0 |
-| `bugfix` | 3 | 0 | 3 |
+| Type | Plans | Complete |
+| --- | --- | --- |
+| `feature` | 1 | 1 |
+| `bugfix` | 3 | 3 |
 
 ## Plan Groups
 
@@ -15,7 +15,7 @@
 
 | ID | Plan | Status | Created |
 | --- | --- | --- | --- |
-| `F001` | [Enable Excalidraw Image Export](features/F001-enable-excalidraw-image-export.md) | `draft` | 2026-07-22 |
+| `F001` | [Enable Excalidraw Image Export](features/F001-enable-excalidraw-image-export.md) | `complete` | 2026-07-22 |
 
 ### Bugfix Plans
 

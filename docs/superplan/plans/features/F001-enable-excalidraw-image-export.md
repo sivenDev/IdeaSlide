@@ -2,7 +2,7 @@
 id: "F001"
 title: "Enable Excalidraw Image Export"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Expose Excalidraw's image export dialog and make its PNG/SVG downloads persist through Tauri without restoring native scene save paths."
 source: "docs/superplan/human/features.md"
 created: "2026-07-22"
@@ -67,12 +67,12 @@ parent: ""
 - `npm run build`
 - Tauri smoke check: export one PNG and one SVG, confirm each native save dialog appears and each selected file is non-empty; cancel one export and confirm no file is created
 
-- [ ] Add a failing bridge regression covering matching PNG/SVG blob anchors, save cancellation, byte persistence, and delegation of unrelated clicks.
-- [ ] Run the focused regression and confirm the missing Tauri bridge is the failure.
-- [ ] Implement the smallest Tauri-only blob download bridge and install it once at application startup.
-- [ ] Re-run the focused regression and confirm the export/download boundary passes without weakening B001 assertions.
-- [ ] Run the full source-level suite, production build, and Tauri PNG/SVG/cancel smoke check.
-- [ ] Mark F001 and this revised plan complete after verification.
+- [x] Add a failing bridge regression covering matching PNG/SVG blob anchors, save cancellation, byte persistence, and delegation of unrelated clicks.
+- [x] Run the focused regression and confirm the missing Tauri bridge is the failure.
+- [x] Implement the smallest Tauri-only blob download bridge and install it once at application startup.
+- [x] Re-run the focused regression and confirm the export/download boundary passes without weakening B001 assertions.
+- [x] Run the full source-level suite, production build, and Tauri PNG/SVG/cancel smoke check.
+- [x] Mark F001 and this revised plan complete after verification.
 
 ## Task 1 Verification Evidence
 
@@ -81,6 +81,15 @@ parent: ""
 - Regression: `node --test tests/*.test.mjs` passed 90/90.
 - Build: `npm run build` completed successfully with the existing Vite dynamic-import and chunk-size warnings.
 - UI contract: the installed Excalidraw `SaveAsImage` menu item sets `openDialog` to `{ name: "imageExport" }`; F001 renders that item and enables its canvas action. The local browser runtime reported no available browser, so click-through smoke evidence was unavailable.
+
+## Task 2 Verification Evidence
+
+- Red: `node --test tests/tauriBlobDownload.test.mjs tests/cameraBadgeWiring.test.mjs` failed against the missing bridge before implementation.
+- Green: the focused bridge and menu regression suite passed 10/10 after implementation.
+- Regression: `node --test tests/*.test.mjs` passed 95/95.
+- Build: `npm run build` completed successfully with only the existing Excalidraw chunk-size warning.
+- Automated behavior: PNG/SVG matching, native-path byte persistence, save cancellation, blob URL revocation, unrelated-click delegation, and one-time startup installation are covered by `tests/tauriBlobDownload.test.mjs`.
+- Tauri smoke check: the user confirmed in the real application that PNG and SVG export now open the native persistence flow and work successfully.
 
 ## References
 - `docs/superplan/human/features.md`
