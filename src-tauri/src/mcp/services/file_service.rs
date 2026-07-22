@@ -100,7 +100,8 @@ mod tests {
         svc.create(&path).unwrap();
 
         svc.read_and_modify(&path, |data| {
-            assert_eq!(data.slides.len(), 1);
+            assert_eq!(data.contents.len(), 1);
+            assert_eq!(data.manifest.resources.len(), 1);
             Ok(())
         })
         .unwrap();

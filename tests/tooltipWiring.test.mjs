@@ -6,13 +6,13 @@ async function readSource(path) {
   return readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 }
 
-test('CameraList wires action buttons through the shared Tooltip primitives', async () => {
+test('CameraList exposes accessible labels for compact sidebar actions', async () => {
   const source = await readSource('src/components/CameraList.tsx');
 
-  assert.match(source, /from "\.\/ui\/Tooltip"/);
-  assert.match(source, /TooltipProvider/);
-  assert.match(source, /TooltipTrigger/);
-  assert.match(source, /TooltipContent/);
+  assert.match(source, /aria-label=\{`Move up camera/);
+  assert.match(source, /aria-label=\{`Move down camera/);
+  assert.match(source, /aria-label=\{`Delete camera/);
+  assert.doesNotMatch(source, /title=/);
 });
 
 test('SlidePreviewPanel wires action buttons through the shared Tooltip primitives', async () => {
@@ -35,10 +35,9 @@ test('Toolbar wires icon actions through the shared Tooltip primitives instead o
   assert.doesNotMatch(source, /title="/);
 });
 
-test('Toolbar leaves Add slide and Present without hover tips', async () => {
+test('Toolbar leaves Present without a hover tip', async () => {
   const source = await readSource('src/components/Toolbar.tsx');
 
-  assert.doesNotMatch(source, /tooltip="Add slide"/);
   assert.doesNotMatch(source, /tooltip="Present"/);
 });
 

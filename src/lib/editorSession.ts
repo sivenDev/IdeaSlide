@@ -1,5 +1,6 @@
 import type { Slide } from "../types.ts";
 import { buildSceneFingerprint } from "./sceneFingerprint.ts";
+import { slideToCanvasContent } from "./workspaceResources.ts";
 
 const PERSISTED_APP_STATE_KEYS = ["viewBackgroundColor", "gridSize"] as const;
 const DEFAULT_VIEW_BACKGROUND_COLOR = "#ffffff";
@@ -113,6 +114,35 @@ export function applySlideCommitToSlides(
   const nextSlides = [...slides];
   nextSlides[slideIndex] = commitPayload.slide;
   return nextSlides;
+}
+
+export function applyCanvasCommitToContents(
+  contents: Record<string, unknown>,
+  resourceId: string,
+  commitPayload: SlideCommitPayload | null,
+) {
+  if (!commitPayload) return contents;
+  return {
+    ...contents,
+    [resourceId]: {
+      ...((contents[resourceId] as Record<string, unknown> | undefined) ?? {}),
+      ...slideToCanvasContent(commitPayload.slide),
+    },
+  };
+}
+
+export function buildContentsForPersistence(
+  contents: Record<string, unknown>,
+  resourceId: string,
+  previousSlide: Slide,
+  draft: EditorSlideDraft,
+  summary: DraftChangeSummary = createDraftChangeSummary(previousSlide, draft),
+) {
+  return applyCanvasCommitToContents(
+    contents,
+    resourceId,
+    buildSlideCommitPayload(previousSlide, draft, summary),
+  );
 }
 
 export function buildSlidesForPersistence(

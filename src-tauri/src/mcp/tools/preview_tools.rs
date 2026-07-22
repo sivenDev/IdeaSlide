@@ -150,7 +150,7 @@ pub async fn handle_preview_presentation(
     }
 
     let mut previews = Vec::new();
-    for slide in &data.slides {
+    for slide in slide_service.list(&data) {
         let content = slide_service
             .get_content(&data, &slide.id)
             .map_err(|e| e.to_string())?;

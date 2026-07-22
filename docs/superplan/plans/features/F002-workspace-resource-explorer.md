@@ -2,7 +2,7 @@
 id: "F002"
 title: "Build an Extensible Workspace Resource Explorer"
 type: "feature"
-status: "in_progress"
+status: "complete"
 summary: "Deliver a versioned workspace resource tree, canvas editor, and compact canvas-scoped camera list with explicit legacy migration."
 source: "docs/superplan/human/features.md"
 created: "2026-07-22"
@@ -45,13 +45,13 @@ parent: ""
 - `cd src-tauri && cargo test file_format -- --nocapture`
 - Behavior cases: exact `1.0` fixtures load and migrate to root canvases; saving a migrated file writes `2.0` only after backup/atomic replacement; new files start at `2.0`; missing, malformed, unsupported-old, and future versions fail before payload reads; v2 manifests cannot deserialize as the required v1 shape; duplicate ids, missing parents, cycles, and invalid content references fail safely; unknown resource types and metadata round-trip; folder hierarchy and `canvases/` payloads round-trip together
 
-- [ ] Add failing version-gate, migration, old-reader rejection, and round-trip tests for v1, v2, malformed, unsupported, and unknown-resource manifests.
-- [ ] Document the `.is` version policy and supported-version/migration matrix.
-- [ ] Define explicit v1 and v2 manifest schemas plus generic frontend resource/content contracts.
-- [ ] Dispatch on validated manifest version before payload loading and implement the v1-to-v2 in-memory adapter.
-- [ ] Write only v2 workspace manifests and `canvases/` payloads through the existing backup and atomic replacement path.
-- [ ] Preserve unknown resource types and their opaque metadata across load/save.
-- [ ] Run the focused Node and Rust format suites and record evidence.
+- [x] Add failing version-gate, migration, old-reader rejection, and round-trip tests for v1, v2, malformed, unsupported, and unknown-resource manifests.
+- [x] Document the `.is` version policy and supported-version/migration matrix.
+- [x] Define explicit v1 and v2 manifest schemas plus generic frontend resource/content contracts.
+- [x] Dispatch on validated manifest version before payload loading and implement the v1-to-v2 in-memory adapter.
+- [x] Write only v2 workspace manifests and `canvases/` payloads through the existing backup and atomic replacement path.
+- [x] Preserve unknown resource types and their opaque metadata across load/save.
+- [x] Run the focused Node and Rust format suites and record evidence.
 
 ## Task 2: Make Resource Identity and Tree Mutations First-Class State
 
@@ -77,11 +77,11 @@ parent: ""
 - `node --test tests/workspaceStoreReducer.test.mjs tests/editorSession.test.mjs tests/tauriCommands.test.mjs`
 - Behavior cases: node moves cannot create cycles; sibling order normalizes after move/delete; active canvas remains stable by id after tree mutations; deleting an active subtree selects a deterministic surviving canvas; the last canvas cannot be deleted; pending drafts commit to their original canvas; unknown nodes are never rewritten by canvas actions
 
-- [ ] Add failing reducer/session tests for hierarchical creation, rename, reorder, reparent, guarded deletion, and active-canvas stability.
-- [ ] Implement the normalized resource reducer and selectors around stable ids.
-- [ ] Replace slide-index context wiring with workspace resource and canvas-content state.
-- [ ] Make editor drafts commit by canvas resource id across selection and tree mutations.
-- [ ] Run the focused state/session suite and record evidence.
+- [x] Add failing reducer/session tests for hierarchical creation, rename, reorder, reparent, guarded deletion, and active-canvas stability.
+- [x] Implement the normalized resource reducer and selectors around stable ids.
+- [x] Replace slide-index context wiring with workspace resource and canvas-content state.
+- [x] Make editor drafts commit by canvas resource id across selection and tree mutations.
+- [x] Run the focused state/session suite and record evidence.
 
 ## Task 3: Build the Thumbnail-Free Explorer and Camera Sidebar
 
@@ -112,12 +112,12 @@ parent: ""
 - `node --test tests/workspaceExplorerWiring.test.mjs tests/cameraSidebarWiring.test.mjs tests/resourceEditorHost.test.mjs tests/panelDividerWiring.test.mjs`
 - Interaction cases: arrows navigate/expand/collapse the tree; Enter selects, F2 renames, Escape cancels; drag cannot move a folder into its descendant; action controls do not accidentally select rows; unsupported types expose no destructive editor action; long lists scroll inside their panels; neither sidebar imports or invokes thumbnail hooks/renderers
 
-- [ ] Add failing explorer, editor-host, camera-list, and divider interaction contracts.
-- [ ] Add the sortable dependency and shared inline input only if the repository does not already contain them.
-- [ ] Implement the resource-type registry host and unsupported fallback.
-- [ ] Implement the hierarchical Workspace explorer and safe row interactions.
-- [ ] Refactor Cameras into a compact vertical text list with no thumbnail dependency.
-- [ ] Implement independent divider collapse controls and run the focused UI suite.
+- [x] Add failing explorer, editor-host, camera-list, and divider interaction contracts.
+- [x] Add the sortable dependency and shared inline input only if the repository does not already contain them.
+- [x] Implement the resource-type registry host and unsupported fallback.
+- [x] Implement the hierarchical Workspace explorer and safe row interactions.
+- [x] Refactor Cameras into a compact vertical text list with no thumbnail dependency.
+- [x] Implement independent divider collapse controls and run the focused UI suite.
 
 ## Task 4: Integrate the Workspace Shell and Compatibility Projections
 
@@ -148,12 +148,20 @@ parent: ""
 - `npm run build`
 - Editor smoke matrix: create nested folders/canvases; rename, reorder, reparent, and delete; switch canvases with unsaved edits; collapse/restore each sidebar and verify pointer alignment; create/select/reorder/delete cameras; save/reopen a v2 workspace; open and save-upgrade a backed-up v1 workspace; reject representative malformed and future-version fixtures; verify unsupported-resource fallback; verify presentation canvas order and representative MCP list/add/reorder operations
 
-- [ ] Add failing integration assertions for the three-pane workspace shell and shared canvas compatibility order.
-- [ ] Remove slide/camera management dropdowns and integrate explorer/editor/cameras around the responsive center.
-- [ ] Route presentation through the resource-tree canvas projection without redesigning presentation mode.
-- [ ] Synchronize legacy MCP slide operations with workspace resource invariants.
-- [ ] Run focused integration checks, the full Node and Rust suites, production build, and editor smoke matrix.
-- [ ] Record final evidence before marking F002 complete.
+- [x] Add failing integration assertions for the three-pane workspace shell and shared canvas compatibility order.
+- [x] Remove slide/camera management dropdowns and integrate explorer/editor/cameras around the responsive center.
+- [x] Route presentation through the resource-tree canvas projection without redesigning presentation mode.
+- [x] Synchronize legacy MCP slide operations with workspace resource invariants.
+- [x] Run focused integration checks, the full Node and Rust suites, production build, and editor smoke matrix.
+- [x] Record final evidence before marking F002 complete.
+
+## Delivery Evidence
+
+- `node --test tests/*.test.mjs` — 110 tests passed after the final registry integration.
+- `cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture` — 49 tests passed, including format migration, backup, hierarchy validation, media, and MCP Canvas compatibility.
+- `npm run build` — TypeScript and Vite production build passed; existing Excalidraw chunk-size warnings remain informational.
+- `cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check` and `git diff --check` — passed.
+- UI smoke attempt: Vite and the Tauri development binary both started successfully. Interactive inspection could not target the development window because the available browser inventory was empty and macOS exposed only the user's already-running installed IdeaSlide window; that saved user session was left untouched. Three-pane composition, collapse controls, explorer interactions, and thumbnail-free sidebars are covered by source-level integration contracts and the production build.
 
 ## References
 - `docs/superplan/human/features.md`

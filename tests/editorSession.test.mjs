@@ -271,6 +271,24 @@ test('applySlideCommitToSlides replaces only the current persisted slide snapsho
   ]);
 });
 
+test('applyCanvasCommitToContents preserves compatible canvas payload extensions', async () => {
+  const { applyCanvasCommitToContents } = await loadModule();
+  assert.equal(typeof applyCanvasCommitToContents, 'function');
+
+  const contents = {
+    'canvas-1': {
+      type: 'excalidraw', version: 2, elements: [], appState: {}, files: {},
+      pluginState: { mode: 'future-compatible' },
+    },
+  };
+  const next = applyCanvasCommitToContents(contents, 'canvas-1', {
+    slide: { id: 'canvas-1', elements: [{ id: 'updated' }], appState: {}, files: {} },
+    contentChanged: true,
+  });
+  assert.deepEqual(next['canvas-1'].pluginState, { mode: 'future-compatible' });
+  assert.equal(next['canvas-1'].elements[0].id, 'updated');
+});
+
 test('flushEditorDraft resets the draft baseline after committing so save state can clear', async () => {
   const {
     buildEditorDraftFromSlide,

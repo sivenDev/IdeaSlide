@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { SlideStoreProvider, useSlideStore } from "./hooks/useSlideStore";
+import { WorkspaceStoreProvider, useWorkspaceStore } from "./hooks/useWorkspaceStore";
 import { LaunchScreen } from "./components/LaunchScreen";
 import { EditorLayout } from "./components/EditorLayout";
 import { PresentationMode } from "./components/PresentationMode";
@@ -10,9 +10,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { openRecentFile, getOpenedFile, convertFromIsFileData } from "./lib/tauriCommands";
 import { initMcpRenderer } from "./lib/mcpRenderer";
 import { initPreviewRenderer } from "./lib/previewRenderer";
+import { projectWorkspaceToSlides } from "./lib/workspaceResources";
+import type { WorkspaceDocument } from "./types";
 
 function AppContent() {
-  const { state, dispatch } = useSlideStore();
+  const { state, dispatch } = useWorkspaceStore();
   const [showEditor, setShowEditor] = useState(false);
   const [mcpVisible, setMcpVisible] = useState(false);
   const [editorRefreshToken, setEditorRefreshToken] = useState(0);
@@ -21,18 +23,18 @@ function AppContent() {
     windowLabel === "mcp-renderer" || windowLabel === "preview-renderer";
 
   async function loadFileFromPath(filePath: string) {
-    const slides = await openRecentFile(filePath);
+    const workspace = await openRecentFile(filePath);
     dispatch({
-      type: "LOAD_PRESENTATION",
-      payload: { slides, filePath },
+      type: "LOAD_WORKSPACE",
+      payload: { workspace, filePath },
     });
     setShowEditor(true);
   }
 
-  function handleFileOpened(filePath: string, slides: any[]) {
+  function handleFileOpened(filePath: string, workspace: WorkspaceDocument) {
     dispatch({
-      type: "LOAD_PRESENTATION",
-      payload: { slides, filePath: filePath || undefined },
+      type: "LOAD_WORKSPACE",
+      payload: { workspace, filePath: filePath || undefined },
     });
     setShowEditor(true);
   }
@@ -64,10 +66,10 @@ function AppContent() {
     if (isRendererWindow) return;
     if (!mcpVisible) return;
     const unlisten = listen<{ path: string; data: any }>("mcp-state-changed", (event) => {
-      const slides = convertFromIsFileData(event.payload.data);
+      const workspace = convertFromIsFileData(event.payload.data);
       dispatch({
-        type: "LOAD_PRESENTATION",
-        payload: { slides, filePath: event.payload.path },
+        type: "LOAD_WORKSPACE",
+        payload: { workspace, filePath: event.payload.path },
       });
       setShowEditor(true);
     });
@@ -140,10 +142,18 @@ function AppContent() {
 
   // Presentation mode takes priority over editor
   if (state.presentationMode !== 'none') {
+    const workspace = {
+      resources: state.resources,
+      contents: state.contents,
+      activeResourceId: state.activeResourceId,
+      manifestExtra: state.manifestExtra,
+    };
+    const slides = projectWorkspaceToSlides(workspace);
+    const startIndex = Math.max(0, slides.findIndex((slide) => slide.id === state.activeResourceId));
     return (
       <PresentationMode
-        slides={state.slides}
-        startIndex={state.currentSlideIndex}
+        slides={slides}
+        startIndex={startIndex}
         mode={state.presentationMode as 'preview' | 'fullscreen'}
         transitionSpeed={state.transitionSpeed}
         onExit={handlePresentationExit}
@@ -165,9 +175,9 @@ function AppContent() {
 function App() {
   return (
     <ErrorBoundary>
-      <SlideStoreProvider>
+      <WorkspaceStoreProvider>
         <AppContent />
-      </SlideStoreProvider>
+      </WorkspaceStoreProvider>
     </ErrorBoundary>
   );
 }

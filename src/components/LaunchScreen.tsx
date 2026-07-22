@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getRecentFiles, createNewPresentation, openFile, openRecentFile, removeRecentFile } from "../lib/tauriCommands";
 import type { RecentFile } from "../types";
+import type { WorkspaceDocument } from "../types";
 
 function formatRelativeTime(isoString: string): string {
   try {
@@ -34,7 +35,7 @@ function formatRelativeTime(isoString: string): string {
 }
 
 interface LaunchScreenProps {
-  onFileOpened: (filePath: string, slides: any[]) => void;
+  onFileOpened: (filePath: string, workspace: WorkspaceDocument) => void;
 }
 
 export function LaunchScreen({ onFileOpened }: LaunchScreenProps) {
@@ -58,15 +59,15 @@ export function LaunchScreen({ onFileOpened }: LaunchScreenProps) {
   }
 
   function handleNewIdea() {
-    const { slides } = createNewPresentation();
-    onFileOpened("", slides);
+    const { workspace } = createNewPresentation();
+    onFileOpened("", workspace);
   }
 
   async function handleOpenFile() {
     try {
       setError(null);
-      const { path, slides } = await openFile();
-      onFileOpened(path, slides);
+      const { path, workspace } = await openFile();
+      onFileOpened(path, workspace);
     } catch (err) {
       if (err instanceof Error && err.message !== "File selection cancelled") {
         setError(err.message);
@@ -77,8 +78,8 @@ export function LaunchScreen({ onFileOpened }: LaunchScreenProps) {
   async function handleOpenRecent(filePath: string) {
     try {
       setError(null);
-      const slides = await openRecentFile(filePath);
-      onFileOpened(filePath, slides);
+      const workspace = await openRecentFile(filePath);
+      onFileOpened(filePath, workspace);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to open file");
     }

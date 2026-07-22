@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Slide } from "../types";
 import {
   buildEditorDraftFromSlide,
-  buildSlidesForPersistence,
+  buildContentsForPersistence,
   createDraftChangeSummary,
   flushEditorDraft,
   type EditorSlideDraft,
@@ -11,9 +11,9 @@ import {
 
 interface UseEditorSessionOptions {
   slide: Slide;
-  slideIndex: number;
-  slides: Slide[];
-  onCommit: (slideIndex: number, payload: SlideCommitPayload) => void;
+  resourceId: string;
+  contents: Record<string, unknown>;
+  onCommit: (resourceId: string, payload: SlideCommitPayload) => void;
   onDirty: () => void;
 }
 
@@ -21,8 +21,8 @@ const PREVIEW_SYNC_DEBOUNCE_MS = 250;
 
 export function useEditorSession({
   slide,
-  slideIndex,
-  slides,
+  resourceId,
+  contents,
   onCommit,
   onDirty,
 }: UseEditorSessionOptions) {
@@ -66,16 +66,16 @@ export function useEditorSession({
 
   useEffect(() => clearPreviewSyncTimeout, [clearPreviewSyncTimeout]);
 
-  const getSlidesForPersistence = useCallback(
+  const getContentsForPersistence = useCallback(
     () =>
-      buildSlidesForPersistence(
-        slides,
-        slideIndex,
+      buildContentsForPersistence(
+        contents,
+        resourceId,
         baseSlideRef.current,
         draftRef.current,
         changeSummaryRef.current
       ),
-    [slideIndex, slides]
+    [contents, resourceId]
   );
 
   const updateDraft = useCallback(
@@ -119,7 +119,7 @@ export function useEditorSession({
     const { commitPayload } = flushed;
 
     if (commitPayload) {
-      onCommit(slideIndex, commitPayload);
+      onCommit(resourceId, commitPayload);
     }
 
     baseSlideRef.current = flushed.baseSlide;
@@ -130,13 +130,13 @@ export function useEditorSession({
     setAutoSaveVersion((value) => value + 1);
 
     return commitPayload;
-  }, [clearPreviewSyncTimeout, onCommit, slideIndex]);
+  }, [clearPreviewSyncTimeout, onCommit, resourceId]);
 
   return {
     autoSaveVersion,
     draft,
     flushDraft,
-    getSlidesForPersistence,
+    getContentsForPersistence,
     hasPendingCommit,
     updateDraft,
   };

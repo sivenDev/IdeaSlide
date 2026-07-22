@@ -1,23 +1,57 @@
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
 use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
 use std::io::{Cursor, Read, Seek, Write};
-use std::path::Path;
+use std::path::{Component, Path};
 use zip::write::SimpleFileOptions;
+
+pub const LEGACY_FORMAT_VERSION: &str = "1.0";
+pub const CURRENT_FORMAT_VERSION: &str = "2.0";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Manifest {
     pub version: String,
     pub created: String,
     pub modified: String,
-    pub slides: Vec<SlideEntry>,
+    pub resources: Vec<ResourceEntry>,
+    #[serde(default, flatten)]
+    pub extra: BTreeMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SlideEntry {
     pub id: String,
     pub title: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResourceEntry {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub resource_type: String,
+    pub name: String,
+    pub parent_id: Option<String>,
+    pub order: usize,
+    pub content_ref: Option<String>,
+    #[serde(default, flatten)]
+    pub extra: BTreeMap<String, serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct ManifestHeader {
+    version: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct LegacyManifest {
+    #[serde(rename = "version")]
+    _version: String,
+    created: String,
+    modified: String,
+    slides: Vec<SlideEntry>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,13 +75,13 @@ struct MediaIndexItem {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IsFileData {
     pub manifest: Manifest,
-    pub slides: Vec<SlideData>,
+    pub contents: Vec<ResourceData>,
     #[serde(default)]
     pub media: Vec<MediaEntry>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SlideData {
+pub struct ResourceData {
     pub id: String,
     pub content: serde_json::Value,
 }
@@ -56,15 +90,239 @@ impl Manifest {
     pub fn new() -> Self {
         let now = chrono::Utc::now().to_rfc3339();
         Self {
-            version: "1.0".to_string(),
+            version: CURRENT_FORMAT_VERSION.to_string(),
             created: now.clone(),
             modified: now,
-            slides: vec![SlideEntry {
-                id: "slide-1".to_string(),
-                title: "Untitled 1".to_string(),
+            resources: vec![ResourceEntry {
+                id: "canvas-1".to_string(),
+                resource_type: "canvas".to_string(),
+                name: "Untitled canvas".to_string(),
+                parent_id: None,
+                order: 0,
+                content_ref: Some("canvases/canvas-1.json".to_string()),
+                extra: BTreeMap::new(),
             }],
+            extra: BTreeMap::new(),
         }
     }
+}
+
+pub fn new_canvas_resource(
+    id: String,
+    name: String,
+    parent_id: Option<String>,
+    order: usize,
+) -> ResourceEntry {
+    ResourceEntry {
+        content_ref: Some(format!("canvases/{id}.json")),
+        id,
+        resource_type: "canvas".to_string(),
+        name,
+        parent_id,
+        order,
+        extra: BTreeMap::new(),
+    }
+}
+
+fn validate_version_string(version: &str) -> Result<(), String> {
+    let mut parts = version.split('.');
+    let major = parts.next();
+    let minor = parts.next();
+    if parts.next().is_some()
+        || major.is_none_or(|part| part.is_empty() || !part.chars().all(|c| c.is_ascii_digit()))
+        || minor.is_none_or(|part| part.is_empty() || !part.chars().all(|c| c.is_ascii_digit()))
+    {
+        return Err(format!(
+            "Invalid .is format version {version:?}; expected MAJOR.MINOR"
+        ));
+    }
+    Ok(())
+}
+
+fn validate_content_ref(content_ref: &str) -> Result<(), String> {
+    let path = Path::new(content_ref);
+    if path.is_absolute() || content_ref.is_empty() {
+        return Err(format!("Invalid resource contentRef: {content_ref}"));
+    }
+    for component in path.components() {
+        if !matches!(component, Component::Normal(_)) {
+            return Err(format!("Invalid resource contentRef: {content_ref}"));
+        }
+    }
+    if path.extension().and_then(|value| value.to_str()) != Some("json") {
+        return Err(format!(
+            "Resource contentRef must point to JSON: {content_ref}"
+        ));
+    }
+    Ok(())
+}
+
+pub fn validate_manifest(manifest: &Manifest) -> Result<(), String> {
+    validate_version_string(&manifest.version)?;
+    if manifest.version != CURRENT_FORMAT_VERSION {
+        return Err(format!(
+            "Cannot write .is format version {}; current writer supports {}",
+            manifest.version, CURRENT_FORMAT_VERSION
+        ));
+    }
+
+    let mut ids = HashSet::new();
+    let mut sibling_orders = HashSet::new();
+    let mut content_refs = HashSet::new();
+    let mut by_id = HashMap::new();
+
+    for resource in &manifest.resources {
+        if resource.id.is_empty() {
+            return Err("Workspace resource id cannot be empty".to_string());
+        }
+        if !ids.insert(resource.id.clone()) {
+            return Err(format!("Duplicate workspace resource id: {}", resource.id));
+        }
+        if !sibling_orders.insert((resource.parent_id.clone(), resource.order)) {
+            return Err(format!(
+                "Duplicate sibling order {} under {:?}",
+                resource.order, resource.parent_id
+            ));
+        }
+        by_id.insert(resource.id.as_str(), resource);
+        if let Some(content_ref) = &resource.content_ref {
+            if !content_refs.insert(content_ref.as_str()) {
+                return Err(format!("Duplicate resource contentRef: {content_ref}"));
+            }
+        }
+    }
+
+    let canvas_count = manifest
+        .resources
+        .iter()
+        .filter(|resource| resource.resource_type == "canvas")
+        .count();
+    if canvas_count == 0 {
+        return Err("A workspace must contain at least one canvas resource".to_string());
+    }
+
+    for resource in &manifest.resources {
+        if resource.parent_id.as_deref() == Some(resource.id.as_str()) {
+            return Err(format!("Resource {} cannot be its own parent", resource.id));
+        }
+        if let Some(parent_id) = &resource.parent_id {
+            let parent = by_id.get(parent_id.as_str()).ok_or_else(|| {
+                format!("Missing parent {parent_id} for resource {}", resource.id)
+            })?;
+            if parent.resource_type != "folder" {
+                return Err(format!(
+                    "Resource {} has non-folder parent {parent_id}",
+                    resource.id
+                ));
+            }
+        }
+
+        match resource.resource_type.as_str() {
+            "folder" => {
+                if resource.content_ref.is_some() {
+                    return Err(format!("Folder {} cannot have contentRef", resource.id));
+                }
+            }
+            "canvas" => {
+                let expected = format!("canvases/{}.json", resource.id);
+                if resource.content_ref.as_deref() != Some(expected.as_str()) {
+                    return Err(format!(
+                        "Canvas {} must use contentRef {expected}",
+                        resource.id
+                    ));
+                }
+            }
+            _ => {
+                if let Some(content_ref) = &resource.content_ref {
+                    validate_content_ref(content_ref)?;
+                }
+            }
+        }
+    }
+
+    for resource in &manifest.resources {
+        let mut cursor = resource.parent_id.as_deref();
+        let mut visited = HashSet::new();
+        while let Some(parent_id) = cursor {
+            if !visited.insert(parent_id) {
+                return Err(format!("Workspace resource cycle includes {parent_id}"));
+            }
+            cursor = by_id
+                .get(parent_id)
+                .and_then(|parent| parent.parent_id.as_deref());
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_contents(manifest: &Manifest, contents: &[ResourceData]) -> Result<(), String> {
+    let mut content_ids = HashSet::new();
+    for content in contents {
+        if !content_ids.insert(content.id.as_str()) {
+            return Err(format!("Duplicate resource content id: {}", content.id));
+        }
+        let resource = manifest
+            .resources
+            .iter()
+            .find(|resource| resource.id == content.id)
+            .ok_or_else(|| format!("Content references unknown resource: {}", content.id))?;
+        if resource.content_ref.is_none() {
+            return Err(format!("Resource {} does not accept content", content.id));
+        }
+    }
+
+    for resource in &manifest.resources {
+        if resource.content_ref.is_some() && !content_ids.contains(resource.id.as_str()) {
+            return Err(format!("Missing content for resource {}", resource.id));
+        }
+    }
+    Ok(())
+}
+
+pub fn ordered_canvas_ids(resources: &[ResourceEntry]) -> Result<Vec<String>, String> {
+    let manifest = Manifest {
+        version: CURRENT_FORMAT_VERSION.to_string(),
+        created: String::new(),
+        modified: String::new(),
+        resources: resources.to_vec(),
+        extra: BTreeMap::new(),
+    };
+    validate_manifest(&manifest)?;
+
+    let mut children: HashMap<Option<&str>, Vec<&ResourceEntry>> = HashMap::new();
+    for resource in resources {
+        children
+            .entry(resource.parent_id.as_deref())
+            .or_default()
+            .push(resource);
+    }
+    for siblings in children.values_mut() {
+        siblings.sort_by(|left, right| {
+            left.order
+                .cmp(&right.order)
+                .then_with(|| left.id.cmp(&right.id))
+        });
+    }
+
+    fn visit(
+        parent_id: Option<&str>,
+        children: &HashMap<Option<&str>, Vec<&ResourceEntry>>,
+        ordered: &mut Vec<String>,
+    ) {
+        if let Some(nodes) = children.get(&parent_id) {
+            for resource in nodes {
+                if resource.resource_type == "canvas" {
+                    ordered.push(resource.id.clone());
+                }
+                visit(Some(resource.id.as_str()), children, ordered);
+            }
+        }
+    }
+
+    let mut ordered = Vec::new();
+    visit(None, &children, &mut ordered);
+    Ok(ordered)
 }
 
 fn is_valid_media_id(id: &str) -> bool {
@@ -289,22 +547,25 @@ fn read_media_entries<R: Read + Seek>(archive: &mut zip::ZipArchive<R>) -> Vec<M
     read_media_from_fallback_scan(archive)
 }
 
-/// Create a new .is file at the given path with a single blank slide
-pub fn create_is_file(path: &Path) -> Result<IsFileData, String> {
-    let manifest = Manifest::new();
-    let blank_slide = serde_json::json!({
+fn blank_canvas_content() -> serde_json::Value {
+    serde_json::json!({
         "type": "excalidraw",
         "version": 2,
         "elements": [],
         "appState": {},
         "files": {}
-    });
+    })
+}
+
+/// Create a new .is file at the given path with a single blank canvas.
+pub fn create_is_file(path: &Path) -> Result<IsFileData, String> {
+    let manifest = Manifest::new();
 
     let data = IsFileData {
         manifest: manifest.clone(),
-        slides: vec![SlideData {
-            id: "slide-1".to_string(),
-            content: blank_slide,
+        contents: vec![ResourceData {
+            id: "canvas-1".to_string(),
+            content: blank_canvas_content(),
         }],
         media: vec![],
     };
@@ -320,48 +581,95 @@ pub fn read_is_file(path: &Path) -> Result<IsFileData, String> {
     let mut archive =
         zip::ZipArchive::new(cursor).map_err(|e| format!("Failed to open zip: {e}"))?;
 
-    // Read manifest
-    let manifest: Manifest = {
-        let mut entry = archive
-            .by_name("manifest.json")
-            .map_err(|e| format!("Missing manifest.json: {e}"))?;
-        let mut buf = String::new();
-        entry
-            .read_to_string(&mut buf)
-            .map_err(|e| format!("Failed to read manifest: {e}"))?;
-        serde_json::from_str(&buf).map_err(|e| format!("Invalid manifest JSON: {e}"))?
-    };
+    let manifest_json = read_zip_entry_string(&mut archive, "manifest.json")
+        .map_err(|e| format!("Missing or unreadable manifest.json: {e}"))?;
+    let header: ManifestHeader = serde_json::from_str(&manifest_json)
+        .map_err(|e| format!("Invalid manifest header: {e}"))?;
+    validate_version_string(&header.version)?;
 
-    // Read slides
-    let mut slides = Vec::new();
-    for slide_entry in &manifest.slides {
-        let zip_path = format!("slides/{}.json", slide_entry.id);
-        let mut entry = archive
-            .by_name(&zip_path)
-            .map_err(|e| format!("Missing slide {}: {e}", slide_entry.id))?;
-        let mut buf = String::new();
-        entry
-            .read_to_string(&mut buf)
-            .map_err(|e| format!("Failed to read slide: {e}"))?;
-        let content: serde_json::Value =
-            serde_json::from_str(&buf).map_err(|e| format!("Invalid slide JSON: {e}"))?;
-        slides.push(SlideData {
-            id: slide_entry.id.clone(),
-            content,
-        });
-    }
+    let (manifest, contents) = match header.version.as_str() {
+        LEGACY_FORMAT_VERSION => {
+            let legacy: LegacyManifest = serde_json::from_str(&manifest_json)
+                .map_err(|e| format!("Invalid format 1.0 manifest: {e}"))?;
+            let mut resources = Vec::with_capacity(legacy.slides.len());
+            let mut contents = Vec::with_capacity(legacy.slides.len());
+
+            for (order, slide_entry) in legacy.slides.iter().enumerate() {
+                let zip_path = format!("slides/{}.json", slide_entry.id);
+                let content_json = read_zip_entry_string(&mut archive, &zip_path)
+                    .map_err(|e| format!("Missing legacy slide {}: {e}", slide_entry.id))?;
+                let content = serde_json::from_str(&content_json)
+                    .map_err(|e| format!("Invalid legacy slide {} JSON: {e}", slide_entry.id))?;
+                resources.push(new_canvas_resource(
+                    slide_entry.id.clone(),
+                    if slide_entry.title.trim().is_empty() {
+                        format!("Canvas {}", order + 1)
+                    } else {
+                        slide_entry.title.clone()
+                    },
+                    None,
+                    order,
+                ));
+                contents.push(ResourceData {
+                    id: slide_entry.id.clone(),
+                    content,
+                });
+            }
+
+            let manifest = Manifest {
+                version: CURRENT_FORMAT_VERSION.to_string(),
+                created: legacy.created,
+                modified: legacy.modified,
+                resources,
+                extra: BTreeMap::new(),
+            };
+            validate_manifest(&manifest)?;
+            validate_contents(&manifest, &contents)?;
+            (manifest, contents)
+        }
+        CURRENT_FORMAT_VERSION => {
+            let manifest: Manifest = serde_json::from_str(&manifest_json)
+                .map_err(|e| format!("Invalid format 2.0 manifest: {e}"))?;
+            validate_manifest(&manifest)?;
+            let mut contents = Vec::new();
+            for resource in &manifest.resources {
+                let Some(content_ref) = &resource.content_ref else {
+                    continue;
+                };
+                validate_content_ref(content_ref)?;
+                let content_json = read_zip_entry_string(&mut archive, content_ref)
+                    .map_err(|e| format!("Missing content for resource {}: {e}", resource.id))?;
+                let content = serde_json::from_str(&content_json)
+                    .map_err(|e| format!("Invalid resource {} JSON: {e}", resource.id))?;
+                contents.push(ResourceData {
+                    id: resource.id.clone(),
+                    content,
+                });
+            }
+            validate_contents(&manifest, &contents)?;
+            (manifest, contents)
+        }
+        version => {
+            return Err(format!(
+                "Unsupported .is format version {version}; this IdeaSlide build supports 1.0 and 2.0"
+            ));
+        }
+    };
 
     let media = read_media_entries(&mut archive);
 
     Ok(IsFileData {
         manifest,
-        slides,
+        contents,
         media,
     })
 }
 
 /// Write an IsFileData to a .is file (zip) with atomic replacement
 pub fn write_is_file(path: &Path, data: &IsFileData) -> Result<(), String> {
+    validate_manifest(&data.manifest)?;
+    validate_contents(&data.manifest, &data.contents)?;
+
     let mut prepared_media = Vec::new();
     for media in &data.media {
         validate_media_entry(media)?;
@@ -395,15 +703,24 @@ pub fn write_is_file(path: &Path, data: &IsFileData) -> Result<(), String> {
         zip.write_all(manifest_json.as_bytes())
             .map_err(|e| format!("Failed to write manifest bytes: {e}"))?;
 
-        // Write slides
-        for slide in &data.slides {
-            let zip_path = format!("slides/{}.json", slide.id);
-            let slide_json = serde_json::to_string_pretty(&slide.content)
-                .map_err(|e| format!("Failed to serialize slide: {e}"))?;
-            zip.start_file(&zip_path, options)
-                .map_err(|e| format!("Failed to write slide to zip: {e}"))?;
-            zip.write_all(slide_json.as_bytes())
-                .map_err(|e| format!("Failed to write slide bytes: {e}"))?;
+        // Write type-specific resource content at its manifest contentRef.
+        for content in &data.contents {
+            let resource = data
+                .manifest
+                .resources
+                .iter()
+                .find(|resource| resource.id == content.id)
+                .ok_or_else(|| format!("Missing resource metadata for content {}", content.id))?;
+            let content_ref = resource
+                .content_ref
+                .as_deref()
+                .ok_or_else(|| format!("Resource {} has no contentRef", content.id))?;
+            let content_json = serde_json::to_string_pretty(&content.content)
+                .map_err(|e| format!("Failed to serialize resource {}: {e}", content.id))?;
+            zip.start_file(content_ref, options)
+                .map_err(|e| format!("Failed to write resource {} to zip: {e}", content.id))?;
+            zip.write_all(content_json.as_bytes())
+                .map_err(|e| format!("Failed to write resource {} bytes: {e}", content.id))?;
         }
 
         zip.add_directory("media/", options)
@@ -428,10 +745,6 @@ pub fn write_is_file(path: &Path, data: &IsFileData) -> Result<(), String> {
                 .map_err(|e| format!("Failed to write media bytes: {e}"))?;
         }
 
-        // Keep placeholder directory for future thumbnail support.
-        zip.add_directory("thumbnails/", options)
-            .map_err(|e| format!("Failed to create thumbnails dir: {e}"))?;
-
         zip.finish()
             .map_err(|e| format!("Failed to finalize zip: {e}"))?;
     }
@@ -439,6 +752,11 @@ pub fn write_is_file(path: &Path, data: &IsFileData) -> Result<(), String> {
     // Atomic write: write to temp file then rename
     let tmp_path = path.with_extension("is.tmp");
     fs::write(&tmp_path, &buf).map_err(|e| format!("Failed to write temp file: {e}"))?;
+    if path.exists() {
+        let backup_path = path.with_extension("is.bak");
+        fs::copy(path, &backup_path)
+            .map_err(|e| format!("Failed to create backup {}: {e}", backup_path.display()))?;
+    }
     fs::rename(&tmp_path, path).map_err(|e| format!("Failed to rename temp file: {e}"))?;
 
     Ok(())
@@ -488,12 +806,73 @@ mod tests {
         fs::write(path, bytes).unwrap();
     }
 
+    fn canvas_content(label: &str) -> serde_json::Value {
+        serde_json::json!({
+            "type": "excalidraw",
+            "version": 2,
+            "elements": [{"type": "text", "text": label}],
+            "appState": {},
+            "files": {}
+        })
+    }
+
+    fn data_with_contents(contents: Vec<ResourceData>) -> IsFileData {
+        let mut manifest = Manifest::new();
+        manifest.resources = contents
+            .iter()
+            .enumerate()
+            .map(|(order, content)| {
+                new_canvas_resource(
+                    content.id.clone(),
+                    format!("Canvas {}", order + 1),
+                    None,
+                    order,
+                )
+            })
+            .collect();
+        IsFileData {
+            manifest,
+            contents,
+            media: vec![],
+        }
+    }
+
     #[test]
-    fn test_manifest_new_has_one_slide() {
+    fn test_current_workspace_format_version_is_2() {
+        assert_eq!(CURRENT_FORMAT_VERSION, "2.0");
+    }
+
+    #[test]
+    fn test_rejects_future_format_before_reading_payloads() {
+        let path = make_temp_path("future_format");
+        let manifest_json = serde_json::to_vec_pretty(&serde_json::json!({
+            "version": "9.0",
+            "created": "2026-01-01T00:00:00Z",
+            "modified": "2026-01-01T00:00:00Z",
+            "resources": []
+        }))
+        .unwrap();
+
+        write_custom_zip(&path, vec![("manifest.json", manifest_json)]);
+
+        let error = read_is_file(&path).unwrap_err();
+        assert!(error.contains("Unsupported .is format version 9.0"));
+        assert!(error.contains("1.0 and 2.0"));
+
+        cleanup_temp_path(&path);
+    }
+
+    #[test]
+    fn test_manifest_new_has_one_canvas() {
         let manifest = Manifest::new();
-        assert_eq!(manifest.version, "1.0");
-        assert_eq!(manifest.slides.len(), 1);
-        assert_eq!(manifest.slides[0].id, "slide-1");
+        assert_eq!(manifest.version, CURRENT_FORMAT_VERSION);
+        assert_eq!(manifest.resources.len(), 1);
+        assert_eq!(manifest.resources[0].id, "canvas-1");
+        assert_eq!(manifest.resources[0].resource_type, "canvas");
+        assert_eq!(
+            manifest.resources[0].content_ref.as_deref(),
+            Some("canvases/canvas-1.json")
+        );
     }
 
     #[test]
@@ -501,8 +880,8 @@ mod tests {
         let manifest = Manifest::new();
         let json = serde_json::to_string(&manifest).unwrap();
         let parsed: Manifest = serde_json::from_str(&json).unwrap();
-        assert_eq!(parsed.slides.len(), 1);
-        assert_eq!(parsed.version, "1.0");
+        assert_eq!(parsed.resources.len(), 1);
+        assert_eq!(parsed.version, CURRENT_FORMAT_VERSION);
     }
 
     #[test]
@@ -510,14 +889,258 @@ mod tests {
         let path = make_temp_path("create_and_read");
 
         let created = create_is_file(&path).unwrap();
-        assert_eq!(created.slides.len(), 1);
-        assert_eq!(created.manifest.slides[0].id, "slide-1");
+        assert_eq!(created.contents.len(), 1);
+        assert_eq!(created.manifest.resources[0].id, "canvas-1");
 
         let read = read_is_file(&path).unwrap();
-        assert_eq!(read.slides.len(), 1);
-        assert_eq!(read.manifest.version, "1.0");
-        assert_eq!(read.slides[0].content["type"], "excalidraw");
+        assert_eq!(read.contents.len(), 1);
+        assert_eq!(read.manifest.version, CURRENT_FORMAT_VERSION);
+        assert_eq!(read.contents[0].content["type"], "excalidraw");
         assert!(read.media.is_empty());
+
+        cleanup_temp_path(&path);
+    }
+
+    #[test]
+    fn test_migrates_legacy_slides_to_root_canvases_in_order() {
+        let path = make_temp_path("legacy_migration");
+        let manifest_json = serde_json::to_vec_pretty(&serde_json::json!({
+            "version": LEGACY_FORMAT_VERSION,
+            "created": "2026-01-01T00:00:00Z",
+            "modified": "2026-01-02T00:00:00Z",
+            "slides": [
+                {"id": "slide-b", "title": "Research"},
+                {"id": "slide-a", "title": ""}
+            ]
+        }))
+        .unwrap();
+        write_custom_zip(
+            &path,
+            vec![
+                ("manifest.json", manifest_json),
+                (
+                    "slides/slide-b.json",
+                    serde_json::to_vec(&canvas_content("B")).unwrap(),
+                ),
+                (
+                    "slides/slide-a.json",
+                    serde_json::to_vec(&canvas_content("A")).unwrap(),
+                ),
+            ],
+        );
+
+        let read = read_is_file(&path).unwrap();
+        assert_eq!(read.manifest.version, CURRENT_FORMAT_VERSION);
+        assert_eq!(
+            ordered_canvas_ids(&read.manifest.resources).unwrap(),
+            ["slide-b", "slide-a"]
+        );
+        assert_eq!(read.manifest.resources[0].name, "Research");
+        assert_eq!(read.manifest.resources[1].name, "Canvas 2");
+        assert!(read
+            .manifest
+            .resources
+            .iter()
+            .all(|resource| resource.parent_id.is_none()));
+        assert_eq!(read.contents[0].content["elements"][0]["text"], "B");
+
+        cleanup_temp_path(&path);
+    }
+
+    #[test]
+    fn test_rejects_missing_malformed_and_unsupported_versions() {
+        for (case, manifest, expected) in [
+            (
+                "missing",
+                serde_json::json!({"created": "now", "modified": "now", "resources": []}),
+                "Invalid manifest header",
+            ),
+            (
+                "malformed",
+                serde_json::json!({"version": "2", "resources": []}),
+                "expected MAJOR.MINOR",
+            ),
+            (
+                "unsupported_old",
+                serde_json::json!({"version": "0.9", "resources": []}),
+                "Unsupported .is format version 0.9",
+            ),
+        ] {
+            let path = make_temp_path(case);
+            write_custom_zip(
+                &path,
+                vec![("manifest.json", serde_json::to_vec(&manifest).unwrap())],
+            );
+            let error = read_is_file(&path).unwrap_err();
+            assert!(error.contains(expected), "unexpected error: {error}");
+            cleanup_temp_path(&path);
+        }
+    }
+
+    #[test]
+    fn test_v2_manifest_is_not_deserializable_as_legacy_v1() {
+        let manifest_json = serde_json::to_string(&Manifest::new()).unwrap();
+        let legacy = serde_json::from_str::<LegacyManifest>(&manifest_json);
+        assert!(legacy.is_err());
+        assert!(legacy.unwrap_err().to_string().contains("slides"));
+    }
+
+    #[test]
+    fn test_unknown_resource_and_metadata_roundtrip() {
+        let path = make_temp_path("unknown_resource_roundtrip");
+        let mut manifest = Manifest::new();
+        manifest.extra.insert(
+            "workspaceTheme".to_string(),
+            serde_json::json!({"accent": "violet"}),
+        );
+        manifest.resources = vec![
+            ResourceEntry {
+                id: "folder-1".to_string(),
+                resource_type: "folder".to_string(),
+                name: "Notes".to_string(),
+                parent_id: None,
+                order: 0,
+                content_ref: None,
+                extra: BTreeMap::new(),
+            },
+            new_canvas_resource(
+                "canvas-1".to_string(),
+                "Sketch".to_string(),
+                Some("folder-1".to_string()),
+                0,
+            ),
+            ResourceEntry {
+                id: "dataset-1".to_string(),
+                resource_type: "dataset".to_string(),
+                name: "Raw data".to_string(),
+                parent_id: None,
+                order: 1,
+                content_ref: Some("datasets/dataset-1.json".to_string()),
+                extra: BTreeMap::from([(
+                    "pluginMetadata".to_string(),
+                    serde_json::json!({"schema": 3}),
+                )]),
+            },
+        ];
+        let data = IsFileData {
+            manifest,
+            contents: vec![
+                ResourceData {
+                    id: "canvas-1".to_string(),
+                    content: canvas_content("Sketch"),
+                },
+                ResourceData {
+                    id: "dataset-1".to_string(),
+                    content: serde_json::json!({"rows": [1, 2, 3]}),
+                },
+            ],
+            media: vec![],
+        };
+
+        write_is_file(&path, &data).unwrap();
+        let read = read_is_file(&path).unwrap();
+        assert_eq!(read.manifest.extra, data.manifest.extra);
+        assert_eq!(
+            read.manifest.resources[2].extra,
+            data.manifest.resources[2].extra
+        );
+        assert_eq!(
+            read.contents[1].content,
+            serde_json::json!({"rows": [1, 2, 3]})
+        );
+
+        cleanup_temp_path(&path);
+    }
+
+    #[test]
+    fn test_rejects_invalid_resource_hierarchy_and_content_refs() {
+        let base = Manifest::new();
+
+        let mut missing_parent = base.clone();
+        missing_parent.resources[0].parent_id = Some("missing".to_string());
+        assert!(validate_manifest(&missing_parent)
+            .unwrap_err()
+            .contains("Missing parent missing"));
+
+        let mut non_folder_parent = base.clone();
+        non_folder_parent.resources.push(new_canvas_resource(
+            "canvas-2".to_string(),
+            "Second".to_string(),
+            Some("canvas-1".to_string()),
+            0,
+        ));
+        assert!(validate_manifest(&non_folder_parent)
+            .unwrap_err()
+            .contains("non-folder parent"));
+
+        let mut cycle = base.clone();
+        cycle.resources.insert(
+            0,
+            ResourceEntry {
+                id: "folder-a".to_string(),
+                resource_type: "folder".to_string(),
+                name: "A".to_string(),
+                parent_id: Some("folder-b".to_string()),
+                order: 0,
+                content_ref: None,
+                extra: BTreeMap::new(),
+            },
+        );
+        cycle.resources.insert(
+            1,
+            ResourceEntry {
+                id: "folder-b".to_string(),
+                resource_type: "folder".to_string(),
+                name: "B".to_string(),
+                parent_id: Some("folder-a".to_string()),
+                order: 0,
+                content_ref: None,
+                extra: BTreeMap::new(),
+            },
+        );
+        assert!(validate_manifest(&cycle).unwrap_err().contains("cycle"));
+
+        let mut bad_ref = base;
+        bad_ref.resources[0].content_ref = Some("slides/canvas-1.json".to_string());
+        assert!(validate_manifest(&bad_ref)
+            .unwrap_err()
+            .contains("must use contentRef canvases/canvas-1.json"));
+
+        let mut duplicate_ref = Manifest::new();
+        duplicate_ref.resources.push(ResourceEntry {
+            id: "data-1".to_string(),
+            resource_type: "dataset".to_string(),
+            name: "Data".to_string(),
+            parent_id: None,
+            order: 1,
+            content_ref: Some("canvases/canvas-1.json".to_string()),
+            extra: BTreeMap::new(),
+        });
+        assert!(validate_manifest(&duplicate_ref)
+            .unwrap_err()
+            .contains("Duplicate resource contentRef"));
+    }
+
+    #[test]
+    fn test_write_creates_backup_before_replacement() {
+        let path = make_temp_path("backup");
+        let initial = data_with_contents(vec![ResourceData {
+            id: "canvas-1".to_string(),
+            content: canvas_content("before"),
+        }]);
+        write_is_file(&path, &initial).unwrap();
+
+        let updated = data_with_contents(vec![ResourceData {
+            id: "canvas-1".to_string(),
+            content: canvas_content("after"),
+        }]);
+        write_is_file(&path, &updated).unwrap();
+
+        let backup_path = path.with_extension("is.bak");
+        let backup = read_is_file(&backup_path).unwrap();
+        let current = read_is_file(&path).unwrap();
+        assert_eq!(backup.contents[0].content["elements"][0]["text"], "before");
+        assert_eq!(current.contents[0].content["elements"][0]["text"], "after");
 
         cleanup_temp_path(&path);
     }
@@ -528,8 +1151,8 @@ mod tests {
 
         let data = IsFileData {
             manifest: Manifest::new(),
-            slides: vec![SlideData {
-                id: "slide-1".to_string(),
+            contents: vec![ResourceData {
+                id: "canvas-1".to_string(),
                 content: serde_json::json!({
                     "type": "excalidraw",
                     "version": 2,
@@ -566,21 +1189,13 @@ mod tests {
 
         let manifest = Manifest::new();
         let manifest_json = serde_json::to_vec_pretty(&manifest).unwrap();
-        let slide_json = serde_json::to_vec_pretty(&serde_json::json!({
-            "type": "excalidraw",
-            "version": 2,
-            "elements": [],
-            "appState": {},
-            "files": {}
-        }))
-        .unwrap();
+        let canvas_json = serde_json::to_vec_pretty(&blank_canvas_content()).unwrap();
 
         write_custom_zip(
             &path,
             vec![
                 ("manifest.json", manifest_json),
-                ("slides/", vec![]),
-                ("slides/slide-1.json", slide_json),
+                ("canvases/canvas-1.json", canvas_json),
             ],
         );
 
@@ -596,7 +1211,10 @@ mod tests {
 
         let mut data = IsFileData {
             manifest: Manifest::new(),
-            slides: vec![],
+            contents: vec![ResourceData {
+                id: "canvas-1".to_string(),
+                content: blank_canvas_content(),
+            }],
             media: vec![MediaEntry {
                 id: "../bad".to_string(),
                 mime_type: "image/png".to_string(),
@@ -625,14 +1243,7 @@ mod tests {
 
         let manifest = Manifest::new();
         let manifest_json = serde_json::to_vec_pretty(&manifest).unwrap();
-        let slide_json = serde_json::to_vec_pretty(&serde_json::json!({
-            "type": "excalidraw",
-            "version": 2,
-            "elements": [],
-            "appState": {},
-            "files": {}
-        }))
-        .unwrap();
+        let canvas_json = serde_json::to_vec_pretty(&blank_canvas_content()).unwrap();
         let index_json = serde_json::to_vec_pretty(&vec![MediaIndexItem {
             id: "img_1".to_string(),
             mime_type: "image/png".to_string(),
@@ -645,8 +1256,7 @@ mod tests {
             &path,
             vec![
                 ("manifest.json", manifest_json),
-                ("slides/", vec![]),
-                ("slides/slide-1.json", slide_json),
+                ("canvases/canvas-1.json", canvas_json),
                 ("media/", vec![]),
                 ("media/index.json", index_json),
             ],
@@ -664,14 +1274,7 @@ mod tests {
 
         let manifest = Manifest::new();
         let manifest_json = serde_json::to_vec_pretty(&manifest).unwrap();
-        let slide_json = serde_json::to_vec_pretty(&serde_json::json!({
-            "type": "excalidraw",
-            "version": 2,
-            "elements": [],
-            "appState": {},
-            "files": {}
-        }))
-        .unwrap();
+        let canvas_json = serde_json::to_vec_pretty(&blank_canvas_content()).unwrap();
         let index_json = serde_json::to_vec_pretty(&vec![
             MediaIndexItem {
                 id: "../bad".to_string(),
@@ -692,8 +1295,7 @@ mod tests {
             &path,
             vec![
                 ("manifest.json", manifest_json),
-                ("slides/", vec![]),
-                ("slides/slide-1.json", slide_json),
+                ("canvases/canvas-1.json", canvas_json),
                 ("media/", vec![]),
                 ("media/index.json", index_json),
                 ("media/img_ok.png", b"ok".to_vec()),
@@ -713,21 +1315,13 @@ mod tests {
 
         let manifest = Manifest::new();
         let manifest_json = serde_json::to_vec_pretty(&manifest).unwrap();
-        let slide_json = serde_json::to_vec_pretty(&serde_json::json!({
-            "type": "excalidraw",
-            "version": 2,
-            "elements": [],
-            "appState": {},
-            "files": {}
-        }))
-        .unwrap();
+        let canvas_json = serde_json::to_vec_pretty(&blank_canvas_content()).unwrap();
 
         write_custom_zip(
             &path,
             vec![
                 ("manifest.json", manifest_json),
-                ("slides/", vec![]),
-                ("slides/slide-1.json", slide_json),
+                ("canvases/canvas-1.json", canvas_json),
                 ("media/", vec![]),
                 ("media/index.json", b"{this-is-not-json".to_vec()),
                 ("media/fallback_1.png", b"fallback".to_vec()),
@@ -748,8 +1342,8 @@ mod tests {
 
         let path = make_temp_path("media_index_integrity");
 
-        let slide_1 = SlideData {
-            id: "slide-1".to_string(),
+        let canvas_1 = ResourceData {
+            id: "canvas-1".to_string(),
             content: serde_json::json!({
                 "type": "excalidraw",
                 "version": 2,
@@ -764,8 +1358,8 @@ mod tests {
             }),
         };
 
-        let slide_2 = SlideData {
-            id: "slide-2".to_string(),
+        let canvas_2 = ResourceData {
+            id: "canvas-2".to_string(),
             content: serde_json::json!({
                 "type": "excalidraw",
                 "version": 2,
@@ -781,38 +1375,21 @@ mod tests {
             }),
         };
 
-        let data = IsFileData {
-            manifest: Manifest {
-                version: "1.0".to_string(),
-                created: chrono::Utc::now().to_rfc3339(),
-                modified: chrono::Utc::now().to_rfc3339(),
-                slides: vec![
-                    SlideEntry {
-                        id: "slide-1".to_string(),
-                        title: "Slide 1".to_string(),
-                    },
-                    SlideEntry {
-                        id: "slide-2".to_string(),
-                        title: "Slide 2".to_string(),
-                    },
-                ],
+        let mut data = data_with_contents(vec![canvas_1, canvas_2]);
+        data.media = vec![
+            MediaEntry {
+                id: "img_shared".to_string(),
+                mime_type: "image/png".to_string(),
+                ext: "png".to_string(),
+                bytes_base64: encode_base64(b"shared"),
             },
-            slides: vec![slide_1, slide_2],
-            media: vec![
-                MediaEntry {
-                    id: "img_shared".to_string(),
-                    mime_type: "image/png".to_string(),
-                    ext: "png".to_string(),
-                    bytes_base64: encode_base64(b"shared"),
-                },
-                MediaEntry {
-                    id: "img_other".to_string(),
-                    mime_type: "image/png".to_string(),
-                    ext: "png".to_string(),
-                    bytes_base64: encode_base64(b"other"),
-                },
-            ],
-        };
+            MediaEntry {
+                id: "img_other".to_string(),
+                mime_type: "image/png".to_string(),
+                ext: "png".to_string(),
+                bytes_base64: encode_base64(b"other"),
+            },
+        ];
 
         write_is_file(&path, &data).unwrap();
 
@@ -825,10 +1402,10 @@ mod tests {
 
         let index_ids: BTreeSet<String> = index_items.iter().map(|item| item.id.clone()).collect();
         let referenced_ids: BTreeSet<String> = data
-            .slides
+            .contents
             .iter()
-            .flat_map(|slide| {
-                slide
+            .flat_map(|content| {
+                content
                     .content
                     .get("elements")
                     .and_then(|v| v.as_array())

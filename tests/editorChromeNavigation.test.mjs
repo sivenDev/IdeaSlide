@@ -6,102 +6,50 @@ async function readSource(path) {
   return readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 }
 
-test('EditorLayout removes the bottom preview shell from the default editor path', async () => {
+test('EditorLayout composes the workspace, resource editor, and cameras as a three-pane shell', async () => {
   const source = await readSource('src/components/EditorLayout.tsx');
-
-  assert.doesNotMatch(source, /from "\.\/SlidePreviewPanel"/);
-  assert.doesNotMatch(source, /from "\.\/CameraList"/);
-  assert.doesNotMatch(source, /from "\.\/ResizableDivider"/);
-  assert.doesNotMatch(source, /from "\.\/ui\/Tabs"/);
-  assert.doesNotMatch(source, /showPreview/);
-  assert.doesNotMatch(source, /bottomTab/);
+  assert.match(source, /from "\.\/WorkspaceExplorer"/);
+  assert.match(source, /from "\.\/ResourceEditorHost"/);
+  assert.match(source, /from "\.\/CameraList"/);
+  assert.match(source, /from "\.\/ResizableDivider"/);
+  assert.match(source, /<WorkspaceExplorer/);
+  assert.match(source, /<ResourceEditorHost/);
+  assert.match(source, /<CameraList/);
+  assert.match(source, /side="left"/);
+  assert.match(source, /side="right"/);
   assert.doesNotMatch(source, /useSlideThumbnails/);
   assert.doesNotMatch(source, /useCameraThumbnails/);
-  assert.doesNotMatch(source, /SlidePreviewPanel/);
-  assert.doesNotMatch(source, /CameraList/);
-  assert.doesNotMatch(source, /ResizableDivider/);
-  assert.doesNotMatch(source, /<Tabs/);
 });
 
 test('EditorLayout captures all save shortcuts before Excalidraw can export native files', async () => {
   const source = await readSource('src/components/EditorLayout.tsx');
-
-  assert.match(source, /e\.key\.toLowerCase\(\) === "s"/);
+  assert.match(source, /event\.key\.toLowerCase\(\) === "s"/);
   assert.match(source, /window\.addEventListener\("keydown", handleKeyDown, true\)/);
   assert.match(source, /window\.removeEventListener\("keydown", handleKeyDown, true\)/);
-  assert.doesNotMatch(source, /e\.key === "s"/);
 });
 
 test('App increments an editor refresh token when presentation mode exits', async () => {
   const source = await readSource('src/App.tsx');
-
   assert.match(source, /const \[editorRefreshToken, setEditorRefreshToken\] = useState\(0\)/);
-  assert.match(source, /const handlePresentationExit = useCallback\(\(\) => \{/);
   assert.match(source, /dispatch\(\{ type: ['"]EXIT_PRESENTATION['"] \}\)/);
   assert.match(source, /setEditorRefreshToken\(\(value\) => value \+ 1\)/);
   assert.match(source, /onExit=\{handlePresentationExit\}/);
-  assert.match(source, /editorRefreshToken=\{editorRefreshToken\}/);
 });
 
-test('EditorLayout forwards the presentation-exit refresh token to SlideCanvas', async () => {
+test('EditorLayout forwards the presentation-exit refresh token through ResourceEditorHost', async () => {
   const source = await readSource('src/components/EditorLayout.tsx');
-
-  assert.match(source, /interface EditorLayoutProps \{[\s\S]*editorRefreshToken: number;[\s\S]*\}/);
-  assert.match(source, /export function EditorLayout\(\{ onGoHome, readOnly = false, editorRefreshToken \}: EditorLayoutProps\)/);
-  assert.match(source, /<SlideCanvas[\s\S]*editorRefreshToken=\{editorRefreshToken\}/);
+  const host = await readSource('src/components/ResourceEditorHost.tsx');
+  assert.match(source, /<ResourceEditorHost[\s\S]*editorRefreshToken=\{editorRefreshToken\}/);
+  assert.match(host, /<SlideCanvas[\s\S]*editorRefreshToken=\{editorRefreshToken\}/);
 });
 
-test('Toolbar keeps slide actions inside compact slide rows for the previewless editor shell', async () => {
+test('Toolbar keeps workspace file and presentation actions but no slide or cameras organizers', async () => {
   const source = await readSource('src/components/Toolbar.tsx');
-
-  assert.match(source, /const slideSummaryLabel =/);
-  assert.match(source, /slideSummaryLabel/);
-  assert.match(source, /Slide\s*<\/span>/);
-  assert.match(source, /Delete slide \$\{index \+ 1\}/);
-  assert.match(source, /onClick=\{\(e\) => \{/);
-  assert.match(source, /e\.stopPropagation\(\)/);
-  assert.match(source, /onDeleteSlide\(index\)/);
-  assert.match(source, /Add Slide/);
-  assert.doesNotMatch(source, /Previous/);
-  assert.doesNotMatch(source, /Next/);
-  assert.doesNotMatch(source, /Delete Current Slide/);
-});
-
-test('Toolbar keeps a delete control in each slide row even for a single-slide document', async () => {
-  const source = await readSource('src/components/Toolbar.tsx');
-
-  assert.match(source, /aria-label=\{`Delete slide \$\{index \+ 1\}`\}/);
-  assert.match(source, /className="rounded px-1\.5 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-40"/);
-  assert.match(source, /disabled=\{!hasMultipleSlides\}/);
-  assert.doesNotMatch(source, /\{hasMultipleSlides \? \(/);
-});
-
-test('Toolbar keeps slide and camera triggers compact in the previewless editor shell', async () => {
-  const source = await readSource('src/components/Toolbar.tsx');
-
-  assert.match(source, /aria-label="Slide"[\s\S]*?className="gap-1\.5 px-2"/);
-  assert.match(source, /aria-label="Slide"[\s\S]*?<span className="text-xs font-medium">Slide<\/span>/);
-  assert.match(source, /aria-label="Slide"[\s\S]*?className="rounded-full bg-white\/80 px-1\.5 py-0\.5 text-\[11px\] font-semibold text-blue-700"/);
-  assert.match(source, /aria-label="Cameras"[\s\S]*?className="gap-1\.5 px-2"/);
-  assert.match(source, /aria-label="Cameras"[\s\S]*?<span className="text-xs font-medium">Cameras<\/span>/);
-  assert.match(source, /aria-label="Cameras"[\s\S]*?className="rounded-full bg-white\/80 px-1\.5 py-0\.5 text-\[11px\] font-semibold text-blue-700"/);
-  assert.doesNotMatch(source, /aria-label="Slide"[\s\S]*?className="gap-2"/);
-  assert.doesNotMatch(source, /aria-label="Cameras"[\s\S]*?className="gap-2"/);
-  assert.doesNotMatch(source, /aria-label="Slide"[\s\S]*?px-2 py-0\.5 text-xs/);
-  assert.doesNotMatch(source, /aria-label="Cameras"[\s\S]*?px-2 py-0\.5 text-xs/);
-});
-
-test('Toolbar keeps slide trigger badge compact without repeating the Slide label', async () => {
-  const source = await readSource('src/components/Toolbar.tsx');
-
-  assert.match(source, /const slideSummaryLabel = hasMultipleSlides[\s\S]*?\? `\$\{currentSlideIndex \+ 1\} \/ \$\{slideCount\}`[\s\S]*?: String\(currentSlideIndex \+ 1\)/);
-  assert.doesNotMatch(source, /const slideSummaryLabel = hasMultipleSlides[\s\S]*?\? `\$\{currentSlideLabel\} \/ \$\{slideCount\}`/);
-});
-
-test('Toolbar keeps camera trigger width stable across slides with different camera counts', async () => {
-  const source = await readSource('src/components/Toolbar.tsx');
-
-  assert.match(source, /const cameraCountLabel = String\(cameras\.length\)/);
-  assert.match(source, /aria-label="Cameras"[\s\S]*?<span className="rounded-full bg-white\/80 px-1\.5 py-0\.5 text-\[11px\] font-semibold text-blue-700">[\s\S]*?\{cameraCountLabel\}[\s\S]*?<\/span>/);
-  assert.doesNotMatch(source, /\{cameras\.length > 0 \? \(/);
+  assert.match(source, /aria-label="New workspace"/);
+  assert.match(source, /aria-label="Open workspace"/);
+  assert.match(source, /aria-label="Present"/);
+  assert.doesNotMatch(source, /aria-label="Slide"/);
+  assert.doesNotMatch(source, /aria-label="Cameras"/);
+  assert.doesNotMatch(source, /Add Slide/);
+  assert.doesNotMatch(source, /Delete slide/);
 });

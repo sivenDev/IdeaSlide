@@ -1,6 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import type { Slide, RecentFile } from "../types";
+import type { RecentFile, Slide, WorkspaceDocument, WorkspaceResource } from "../types";
+import {
+  createInitialWorkspace,
+  getCanvasContent,
+  getOrderedCanvasResources,
+} from "./workspaceResources.ts";
 
 type MediaItem = {
   id: string;
@@ -9,22 +14,22 @@ type MediaItem = {
   bytesBase64: string;
 };
 
+interface ResourceManifestEntry extends WorkspaceResource {}
+
 interface IsFileData {
   manifest: {
     version: string;
     created: string;
     modified: string;
-    slides: Array<{ id: string; title: string }>;
+    resources?: ResourceManifestEntry[];
+    slides?: Array<{ id: string; title: string }>;
+    [key: string]: unknown;
   };
-  slides: Array<{
+  contents?: Array<{
     id: string;
-    content: {
-      elements?: readonly any[];
-      appState?: Partial<any>;
-      files?: Record<string, any>;
-      [key: string]: any;
-    };
+    content: Record<string, any>;
   }>;
+  slides?: Array<{ id: string; content: Record<string, any> }>;
   media?: MediaItem[];
 }
 
@@ -77,20 +82,15 @@ function cloneMediaItems(items: MediaItem[]): MediaItem[] {
   return items.map((item) => ({ ...item }));
 }
 
-function buildSlideManifestEntries(slides: Slide[]): Array<{ id: string; title: string }> {
-  return slides.map((slide, index) => ({
-    id: slide.id,
-    title: `Slide ${index + 1}`,
-  }));
-}
-
-function createManifest(slides: Slide[], createdTimestamp?: string) {
+function createManifest(workspace: WorkspaceDocument, createdTimestamp?: string) {
   const modified = new Date().toISOString();
   return {
-    version: "1.0",
+    ...(workspace.manifestExtra ?? {}),
+    version: "2.0",
     created: createdTimestamp ?? modified,
     modified,
-    slides: buildSlideManifestEntries(slides),
+    activeResourceId: workspace.activeResourceId,
+    resources: workspace.resources,
   };
 }
 
@@ -206,11 +206,22 @@ function getSlideFileById(files: unknown, fileId: string): any {
   return undefined;
 }
 
-function buildSerializedSlides(slides: Slide[]) {
+function buildSerializedContents(workspace: WorkspaceDocument) {
   const allUsedFileIds = new Set<string>();
   const fileById = new Map<string, any>();
 
-  const serializedSlides = slides.map((slide) => {
+  const serializedContents = workspace.resources.flatMap((resource) => {
+    if (!resource.contentRef) {
+      return [];
+    }
+    if (resource.type !== "canvas") {
+      return [{ id: resource.id, content: workspace.contents[resource.id] as Record<string, any> }];
+    }
+
+    const slide = {
+      id: resource.id,
+      ...getCanvasContent(workspace, resource.id),
+    };
     const usedFileIds = new Set<string>();
 
     for (const element of slide.elements || []) {
@@ -231,7 +242,7 @@ function buildSerializedSlides(slides: Slide[]) {
       }
     }
 
-    return {
+    return [{
       id: slide.id,
       content: {
         type: "excalidraw",
@@ -240,23 +251,27 @@ function buildSerializedSlides(slides: Slide[]) {
         appState: slide.appState,
         files: trimmedFiles,
       },
-    };
+    }];
   });
 
   return {
-    serializedSlides,
+    serializedContents,
     sortedUsedFileIds: Array.from(allUsedFileIds).sort(),
     fileById,
   };
 }
 
-function convertToIsFileData(slides: Slide[], createdTimestamp?: string): IsFileData {
-  const { serializedSlides, sortedUsedFileIds, fileById } = buildSerializedSlides(slides);
+export function convertToIsFileData(
+  workspace: WorkspaceDocument,
+  createdTimestamp?: string,
+): IsFileData {
+  const { serializedContents, sortedUsedFileIds, fileById } =
+    buildSerializedContents(workspace);
   const media = getSerializedMedia(sortedUsedFileIds, fileById);
 
   return {
-    manifest: createManifest(slides, createdTimestamp),
-    slides: serializedSlides,
+    manifest: createManifest(workspace, createdTimestamp),
+    contents: serializedContents,
     media,
   };
 }
@@ -384,7 +399,55 @@ function encodeMediaFromFile(file: any): { mimeType: string; bytesBase64: string
   throw new Error(`Image file payload is missing or invalid for file id ${String(file?.id ?? "")}`);
 }
 
-export function convertFromIsFileData(data: IsFileData): Slide[] {
+function reconstructCanvasContent(
+  content: Record<string, any>,
+  hasMediaArray: boolean,
+  mediaById: Map<string, MediaItem>,
+) {
+  const sourceFiles = content.files || {};
+  const reconstructedFiles: Record<string, any> = {};
+
+  for (const [fileKey, fileEntry] of Object.entries(sourceFiles)) {
+    if (!hasMediaArray) {
+      reconstructedFiles[fileKey] = fileEntry;
+      continue;
+    }
+
+    const rebuilt = rebuildFileEntry(fileKey, fileEntry, mediaById);
+    if (rebuilt) reconstructedFiles[rebuilt.key] = rebuilt.value;
+  }
+
+  return {
+    ...content,
+    type: typeof content.type === "string" ? content.type : "excalidraw",
+    version: typeof content.version === "number" ? content.version : 2,
+    elements: content.elements || [],
+    appState: content.appState || {},
+    files: reconstructedFiles,
+  };
+}
+
+function workspaceFromLegacySlides(data: IsFileData): WorkspaceDocument {
+  const slides = data.slides ?? [];
+  const entries = data.manifest.slides ?? [];
+  const resources = entries.map((entry, order) => ({
+    id: entry.id,
+    type: "canvas",
+    name: entry.title?.trim() || `Canvas ${order + 1}`,
+    parentId: null,
+    order,
+    contentRef: `canvases/${entry.id}.json`,
+  }));
+  const contents = Object.fromEntries(slides.map((slide) => [slide.id, slide.content]));
+  return {
+    resources,
+    contents,
+    activeResourceId: resources[0]?.id ?? "",
+    manifestExtra: {},
+  };
+}
+
+export function convertFromIsFileData(data: IsFileData): WorkspaceDocument {
   const hasMediaArray = Array.isArray(data.media);
   const mediaById = new Map<string, MediaItem>();
 
@@ -400,33 +463,50 @@ export function convertFromIsFileData(data: IsFileData): Slide[] {
     }
   }
 
-  return data.slides.map((slide) => {
-    const sourceFiles = slide.content.files || {};
-    const reconstructedFiles: Record<string, any> = {};
-
-    for (const [fileKey, fileEntry] of Object.entries(sourceFiles)) {
-      if (!hasMediaArray) {
-        reconstructedFiles[fileKey] = fileEntry;
-        continue;
+  const baseWorkspace = data.manifest.resources
+    ? {
+        resources: data.manifest.resources,
+        contents: Object.fromEntries(
+          (data.contents ?? []).map((item) => [item.id, item.content]),
+        ),
+        activeResourceId: (() => {
+          const savedActiveResourceId = data.manifest.activeResourceId;
+          if (
+            typeof savedActiveResourceId === "string" &&
+            data.manifest.resources?.some((resource) => resource.id === savedActiveResourceId)
+          ) {
+            return savedActiveResourceId;
+          }
+          return getOrderedCanvasResources(data.manifest.resources)[0]?.id
+            ?? data.manifest.resources[0]?.id
+            ?? "";
+        })(),
+        manifestExtra: Object.fromEntries(
+          Object.entries(data.manifest).filter(
+            ([key]) => !["version", "created", "modified", "activeResourceId", "resources", "slides"].includes(key),
+          ),
+        ),
       }
+    : workspaceFromLegacySlides(data);
 
-      const rebuilt = rebuildFileEntry(fileKey, fileEntry, mediaById);
-      if (rebuilt) {
-        reconstructedFiles[rebuilt.key] = rebuilt.value;
-      }
-    }
+  const canvasIds = new Set(
+    baseWorkspace.resources
+      .filter((resource) => resource.type === "canvas")
+      .map((resource) => resource.id),
+  );
+  const contents = Object.fromEntries(
+    Object.entries(baseWorkspace.contents).map(([id, content]) => [
+      id,
+      canvasIds.has(id)
+        ? reconstructCanvasContent(content as Record<string, any>, hasMediaArray, mediaById)
+        : content,
+    ]),
+  );
 
-    return {
-      id: slide.id,
-      elements: slide.content.elements || [],
-      appState: slide.content.appState || {},
-      files: reconstructedFiles,
-    };
-  });
+  return { ...baseWorkspace, contents };
 }
 
-
-export async function createNewFile(): Promise<{ path: string; slides: Slide[] }> {
+export async function createNewFile(): Promise<{ path: string; workspace: WorkspaceDocument }> {
   const filePath = await save({
     filters: [{ name: "IdeaSlide", extensions: ["is"] }],
     defaultPath: "Untitled.is",
@@ -438,12 +518,12 @@ export async function createNewFile(): Promise<{ path: string; slides: Slide[] }
 
   const data = await invoke<IsFileData>("create_file", { path: filePath });
   rememberCreatedTimestamp(filePath, data);
-  const slides = convertFromIsFileData(data);
+  const workspace = convertFromIsFileData(data);
 
-  return { path: filePath, slides };
+  return { path: filePath, workspace };
 }
 
-export async function openFile(): Promise<{ path: string; slides: Slide[] }> {
+export async function openFile(): Promise<{ path: string; workspace: WorkspaceDocument }> {
   const filePath = await open({
     filters: [{ name: "IdeaSlide", extensions: ["is"] }],
     multiple: false,
@@ -455,20 +535,52 @@ export async function openFile(): Promise<{ path: string; slides: Slide[] }> {
 
   const data = await invoke<IsFileData>("open_file", { path: filePath });
   rememberCreatedTimestamp(filePath, data);
-  const slides = convertFromIsFileData(data);
+  const workspace = convertFromIsFileData(data);
 
-  return { path: filePath, slides };
+  return { path: filePath, workspace };
 }
 
-export function createNewPresentation(): { slides: Slide[] } {
+export function createNewPresentation(): { workspace: WorkspaceDocument } {
+  return { workspace: createInitialWorkspace() };
+}
+
+function workspaceFromSlides(slides: Slide[]): WorkspaceDocument {
+  const resources = slides.map((slide, order) => ({
+    id: slide.id,
+    type: "canvas",
+    name: slide.title ?? `Canvas ${order + 1}`,
+    parentId: null,
+    order,
+    contentRef: `canvases/${slide.id}.json`,
+  }));
   return {
-    slides: [{ id: crypto.randomUUID(), elements: [], appState: {}, files: {} }],
+    resources,
+    contents: Object.fromEntries(
+      slides.map((slide) => [
+        slide.id,
+        {
+          type: "excalidraw",
+          version: 2,
+          elements: slide.elements,
+          appState: slide.appState,
+          files: slide.files,
+        },
+      ]),
+    ),
+    activeResourceId: resources[0]?.id ?? "",
+    manifestExtra: {},
   };
 }
 
-export async function saveFile(path: string, slides: Slide[]): Promise<void> {
+export async function saveFile(
+  path: string,
+  workspaceOrSlides: WorkspaceDocument | Slide[],
+): Promise<void> {
   const createdTimestamp = createdTimestampByPath.get(path);
-  const data = convertToIsFileData(slides, createdTimestamp);
+  const workspace = Array.isArray(workspaceOrSlides)
+    ? workspaceFromSlides(workspaceOrSlides)
+    : workspaceOrSlides;
+  const data = convertToIsFileData(workspace, createdTimestamp);
   await invoke("save_file", { path, data });
   rememberCreatedTimestamp(path, data);
 }
@@ -493,7 +605,7 @@ export async function getOpenedFile(): Promise<string | null> {
   return await invoke<string | null>("get_opened_file");
 }
 
-export async function openRecentFile(path: string): Promise<Slide[]> {
+export async function openRecentFile(path: string): Promise<WorkspaceDocument> {
   const data = await invoke<IsFileData>("open_file", { path });
   rememberCreatedTimestamp(path, data);
   return convertFromIsFileData(data);
