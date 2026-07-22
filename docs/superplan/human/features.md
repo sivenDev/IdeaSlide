@@ -21,3 +21,10 @@
 
 可选详细描述：目标 / 范围 / 验收标准 / 非目标。
 -->
+
+## F001: Enable Excalidraw image export from the canvas menu
+
+- status: proposed
+- created: 2026-07-22
+
+在画布左上角菜单中，恢复显示并允许使用 Excalidraw 原生的“导出图片”功能。
