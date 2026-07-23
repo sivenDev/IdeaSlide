@@ -10,7 +10,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { openRecentFile, getOpenedFile, convertFromIsFileData } from "./lib/tauriCommands";
 import { initMcpRenderer } from "./lib/mcpRenderer";
 import { initPreviewRenderer } from "./lib/previewRenderer";
-import { projectWorkspaceToSlides } from "./lib/workspaceResources";
+import { canvasContentToSlide } from "./lib/workspaceResources";
 import type { WorkspaceDocument } from "./types";
 
 function AppContent() {
@@ -148,17 +148,22 @@ function AppContent() {
       activeResourceId: state.activeResourceId,
       manifestExtra: state.manifestExtra,
     };
-    const slides = projectWorkspaceToSlides(workspace);
-    const startIndex = Math.max(0, slides.findIndex((slide) => slide.id === state.activeResourceId));
-    return (
-      <PresentationMode
-        slides={slides}
-        startIndex={startIndex}
-        mode={state.presentationMode as 'preview' | 'fullscreen'}
-        transitionSpeed={state.transitionSpeed}
-        onExit={handlePresentationExit}
-      />
+    const activeResource = state.resources.find(
+      (resource) => resource.id === state.activeResourceId,
     );
+    const activeSlide = activeResource?.type === "canvas"
+      ? canvasContentToSlide(workspace, activeResource)
+      : null;
+    if (activeSlide) {
+      return (
+        <PresentationMode
+          slide={activeSlide}
+          mode={state.presentationMode as 'preview' | 'fullscreen'}
+          transitionSpeed={state.transitionSpeed}
+          onExit={handlePresentationExit}
+        />
+      );
+    }
   }
 
   return (

@@ -9,6 +9,12 @@ interface ResourceEditorHostProps {
   onChange: (elements: readonly any[], appState: Partial<any>, files: Record<string, any>) => void;
   onApiReady: (api: any) => void;
   editorRefreshToken: number;
+  cameraCount: number;
+  isCameraListOpen: boolean;
+  onToggleCameras: () => void;
+  onStartPreview: () => void;
+  onStartFullscreen: () => void;
+  cameraDrawingRequestToken: number;
 }
 
 export function ResourceEditorHost({
@@ -17,6 +23,12 @@ export function ResourceEditorHost({
   onChange,
   onApiReady,
   editorRefreshToken,
+  cameraCount,
+  isCameraListOpen,
+  onToggleCameras,
+  onStartPreview,
+  onStartFullscreen,
+  cameraDrawingRequestToken,
 }: ResourceEditorHostProps) {
   const definition = getResourceTypeDefinition(resource.type);
   if (definition?.editor === "canvas") {
@@ -30,6 +42,12 @@ export function ResourceEditorHost({
           onChange={onChange}
           onApiReady={onApiReady}
           editorRefreshToken={editorRefreshToken}
+          cameraCount={cameraCount}
+          isCameraListOpen={isCameraListOpen}
+          onToggleCameras={onToggleCameras}
+          onStartPreview={onStartPreview}
+          onStartFullscreen={onStartFullscreen}
+          cameraDrawingRequestToken={cameraDrawingRequestToken}
         />
       </ErrorBoundary>
     );

@@ -10,6 +10,8 @@ interface WorkspaceResourceRowProps {
   isExpanded: boolean;
   hasChildren: boolean;
   readOnly?: boolean;
+  startRenaming?: boolean;
+  onRenameStarted?: () => void;
   onSelect: () => void;
   onToggleExpanded: () => void;
   onRename: (name: string) => void;
@@ -49,6 +51,8 @@ export function WorkspaceResourceRow({
   isExpanded,
   hasChildren,
   readOnly = false,
+  startRenaming = false,
+  onRenameStarted,
   onSelect,
   onToggleExpanded,
   onRename,
@@ -61,6 +65,11 @@ export function WorkspaceResourceRow({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => setDraftName(resource.name), [resource.name]);
+  useEffect(() => {
+    if (!startRenaming || !canMutate) return;
+    setIsRenaming(true);
+    onRenameStarted?.();
+  }, [canMutate, onRenameStarted, startRenaming]);
   useEffect(() => {
     if (isRenaming) inputRef.current?.select();
   }, [isRenaming]);

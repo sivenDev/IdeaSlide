@@ -35,10 +35,11 @@ test('Toolbar wires icon actions through the shared Tooltip primitives instead o
   assert.doesNotMatch(source, /title="/);
 });
 
-test('Toolbar leaves Present without a hover tip', async () => {
+test('Toolbar does not expose presentation actions', async () => {
   const source = await readSource('src/components/Toolbar.tsx');
 
-  assert.doesNotMatch(source, /tooltip="Present"/);
+  assert.doesNotMatch(source, /Present/);
+  assert.doesNotMatch(source, /onStartPreview/);
 });
 
 test('ToolbarAction owns the shared tooltip wiring and variant styling', async () => {

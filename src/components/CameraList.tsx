@@ -7,6 +7,7 @@ interface CameraListProps {
   onCameraSelect: (camera: Camera) => void;
   onCameraDelete: (cameraId: string) => void;
   onReorder: (orderedCameraIds: string[]) => void;
+  onAddCamera?: () => void;
 }
 
 export function CameraList({
@@ -15,6 +16,7 @@ export function CameraList({
   onCameraSelect,
   onCameraDelete,
   onReorder,
+  onAddCamera,
 }: CameraListProps) {
   const handleMove = useCallback((index: number, offset: -1 | 1) => {
     const ids = moveItemByOffset(cameras.map((camera) => camera.id), index, offset);
@@ -25,7 +27,17 @@ export function CameraList({
     <aside className="flex h-full min-w-0 flex-col bg-[#fbfbfc]" aria-label="Cameras">
       <div className="flex h-11 items-center border-b border-gray-200 px-3">
         <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Cameras</div>
-        <span className="ml-auto rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">{cameras.length}</span>
+        <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">{cameras.length}</span>
+        <button
+          type="button"
+          aria-label="Add camera"
+          disabled={!onAddCamera}
+          onClick={onAddCamera}
+          className="ml-auto inline-flex h-7 items-center gap-1 rounded-md border border-gray-200 bg-white px-2 text-xs font-medium text-gray-600 shadow-sm hover:border-gray-300 hover:text-gray-900 disabled:pointer-events-none disabled:opacity-40"
+        >
+          <span aria-hidden="true">＋</span>
+          Add Camera
+        </button>
       </div>
 
       {cameras.length === 0 ? (

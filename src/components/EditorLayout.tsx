@@ -15,6 +15,10 @@ import {
   projectWorkspaceToSlides,
 } from "../lib/workspaceResources";
 import { extractCameras, reorderCameras, type Camera } from "../lib/cameraUtils";
+import {
+  WORKSPACE_PANEL_DEFAULT_WIDTH,
+  clampWorkspacePanelWidth,
+} from "../lib/panelSizing";
 import type { WorkspaceDocument } from "../types";
 import { Toolbar } from "./Toolbar";
 import { WorkspaceExplorer } from "./WorkspaceExplorer";
@@ -32,7 +36,10 @@ export function EditorLayout({ onGoHome, readOnly = false, editorRefreshToken }:
   const { state, dispatch } = useWorkspaceStore();
   const [isSaving, setIsSaving] = useState(false);
   const [showWorkspace, setShowWorkspace] = useState(true);
+  const [workspacePanelWidth, setWorkspacePanelWidth] = useState(WORKSPACE_PANEL_DEFAULT_WIDTH);
+  const [isResizingWorkspace, setIsResizingWorkspace] = useState(false);
   const [showCameras, setShowCameras] = useState(true);
+  const [cameraDrawingRequestToken, setCameraDrawingRequestToken] = useState(0);
   const [selectedCameraId, setSelectedCameraId] = useState<string>();
   const excalidrawApiRef = useRef<any>(null);
 
@@ -233,9 +240,11 @@ export function EditorLayout({ onGoHome, readOnly = false, editorRefreshToken }:
     flushDraft();
     dispatch({ type: "SET_ACTIVE_RESOURCE", payload: { resourceId } });
   }, [dispatch, flushDraft]);
-  const handleAddResource = useCallback((resourceType: "folder" | "canvas", parentId: string | null) => {
+  const handleAddResource = useCallback((resourceType: string, parentId: string | null) => {
+    const resourceId = crypto.randomUUID();
     flushDraft();
-    dispatch({ type: "ADD_RESOURCE", payload: { resourceType, parentId } });
+    dispatch({ type: "ADD_RESOURCE", payload: { resourceType, resourceId, parentId } });
+    return resourceId;
   }, [dispatch, flushDraft]);
   const handleMoveResource = useCallback((resourceId: string, parentId: string | null, index: number) => {
     flushDraft();
@@ -283,6 +292,25 @@ export function EditorLayout({ onGoHome, readOnly = false, editorRefreshToken }:
     if (!api) return;
     api.updateScene({ elements: reorderCameras(draft.elements, orderedCameraIds) });
   }, [draft.elements]);
+  const handleToggleCameras = useCallback(() => {
+    setShowCameras((visible) => !visible);
+  }, []);
+  const handleRequestCameraDrawing = useCallback(() => {
+    setShowCameras(true);
+    setCameraDrawingRequestToken((token) => token + 1);
+  }, []);
+  const handleStartPresentation = useCallback((mode: "preview" | "fullscreen") => {
+    flushDraft();
+    dispatch({ type: "START_PRESENTATION", payload: { mode } });
+  }, [dispatch, flushDraft]);
+  const handleStartPreview = useCallback(
+    () => handleStartPresentation("preview"),
+    [handleStartPresentation],
+  );
+  const handleStartFullscreen = useCallback(
+    () => handleStartPresentation("fullscreen"),
+    [handleStartPresentation],
+  );
 
   return (
     <div className="flex h-screen flex-col bg-[#f7f7f8]">
@@ -294,20 +322,6 @@ export function EditorLayout({ onGoHome, readOnly = false, editorRefreshToken }:
         onOpenFile={handleOpenFile}
         onSave={handleSave}
         onGoHome={handleGoHome}
-        onStartPreview={() => {
-          flushDraft();
-          dispatch({ type: "START_PRESENTATION", payload: { mode: "preview" } });
-        }}
-        onStartFullscreen={() => {
-          flushDraft();
-          dispatch({ type: "START_PRESENTATION", payload: { mode: "fullscreen" } });
-        }}
-        onStartFromBeginning={() => {
-          flushDraft();
-          const firstCanvas = canvasResources[0];
-          if (firstCanvas) dispatch({ type: "SET_ACTIVE_RESOURCE", payload: { resourceId: firstCanvas.id } });
-          dispatch({ type: "START_PRESENTATION", payload: { mode: "fullscreen" } });
-        }}
       />
 
       {state.activeSessions.size > 0 && (
@@ -318,8 +332,11 @@ export function EditorLayout({ onGoHome, readOnly = false, editorRefreshToken }:
       )}
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div className={`h-full flex-shrink-0 overflow-hidden transition-[width] duration-200 ${showWorkspace ? "w-[280px]" : "w-0"}`}>
-          <div className="h-full w-[280px]">
+        <div
+          className={`h-full flex-shrink-0 overflow-hidden ${isResizingWorkspace ? "" : "transition-[width] duration-200"}`}
+          style={{ width: showWorkspace ? workspacePanelWidth : 0 }}
+        >
+          <div className="h-full" style={{ width: workspacePanelWidth }}>
             <WorkspaceExplorer
               resources={state.resources}
               activeResourceId={state.activeResourceId}
@@ -332,7 +349,15 @@ export function EditorLayout({ onGoHome, readOnly = false, editorRefreshToken }:
             />
           </div>
         </div>
-        <ResizableDivider side="left" isVisible={showWorkspace} onToggle={() => setShowWorkspace((visible) => !visible)} />
+        <ResizableDivider
+          side="left"
+          isVisible={showWorkspace}
+          size={workspacePanelWidth}
+          onResize={(nextWidth) => setWorkspacePanelWidth(clampWorkspacePanelWidth(nextWidth))}
+          onResizeStart={() => setIsResizingWorkspace(true)}
+          onResizeEnd={() => setIsResizingWorkspace(false)}
+          onToggle={() => setShowWorkspace((visible) => !visible)}
+        />
 
         <main className="relative min-w-0 flex-1 overflow-hidden">
           <div className="absolute inset-0">
@@ -342,6 +367,12 @@ export function EditorLayout({ onGoHome, readOnly = false, editorRefreshToken }:
               onChange={(elements, appState, files) => updateDraftRef.current(elements, appState, files)}
               onApiReady={(api) => { excalidrawApiRef.current = api; }}
               editorRefreshToken={editorRefreshToken}
+              cameraCount={cameras.length}
+              isCameraListOpen={showCameras}
+              onToggleCameras={handleToggleCameras}
+              onStartPreview={handleStartPreview}
+              onStartFullscreen={handleStartFullscreen}
+              cameraDrawingRequestToken={cameraDrawingRequestToken}
             />
           </div>
         </main>
@@ -355,6 +386,7 @@ export function EditorLayout({ onGoHome, readOnly = false, editorRefreshToken }:
               onCameraSelect={handleSelectCamera}
               onCameraDelete={handleDeleteCamera}
               onReorder={handleReorderCameras}
+              onAddCamera={readOnly ? undefined : handleRequestCameraDrawing}
             />
           </div>
         </div>

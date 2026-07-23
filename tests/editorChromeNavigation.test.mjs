@@ -19,6 +19,7 @@ test('EditorLayout composes the workspace, resource editor, and cameras as a thr
   assert.match(source, /side="right"/);
   assert.doesNotMatch(source, /useSlideThumbnails/);
   assert.doesNotMatch(source, /useCameraThumbnails/);
+  assert.doesNotMatch(source, /w-\[280px\]/);
 });
 
 test('EditorLayout captures all save shortcuts before Excalidraw can export native files', async () => {
@@ -43,11 +44,11 @@ test('EditorLayout forwards the presentation-exit refresh token through Resource
   assert.match(host, /<SlideCanvas[\s\S]*editorRefreshToken=\{editorRefreshToken\}/);
 });
 
-test('Toolbar keeps workspace file and presentation actions but no slide or cameras organizers', async () => {
+test('Toolbar keeps workspace file actions but no presentation, slide, or cameras organizers', async () => {
   const source = await readSource('src/components/Toolbar.tsx');
   assert.match(source, /aria-label="New workspace"/);
   assert.match(source, /aria-label="Open workspace"/);
-  assert.match(source, /aria-label="Present"/);
+  assert.doesNotMatch(source, /aria-label="Present"/);
   assert.doesNotMatch(source, /aria-label="Slide"/);
   assert.doesNotMatch(source, /aria-label="Cameras"/);
   assert.doesNotMatch(source, /Add Slide/);

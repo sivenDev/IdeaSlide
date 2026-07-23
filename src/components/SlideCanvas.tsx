@@ -8,9 +8,9 @@ import {
 import {
   CAMERA_PREVIEW_ID,
   enterCameraDrawingMode,
-  exitCameraDrawingMode,
 } from "../lib/cameraDrawing";
 import { areSlideCanvasPropsEqual } from "../lib/slideCanvasProps";
+import { CanvasPresentationControls } from "./CanvasPresentationControls";
 
 function getScenePointerFromEvent(api: any, event: PointerEvent) {
   const appState = api.getAppState();
@@ -65,6 +65,12 @@ interface SlideCanvasProps {
   viewMode?: boolean;
   onApiReady?: (api: any) => void;
   editorRefreshToken: number;
+  cameraCount?: number;
+  isCameraListOpen?: boolean;
+  onToggleCameras?: () => void;
+  onStartPreview?: () => void;
+  onStartFullscreen?: () => void;
+  cameraDrawingRequestToken?: number;
 }
 
 const excalidrawCanvasActions = {
@@ -77,7 +83,22 @@ const excalidrawCanvasActions = {
   saveFileToDisk: false,
 };
 
-function SlideCanvasInner({ slideId, elements, appState, files, onChange, viewMode, onApiReady, editorRefreshToken }: SlideCanvasProps) {
+function SlideCanvasInner({
+  slideId,
+  elements,
+  appState,
+  files,
+  onChange,
+  viewMode,
+  onApiReady,
+  editorRefreshToken,
+  cameraCount = 0,
+  isCameraListOpen = false,
+  onToggleCameras,
+  onStartPreview,
+  onStartFullscreen,
+  cameraDrawingRequestToken = 0,
+}: SlideCanvasProps) {
   // Use a ref to always have the latest onChange without causing re-renders
   const containerRef = useRef<HTMLDivElement>(null);
   const onChangeRef = useRef(onChange);
@@ -225,23 +246,13 @@ function SlideCanvasInner({ slideId, elements, appState, files, onChange, viewMo
     enterCameraDrawingMode(api);
   }, []);
 
-  const stopCameraDrawing = useCallback(() => {
-    const api = excalidrawApiRef.current;
-    if (!api) return;
-
-    drawStartRef.current = null;
-    setIsDrawingCamera(false);
-    exitCameraDrawingMode(api);
-  }, []);
-
-  const toggleCameraDrawing = useCallback(() => {
-    if (isDrawingCamera) {
-      stopCameraDrawing();
-      return;
-    }
-
+  const lastCameraDrawingRequestTokenRef = useRef(cameraDrawingRequestToken);
+  useEffect(() => {
+    if (cameraDrawingRequestToken === lastCameraDrawingRequestTokenRef.current) return;
+    if (!excalidrawApiRef.current) return;
+    lastCameraDrawingRequestTokenRef.current = cameraDrawingRequestToken;
     startCameraDrawing();
-  }, [isDrawingCamera, startCameraDrawing, stopCameraDrawing]);
+  }, [apiReadyVersion, cameraDrawingRequestToken, startCameraDrawing]);
 
   // Handle pointer down - start drawing camera rectangle
   useEffect(() => {
@@ -424,23 +435,30 @@ function SlideCanvasInner({ slideId, elements, appState, files, onChange, viewMo
 
   // Render custom UI in top-right corner
   const renderTopRightUI = useCallback(() => {
-    if (viewMode) return null;
+    if (
+      viewMode ||
+      !onToggleCameras ||
+      !onStartPreview ||
+      !onStartFullscreen
+    ) return null;
 
     return (
-        <button
-        onClick={toggleCameraDrawing}
-        className="px-2.5 py-1.5 rounded-md border border-amber-500 bg-amber-50 text-amber-600 text-sm font-medium hover:bg-amber-100 transition-colors flex items-center gap-1.5 shadow-sm"
-        title="Draw a camera rectangle"
-        style={{ marginRight: '8px' }}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-          <circle cx="12" cy="13" r="4" />
-        </svg>
-        {isDrawingCamera ? "Drawing..." : "Camera"}
-      </button>
+      <CanvasPresentationControls
+        cameraCount={cameraCount}
+        isCameraListOpen={isCameraListOpen}
+        onToggleCameras={onToggleCameras}
+        onStartPreview={onStartPreview}
+        onStartFullscreen={onStartFullscreen}
+      />
     );
-  }, [viewMode, isDrawingCamera, toggleCameraDrawing]);
+  }, [
+    cameraCount,
+    isCameraListOpen,
+    onStartFullscreen,
+    onStartPreview,
+    onToggleCameras,
+    viewMode,
+  ]);
   const mainMenu = useMemo(
     () => (
       <MainMenu>

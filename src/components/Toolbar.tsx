@@ -1,11 +1,5 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { SaveIndicator } from "./SaveIndicator";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "./ui/DropdownMenu";
 import { Separator } from "./ui/Separator";
 import { ToolbarAction } from "./ui/ToolbarAction";
 import { TooltipProvider } from "./ui/Tooltip";
@@ -18,9 +12,6 @@ interface ToolbarProps {
   onOpenFile: () => void;
   onSave: () => void;
   onGoHome: () => void;
-  onStartPreview: () => void;
-  onStartFullscreen: () => void;
-  onStartFromBeginning: () => void;
 }
 
 export function Toolbar({
@@ -31,9 +22,6 @@ export function Toolbar({
   onOpenFile,
   onSave,
   onGoHome,
-  onStartPreview,
-  onStartFullscreen,
-  onStartFromBeginning,
 }: ToolbarProps) {
   const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
 
@@ -66,21 +54,6 @@ export function Toolbar({
           <ToolbarAction tooltip="Save" aria-label="Save" onClick={onSave}>
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" /><path d="M17 21v-8H7v8M7 3v5h8" /></svg>
           </ToolbarAction>
-
-          <Separator orientation="vertical" className="mx-1" />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <ToolbarAction aria-label="Present" variant="primary">
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="m5 3 14 9-14 9V3Z" /></svg>
-                Present
-              </ToolbarAction>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onSelect={onStartPreview}>Preview</DropdownMenuItem>
-              <DropdownMenuItem onSelect={onStartFullscreen}>Fullscreen</DropdownMenuItem>
-              <DropdownMenuItem onSelect={onStartFromBeginning}>From Beginning</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
     </TooltipProvider>

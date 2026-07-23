@@ -111,3 +111,19 @@ test('unknown resources cannot be renamed or moved by registered workspace actio
   assert.equal(renamed, state);
   assert.equal(moved, state);
 });
+
+test('resource creation accepts an explicit id for immediate editor handoff', async () => {
+  const { workspaceStoreReducer } = await loadModule();
+  const next = workspaceStoreReducer(initialState(), {
+    type: 'ADD_RESOURCE',
+    payload: {
+      resourceType: 'canvas',
+      resourceId: 'canvas-created',
+      parentId: 'folder-1',
+    },
+  });
+
+  assert.equal(next.activeResourceId, 'canvas-created');
+  assert.equal(next.resources.find((resource) => resource.id === 'canvas-created').parentId, 'folder-1');
+  assert.ok(next.contents['canvas-created']);
+});

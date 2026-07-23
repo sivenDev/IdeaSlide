@@ -7,6 +7,12 @@ interface SlideCanvasComparableProps {
   viewMode?: boolean;
   onApiReady?: unknown;
   editorRefreshToken?: number;
+  cameraCount?: number;
+  isCameraListOpen?: boolean;
+  onToggleCameras?: unknown;
+  onStartPreview?: unknown;
+  onStartFullscreen?: unknown;
+  cameraDrawingRequestToken?: number;
 }
 
 export function areSlideCanvasPropsEqual(
@@ -21,6 +27,12 @@ export function areSlideCanvasPropsEqual(
     previousProps.onChange === nextProps.onChange &&
     previousProps.viewMode === nextProps.viewMode &&
     previousProps.onApiReady === nextProps.onApiReady &&
-    previousProps.editorRefreshToken === nextProps.editorRefreshToken
+    previousProps.editorRefreshToken === nextProps.editorRefreshToken &&
+    previousProps.cameraCount === nextProps.cameraCount &&
+    previousProps.isCameraListOpen === nextProps.isCameraListOpen &&
+    previousProps.onToggleCameras === nextProps.onToggleCameras &&
+    previousProps.onStartPreview === nextProps.onStartPreview &&
+    previousProps.onStartFullscreen === nextProps.onStartFullscreen &&
+    previousProps.cameraDrawingRequestToken === nextProps.cameraDrawingRequestToken
   );
 }

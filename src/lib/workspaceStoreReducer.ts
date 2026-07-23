@@ -30,7 +30,7 @@ export type WorkspaceStoreAction =
   | { type: "LOAD_WORKSPACE"; payload: { workspace: WorkspaceDocument; filePath?: string } }
   | {
       type: "ADD_RESOURCE";
-      payload: { resourceType: "folder" | "canvas"; parentId: string | null; index?: number };
+      payload: { resourceType: string; resourceId?: string; parentId: string | null; index?: number };
     }
   | { type: "RENAME_RESOURCE"; payload: { resourceId: string; name: string } }
   | {
@@ -120,7 +120,8 @@ export function workspaceStoreReducer(
         .filter((resource) => resource.parentId === action.payload.parentId)
         .sort((left, right) => left.order - right.order);
       const index = Math.max(0, Math.min(action.payload.index ?? siblings.length, siblings.length));
-      const id = crypto.randomUUID();
+      const id = action.payload.resourceId ?? crypto.randomUUID();
+      if (state.resources.some((resource) => resource.id === id)) return state;
       const definition = getResourceTypeDefinition(action.payload.resourceType);
       if (!definition) return state;
       const resource: WorkspaceResource = {

@@ -35,3 +35,10 @@
 - created: 2026-07-22
 
 Treat each `.is` file as an IdeaSlide workspace rather than a traditional slide deck. Replace the slide-centric organizer with a three-pane editor: a hierarchical Workspace explorer on the left, the selected resource editor in the center, and a compact Cameras list on the right. The first resource types are folders and Excalidraw canvases, while the resource model, persisted type identifier, content reference, selection boundary, and unsupported-type fallback must allow more file types to be added later without redesigning the tree. Users can create folders and canvases, select and inline-rename them, reorder or move them through the hierarchy, and safely delete them. Cameras belong to the selected canvas. Both side panels collapse independently from divider markers. Do not render slide or camera thumbnails in this delivery. Make the existing manifest `version` field an enforced `.is` format version: F002 writes `2.0`, explicitly migrates supported `1.0` workspaces, rejects invalid or unsupported versions before reading payloads, and reserves major increments for breaking changes. Legacy flat-slide `.is` files open as root-level canvases in their original order; the workspace tree, active canvas identity, canvas content, and camera order survive save and reopen. Non-canvas editors, arbitrary linked local files, tabs, thumbnail generation, camera naming, and a presentation-mode redesign are out of scope.
+
+## F003: Move camera presentation controls into the Canvas and resize the Workspace sidebar
+
+- status: done
+- created: 2026-07-23
+
+将 Cameras 和 Present 从全局工具栏移动到当前 Excalidraw 画布右上角。Cameras 按钮负责打开或收起当前 Canvas 的镜头列表；CameraList 标题栏提供 Add Camera，替代画布中现有同名 Camera 绘制按钮。Present 仅播放当前 Canvas 中按顺序排列的 Cameras，不跨 Canvas；没有 Camera 时禁用。左侧 Workspace 文件列表默认宽度缩小，并可拖动调整，必须限制最小和最大宽度，同时保留分割线上的收起/展开按钮。文件列表顶部不显示 WORKSPACE 标题，也不重复显示窗口工具栏已有的 `.is` 文件名，而是直接使用紧凑操作栏加资源树。操作栏提供 New resource 下拉框（从可创建资源类型注册表生成，当前只有 Canvas）、独立 New folder 和 Collapse all；选中目录时创建在目录内，选中文件时创建为同级资源，新建后立即进入重命名。
