@@ -65,4 +65,6 @@ test('App passes only the active Canvas into camera-only PresentationMode', asyn
   assert.doesNotMatch(presentation, /ThumbnailNavigator/);
   assert.doesNotMatch(presentation, /setCurrentSlideIndex/);
   assert.match(presentation, /currentCameraIndex < cameras\.length - 1/);
+  assert.match(presentation, /if \(!hasCameras\) \{[\s\S]*return baseAppState/);
+  assert.match(presentation, /\{hasCameras && \([\s\S]*role="status"/);
 });

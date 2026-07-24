@@ -32,6 +32,8 @@ test('Toolbar wires icon actions through the shared Tooltip primitives instead o
   assert.match(source, /<ToolbarAction/);
   assert.match(source, /from "\.\/ui\/Tooltip"/);
   assert.match(source, /TooltipProvider/);
+  assert.match(source, /tooltip="New file" aria-label="New file"/);
+  assert.match(source, /tooltip="Open file" aria-label="Open file"/);
   assert.doesNotMatch(source, /title="/);
 });
 
@@ -40,6 +42,18 @@ test('Toolbar does not expose presentation actions', async () => {
 
   assert.doesNotMatch(source, /Present/);
   assert.doesNotMatch(source, /onStartPreview/);
+});
+
+test('Canvas Cameras toggle uses the shared tooltip with state-aware visible copy', async () => {
+  const source = await readSource('src/components/CanvasPresentationControls.tsx');
+
+  assert.match(source, /from "\.\/ui\/Tooltip"/);
+  assert.match(source, /TooltipProvider/);
+  assert.match(source, /TooltipTrigger/);
+  assert.match(source, /TooltipContent/);
+  assert.match(source, /isCameraListOpen \? "Hide cameras" : "Show cameras"/);
+  assert.match(source, /<TooltipContent>\{camerasTooltip\}<\/TooltipContent>/);
+  assert.doesNotMatch(source, /title=/);
 });
 
 test('ToolbarAction owns the shared tooltip wiring and variant styling', async () => {

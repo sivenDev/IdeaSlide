@@ -353,15 +353,17 @@ export function PresentationMode({ slide, mode, transitionSpeed, onExit }: Prese
         </div>
       )}
 
-      {/* Page indicator */}
-      <div
-        role="status"
-        aria-live="polite"
-        className="absolute bottom-6 right-6 px-4 py-2 rounded-lg text-sm font-medium text-white"
-        style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
-      >
-        {pageIndicator}
-      </div>
+      {/* Camera position indicator */}
+      {hasCameras && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="absolute bottom-6 right-6 px-4 py-2 rounded-lg text-sm font-medium text-white"
+          style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
+        >
+          {pageIndicator}
+        </div>
+      )}
     </div>
   );
 }

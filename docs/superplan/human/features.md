@@ -56,3 +56,10 @@ Fix the broken Excalidraw top-right Cameras and Present controls so labels never
 - created: 2026-07-24
 
 Implement the approved Revision B editor-shell prototype in the Tauri frontend. Match the Workspace header to the reference action sequence: New resource, New folder, a visual separator, Collapse all, and More. Keep the More action intentionally non-destructive and reserved for future workspace commands. Remove Present from the Excalidraw top-right group so it contains only the Cameras toggle and count. Move the disabled-aware Present Preview/Fullscreen dropdown into the Cameras sidebar header beside a compact Add Camera action. Present remains disabled when the current Canvas has no Cameras and continues to present only that Canvas. Preserve the existing neutral/violet visual system, text-only lists, resource behavior, camera behavior, panel resizing, and persistence.
+
+## F006: Apply Revision C editor shell defaults
+
+- status: done
+- created: 2026-07-24
+
+Implement the approved Revision C editor shell in the Tauri frontend: hide the Workspace and Cameras sidebars by default; keep both divider expand controls available; show a visible Show cameras / Hide cameras hover tooltip on the Excalidraw canvas Cameras toggle; arrange Home, New, Open, Save, and save status as a compact left title-bar command cluster while centering the current .is document title independently; and keep Present enabled in the Cameras header even when the selected Canvas has zero Cameras. Present must continue to target only the selected Canvas. Preserve existing sidebar resizing, resource and camera behavior, persistence, neutral/violet styling, and text-only lists. Thumbnails and new resource types remain out of scope.

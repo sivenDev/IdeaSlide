@@ -37,10 +37,10 @@ interface EditorLayoutProps {
 export function EditorLayout({ onGoHome, readOnly = false, editorRefreshToken }: EditorLayoutProps) {
   const { state, dispatch } = useWorkspaceStore();
   const [isSaving, setIsSaving] = useState(false);
-  const [showWorkspace, setShowWorkspace] = useState(true);
+  const [showWorkspace, setShowWorkspace] = useState(false);
   const [workspacePanelWidth, setWorkspacePanelWidth] = useState(WORKSPACE_PANEL_DEFAULT_WIDTH);
   const [isResizingWorkspace, setIsResizingWorkspace] = useState(false);
-  const [showCameras, setShowCameras] = useState(true);
+  const [showCameras, setShowCameras] = useState(false);
   const [cameraDrawingRequestToken, setCameraDrawingRequestToken] = useState(0);
   const [selectedCameraId, setSelectedCameraId] = useState<string>();
   const excalidrawApiRef = useRef<any>(null);

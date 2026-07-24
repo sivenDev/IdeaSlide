@@ -12,7 +12,7 @@ test('camera sidebar is a text-only vertical list', async () => {
   assert.match(source, /onAddCamera/);
   assert.match(source, /idea-slide-camera-header-actions/);
   assert.match(source, /idea-slide-camera-present-button/);
-  assert.match(source, /disabled=\{cameras\.length === 0\}/);
+  assert.doesNotMatch(source, /disabled=\{cameras\.length === 0\}/);
   assert.match(source, /onStartPreview/);
   assert.match(source, /onStartFullscreen/);
   assert.match(source, />Preview</);

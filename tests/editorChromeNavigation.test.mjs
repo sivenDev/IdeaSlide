@@ -46,11 +46,25 @@ test('EditorLayout forwards the presentation-exit refresh token through Resource
 
 test('Toolbar keeps workspace file actions but no presentation, slide, or cameras organizers', async () => {
   const source = await readSource('src/components/Toolbar.tsx');
-  assert.match(source, /aria-label="New workspace"/);
-  assert.match(source, /aria-label="Open workspace"/);
+  assert.match(source, /aria-label="New file"/);
+  assert.match(source, /aria-label="Open file"/);
   assert.doesNotMatch(source, /aria-label="Present"/);
   assert.doesNotMatch(source, /aria-label="Slide"/);
   assert.doesNotMatch(source, /aria-label="Cameras"/);
   assert.doesNotMatch(source, /Add Slide/);
   assert.doesNotMatch(source, /Delete slide/);
+});
+
+test('Toolbar keeps file commands and save status on the left while centering the document title independently', async () => {
+  const source = await readSource('src/components/Toolbar.tsx');
+
+  assert.match(source, /idea-slide-window-toolbar/);
+  assert.match(source, /idea-slide-window-toolbar__commands/);
+  assert.match(source, /idea-slide-window-toolbar__title/);
+  assert.match(source, /idea-slide-window-toolbar__drag-region/);
+  assert.match(
+    source,
+    /aria-label="Back to home"[\s\S]*<Separator[\s\S]*aria-label="New file"[\s\S]*aria-label="Open file"[\s\S]*aria-label="Save"[\s\S]*<SaveIndicator/,
+  );
+  assert.match(source, /idea-slide-window-toolbar__title[\s\S]*fileName \|\| "Untitled"/);
 });

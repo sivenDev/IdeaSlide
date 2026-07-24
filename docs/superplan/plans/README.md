@@ -6,7 +6,7 @@
 
 | Type | Plans | Complete |
 | --- | --- | --- |
-| `feature` | 5 | 5 |
+| `feature` | 6 | 6 |
 | `bugfix` | 4 | 4 |
 
 ## Plan Groups
@@ -20,6 +20,7 @@
 | `F003` | [Contextualize Canvas Presentation Controls](features/F003-canvas-presentation-controls.md) | `complete` | 2026-07-23 |
 | `F004` | [Refine the Editor Shell and Canvas Controls](features/F004-refine-editor-shell.md) | `complete` | 2026-07-24 |
 | `F005` | [Align Workspace Actions and Camera Presentation Header](features/F005-align-workspace-camera-actions.md) | `complete` | 2026-07-24 |
+| `F006` | [Apply Revision C Editor Shell Defaults](features/F006-revision-c-editor-shell-defaults.md) | `complete` | 2026-07-24 |
 
 ### Bugfix Plans
 

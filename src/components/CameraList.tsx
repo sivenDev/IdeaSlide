@@ -69,7 +69,6 @@ export function CameraList({
               <button
                 type="button"
                 aria-label="Present"
-                disabled={cameras.length === 0}
                 className="idea-slide-camera-present-button"
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
