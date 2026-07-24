@@ -7,6 +7,9 @@ const readSource = (path) => readFile(new URL(`../${path}`, import.meta.url), 'u
 test('workspace explorer uses an unlabeled compact registry-driven action bar', async () => {
   const source = await readSource('src/components/WorkspaceExplorer.tsx');
   assert.match(source, /getCreatableResourceTypeDefinitions/);
+  assert.match(source, /idea-slide-side-panel/);
+  assert.match(source, /idea-slide-side-panel__header/);
+  assert.match(source, /idea-slide-panel-icon-button/);
   assert.match(source, /aria-label="New resource"/);
   assert.match(source, /aria-label="New folder"/);
   assert.match(source, /aria-label="Collapse all"/);
@@ -17,6 +20,15 @@ test('workspace explorer uses an unlabeled compact registry-driven action bar', 
   assert.match(source, /onMove/);
   assert.match(source, /overflow-y-auto/);
   assert.doesNotMatch(source, /thumbnail/i);
+});
+
+test('workspace rows use the shared neutral and violet editor-shell states', async () => {
+  const source = await readSource('src/components/WorkspaceResourceRow.tsx');
+
+  assert.match(source, /idea-slide-resource-row/);
+  assert.match(source, /is-active/);
+  assert.match(source, /idea-slide-resource-icon/);
+  assert.doesNotMatch(source, /amber-/);
 });
 
 test('new resources enter inline rename and rows accept an external rename request', async () => {

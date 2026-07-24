@@ -119,11 +119,7 @@ export function WorkspaceResourceRow({
       onDrop={handleDrop}
       onKeyDown={handleKeyDown}
       onDoubleClick={() => canMutate && setIsRenaming(true)}
-      className={`group flex h-8 items-center gap-1 border-l-2 pr-1 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400 ${
-        isActive
-          ? "border-blue-500 bg-blue-50 text-blue-800"
-          : "border-transparent text-gray-700 hover:bg-gray-100"
-      }`}
+      className={`idea-slide-resource-row group ${isActive ? "is-active" : ""}`}
       style={{ paddingLeft: 6 + depth * 16 }}
     >
       <button
@@ -133,7 +129,7 @@ export function WorkspaceResourceRow({
           event.stopPropagation();
           if (resource.type === "folder") onToggleExpanded();
         }}
-        className={`flex h-5 w-5 items-center justify-center rounded text-[10px] text-gray-400 hover:bg-black/5 ${
+        className={`idea-slide-resource-chevron ${
           resource.type !== "folder" || !hasChildren ? "invisible" : ""
         }`}
       >
@@ -145,7 +141,7 @@ export function WorkspaceResourceRow({
         onClick={onSelect}
         className="flex min-w-0 flex-1 items-center gap-2 text-left"
       >
-        <span className={resource.type === "folder" ? "text-amber-500" : "text-gray-500"}>
+        <span className={`idea-slide-resource-icon ${resource.type === "folder" ? "is-folder" : ""}`}>
           <ResourceIcon type={resource.type} expanded={isExpanded} />
         </span>
         {isRenaming ? (
@@ -165,7 +161,7 @@ export function WorkspaceResourceRow({
             onClick={(event) => event.stopPropagation()}
           />
         ) : (
-          <span className="truncate">{resource.name}</span>
+          <span className="idea-slide-resource-name truncate">{resource.name}</span>
         )}
       </button>
 
@@ -178,7 +174,7 @@ export function WorkspaceResourceRow({
               event.stopPropagation();
               setIsRenaming(true);
             }}
-            className="rounded px-1 text-xs text-gray-400 hover:bg-white hover:text-gray-700"
+            className="idea-slide-row-action"
           >
             ✎
           </button>
@@ -189,7 +185,7 @@ export function WorkspaceResourceRow({
               event.stopPropagation();
               onDelete();
             }}
-            className="rounded px-1 text-sm text-gray-400 hover:bg-red-50 hover:text-red-600"
+            className="idea-slide-row-action is-danger"
           >
             ×
           </button>

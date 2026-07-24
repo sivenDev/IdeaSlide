@@ -7,7 +7,8 @@ test('side panel divider exposes vertical left and right collapse markers', asyn
   assert.match(source, /side: "left" \| "right"/);
   assert.match(source, /Hide workspace|Show workspace/);
   assert.match(source, /Hide cameras|Show cameras/);
-  assert.match(source, /w-px/);
+  assert.match(source, /idea-slide-resize-rail/);
+  assert.match(source, /idea-slide-resize-rail__toggle/);
 });
 
 test('divider supports optional pointer resizing without requiring it for the fixed Cameras side', async () => {
@@ -18,8 +19,27 @@ test('divider supports optional pointer resizing without requiring it for the fi
   assert.match(divider, /setPointerCapture/);
   assert.match(divider, /onPointerMove/);
   assert.match(divider, /cursor-col-resize/);
+  assert.match(divider, /role=\{canResize \? "separator" : undefined\}/);
+  assert.match(divider, /aria-orientation="vertical"/);
+  assert.match(divider, /aria-valuemin/);
+  assert.match(divider, /aria-valuemax/);
+  assert.match(divider, /aria-valuenow/);
+  assert.match(divider, /event\.key === "Home"/);
+  assert.match(divider, /event\.key === "End"/);
   assert.match(editor, /WORKSPACE_PANEL_DEFAULT_WIDTH/);
+  assert.match(editor, /WORKSPACE_PANEL_MIN_WIDTH/);
+  assert.match(editor, /WORKSPACE_PANEL_MAX_WIDTH/);
   assert.match(editor, /clampWorkspacePanelWidth/);
   assert.match(editor, /side="left"[\s\S]*onResize=/);
   assert.doesNotMatch(editor, /side="right"[\s\S]*onResize=/);
+});
+
+test('resize rail styling exposes a full-height interaction gutter and visible active state', async () => {
+  const source = await readFile(new URL('../src/index.css', import.meta.url), 'utf8');
+
+  assert.match(source, /\.idea-slide-resize-rail/);
+  assert.match(source, /width:\s*0\.5rem/);
+  assert.match(source, /\.idea-slide-resize-rail:hover/);
+  assert.match(source, /\.is-resizing/);
+  assert.match(source, /--idea-slide-accent/);
 });

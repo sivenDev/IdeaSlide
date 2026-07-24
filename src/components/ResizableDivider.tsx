@@ -1,10 +1,13 @@
-import { useState, type PointerEvent } from "react";
+import { useState, type KeyboardEvent, type PointerEvent } from "react";
 
 interface ResizableDividerProps {
   side: "left" | "right";
   isVisible: boolean;
   onToggle: () => void;
   size?: number;
+  minSize?: number;
+  maxSize?: number;
+  keyboardStep?: number;
   onResize?: (nextSize: number) => void;
   onResizeStart?: () => void;
   onResizeEnd?: () => void;
@@ -21,6 +24,9 @@ export function ResizableDivider({
   isVisible,
   onToggle,
   size = 0,
+  minSize = 0,
+  maxSize = Number.MAX_SAFE_INTEGER,
+  keyboardStep = 8,
   onResize,
   onResizeStart,
   onResizeEnd,
@@ -34,6 +40,7 @@ export function ResizableDivider({
   const arrow = isLeft
     ? isVisible ? "‹" : "›"
     : isVisible ? "›" : "‹";
+  const arrowPath = arrow === "‹" ? "m10 4-4 4 4 4" : "m6 4 4 4-4 4";
 
   const finishResize = (event: PointerEvent<HTMLDivElement>) => {
     if (!dragState || event.pointerId !== dragState.pointerId) return;
@@ -44,39 +51,67 @@ export function ResizableDivider({
     onResizeEnd?.();
   };
 
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!canResize || !onResize) return;
+    if (event.key === "Home") {
+      event.preventDefault();
+      onResize(minSize);
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      onResize(maxSize);
+      return;
+    }
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    const direction = event.key === "ArrowRight" ? 1 : -1;
+    const sideDirection = isLeft ? direction : -direction;
+    onResize(size + sideDirection * (event.shiftKey ? keyboardStep * 3 : keyboardStep));
+  };
+
   return (
-    <div className="relative z-20 h-full w-px flex-shrink-0 bg-gray-200">
-      <div
-        aria-hidden="true"
-        className={`absolute inset-y-0 left-1/2 z-10 w-3 -translate-x-1/2 ${canResize ? "cursor-col-resize" : ""}`}
-        onPointerDown={(event) => {
-          if (!canResize) return;
-          event.preventDefault();
-          event.currentTarget.setPointerCapture(event.pointerId);
-          setDragState({
-            pointerId: event.pointerId,
-            startClientX: event.clientX,
-            startSize: size,
-          });
-          onResizeStart?.();
-        }}
-        onPointerMove={(event) => {
-          if (!dragState || event.pointerId !== dragState.pointerId || !onResize) return;
-          const pointerDelta = event.clientX - dragState.startClientX;
-          onResize(dragState.startSize + (isLeft ? pointerDelta : -pointerDelta));
-        }}
-        onPointerUp={finishResize}
-        onPointerCancel={finishResize}
-      />
+    <div
+      role={canResize ? "separator" : undefined}
+      aria-label={canResize ? "Resize workspace panel" : undefined}
+      aria-orientation="vertical"
+      aria-valuemin={canResize ? minSize : undefined}
+      aria-valuemax={canResize ? maxSize : undefined}
+      aria-valuenow={canResize ? Math.round(size) : undefined}
+      tabIndex={canResize ? 0 : undefined}
+      className={`idea-slide-resize-rail ${canResize ? "cursor-col-resize" : ""} ${dragState ? "is-resizing" : ""}`}
+      onKeyDown={handleKeyDown}
+      onPointerDown={(event) => {
+        if (!canResize) return;
+        event.preventDefault();
+        event.currentTarget.setPointerCapture(event.pointerId);
+        setDragState({
+          pointerId: event.pointerId,
+          startClientX: event.clientX,
+          startSize: size,
+        });
+        onResizeStart?.();
+      }}
+      onPointerMove={(event) => {
+        if (!dragState || event.pointerId !== dragState.pointerId || !onResize) return;
+        const pointerDelta = event.clientX - dragState.startClientX;
+        onResize(dragState.startSize + (isLeft ? pointerDelta : -pointerDelta));
+      }}
+      onPointerUp={finishResize}
+      onPointerCancel={finishResize}
+    >
+      <span className="idea-slide-resize-rail__line" aria-hidden="true" />
       <button
         type="button"
         onPointerDown={(event) => event.stopPropagation()}
         onClick={onToggle}
         title={title}
         aria-label={title}
-        className="absolute left-1/2 top-1/2 z-20 flex h-12 w-4 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-gray-300 bg-white text-sm font-semibold text-gray-500 shadow-sm hover:border-gray-400 hover:bg-gray-50 hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+        className="idea-slide-resize-rail__toggle"
       >
-        {arrow}
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+          <path d={arrowPath} />
+        </svg>
       </button>
     </div>
   );

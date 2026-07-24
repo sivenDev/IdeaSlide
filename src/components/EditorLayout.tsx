@@ -17,6 +17,8 @@ import {
 import { extractCameras, reorderCameras, type Camera } from "../lib/cameraUtils";
 import {
   WORKSPACE_PANEL_DEFAULT_WIDTH,
+  WORKSPACE_PANEL_MAX_WIDTH,
+  WORKSPACE_PANEL_MIN_WIDTH,
   clampWorkspacePanelWidth,
 } from "../lib/panelSizing";
 import type { WorkspaceDocument } from "../types";
@@ -313,7 +315,7 @@ export function EditorLayout({ onGoHome, readOnly = false, editorRefreshToken }:
   );
 
   return (
-    <div className="flex h-screen flex-col bg-[#f7f7f8]">
+    <div className="idea-slide-editor-shell flex h-screen flex-col">
       <Toolbar
         fileName={fileName}
         isDirty={effectiveIsDirty}
@@ -353,6 +355,8 @@ export function EditorLayout({ onGoHome, readOnly = false, editorRefreshToken }:
           side="left"
           isVisible={showWorkspace}
           size={workspacePanelWidth}
+          minSize={WORKSPACE_PANEL_MIN_WIDTH}
+          maxSize={WORKSPACE_PANEL_MAX_WIDTH}
           onResize={(nextWidth) => setWorkspacePanelWidth(clampWorkspacePanelWidth(nextWidth))}
           onResizeStart={() => setIsResizingWorkspace(true)}
           onResizeEnd={() => setIsResizingWorkspace(false)}
@@ -378,8 +382,8 @@ export function EditorLayout({ onGoHome, readOnly = false, editorRefreshToken }:
         </main>
 
         <ResizableDivider side="right" isVisible={showCameras} onToggle={() => setShowCameras((visible) => !visible)} />
-        <div className={`h-full flex-shrink-0 overflow-hidden transition-[width] duration-200 ${showCameras ? "w-[230px]" : "w-0"}`}>
-          <div className="h-full w-[230px]">
+        <div className={`h-full flex-shrink-0 overflow-hidden transition-[width] duration-200 ${showCameras ? "w-[244px]" : "w-0"}`}>
+          <div className="h-full w-[244px]">
             <CameraList
               cameras={cameras}
               activeCameraId={activeCameraId}

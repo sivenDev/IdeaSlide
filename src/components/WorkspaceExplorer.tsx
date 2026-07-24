@@ -21,7 +21,7 @@ interface WorkspaceExplorerProps {
 }
 
 const actionClassName =
-  "inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-500 outline-none transition-colors hover:bg-gray-200 hover:text-gray-800 focus-visible:ring-2 focus-visible:ring-blue-300 disabled:pointer-events-none disabled:opacity-40";
+  "idea-slide-panel-icon-button";
 
 export function WorkspaceExplorer({
   resources,
@@ -110,9 +110,9 @@ export function WorkspaceExplorer({
     });
 
   return (
-    <aside className="flex h-full min-w-0 flex-col bg-[#fbfbfc]" aria-label="Workspace explorer">
+    <aside className="idea-slide-side-panel flex h-full min-w-0 flex-col" aria-label="Workspace explorer">
       <div
-        className="flex h-10 items-center gap-0.5 border-b border-gray-200 px-2"
+        className="idea-slide-side-panel__header flex items-center gap-0.5 px-2"
         aria-label="Workspace actions"
       >
         {!readOnly && (
@@ -170,7 +170,7 @@ export function WorkspaceExplorer({
         </button>
       </div>
 
-      <div role="tree" className="min-h-0 flex-1 overflow-y-auto py-2">
+      <div role="tree" className="idea-slide-side-panel__scroll min-h-0 flex-1 overflow-y-auto py-2">
         {renderChildren(null, 0)}
       </div>
     </aside>

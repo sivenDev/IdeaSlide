@@ -7,12 +7,26 @@ const readSource = (path) => readFile(new URL(`../${path}`, import.meta.url), 'u
 test('Canvas presentation controls expose Cameras count and camera-gated Preview and Fullscreen actions', async () => {
   const source = await readSource('src/components/CanvasPresentationControls.tsx');
 
-  assert.match(source, /Cameras \{cameraCount\}/);
+  assert.match(source, /Button as ExcalidrawButton/);
+  assert.match(source, /idea-slide-canvas-controls/);
+  assert.match(source, /idea-slide-canvas-control__label/);
+  assert.match(source, /idea-slide-canvas-control__count/);
   assert.match(source, /aria-pressed=\{isCameraListOpen\}/);
   assert.match(source, /disabled=\{!hasCameras\}/);
   assert.match(source, /onStartPreview/);
   assert.match(source, /onStartFullscreen/);
+  assert.doesNotMatch(source, /controlClassName/);
   assert.doesNotMatch(source, /From Beginning/);
+});
+
+test('Canvas presentation controls have scoped no-wrap and legible disabled styling', async () => {
+  const source = await readSource('src/index.css');
+
+  assert.match(source, /\.idea-slide-canvas-controls/);
+  assert.match(source, /white-space:\s*nowrap/);
+  assert.match(source, /\.idea-slide-canvas-control:disabled/);
+  assert.match(source, /opacity:\s*1/);
+  assert.match(source, /@media \(max-width:\s*1400px\)/);
 });
 
 test('SlideCanvas renders contextual controls and consumes each Add Camera request token once', async () => {

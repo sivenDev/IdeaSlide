@@ -44,3 +44,6 @@ Thumbs.db
 # Local git worktrees
 .worktrees/
 .claude/worktrees/
+
+# Disposable local prototypes and experiments
+.temp/

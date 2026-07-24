@@ -24,47 +24,49 @@ export function CameraList({
   }, [cameras, onReorder]);
 
   return (
-    <aside className="flex h-full min-w-0 flex-col bg-[#fbfbfc]" aria-label="Cameras">
-      <div className="flex h-11 items-center border-b border-gray-200 px-3">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Cameras</div>
-        <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">{cameras.length}</span>
+    <aside className="idea-slide-side-panel flex h-full min-w-0 flex-col" aria-label="Cameras">
+      <div className="idea-slide-side-panel__header flex items-center px-3">
+        <div className="idea-slide-side-panel__title">Cameras</div>
+        <span className="idea-slide-panel-count">{cameras.length}</span>
         <button
           type="button"
           aria-label="Add camera"
           disabled={!onAddCamera}
           onClick={onAddCamera}
-          className="ml-auto inline-flex h-7 items-center gap-1 rounded-md border border-gray-200 bg-white px-2 text-xs font-medium text-gray-600 shadow-sm hover:border-gray-300 hover:text-gray-900 disabled:pointer-events-none disabled:opacity-40"
+          className="idea-slide-panel-add-button"
         >
-          <span aria-hidden="true">＋</span>
-          Add Camera
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+            <path d="M8 3v10M3 8h10" />
+          </svg>
+          Add
         </button>
       </div>
 
       {cameras.length === 0 ? (
-        <div className="flex min-h-0 flex-1 items-center justify-center px-5 text-center">
-          <div>
-            <div className="mx-auto mb-3 flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-400">⌗</div>
-            <p className="text-sm font-medium text-gray-600">No cameras yet</p>
-            <p className="mt-1 text-xs leading-5 text-gray-400">Add camera frames on this Canvas to build a presentation sequence.</p>
+        <div className="idea-slide-camera-empty min-h-0 flex-1">
+          <div className="idea-slide-camera-empty__frame" aria-hidden="true">
+            <span />
           </div>
+          <p className="idea-slide-camera-empty__title">No cameras yet</p>
+          <p className="idea-slide-camera-empty__copy">Add a camera frame to turn this Canvas into a focused sequence.</p>
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto p-2">
+        <div className="idea-slide-side-panel__scroll min-h-0 flex-1 overflow-y-auto p-2">
           {cameras.map((camera, index) => {
             const active = camera.id === activeCameraId;
             return (
               <div
                 key={camera.id}
-                className={`group mb-1 flex h-10 items-center rounded-md border px-1.5 ${active ? "border-amber-300 bg-amber-50" : "border-transparent hover:border-gray-200 hover:bg-white"}`}
+                className={`idea-slide-camera-row group ${active ? "is-active" : ""}`}
               >
                 <button type="button" onClick={() => onCameraSelect(camera)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
-                  <span className={`flex h-6 w-6 items-center justify-center rounded text-xs font-semibold ${active ? "bg-amber-500 text-white" : "bg-gray-100 text-gray-500"}`}>{camera.order}</span>
-                  <span className="truncate text-sm font-medium text-gray-700">Camera {camera.order}</span>
+                  <span className="idea-slide-camera-row__number">{camera.order}</span>
+                  <span className="idea-slide-camera-row__name truncate">Camera {camera.order}</span>
                 </button>
                 <div className="hidden items-center group-hover:flex group-focus-within:flex">
-                  <button type="button" aria-label={`Move up camera ${camera.order}`} disabled={index === 0} onClick={() => handleMove(index, -1)} className="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30">↑</button>
-                  <button type="button" aria-label={`Move down camera ${camera.order}`} disabled={index === cameras.length - 1} onClick={() => handleMove(index, 1)} className="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30">↓</button>
-                  <button type="button" aria-label={`Delete camera ${camera.order}`} onClick={() => onCameraDelete(camera.id)} className="rounded px-1 text-gray-400 hover:bg-red-50 hover:text-red-600">×</button>
+                  <button type="button" aria-label={`Move up camera ${camera.order}`} disabled={index === 0} onClick={() => handleMove(index, -1)} className="idea-slide-row-action disabled:opacity-30">↑</button>
+                  <button type="button" aria-label={`Move down camera ${camera.order}`} disabled={index === cameras.length - 1} onClick={() => handleMove(index, 1)} className="idea-slide-row-action disabled:opacity-30">↓</button>
+                  <button type="button" aria-label={`Delete camera ${camera.order}`} onClick={() => onCameraDelete(camera.id)} className="idea-slide-row-action is-danger">×</button>
                 </div>
               </div>
             );

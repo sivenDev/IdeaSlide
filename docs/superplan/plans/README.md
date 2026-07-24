@@ -6,7 +6,7 @@
 
 | Type | Plans | Complete |
 | --- | --- | --- |
-| `feature` | 3 | 3 |
+| `feature` | 4 | 4 |
 | `bugfix` | 4 | 4 |
 
 ## Plan Groups
@@ -18,6 +18,7 @@
 | `F001` | [Enable Excalidraw Image Export](features/F001-enable-excalidraw-image-export.md) | `complete` | 2026-07-22 |
 | `F002` | [Build an Extensible Workspace Resource Explorer](features/F002-workspace-resource-explorer.md) | `complete` | 2026-07-22 |
 | `F003` | [Contextualize Canvas Presentation Controls](features/F003-canvas-presentation-controls.md) | `complete` | 2026-07-23 |
+| `F004` | [Refine the Editor Shell and Canvas Controls](features/F004-refine-editor-shell.md) | `complete` | 2026-07-24 |
 
 ### Bugfix Plans
 

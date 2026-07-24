@@ -42,3 +42,10 @@ Treat each `.is` file as an IdeaSlide workspace rather than a traditional slide 
 - created: 2026-07-23
 
 将 Cameras 和 Present 从全局工具栏移动到当前 Excalidraw 画布右上角。Cameras 按钮负责打开或收起当前 Canvas 的镜头列表；CameraList 标题栏提供 Add Camera，替代画布中现有同名 Camera 绘制按钮。Present 仅播放当前 Canvas 中按顺序排列的 Cameras，不跨 Canvas；没有 Camera 时禁用。左侧 Workspace 文件列表默认宽度缩小，并可拖动调整，必须限制最小和最大宽度，同时保留分割线上的收起/展开按钮。文件列表顶部不显示 WORKSPACE 标题，也不重复显示窗口工具栏已有的 `.is` 文件名，而是直接使用紧凑操作栏加资源树。操作栏提供 New resource 下拉框（从可创建资源类型注册表生成，当前只有 Canvas）、独立 New folder 和 Collapse all；选中目录时创建在目录内，选中文件时创建为同级资源，新建后立即进入重命名。
+
+## F004: Refine the editor shell and canvas controls
+
+- status: done
+- created: 2026-07-24
+
+Fix the broken Excalidraw top-right Cameras and Present controls so labels never wrap or disappear and disabled state remains legible. Improve the left Workspace-to-canvas divider with an obvious resize cursor, visible hover/drag feedback, bounded resizing, and accessible separator semantics while retaining collapse/restore. Redesign the Workspace and Cameras sidebars as one modern, restrained visual system without thumbnails. First build an interactive HTML prototype in a new .temp subdirectory, visually review it, and only migrate the approved design into the Tauri frontend.
