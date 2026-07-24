@@ -10,6 +10,14 @@ test('camera sidebar is a text-only vertical list', async () => {
   assert.match(source, /idea-slide-camera-empty/);
   assert.match(source, /aria-label="Add camera"/);
   assert.match(source, /onAddCamera/);
+  assert.match(source, /idea-slide-camera-header-actions/);
+  assert.match(source, /idea-slide-camera-present-button/);
+  assert.match(source, /disabled=\{cameras\.length === 0\}/);
+  assert.match(source, /onStartPreview/);
+  assert.match(source, /onStartFullscreen/);
+  assert.match(source, />Preview</);
+  assert.match(source, />Fullscreen</);
+  assert.doesNotMatch(source, />\s*Add\s*</);
   assert.match(source, /Camera \{camera\.order\}/);
   assert.match(source, /overflow-y-auto/);
   assert.doesNotMatch(source, /CameraThumbnail/);

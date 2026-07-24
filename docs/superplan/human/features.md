@@ -49,3 +49,10 @@ Treat each `.is` file as an IdeaSlide workspace rather than a traditional slide 
 - created: 2026-07-24
 
 Fix the broken Excalidraw top-right Cameras and Present controls so labels never wrap or disappear and disabled state remains legible. Improve the left Workspace-to-canvas divider with an obvious resize cursor, visible hover/drag feedback, bounded resizing, and accessible separator semantics while retaining collapse/restore. Redesign the Workspace and Cameras sidebars as one modern, restrained visual system without thumbnails. First build an interactive HTML prototype in a new .temp subdirectory, visually review it, and only migrate the approved design into the Tauri frontend.
+
+## F005: Align Workspace actions and Camera presentation header
+
+- status: done
+- created: 2026-07-24
+
+Implement the approved Revision B editor-shell prototype in the Tauri frontend. Match the Workspace header to the reference action sequence: New resource, New folder, a visual separator, Collapse all, and More. Keep the More action intentionally non-destructive and reserved for future workspace commands. Remove Present from the Excalidraw top-right group so it contains only the Cameras toggle and count. Move the disabled-aware Present Preview/Fullscreen dropdown into the Cameras sidebar header beside a compact Add Camera action. Present remains disabled when the current Canvas has no Cameras and continues to present only that Canvas. Preserve the existing neutral/violet visual system, text-only lists, resource behavior, camera behavior, panel resizing, and persistence.

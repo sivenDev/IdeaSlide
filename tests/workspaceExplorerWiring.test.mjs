@@ -13,7 +13,15 @@ test('workspace explorer uses an unlabeled compact registry-driven action bar', 
   assert.match(source, /aria-label="New resource"/);
   assert.match(source, /aria-label="New folder"/);
   assert.match(source, /aria-label="Collapse all"/);
+  assert.match(source, /idea-slide-panel-action-separator/);
+  assert.match(source, /aria-label="More workspace actions"/);
+  assert.match(source, />Expand all</);
   assert.match(source, /setExpandedIds\(new Set\(\)\)/);
+  assert.match(source, /resources\.filter\(\(resource\) => resource\.type === "folder"\)/);
+  assert.ok(source.indexOf('aria-label="New resource"') < source.indexOf('aria-label="New folder"'));
+  assert.ok(source.indexOf('aria-label="New folder"') < source.indexOf('idea-slide-panel-action-separator'));
+  assert.ok(source.indexOf('idea-slide-panel-action-separator') < source.indexOf('aria-label="Collapse all"'));
+  assert.ok(source.indexOf('aria-label="Collapse all"') < source.indexOf('aria-label="More workspace actions"'));
   assert.doesNotMatch(source, />Workspace</);
   assert.doesNotMatch(source, /Folder and Canvas/);
   assert.match(source, /onRename/);

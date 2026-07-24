@@ -70,10 +70,18 @@ html, body, #root {
 
 .idea-slide-panel-icon-button:focus-visible,
 .idea-slide-panel-add-button:focus-visible,
+.idea-slide-camera-present-button:focus-visible,
 .idea-slide-resource-row:focus-visible,
 .idea-slide-row-action:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--idea-slide-accent) 55%, transparent);
   outline-offset: -1px;
+}
+
+.idea-slide-panel-action-separator {
+  width: 1px;
+  height: 1.0625rem;
+  margin: 0 0.1875rem;
+  background: var(--idea-slide-boundary);
 }
 
 .idea-slide-panel-count {
@@ -92,18 +100,16 @@ html, body, #root {
 
 .idea-slide-panel-add-button {
   display: inline-flex;
+  width: 1.8125rem;
   height: 1.8125rem;
   align-items: center;
-  gap: 0.3125rem;
-  margin-left: auto;
+  justify-content: center;
   border: 1px solid var(--idea-slide-boundary);
   border-radius: 0.5rem;
   color: #535966;
   background: var(--idea-slide-surface);
   box-shadow: 0 1px 2px rgb(32 36 44 / 4%);
-  font-size: 0.6875rem;
-  font-weight: 620;
-  padding: 0 0.5625rem;
+  padding: 0;
   transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
 }
 
@@ -121,6 +127,55 @@ html, body, #root {
 .idea-slide-panel-add-button svg {
   width: 0.8125rem;
   height: 0.8125rem;
+}
+
+.idea-slide-camera-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.3125rem;
+  margin-left: auto;
+}
+
+.idea-slide-camera-present-button {
+  display: inline-flex;
+  height: 1.8125rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3125rem;
+  border: 1px solid var(--idea-slide-accent);
+  border-radius: 0.5rem;
+  color: #fff;
+  background: var(--idea-slide-accent);
+  cursor: pointer;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  line-height: 1;
+  padding: 0 0.5rem;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+
+.idea-slide-camera-present-button:hover:not(:disabled) {
+  border-color: var(--idea-slide-accent-hover);
+  background: var(--idea-slide-accent-hover);
+}
+
+.idea-slide-camera-present-button:disabled {
+  border-color: var(--idea-slide-boundary);
+  color: #a3a7b0;
+  background: #f1f2f5;
+  cursor: not-allowed;
+}
+
+.idea-slide-camera-present-button > svg:first-child {
+  width: 0.8125rem;
+  height: 0.8125rem;
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+.idea-slide-camera-present-button__chevron {
+  width: 0.625rem;
+  height: 0.625rem;
 }
 
 .idea-slide-resource-row {
@@ -429,16 +484,6 @@ html, body, #root {
   flex: 0 0 0.9375rem;
 }
 
-.excalidraw .idea-slide-canvas-control--present > svg:first-child path {
-  fill: currentColor;
-}
-
-.excalidraw .idea-slide-canvas-control__chevron {
-  width: 0.6875rem !important;
-  height: 0.6875rem !important;
-  flex-basis: 0.6875rem !important;
-}
-
 .excalidraw .idea-slide-canvas-control__count {
   display: inline-grid;
   min-width: 1.1875rem;
@@ -450,20 +495,6 @@ html, body, #root {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.625rem;
   font-weight: 650;
-}
-
-.excalidraw .idea-slide-canvas-controls__divider {
-  width: 1px;
-  height: 1.375rem;
-  margin: 0 0.125rem;
-  background: var(--default-border-color);
-}
-
-.excalidraw .idea-slide-canvas-control:disabled {
-  color: var(--color-disabled);
-  background: var(--color-muted-background);
-  cursor: not-allowed;
-  opacity: 1;
 }
 
 @media (max-width: 1400px) {

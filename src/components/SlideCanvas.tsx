@@ -68,8 +68,6 @@ interface SlideCanvasProps {
   cameraCount?: number;
   isCameraListOpen?: boolean;
   onToggleCameras?: () => void;
-  onStartPreview?: () => void;
-  onStartFullscreen?: () => void;
   cameraDrawingRequestToken?: number;
 }
 
@@ -95,8 +93,6 @@ function SlideCanvasInner({
   cameraCount = 0,
   isCameraListOpen = false,
   onToggleCameras,
-  onStartPreview,
-  onStartFullscreen,
   cameraDrawingRequestToken = 0,
 }: SlideCanvasProps) {
   // Use a ref to always have the latest onChange without causing re-renders
@@ -435,27 +431,18 @@ function SlideCanvasInner({
 
   // Render custom UI in top-right corner
   const renderTopRightUI = useCallback(() => {
-    if (
-      viewMode ||
-      !onToggleCameras ||
-      !onStartPreview ||
-      !onStartFullscreen
-    ) return null;
+    if (viewMode || !onToggleCameras) return null;
 
     return (
       <CanvasPresentationControls
         cameraCount={cameraCount}
         isCameraListOpen={isCameraListOpen}
         onToggleCameras={onToggleCameras}
-        onStartPreview={onStartPreview}
-        onStartFullscreen={onStartFullscreen}
       />
     );
   }, [
     cameraCount,
     isCameraListOpen,
-    onStartFullscreen,
-    onStartPreview,
     onToggleCameras,
     viewMode,
   ]);

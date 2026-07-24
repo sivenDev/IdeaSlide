@@ -374,8 +374,6 @@ export function EditorLayout({ onGoHome, readOnly = false, editorRefreshToken }:
               cameraCount={cameras.length}
               isCameraListOpen={showCameras}
               onToggleCameras={handleToggleCameras}
-              onStartPreview={handleStartPreview}
-              onStartFullscreen={handleStartFullscreen}
               cameraDrawingRequestToken={cameraDrawingRequestToken}
             />
           </div>
@@ -391,6 +389,8 @@ export function EditorLayout({ onGoHome, readOnly = false, editorRefreshToken }:
               onCameraDelete={handleDeleteCamera}
               onReorder={handleReorderCameras}
               onAddCamera={readOnly ? undefined : handleRequestCameraDrawing}
+              onStartPreview={handleStartPreview}
+              onStartFullscreen={handleStartFullscreen}
             />
           </div>
         </div>

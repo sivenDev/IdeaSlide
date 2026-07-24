@@ -12,8 +12,6 @@ interface ResourceEditorHostProps {
   cameraCount: number;
   isCameraListOpen: boolean;
   onToggleCameras: () => void;
-  onStartPreview: () => void;
-  onStartFullscreen: () => void;
   cameraDrawingRequestToken: number;
 }
 
@@ -26,8 +24,6 @@ export function ResourceEditorHost({
   cameraCount,
   isCameraListOpen,
   onToggleCameras,
-  onStartPreview,
-  onStartFullscreen,
   cameraDrawingRequestToken,
 }: ResourceEditorHostProps) {
   const definition = getResourceTypeDefinition(resource.type);
@@ -45,8 +41,6 @@ export function ResourceEditorHost({
           cameraCount={cameraCount}
           isCameraListOpen={isCameraListOpen}
           onToggleCameras={onToggleCameras}
-          onStartPreview={onStartPreview}
-          onStartFullscreen={onStartFullscreen}
           cameraDrawingRequestToken={cameraDrawingRequestToken}
         />
       </ErrorBoundary>

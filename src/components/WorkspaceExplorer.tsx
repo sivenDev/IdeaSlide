@@ -76,6 +76,12 @@ export function WorkspaceExplorer({
     }
   };
 
+  const expandAll = () => {
+    setExpandedIds(new Set(
+      resources.filter((resource) => resource.type === "folder").map((resource) => resource.id),
+    ));
+  };
+
   const renderChildren = (parentId: string | null, depth: number): React.ReactNode =>
     (childrenByParent.get(parentId) ?? []).map((resource) => {
       const children = childrenByParent.get(resource.id) ?? [];
@@ -154,6 +160,8 @@ export function WorkspaceExplorer({
                 <path d="M9 14h6M12 11v6" />
               </svg>
             </button>
+
+            <span className="idea-slide-panel-action-separator" aria-hidden="true" />
           </>
         )}
 
@@ -162,12 +170,32 @@ export function WorkspaceExplorer({
           aria-label="Collapse all"
           title="Collapse all"
           onClick={() => setExpandedIds(new Set())}
-          className={`${actionClassName} ml-auto`}
+          className={actionClassName}
         >
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
             <path d="m7 9 5-5 5 5M7 15l5 5 5-5" />
           </svg>
         </button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label="More workspace actions"
+              title="More"
+              className={`${actionClassName} ml-auto`}
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" stroke="none" aria-hidden="true">
+                <circle cx="5" cy="12" r="1.4" />
+                <circle cx="12" cy="12" r="1.4" />
+                <circle cx="19" cy="12" r="1.4" />
+              </svg>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-36">
+            <DropdownMenuItem onSelect={expandAll}>Expand all</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div role="tree" className="idea-slide-side-panel__scroll min-h-0 flex-1 overflow-y-auto py-2">

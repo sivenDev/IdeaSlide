@@ -10,8 +10,6 @@ interface SlideCanvasComparableProps {
   cameraCount?: number;
   isCameraListOpen?: boolean;
   onToggleCameras?: unknown;
-  onStartPreview?: unknown;
-  onStartFullscreen?: unknown;
   cameraDrawingRequestToken?: number;
 }
 
@@ -31,8 +29,6 @@ export function areSlideCanvasPropsEqual(
     previousProps.cameraCount === nextProps.cameraCount &&
     previousProps.isCameraListOpen === nextProps.isCameraListOpen &&
     previousProps.onToggleCameras === nextProps.onToggleCameras &&
-    previousProps.onStartPreview === nextProps.onStartPreview &&
-    previousProps.onStartFullscreen === nextProps.onStartFullscreen &&
     previousProps.cameraDrawingRequestToken === nextProps.cameraDrawingRequestToken
   );
 }

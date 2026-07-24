@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const readSource = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('Canvas presentation controls expose Cameras count and camera-gated Preview and Fullscreen actions', async () => {
+test('Canvas presentation controls expose only the Cameras toggle and count', async () => {
   const source = await readSource('src/components/CanvasPresentationControls.tsx');
 
   assert.match(source, /Button as ExcalidrawButton/);
@@ -12,21 +12,21 @@ test('Canvas presentation controls expose Cameras count and camera-gated Preview
   assert.match(source, /idea-slide-canvas-control__label/);
   assert.match(source, /idea-slide-canvas-control__count/);
   assert.match(source, /aria-pressed=\{isCameraListOpen\}/);
-  assert.match(source, /disabled=\{!hasCameras\}/);
-  assert.match(source, /onStartPreview/);
-  assert.match(source, /onStartFullscreen/);
+  assert.doesNotMatch(source, /DropdownMenu/);
+  assert.doesNotMatch(source, /aria-label="Present"/);
+  assert.doesNotMatch(source, /onStartPreview/);
+  assert.doesNotMatch(source, /onStartFullscreen/);
   assert.doesNotMatch(source, /controlClassName/);
-  assert.doesNotMatch(source, /From Beginning/);
 });
 
-test('Canvas presentation controls have scoped no-wrap and legible disabled styling', async () => {
+test('Canvas presentation controls keep scoped no-wrap responsive styling without obsolete Present rules', async () => {
   const source = await readSource('src/index.css');
 
   assert.match(source, /\.idea-slide-canvas-controls/);
   assert.match(source, /white-space:\s*nowrap/);
-  assert.match(source, /\.idea-slide-canvas-control:disabled/);
-  assert.match(source, /opacity:\s*1/);
   assert.match(source, /@media \(max-width:\s*1400px\)/);
+  assert.doesNotMatch(source, /idea-slide-canvas-controls__divider/);
+  assert.doesNotMatch(source, /idea-slide-canvas-control--present/);
 });
 
 test('SlideCanvas renders contextual controls and consumes each Add Camera request token once', async () => {
@@ -37,6 +37,8 @@ test('SlideCanvas renders contextual controls and consumes each Add Camera reque
   assert.match(source, /lastCameraDrawingRequestTokenRef/);
   assert.match(source, /startCameraDrawing\(\)/);
   assert.match(source, /<CanvasPresentationControls/);
+  assert.doesNotMatch(source, /onStartPreview=\{onStartPreview\}/);
+  assert.doesNotMatch(source, /onStartFullscreen=\{onStartFullscreen\}/);
   assert.doesNotMatch(source, /Draw a camera rectangle/);
   assert.doesNotMatch(source, /Drawing\.\.\./);
 });
