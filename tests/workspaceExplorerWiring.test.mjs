@@ -33,9 +33,12 @@ test('Workspace rows keep Symlinks non-recursive and unsupported files safe', as
 
 test('Editor shell preserves bounded resize and shows Explorer only for Workspace sessions', async () => {
   const source = await readSource('src/components/EditorLayout.tsx');
+  const explorer = await readSource('src/components/WorkspaceExplorer.tsx');
   assert.match(source, /state\.workspace &&/);
   assert.match(source, /WORKSPACE_PANEL_MIN_WIDTH/);
   assert.match(source, /WORKSPACE_PANEL_MAX_WIDTH/);
   assert.match(source, /clampWorkspacePanelWidth/);
   assert.match(source, /<ResizableDivider/);
+  assert.match(source, /WorkspaceStatusNotice/);
+  assert.match(explorer, /projectVisibleWorkspaceRows/);
 });

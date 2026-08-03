@@ -31,6 +31,7 @@ rmcp = { version = "1.2", features = ["server", "transport-io", "macros"] }
 uuid = { version = "1", features = ["v4"] }
 tokio = { version = "1", features = ["rt", "macros"] }
 trash = "5"
+notify = "8"
 
 [dev-dependencies]
 tempfile = "3"

@@ -3,8 +3,45 @@ use crate::workspace::{
     WorkspaceEntry, WorkspaceMutationResult, WorkspaceOpenResult, WorkspaceSaveResult,
     WorkspaceService, WorkspaceState,
 };
+use crate::workspace_watcher::WorkspaceWatcherState;
+use chrono::{DateTime, Utc};
+use serde::Serialize;
 use std::path::PathBuf;
 use tauri::command;
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileInspection {
+    exists: bool,
+    modified: Option<String>,
+    read_only: bool,
+    size: Option<u64>,
+}
+
+fn inspect_path(path: &std::path::Path) -> Result<FileInspection, String> {
+    let metadata = match std::fs::metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(FileInspection {
+                exists: false,
+                modified: None,
+                read_only: false,
+                size: None,
+            });
+        }
+        Err(error) => return Err(format!("Failed to inspect file: {error}")),
+    };
+    let modified = metadata
+        .modified()
+        .ok()
+        .map(|value| DateTime::<Utc>::from(value).to_rfc3339());
+    Ok(FileInspection {
+        exists: true,
+        modified,
+        read_only: metadata.permissions().readonly(),
+        size: Some(metadata.len()),
+    })
+}
 
 #[command]
 pub fn create_file(path: String) -> Result<DocumentFileData, String> {
@@ -36,6 +73,11 @@ pub fn save_file(path: String, data: DocumentFileData) -> Result<(), String> {
 #[command]
 pub fn write_file_bytes(path: String, data: Vec<u8>) -> Result<(), String> {
     std::fs::write(&path, &data).map_err(|e| format!("Failed to write file: {e}"))
+}
+
+#[command]
+pub fn inspect_file(path: String) -> Result<FileInspection, String> {
+    inspect_path(PathBuf::from(path).as_path())
 }
 
 #[command]
@@ -116,7 +158,9 @@ pub fn save_workspace_document(
     root: String,
     path: String,
     data: DocumentFileData,
+    watcher: tauri::State<'_, WorkspaceWatcherState>,
 ) -> Result<WorkspaceSaveResult, String> {
+    watcher.register_expected_write(PathBuf::from(&root).as_path(), &path);
     WorkspaceService::open(PathBuf::from(root).as_path())?.save_document(&path, &data)
 }
 

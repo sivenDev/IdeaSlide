@@ -17,6 +17,25 @@ export function flattenWorkspaceEntries(entries: WorkspaceEntry[]): WorkspaceEnt
   return flattened;
 }
 
+export interface WorkspaceVisibleRow {
+  entry: WorkspaceEntry;
+  depth: number;
+}
+
+export function projectVisibleWorkspaceRows(
+  entries: WorkspaceEntry[],
+  expandedPaths: Iterable<string>,
+): WorkspaceVisibleRow[] {
+  const expanded = expandedPaths instanceof Set ? expandedPaths : new Set(expandedPaths);
+  const rows: WorkspaceVisibleRow[] = [];
+  const visit = (items: WorkspaceEntry[], depth: number) => items.forEach((entry) => {
+    rows.push({ entry, depth });
+    if (entry.kind === "directory" && expanded.has(entry.path)) visit(entry.children, depth + 1);
+  });
+  visit(entries, 0);
+  return rows;
+}
+
 export function findWorkspaceEntry(
   entries: WorkspaceEntry[],
   path: string,

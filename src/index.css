@@ -382,6 +382,54 @@ html, body, #root {
   padding: 0.4375rem 0.75rem;
 }
 
+.ideanote-external-notice,
+.ideanote-recovery-prompt,
+.ideanote-workspace-notice {
+  position: relative;
+  z-index: 25;
+  display: flex;
+  min-height: 3rem;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 1rem;
+  border-bottom: 1px solid #e8d9aa;
+  color: #5f4b1b;
+  background: #fffaf0;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.6875rem;
+}
+.ideanote-external-notice.is-conflict,
+.ideanote-external-notice.is-missing,
+.ideanote-external-notice.is-root-missing,
+.ideanote-workspace-notice.is-error { border-color: #f0c6c6; color: #7c2d2d; background: #fff6f6; }
+.ideanote-external-notice strong,
+.ideanote-recovery-prompt strong,
+.ideanote-workspace-notice strong { display: block; color: inherit; font-size: 0.75rem; }
+.ideanote-external-notice span,
+.ideanote-recovery-prompt span,
+.ideanote-workspace-notice span { display: block; margin-top: 0.125rem; color: color-mix(in srgb, currentColor 76%, transparent); }
+.ideanote-external-notice__actions,
+.ideanote-recovery-prompt > div:last-child { display: flex; flex: 0 0 auto; align-items: center; gap: 0.375rem; }
+.ideanote-external-notice button,
+.ideanote-recovery-prompt button,
+.ideanote-workspace-notice button {
+  height: 1.75rem;
+  border: 1px solid rgb(0 0 0 / 10%);
+  border-radius: 0.4375rem;
+  color: #454b55;
+  background: rgb(255 255 255 / 85%);
+  padding: 0 0.625rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+.ideanote-external-notice button:hover,
+.ideanote-recovery-prompt button:hover,
+.ideanote-workspace-notice button:hover { background: white; box-shadow: 0 1px 2px rgb(0 0 0 / 7%); }
+.ideanote-recovery-prompt { border-color: #cfcdf7; color: #45418a; background: #f7f6ff; }
+.ideanote-recovery-prompt > div:first-child { min-width: 0; flex: 1; }
+.ideanote-recovery-prompt button.is-primary { border-color: var(--idea-slide-accent); color: white; background: var(--idea-slide-accent); }
+.ideanote-workspace-notice > div:first-child { min-width: 0; flex: 1; }
+
 .idea-slide-side-panel__title {
   color: var(--idea-slide-text);
   font-size: 0.8125rem;

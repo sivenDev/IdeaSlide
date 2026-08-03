@@ -20,6 +20,9 @@ interface DocumentTabsProps {
 
 function statusLabel(document: DocumentSession): string | undefined {
   if (document.status === "missing") return "Missing";
+  if (document.status === "root-missing") return "Workspace missing";
+  if (document.status === "external-change") return "Changed";
+  if (document.status === "conflict") return "Conflict";
   if (document.status === "legacy-protected") return "Protected";
   if (document.status === "read-only") return "Read only";
   if (document.status === "error" || document.status === "invalid") return "Error";

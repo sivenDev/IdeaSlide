@@ -27,6 +27,7 @@ interface IdeaSketchEditorProps {
   onRegisterSnapshot: (sessionId: string, provider?: () => IdeaSketchDocument) => void;
   onAutoSave: (sessionId: string, model: DocumentModel) => Promise<void>;
   onAutoSaveComplete: (sessionId: string) => void;
+  onWriteRecovery: (sessionId: string, model: IdeaSketchDocument) => Promise<void>;
   onStartPresentation: (sessionId: string, page: IdeaSketchPage, mode: "preview" | "fullscreen") => void;
 }
 
@@ -40,6 +41,7 @@ export function IdeaSketchEditor({
   onRegisterSnapshot,
   onAutoSave,
   onAutoSaveComplete,
+  onWriteRecovery,
   onStartPresentation,
 }: IdeaSketchEditorProps) {
   if (!document.model) throw new Error("IdeaSketch document model is missing");
@@ -116,6 +118,16 @@ export function IdeaSketchEditor({
     onSaveComplete: () => onAutoSaveComplete(document.id),
     onSaveError: (error) => console.error(`Auto-save failed for ${document.displayName ?? document.filePath}:`, error),
   });
+
+  useEffect(() => {
+    if (readOnly || (!document.isDirty && !hasPendingCommit)) return;
+    const timer = window.setTimeout(() => {
+      onWriteRecovery(document.id, flushAndGetDocument()).catch((error) => {
+        console.warn(`Recovery draft could not be written for ${document.displayName ?? document.filePath}:`, error);
+      });
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [autoSaveVersion, document.displayName, document.filePath, document.id, document.isDirty, document.revision, flushAndGetDocument, hasPendingCommit, onWriteRecovery, readOnly]);
 
   const cameras = useMemo(() => extractCameras(draft.elements), [draft.elements]);
   const activeCameraId = selectedCameraId && cameras.some((camera) => camera.id === selectedCameraId)

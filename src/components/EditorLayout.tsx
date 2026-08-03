@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ask, message } from "@tauri-apps/plugin-dialog";
+import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAppStore } from "../hooks/useAppStore";
 import { getFileTypeDefinition } from "../lib/fileTypeRegistry";
 import {
@@ -8,6 +10,10 @@ import {
   chooseStandaloneSavePath,
   createWorkspaceDocument,
   createWorkspaceFolder,
+  deleteRecoveryDraft,
+  exitApplication,
+  inspectFile,
+  loadRecoveryDraft,
   moveWorkspaceEntry,
   openStandaloneDocument,
   openWorkspace,
@@ -17,8 +23,12 @@ import {
   saveStandaloneDocument,
   saveWorkspaceDocument,
   saveWorkspaceState,
+  startWorkspaceWatcher,
+  stopWorkspaceWatcher,
   trashWorkspaceEntry,
+  writeRecoveryDraft,
   type OpenedDocument,
+  type WorkspaceChangeEvent,
 } from "../lib/tauriCommands";
 import {
   createWorkspaceStateSnapshot,
@@ -32,6 +42,9 @@ import {
   WORKSPACE_PANEL_MIN_WIDTH,
   clampWorkspacePanelWidth,
 } from "../lib/panelSizing";
+import { classifyRecoveryDraft, createRecoveryDraft, recoveryScopeForDocument, type RecoveryDraft } from "../lib/recovery";
+import { classifyInspectedDocument } from "../lib/externalFileChanges";
+import { saveAllDocuments } from "../lib/saveCoordinator";
 import type { DocumentModel, DocumentSession, IdeaSketchDocument, IdeaSketchPage, WorkspaceEntry } from "../types";
 import { Toolbar } from "./Toolbar";
 import { WorkspaceExplorer } from "./WorkspaceExplorer";
@@ -39,6 +52,9 @@ import { DocumentTabs } from "./DocumentTabs";
 import { DocumentEditorHost } from "./DocumentEditorHost";
 import { ResizableDivider } from "./ResizableDivider";
 import { IdeaSketchEditor } from "./IdeaSketchEditor";
+import { ExternalChangeNotice } from "./ExternalChangeNotice";
+import { RecoveryPrompt } from "./RecoveryPrompt";
+import { WorkspaceStatusNotice } from "./WorkspaceStatusNotice";
 
 interface EditorLayoutProps {
   onGoHome: () => void;
@@ -62,8 +78,9 @@ function sessionFromOpened(
   }
   return {
     id: crypto.randomUUID(), mode, filePath: path, displayName,
-    fileType: opened.fileType, status: readOnly ? "read-only" : "editable",
-    model: opened.model, isDirty: false, revision: 0, readOnly,
+    fileType: opened.fileType, status: readOnly || opened.readOnly ? "read-only" : "editable",
+    model: opened.model, isDirty: false, revision: 0, readOnly: readOnly || opened.readOnly,
+    sourceModified: opened.sourceModified,
   };
 }
 
@@ -77,11 +94,43 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
   const [showWorkspace, setShowWorkspace] = useState(state.mode === "workspace");
   const [workspacePanelWidth, setWorkspacePanelWidth] = useState(WORKSPACE_PANEL_DEFAULT_WIDTH);
   const [isResizingWorkspace, setIsResizingWorkspace] = useState(false);
+  const [hiddenExternalNotices, setHiddenExternalNotices] = useState<Set<string>>(() => new Set());
+  const [workspaceDiagnosticsHidden, setWorkspaceDiagnosticsHidden] = useState(false);
+  const [recoveryCandidate, setRecoveryCandidate] = useState<{ sessionId: string; draft: RecoveryDraft; sourceChanged: boolean }>();
   const documentSnapshotProviders = useRef(new Map<string, () => IdeaSketchDocument>());
+  const pendingAutoSaveModified = useRef(new Map<string, string | undefined>());
+  const checkedRecoveryKeys = useRef(new Set<string>());
+  const closeInProgress = useRef(false);
+  const latestDocuments = useRef(state.documents);
+  latestDocuments.current = state.documents;
   const activeDocument = state.documents.find((document) => document.id === state.activeSessionId);
-  const effectiveReadOnly = readOnly || Boolean(activeDocument?.readOnly) || activeDocument?.status === "read-only";
+  const effectiveReadOnly = readOnly
+    || Boolean(state.workspace?.readOnly)
+    || Boolean(activeDocument?.readOnly)
+    || activeDocument?.status === "read-only";
 
   useEffect(() => setShowWorkspace(state.mode === "workspace"), [state.mode]);
+  useEffect(() => setWorkspaceDiagnosticsHidden(false), [state.workspace?.root, state.workspace?.metadata.diagnostics]);
+
+  useEffect(() => {
+    if (!state.workspace || !("__TAURI_INTERNALS__" in window)) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    listen<WorkspaceChangeEvent>("workspace-change", (event) => {
+      if (!disposed) {
+        dispatch({ type: "APPLY_WORKSPACE_CHANGE", event: event.payload });
+        setHiddenExternalNotices(new Set());
+      }
+    }).then((dispose) => { unlisten = dispose; }).catch(console.error);
+    startWorkspaceWatcher(state.workspace.root).catch((error) => {
+      console.error("Failed to start Workspace watcher:", error);
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+      stopWorkspaceWatcher().catch(() => undefined);
+    };
+  }, [dispatch, state.workspace?.root]);
 
   useEffect(() => {
     if (!activeDocument || activeDocument.status !== "loading") return;
@@ -96,7 +145,9 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
           type: "SET_DOCUMENT_MODEL",
           sessionId: activeDocument.id,
           model: opened.model,
-          status: activeDocument.readOnly ? "read-only" : "editable",
+          status: activeDocument.readOnly || opened.readOnly ? "read-only" : "editable",
+          sourceModified: opened.sourceModified,
+          readOnly: activeDocument.readOnly || opened.readOnly,
         });
       } else {
         dispatch({ type: "SET_DOCUMENT_STATUS", sessionId: activeDocument.id, status: "legacy-protected", message: opened.message });
@@ -195,14 +246,113 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
     await refreshTree();
   }, [dispatch, refreshTree, state.documents, state.workspace]);
 
+  const clearRecoveryForDocument = useCallback(async (document: DocumentSession) => {
+    const scope = recoveryScopeForDocument(document, state.workspace?.root);
+    if (scope) await deleteRecoveryDraft(scope).catch((error) => console.warn("Failed to clear recovery draft:", error));
+  }, [state.workspace?.root]);
+
+  const handleWriteRecovery = useCallback(async (sessionId: string, model: IdeaSketchDocument) => {
+    const document = state.documents.find((candidate) => candidate.id === sessionId);
+    if (!document) return;
+    const scope = recoveryScopeForDocument(document, state.workspace?.root);
+    if (!scope) return;
+    await writeRecoveryDraft(scope, createRecoveryDraft(document, model));
+  }, [state.documents, state.workspace?.root]);
+
+  const inspectDocumentTarget = useCallback(async (document: DocumentSession): Promise<boolean> => {
+    if (!document.filePath) return true;
+    const path = document.mode === "workspace" && state.workspace
+      ? joinWorkspacePath(state.workspace.root, document.filePath)
+      : document.filePath;
+    const inspection = await inspectFile(path);
+    const decision = classifyInspectedDocument(document, inspection);
+    if (decision.kind === "none") return true;
+    dispatch({ type: "APPLY_DOCUMENT_INSPECTION", sessionId: document.id, inspection });
+    setHiddenExternalNotices((current) => {
+      const next = new Set(current);
+      next.delete(document.id);
+      return next;
+    });
+    return false;
+  }, [dispatch, state.workspace]);
+
+  useEffect(() => {
+    if (!("__TAURI_INTERNALS__" in window)) return;
+    let disposed = false;
+    const pollStandaloneDocuments = async () => {
+      const documents = latestDocuments.current.filter((document) =>
+        document.mode === "standalone"
+        && Boolean(document.filePath)
+        && !["loading", "legacy-protected", "unsupported", "invalid"].includes(document.status));
+      await Promise.all(documents.map(async (document) => {
+        try {
+          const inspection = await inspectFile(document.filePath);
+          if (disposed || classifyInspectedDocument(document, inspection).kind === "none") return;
+          dispatch({ type: "APPLY_DOCUMENT_INSPECTION", sessionId: document.id, inspection });
+          setHiddenExternalNotices((current) => {
+            const next = new Set(current);
+            next.delete(document.id);
+            return next;
+          });
+        } catch (error) {
+          console.warn("Failed to inspect standalone file:", error);
+        }
+      }));
+    };
+    const timer = window.setInterval(() => void pollStandaloneDocuments(), 2_000);
+    void pollStandaloneDocuments();
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+    };
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (!activeDocument?.model || !["editable", "read-only", "external-change", "conflict", "missing", "root-missing"].includes(activeDocument.status)) return;
+    const scope = recoveryScopeForDocument(activeDocument, state.workspace?.root);
+    if (!scope) return;
+    const key = JSON.stringify(scope);
+    if (checkedRecoveryKeys.current.has(key)) return;
+    checkedRecoveryKeys.current.add(key);
+    let cancelled = false;
+    loadRecoveryDraft(scope).then((draft) => {
+      if (cancelled || !draft) return;
+      const classification = classifyRecoveryDraft(draft, activeDocument);
+      if (classification !== "invalid") {
+        setRecoveryCandidate({
+          sessionId: activeDocument.id,
+          draft,
+          sourceChanged: classification === "source-changed",
+        });
+      }
+    }).catch((error) => console.warn("Recovery draft could not be loaded:", error));
+    return () => { cancelled = true; };
+  }, [activeDocument, state.workspace?.root]);
+
   const saveDocument = useCallback(async (document: DocumentSession, forceSaveAs = false): Promise<boolean> => {
     const model = documentSnapshotProviders.current.get(document.id)?.() ?? document.model;
-    if (!model || document.status === "legacy-protected" || document.status === "unsupported" || document.status === "missing") return false;
+    if (!model || document.status === "legacy-protected" || document.status === "unsupported") return false;
+    if (!forceSaveAs && ["external-change", "conflict", "missing", "read-only", "root-missing"].includes(document.status)) {
+      await message("IdeaNote will not overwrite this file until the external change is resolved. Reload it or use Save As.", {
+        title: "Resolve File Change",
+        kind: "warning",
+      });
+      return false;
+    }
     try {
       setIsSaving(true);
+      if (!forceSaveAs && document.mode === "workspace" && state.workspace?.readOnly) {
+        await message("This Workspace is read-only. Use Save As to save the document elsewhere.", {
+          title: "Read-only Workspace",
+          kind: "warning",
+        });
+        return false;
+      }
+      if (!forceSaveAs && document.filePath && !await inspectDocumentTarget(document)) return false;
       if (document.mode === "workspace" && state.workspace && document.filePath && !forceSaveAs) {
         const result = await saveWorkspaceDocument(state.workspace.root, document.filePath, model);
-        dispatch({ type: "MARK_DOCUMENT_SAVED", sessionId: document.id });
+        dispatch({ type: "MARK_DOCUMENT_SAVED", sessionId: document.id, sourceModified: result.sourceModified });
+        await clearRecoveryForDocument(document);
         if (!result.metadataError) dispatch({ type: "MARK_WORKSPACE_METADATA_EXISTS" });
         if (result.metadataError) {
           await message(`The document was saved, but Workspace state could not be saved: ${result.metadataError}`, { title: "Workspace State Warning", kind: "warning" });
@@ -212,9 +362,10 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
       let path = forceSaveAs ? "" : document.filePath;
       if (!path) path = await chooseStandaloneSavePath(document.displayName || "Untitled.is") ?? "";
       if (!path) return false;
-      await saveStandaloneDocument(path, model);
+      const inspection = await saveStandaloneDocument(path, model);
+      await clearRecoveryForDocument(document);
       dispatch({ type: "UPDATE_DOCUMENT_PATH", sessionId: document.id, filePath: path, mode: "standalone" });
-      dispatch({ type: "MARK_DOCUMENT_SAVED", sessionId: document.id });
+      dispatch({ type: "MARK_DOCUMENT_SAVED", sessionId: document.id, sourceModified: inspection.modified ?? undefined });
       addRecentFile(path).catch(console.error);
       return true;
     } catch (cause) {
@@ -223,7 +374,7 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
     } finally {
       setIsSaving(false);
     }
-  }, [dispatch, state.workspace]);
+  }, [clearRecoveryForDocument, dispatch, inspectDocumentTarget, state.workspace]);
 
   const handleRegisterSnapshot = useCallback((sessionId: string, provider?: () => IdeaSketchDocument) => {
     if (provider) documentSnapshotProviders.current.set(sessionId, provider);
@@ -233,15 +384,31 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
   const handleAutoSave = useCallback(async (sessionId: string, model: DocumentModel) => {
     const document = state.documents.find((candidate) => candidate.id === sessionId);
     if (!document || document.mode !== "workspace" || !state.workspace || !document.filePath) return;
+    if (state.workspace.readOnly || !await inspectDocumentTarget(document)) {
+      throw new Error("Auto-save paused because the file changed or is not writable");
+    }
     setIsSaving(true);
     try {
       const result = await saveWorkspaceDocument(state.workspace.root, document.filePath, model);
+      pendingAutoSaveModified.current.set(sessionId, result.sourceModified);
+      dispatch({ type: "SET_DOCUMENT_SOURCE_MODIFIED", sessionId, sourceModified: result.sourceModified });
       if (!result.metadataError) dispatch({ type: "MARK_WORKSPACE_METADATA_EXISTS" });
       if (result.metadataError) console.warn(`Workspace metadata was not updated: ${result.metadataError}`);
     } finally {
       setIsSaving(false);
     }
-  }, [dispatch, state.documents, state.workspace]);
+  }, [dispatch, inspectDocumentTarget, state.documents, state.workspace]);
+
+  const handleAutoSaveComplete = useCallback(async (sessionId: string) => {
+    const document = state.documents.find((candidate) => candidate.id === sessionId);
+    if (document) await clearRecoveryForDocument(document);
+    dispatch({
+      type: "MARK_DOCUMENT_SAVED",
+      sessionId,
+      sourceModified: pendingAutoSaveModified.current.get(sessionId),
+    });
+    pendingAutoSaveModified.current.delete(sessionId);
+  }, [clearRecoveryForDocument, dispatch, state.documents]);
 
   const handleStartPresentation = useCallback((sessionId: string, page: IdeaSketchPage, mode: "preview" | "fullscreen") => {
     dispatch({ type: "START_PRESENTATION", sessionId, pageId: page.id, page, mode });
@@ -250,11 +417,10 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
   const handleSave = useCallback(() => activeDocument ? saveDocument(activeDocument) : Promise.resolve(false), [activeDocument, saveDocument]);
   const handleSaveAs = useCallback(() => activeDocument ? saveDocument(activeDocument, true) : Promise.resolve(false), [activeDocument, saveDocument]);
   const handleSaveAll = useCallback(async () => {
-    const results: string[] = [];
-    for (const document of state.documents.filter((item) => item.isDirty)) {
-      if (!await saveDocument(document)) results.push(document.displayName || document.filePath || "Untitled.is");
-    }
-    if (results.length > 0) await message(`Some files could not be saved:\n${results.join("\n")}`, { title: "Save All", kind: "warning" });
+    const results = await saveAllDocuments(state.documents, saveDocument);
+    const failed = results.filter((result) => !result.saved);
+    if (failed.length > 0) await message(`Some files could not be saved:\n${failed.map((result) => result.name).join("\n")}`, { title: "Save All", kind: "warning" });
+    return failed.length === 0;
   }, [saveDocument, state.documents]);
 
   const requestClose = useCallback(async (sessionId: string): Promise<boolean> => {
@@ -271,17 +437,35 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
           title: "Unsaved Changes", kind: "warning", okLabel: "Discard", cancelLabel: "Cancel",
         });
         if (!discard) return false;
+        await clearRecoveryForDocument(document);
       }
     }
     dispatch({ type: "CLOSE_DOCUMENT", sessionId });
     return true;
-  }, [dispatch, saveDocument, state.documents]);
+  }, [clearRecoveryForDocument, dispatch, saveDocument, state.documents]);
 
   const closeCollection = useCallback(async (sessionIds: string[]) => {
     for (const sessionId of sessionIds) {
       if (!await requestClose(sessionId)) break;
     }
   }, [requestClose]);
+
+  const confirmSessionExit = useCallback(async (): Promise<boolean> => {
+    const dirtyDocuments = state.documents.filter((document) => document.isDirty);
+    if (dirtyDocuments.length === 0) return true;
+    const shouldSave = await ask(
+      `Save changes to ${dirtyDocuments.length === 1 ? `“${dirtyDocuments[0].displayName || "Untitled.is"}”` : `${dirtyDocuments.length} files`} before leaving?`,
+      { title: "Unsaved Changes", kind: "warning", okLabel: dirtyDocuments.length === 1 ? "Save" : "Save All", cancelLabel: "More Options" },
+    );
+    if (shouldSave) return handleSaveAll();
+    const discard = await ask(
+      dirtyDocuments.length === 1 ? "Discard the unsaved changes?" : `Discard unsaved changes in ${dirtyDocuments.length} files?`,
+      { title: "Unsaved Changes", kind: "warning", okLabel: "Discard", cancelLabel: "Cancel" },
+    );
+    if (!discard) return false;
+    await Promise.all(dirtyDocuments.map(clearRecoveryForDocument));
+    return true;
+  }, [clearRecoveryForDocument, handleSaveAll, state.documents]);
 
   const handleNewFile = useCallback(async () => {
     if (state.workspace) {
@@ -310,18 +494,124 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
   }, [dispatch]);
 
   const handleOpenWorkspace = useCallback(async () => {
+    if (!await confirmSessionExit()) return;
     const workspace = await openWorkspace();
     const restored = restoreWorkspaceDocuments(workspace);
     dispatch({ type: "OPEN_WORKSPACE", workspace, restoredDocuments: restored.documents, activePath: restored.activePath });
+  }, [confirmSessionExit, dispatch]);
+
+  const handleRelocateWorkspace = useCallback(async () => {
+    const workspace = await openWorkspace();
+    dispatch({ type: "REPLACE_WORKSPACE", workspace, reloadDocuments: true });
   }, [dispatch]);
 
-  const handleGoHome = useCallback(async () => {
-    if (state.documents.some((document) => document.isDirty)) {
-      const leave = await ask("There are unsaved files. Leave the current session?", { title: "Unsaved Changes", kind: "warning", okLabel: "Leave", cancelLabel: "Stay" });
-      if (!leave) return;
+  const handleRetryWorkspaceState = useCallback(async () => {
+    if (!state.workspace) return;
+    try {
+      const workspace = await openWorkspace(state.workspace.root);
+      dispatch({ type: "REPLACE_WORKSPACE", workspace });
+    } catch (error) {
+      await message(`Workspace state could not be reloaded: ${error instanceof Error ? error.message : String(error)}`, {
+        title: "Workspace State Error",
+        kind: "error",
+      });
     }
+  }, [dispatch, state.workspace]);
+
+  const handleReloadActiveDocument = useCallback(async () => {
+    if (!activeDocument) return;
+    if (activeDocument.isDirty) {
+      const reload = await ask("Reload from disk and discard the unsaved in-memory edits?", {
+        title: "Reload Changed File",
+        kind: "warning",
+        okLabel: "Reload",
+        cancelLabel: "Cancel",
+      });
+      if (!reload) return;
+    }
+    try {
+      const opened = activeDocument.mode === "workspace" && state.workspace
+        ? await openWorkspaceDocument(state.workspace.root, activeDocument.filePath)
+        : await openStandaloneDocument(activeDocument.filePath);
+      if (opened.status !== "editable") return;
+      dispatch({
+        type: "SET_DOCUMENT_MODEL",
+        sessionId: activeDocument.id,
+        model: opened.model,
+        status: opened.readOnly ? "read-only" : "editable",
+        sourceModified: opened.sourceModified,
+        readOnly: opened.readOnly,
+      });
+      dispatch({ type: "MARK_DOCUMENT_SAVED", sessionId: activeDocument.id, sourceModified: opened.sourceModified });
+      await clearRecoveryForDocument(activeDocument);
+      setHiddenExternalNotices((current) => {
+        const next = new Set(current);
+        next.delete(activeDocument.id);
+        return next;
+      });
+    } catch (error) {
+      await message(`Failed to reload file: ${error instanceof Error ? error.message : String(error)}`, { title: "Reload Error", kind: "error" });
+    }
+  }, [activeDocument, clearRecoveryForDocument, dispatch, state.workspace]);
+
+  const restoreRecovery = useCallback(() => {
+    if (!recoveryCandidate) return;
+    const document = state.documents.find((candidate) => candidate.id === recoveryCandidate.sessionId);
+    const needsSaveAs = recoveryCandidate.sourceChanged || Boolean(document?.readOnly);
+    dispatch({
+      type: "SET_DOCUMENT_MODEL",
+      sessionId: recoveryCandidate.sessionId,
+      model: recoveryCandidate.draft.model,
+      status: needsSaveAs ? "conflict" : "editable",
+      readOnly: false,
+    });
+    if (needsSaveAs) {
+      dispatch({
+        type: "SET_DOCUMENT_STATUS",
+        sessionId: recoveryCandidate.sessionId,
+        status: "conflict",
+        message: "The recovery draft differs from the current or read-only source. Review it and use Save As to avoid overwriting the source.",
+      });
+    }
+    dispatch({ type: "MARK_DOCUMENT_DIRTY", sessionId: recoveryCandidate.sessionId });
+    setRecoveryCandidate(undefined);
+  }, [dispatch, recoveryCandidate, state.documents]);
+
+  const discardRecovery = useCallback(async () => {
+    if (!recoveryCandidate) return;
+    const document = state.documents.find((candidate) => candidate.id === recoveryCandidate.sessionId);
+    if (document) await clearRecoveryForDocument(document);
+    setRecoveryCandidate(undefined);
+  }, [clearRecoveryForDocument, recoveryCandidate, state.documents]);
+
+  const handleGoHome = useCallback(async () => {
+    if (!await confirmSessionExit()) return;
     onGoHome();
-  }, [onGoHome, state.documents]);
+  }, [confirmSessionExit, onGoHome]);
+
+  useEffect(() => {
+    if (!("__TAURI_INTERNALS__" in window)) return;
+    let disposed = false;
+    const unlisten = getCurrentWindow().onCloseRequested((event) => {
+      event.preventDefault();
+      if (closeInProgress.current) return;
+      closeInProgress.current = true;
+      confirmSessionExit()
+        .then(async (confirmed) => {
+          if (disposed) return;
+          if (confirmed) await exitApplication();
+          else closeInProgress.current = false;
+        })
+        .catch((error) => {
+          closeInProgress.current = false;
+          console.error("Failed to coordinate application close:", error);
+        });
+    });
+    return () => {
+      disposed = true;
+      unlisten.then((dispose) => dispose()).catch(() => undefined);
+    };
+  }, [confirmSessionExit]);
 
   useEffect(() => {
     const isMac = navigator.platform.toUpperCase().includes("MAC");
@@ -392,6 +682,17 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
           </>
         )}
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          {state.workspace && (
+            <WorkspaceStatusNotice
+              rootMissing={state.workspace.status === "root-missing"}
+              readOnly={state.workspace.readOnly}
+              diagnostics={state.workspace.metadata.diagnostics}
+              diagnosticsHidden={workspaceDiagnosticsHidden}
+              onRetry={() => void handleRetryWorkspaceState()}
+              onRelocate={() => void handleRelocateWorkspace()}
+              onDismissDiagnostics={() => setWorkspaceDiagnosticsHidden(true)}
+            />
+          )}
           <DocumentTabs
             documents={state.documents}
             activeSessionId={state.activeSessionId}
@@ -405,29 +706,53 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
             }}
             onReopenLast={() => dispatch({ type: "REOPEN_LAST_DOCUMENT" })}
           />
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <DocumentEditorHost
-              document={activeDocument}
-              fullPath={activeFullPath}
-              renderIdeaSketch={(document) => (
-                <IdeaSketchEditor
-                  document={document as DocumentSession<IdeaSketchDocument>}
-                  readOnly={readOnly || Boolean(document.readOnly) || document.status === "read-only"}
-                  editorRefreshToken={state.editorRefreshToken}
-                  onModelChange={(sessionId, model) => dispatch({ type: "UPDATE_DOCUMENT_MODEL", sessionId, model })}
-                  onDirty={(sessionId) => dispatch({ type: "MARK_DOCUMENT_DIRTY", sessionId })}
-                  onEditorStateChange={(sessionId, activePageId) => dispatch({
-                    type: "SET_DOCUMENT_EDITOR_STATE",
-                    sessionId,
-                    editorState: { activePageId },
-                  })}
-                  onRegisterSnapshot={handleRegisterSnapshot}
-                  onAutoSave={handleAutoSave}
-                  onAutoSaveComplete={(sessionId) => dispatch({ type: "MARK_DOCUMENT_SAVED", sessionId })}
-                  onStartPresentation={handleStartPresentation}
-                />
-              )}
-            />
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            {activeDocument && (
+              <ExternalChangeNotice
+                status={activeDocument.status}
+                message={activeDocument.message}
+                hidden={hiddenExternalNotices.has(activeDocument.id)}
+                onReload={() => void handleReloadActiveDocument()}
+                onSaveAs={() => void saveDocument(activeDocument, true)}
+                onKeepEditing={() => setHiddenExternalNotices((current) => new Set(current).add(activeDocument.id))}
+                onClose={() => void requestClose(activeDocument.id)}
+                onRelocateWorkspace={() => void handleRelocateWorkspace()}
+              />
+            )}
+            {activeDocument && recoveryCandidate?.sessionId === activeDocument.id && (
+              <RecoveryPrompt
+                draft={recoveryCandidate.draft}
+                sourceChanged={recoveryCandidate.sourceChanged}
+                onRestore={restoreRecovery}
+                onDiscard={() => void discardRecovery()}
+                onCancel={() => setRecoveryCandidate(undefined)}
+              />
+            )}
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <DocumentEditorHost
+                document={activeDocument}
+                fullPath={activeFullPath}
+                renderIdeaSketch={(document) => (
+                  <IdeaSketchEditor
+                    document={document as DocumentSession<IdeaSketchDocument>}
+                    readOnly={readOnly || Boolean(state.workspace?.readOnly) || Boolean(document.readOnly) || document.status === "read-only"}
+                    editorRefreshToken={state.editorRefreshToken}
+                    onModelChange={(sessionId, model) => dispatch({ type: "UPDATE_DOCUMENT_MODEL", sessionId, model })}
+                    onDirty={(sessionId) => dispatch({ type: "MARK_DOCUMENT_DIRTY", sessionId })}
+                    onEditorStateChange={(sessionId, activePageId) => dispatch({
+                      type: "SET_DOCUMENT_EDITOR_STATE",
+                      sessionId,
+                      editorState: { activePageId },
+                    })}
+                    onRegisterSnapshot={handleRegisterSnapshot}
+                    onAutoSave={handleAutoSave}
+                    onAutoSaveComplete={(sessionId) => void handleAutoSaveComplete(sessionId)}
+                    onWriteRecovery={handleWriteRecovery}
+                    onStartPresentation={handleStartPresentation}
+                  />
+                )}
+              />
+            </div>
           </div>
         </main>
       </div>

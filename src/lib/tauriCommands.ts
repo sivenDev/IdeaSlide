@@ -6,6 +6,7 @@ import type {
   RecentFile,
   Slide,
   WorkspaceEntry,
+  WorkspaceChangeEvent,
   WorkspaceMetadataSnapshot,
   WorkspaceDocument,
   WorkspaceSession,
@@ -195,8 +196,15 @@ export async function openRecentFile(path: string): Promise<WorkspaceDocument> {
 }
 
 export type OpenedDocument =
-  | { status: "editable"; fileType: string; model: DocumentModel }
+  | { status: "editable"; fileType: string; model: DocumentModel; sourceModified?: string; readOnly?: boolean }
   | { status: "legacy-protected"; fileType: string; version: string; message: string };
+
+export interface FileInspection {
+  exists: boolean;
+  modified?: string | null;
+  readOnly: boolean;
+  size?: number | null;
+}
 
 interface BackendWorkspaceOpenResult {
   root: string;
@@ -214,6 +222,11 @@ interface WorkspaceMutationResult<T> {
 export interface WorkspaceSaveResult {
   saved: boolean;
   metadataError?: string | null;
+  sourceModified?: string;
+}
+
+function joinFilesystemPath(root: string, relativePath: string): string {
+  return `${root.replace(/[\\/]$/, "")}/${relativePath}`;
 }
 
 async function parseBackendOpenResult(result: BackendOpenDocumentResult): Promise<OpenedDocument> {
@@ -257,16 +270,22 @@ export async function refreshWorkspace(root: string): Promise<WorkspaceEntry[]> 
 }
 
 export async function openWorkspaceDocument(root: string, path: string): Promise<OpenedDocument> {
-  return parseBackendOpenResult(
+  const opened = await parseBackendOpenResult(
     await invoke<BackendOpenDocumentResult>("open_workspace_document", { root, path }),
   );
+  if (opened.status !== "editable") return opened;
+  const inspection = await inspectFile(joinFilesystemPath(root, path));
+  return { ...opened, sourceModified: inspection.modified ?? undefined, readOnly: inspection.readOnly };
 }
 
 export async function openStandaloneDocument(path: string): Promise<OpenedDocument> {
   requireIdeaSketchDefinition(path);
-  return parseBackendOpenResult(
+  const opened = await parseBackendOpenResult(
     await invoke<BackendOpenDocumentResult>("open_file", { path }),
   );
+  if (opened.status !== "editable") return opened;
+  const inspection = await inspectFile(path);
+  return { ...opened, sourceModified: inspection.modified ?? undefined, readOnly: inspection.readOnly };
 }
 
 export async function chooseAndOpenStandaloneDocument(): Promise<{ path: string; document: OpenedDocument }> {
@@ -323,18 +342,25 @@ export async function saveWorkspaceDocument(
   const definition = getFileTypeDefinition(model.type);
   if (!definition) throw new Error(`Unsupported document type: ${model.type}`);
   const data = await definition.serialize(model);
-  return invoke("save_workspace_document", {
+  const result = await invoke<WorkspaceSaveResult>("save_workspace_document", {
     root,
     path,
     data: { type: model.type, data },
   });
+  const inspection = await inspectFile(joinFilesystemPath(root, path));
+  return { ...result, sourceModified: inspection.modified ?? undefined };
 }
 
-export async function saveStandaloneDocument(path: string, model: DocumentModel): Promise<void> {
+export async function saveStandaloneDocument(path: string, model: DocumentModel): Promise<FileInspection> {
   const definition = getFileTypeDefinition(model.type);
   if (!definition) throw new Error(`Unsupported document type: ${model.type}`);
   const data = await definition.serialize(model);
   await invoke("save_file", { path, data: { type: model.type, data } });
+  return inspectFile(path);
+}
+
+export async function inspectFile(path: string): Promise<FileInspection> {
+  return invoke<FileInspection>("inspect_file", { path });
 }
 
 export async function chooseStandaloneSavePath(defaultName = "Untitled.is"): Promise<string | null> {
@@ -349,4 +375,61 @@ export async function saveWorkspaceState(
   state: { schemaVersion: number; openTabs: string[]; activePath?: string | null; expandedPaths: string[] },
 ): Promise<void> {
   await invoke("save_workspace_state", { root, state });
+}
+
+export async function startWorkspaceWatcher(root: string): Promise<void> {
+  await invoke("start_workspace_watcher", { root });
+}
+
+export async function stopWorkspaceWatcher(): Promise<void> {
+  await invoke("stop_workspace_watcher");
+}
+
+export type { WorkspaceChangeEvent };
+
+export interface RecoveryDraftData {
+  schemaVersion: number;
+  sourcePath: string;
+  sourceModified?: string | null;
+  timestamp: string;
+  model: DocumentModel;
+}
+
+export type RecoveryScopeData =
+  | { mode: "workspace"; root: string; path: string }
+  | { mode: "standalone"; path: string; sessionId: string };
+
+export async function writeRecoveryDraft(scope: RecoveryScopeData, draft: RecoveryDraftData): Promise<void> {
+  if (!("__TAURI_INTERNALS__" in window)) return;
+  await invoke("write_recovery_draft", { scope, draft });
+}
+
+export async function loadRecoveryDraft(scope: RecoveryScopeData): Promise<RecoveryDraftData | null> {
+  if (!("__TAURI_INTERNALS__" in window)) return null;
+  return invoke<RecoveryDraftData | null>("load_recovery_draft", { scope });
+}
+
+export async function deleteRecoveryDraft(scope: RecoveryScopeData): Promise<void> {
+  if (!("__TAURI_INTERNALS__" in window)) return;
+  await invoke("delete_recovery_draft", { scope });
+}
+
+export interface StandaloneRecoveryRecordData {
+  key: string;
+  draft: RecoveryDraftData;
+}
+
+export async function listStandaloneRecoveryDrafts(): Promise<StandaloneRecoveryRecordData[]> {
+  if (!("__TAURI_INTERNALS__" in window)) return [];
+  return invoke<StandaloneRecoveryRecordData[]>("list_standalone_recovery_drafts");
+}
+
+export async function deleteStandaloneRecoveryDraft(key: string): Promise<void> {
+  if (!("__TAURI_INTERNALS__" in window)) return;
+  await invoke("delete_standalone_recovery_draft", { key });
+}
+
+export async function exitApplication(): Promise<void> {
+  if (!("__TAURI_INTERNALS__" in window)) return;
+  await invoke("exit_application");
 }

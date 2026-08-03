@@ -6,22 +6,38 @@ import type {
   DocumentStatus,
   IdeaSketchPage,
   WorkspaceEntry,
+  WorkspaceChangeEvent,
   WorkspaceSession,
 } from "../types.ts";
 import { normalizeDocumentPath } from "./documentSession.ts";
+import {
+  applyWorkspaceTreeEvent,
+  classifyExternalDocumentChange,
+  classifyInspectedDocument,
+  type InspectedFileState,
+} from "./externalFileChanges.ts";
 
 const RECENTLY_CLOSED_LIMIT = 10;
+const IN_MEMORY_EDITABLE_STATUSES: DocumentStatus[] = [
+  "editable",
+  "external-change",
+  "conflict",
+  "missing",
+  "root-missing",
+];
 
 export type AppStoreAction =
   | { type: "GO_HOME" }
   | { type: "OPEN_WORKSPACE"; workspace: WorkspaceSession; restoredDocuments?: DocumentSession[]; activePath?: string }
+  | { type: "REPLACE_WORKSPACE"; workspace: WorkspaceSession; reloadDocuments?: boolean }
   | { type: "OPEN_DOCUMENT"; document: DocumentSession }
   | { type: "ACTIVATE_DOCUMENT"; sessionId: string }
-  | { type: "SET_DOCUMENT_MODEL"; sessionId: string; model: DocumentModel; status?: DocumentStatus; sourceModified?: string }
+  | { type: "SET_DOCUMENT_MODEL"; sessionId: string; model: DocumentModel; status?: DocumentStatus; sourceModified?: string; readOnly?: boolean }
   | { type: "SET_DOCUMENT_STATUS"; sessionId: string; status: DocumentStatus; message?: string }
   | { type: "UPDATE_DOCUMENT_MODEL"; sessionId: string; model: DocumentModel }
   | { type: "MARK_DOCUMENT_DIRTY"; sessionId: string }
   | { type: "MARK_DOCUMENT_SAVED"; sessionId: string; sourceModified?: string }
+  | { type: "SET_DOCUMENT_SOURCE_MODIFIED"; sessionId: string; sourceModified?: string }
   | { type: "SET_DOCUMENT_EDITOR_STATE"; sessionId: string; editorState: DocumentEditorState }
   | { type: "UPDATE_DOCUMENT_PATH"; sessionId: string; filePath: string; displayName?: string; mode?: "workspace" | "standalone" }
   | { type: "CLOSE_DOCUMENT"; sessionId: string }
@@ -29,6 +45,8 @@ export type AppStoreAction =
   | { type: "CLOSE_DOCUMENTS_TO_RIGHT"; sessionId: string }
   | { type: "REOPEN_LAST_DOCUMENT" }
   | { type: "SET_WORKSPACE_ENTRIES"; entries: WorkspaceEntry[] }
+  | { type: "APPLY_WORKSPACE_CHANGE"; event: WorkspaceChangeEvent }
+  | { type: "APPLY_DOCUMENT_INSPECTION"; sessionId: string; inspection: InspectedFileState }
   | { type: "MARK_WORKSPACE_METADATA_EXISTS" }
   | { type: "SELECT_WORKSPACE_PATH"; path?: string }
   | { type: "SET_EXPANDED_PATHS"; paths: string[] }
@@ -121,6 +139,59 @@ export function appStoreReducer(
         activeSessionId,
       };
     }
+    case "REPLACE_WORKSPACE": {
+      const workspace = action.workspace;
+      const findEntry = (entries: WorkspaceEntry[], path: string): WorkspaceEntry | undefined => {
+        for (const entry of entries) {
+          if (entry.path === path) return entry;
+          const nested = findEntry(entry.children, path);
+          if (nested) return nested;
+        }
+        return undefined;
+      };
+      const documents = state.documents.map((document) => {
+        if (document.mode !== "workspace") return document;
+        const entry = findEntry(workspace.entries, document.filePath);
+        if (!entry || entry.kind !== "file") {
+          return prepareDocumentSession({
+            ...document,
+            status: "missing",
+            message: "This file was not found in the relocated Workspace.",
+            pathKey: undefined,
+          }, workspace.root);
+        }
+        if (!action.reloadDocuments) {
+          return prepareDocumentSession({
+            ...document,
+            readOnly: workspace.readOnly || entry.readOnly,
+            pathKey: undefined,
+          }, workspace.root);
+        }
+        if (["legacy-protected", "unsupported", "invalid"].includes(document.status)) {
+          return prepareDocumentSession({ ...document, pathKey: undefined }, workspace.root);
+        }
+        const documentReadOnly = workspace.readOnly || entry.readOnly;
+        const sourceMatches = Boolean(
+          document.sourceModified
+          && entry.modified
+          && document.sourceModified === entry.modified,
+        );
+        const relocatedConflict = document.isDirty && (!sourceMatches || documentReadOnly);
+        return prepareDocumentSession({
+          ...document,
+          status: !document.isDirty
+            ? "loading"
+            : relocatedConflict ? "conflict" : "editable",
+          readOnly: documentReadOnly,
+          sourceModified: sourceMatches ? document.sourceModified : entry.modified ?? document.sourceModified,
+          message: relocatedConflict
+            ? "The relocated Workspace contains a different or read-only file at this path. Reload it or use Save As; IdeaNote will not overwrite it silently."
+            : undefined,
+          pathKey: undefined,
+        }, workspace.root);
+      });
+      return { ...state, mode: "workspace", workspace, documents };
+    }
     case "OPEN_DOCUMENT": {
       const document = prepareDocumentSession(action.document, state.workspace?.root);
       const existing = document.pathKey
@@ -148,6 +219,7 @@ export function appStoreReducer(
           model: action.model,
           status: action.status ?? (document.readOnly ? "read-only" : "editable"),
           sourceModified: action.sourceModified ?? document.sourceModified,
+          readOnly: action.readOnly ?? document.readOnly,
           message: undefined,
         } : document),
       };
@@ -162,7 +234,7 @@ export function appStoreReducer(
       return {
         ...state,
         documents: state.documents.map((document) => {
-          if (document.id !== action.sessionId || document.status !== "editable") return document;
+          if (document.id !== action.sessionId || !IN_MEMORY_EDITABLE_STATUSES.includes(document.status)) return document;
           return {
             ...document,
             model: action.model,
@@ -175,7 +247,7 @@ export function appStoreReducer(
       return {
         ...state,
         documents: state.documents.map((document) => {
-          if (document.id !== action.sessionId || document.status !== "editable") return document;
+          if (document.id !== action.sessionId || !IN_MEMORY_EDITABLE_STATUSES.includes(document.status)) return document;
           return document.isDirty ? document : {
             ...document,
             isDirty: true,
@@ -188,6 +260,13 @@ export function appStoreReducer(
         ...state,
         documents: state.documents.map((document) => document.id === action.sessionId
           ? { ...document, isDirty: false, sourceModified: action.sourceModified ?? document.sourceModified }
+          : document),
+      };
+    case "SET_DOCUMENT_SOURCE_MODIFIED":
+      return {
+        ...state,
+        documents: state.documents.map((document) => document.id === action.sessionId
+          ? { ...document, sourceModified: action.sourceModified ?? document.sourceModified }
           : document),
       };
     case "SET_DOCUMENT_EDITOR_STATE":
@@ -214,6 +293,9 @@ export function appStoreReducer(
           filePath: nextPath,
           pathKey,
           displayName: action.displayName ?? basename(nextPath),
+          status: mode === "standalone" ? "editable" : document.status,
+          readOnly: mode === "standalone" ? false : document.readOnly,
+          message: mode === "standalone" ? undefined : document.message,
         } : document),
       };
     }
@@ -255,6 +337,84 @@ export function appStoreReducer(
     }
     case "SET_WORKSPACE_ENTRIES":
       return state.workspace ? { ...state, workspace: { ...state.workspace, entries: action.entries } } : state;
+    case "APPLY_WORKSPACE_CHANGE": {
+      if (!state.workspace) return state;
+      const workspace = state.workspace;
+      const documents = state.documents.map((document) => {
+        const decision = classifyExternalDocumentChange(document, action.event);
+        switch (decision.kind) {
+          case "modified":
+            return {
+              ...document,
+              status: decision.status,
+              message: decision.message,
+              sourceModified: decision.sourceModified ?? document.sourceModified,
+              readOnly: decision.readOnly ?? document.readOnly,
+            };
+          case "missing":
+            return { ...document, status: "missing" as const, message: decision.message };
+          case "root-missing":
+            return { ...document, status: "root-missing" as const, message: decision.message };
+          case "read-only":
+            return document.isDirty
+              ? { ...document, status: "conflict" as const, message: decision.message, readOnly: false }
+              : { ...document, status: "read-only" as const, message: decision.message, readOnly: true };
+          case "relocated":
+            return prepareDocumentSession({
+              ...document,
+              filePath: decision.toPath,
+              displayName: basename(decision.toPath),
+              pathKey: undefined,
+            }, workspace.root);
+          case "writable":
+            return { ...document, status: "editable" as const, message: undefined, readOnly: false };
+          default:
+            return document;
+        }
+      });
+      return {
+        ...state,
+        workspace: {
+          ...workspace,
+          readOnly: action.event.kind === "rootStatus" && action.event.readOnly !== undefined
+            ? action.event.readOnly
+            : workspace.readOnly,
+          status: action.event.kind === "rootMissing" ? "root-missing" : workspace.status,
+          message: action.event.kind === "rootMissing"
+            ? "The Workspace folder is no longer available. Relocate it to continue working."
+            : workspace.message,
+          entries: applyWorkspaceTreeEvent(workspace.entries, action.event),
+        },
+        documents,
+      };
+    }
+    case "APPLY_DOCUMENT_INSPECTION": {
+      const documents = state.documents.map((document) => {
+        if (document.id !== action.sessionId) return document;
+        const decision = classifyInspectedDocument(document, action.inspection);
+        switch (decision.kind) {
+          case "modified":
+            return {
+              ...document,
+              status: decision.status,
+              message: decision.message,
+              sourceModified: decision.sourceModified ?? document.sourceModified,
+              readOnly: decision.readOnly ?? document.readOnly,
+            };
+          case "missing":
+            return { ...document, status: "missing" as const, message: decision.message };
+          case "read-only":
+            return document.isDirty
+              ? { ...document, status: "conflict" as const, message: decision.message, readOnly: false }
+              : { ...document, status: "read-only" as const, message: decision.message, readOnly: true };
+          case "writable":
+            return { ...document, status: "editable" as const, message: undefined, readOnly: false };
+          default:
+            return document;
+        }
+      });
+      return { ...state, documents };
+    }
     case "MARK_WORKSPACE_METADATA_EXISTS":
       return state.workspace ? {
         ...state,

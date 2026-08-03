@@ -65,6 +65,9 @@ export type DocumentStatus =
   | "unsupported"
   | "invalid"
   | "missing"
+  | "external-change"
+  | "conflict"
+  | "root-missing"
   | "error";
 
 export interface IdeaSketchPage extends Slide {
@@ -148,6 +151,17 @@ export interface WorkspaceSession {
   metadata: WorkspaceMetadataSnapshot;
   selectedPath?: string;
   expandedPaths: string[];
+  status?: "available" | "root-missing";
+  message?: string;
+}
+
+export interface WorkspaceChangeEvent {
+  kind: "create" | "modify" | "remove" | "rename" | "rootMissing" | "rootStatus";
+  path?: string;
+  oldPath?: string;
+  newPath?: string;
+  entry?: WorkspaceEntry;
+  readOnly?: boolean;
 }
 
 export type ApplicationMode = "launch" | "workspace" | "standalone";

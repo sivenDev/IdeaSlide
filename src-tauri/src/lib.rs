@@ -2,7 +2,9 @@ mod commands;
 pub(crate) mod document_formats;
 mod mcp;
 mod recent_files;
+mod recovery;
 pub(crate) mod workspace;
+mod workspace_watcher;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -53,8 +55,9 @@ fn get_opened_file(state: tauri::State<'_, PendingFile>) -> Option<String> {
     state.0.lock().unwrap().take()
 }
 
-fn should_exit_on_main_window_close(label: &str, mcp_mode: bool) -> bool {
-    !mcp_mode && label == "main"
+#[command]
+fn exit_application(app_handle: tauri::AppHandle) {
+    app_handle.exit(0);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -80,11 +83,13 @@ pub fn run() {
         .manage(PreviewRendererReady(preview_renderer_ready_flag))
         .manage(McpRendererReady(renderer_ready_for_state))
         .manage(McpVisible(mcp_visible))
+        .manage(workspace_watcher::WorkspaceWatcherState::default())
         .invoke_handler(tauri::generate_handler![
             commands::create_file,
             commands::open_file,
             commands::save_file,
             commands::write_file_bytes,
+            commands::inspect_file,
             commands::open_workspace,
             commands::scan_workspace,
             commands::refresh_workspace,
@@ -97,6 +102,13 @@ pub fn run() {
             commands::trash_workspace_entry,
             commands::save_workspace_document,
             commands::save_workspace_state,
+            workspace_watcher::start_workspace_watcher,
+            workspace_watcher::stop_workspace_watcher,
+            recovery::write_recovery_draft,
+            recovery::load_recovery_draft,
+            recovery::delete_recovery_draft,
+            recovery::list_standalone_recovery_drafts,
+            recovery::delete_standalone_recovery_draft,
             recent_files::get_recent_files,
             recent_files::add_recent_file,
             recent_files::remove_recent_file,
@@ -105,6 +117,7 @@ pub fn run() {
             is_preview_renderer_ready,
             mcp_renderer_ready,
             is_mcp_visible,
+            exit_application,
         ]);
 
     builder = builder.setup(move |app| {
@@ -181,16 +194,6 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(move |app_handle, event| {
-            if let RunEvent::WindowEvent { label, event, .. } = &event {
-                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                    if should_exit_on_main_window_close(label, mcp_mode) {
-                        api.prevent_close();
-                        app_handle.exit(0);
-                        return;
-                    }
-                }
-            }
-
             #[cfg(target_os = "macos")]
             if let RunEvent::Opened { urls } = &event {
                 for url in urls {
@@ -208,20 +211,4 @@ pub fn run() {
                 }
             }
         });
-}
-
-#[cfg(test)]
-mod tests {
-    use super::should_exit_on_main_window_close;
-
-    #[test]
-    fn closing_main_window_exits_in_standard_mode() {
-        assert!(should_exit_on_main_window_close("main", false));
-    }
-
-    #[test]
-    fn closing_non_main_or_mcp_windows_does_not_force_exit() {
-        assert!(!should_exit_on_main_window_close("preview-renderer", false));
-        assert!(!should_exit_on_main_window_close("main", true));
-    }
 }

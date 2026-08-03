@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   createWorkspaceStateSnapshot,
   mayPersistWorkspaceState,
+  projectVisibleWorkspaceRows,
   restoreWorkspaceDocuments,
 } from '../src/lib/workspaceState.ts';
 
@@ -60,4 +61,21 @@ test('snapshot stores only Workspace relative paths and the active Workspace Tab
   });
   assert.deepEqual(result.openTabs, ['drawing.is']);
   assert.equal(result.activePath, 'drawing.is');
+});
+
+test('visible-row projection handles thousands of metadata-only entries without document hydration', () => {
+  const children = Array.from({ length: 5_000 }, (_, index) => ({
+    path: `folder/file-${index}.is`,
+    name: `file-${index}.is`,
+    kind: 'file',
+    readOnly: false,
+    fileType: 'ideasketch',
+    children: [],
+  }));
+  const rows = projectVisibleWorkspaceRows([
+    { path: 'folder', name: 'folder', kind: 'directory', readOnly: false, children },
+  ], new Set(['folder']));
+  assert.equal(rows.length, 5_001);
+  assert.equal(rows[1].depth, 1);
+  assert.equal('model' in rows[1].entry, false);
 });

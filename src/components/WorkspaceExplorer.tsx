@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ask } from "@tauri-apps/plugin-dialog";
 import type { WorkspaceEntry } from "../types";
 import { getCreatableFileTypeDefinitions } from "../lib/fileTypeRegistry";
+import { projectVisibleWorkspaceRows } from "../lib/workspaceState";
 import { WorkspaceResourceRow } from "./WorkspaceResourceRow";
 import {
   DropdownMenu,
@@ -51,6 +52,7 @@ export function WorkspaceExplorer({
 }: WorkspaceExplorerProps) {
   const [renamePath, setRenamePath] = useState<string>();
   const expanded = useMemo(() => new Set(expandedPaths), [expandedPaths]);
+  const visibleRows = useMemo(() => projectVisibleWorkspaceRows(entries, expanded), [entries, expanded]);
   const creatableTypes = useMemo(() => getCreatableFileTypeDefinitions(), []);
 
   const selectedEntry = useMemo(() => {
@@ -95,7 +97,7 @@ export function WorkspaceExplorer({
     if (createParentPath) setExpanded(new Set(expanded).add(createParentPath));
   };
 
-  const renderEntries = (items: WorkspaceEntry[], depth: number): React.ReactNode => items.map((entry) => (
+  const renderEntries = (): React.ReactNode => visibleRows.map(({ entry, depth }) => (
     <div key={entry.path}>
       <WorkspaceResourceRow
         entry={entry}
@@ -120,7 +122,6 @@ export function WorkspaceExplorer({
         })()}
         onMove={(sourcePath, destinationParentPath) => void onMove(sourcePath, destinationParentPath)}
       />
-      {entry.kind === "directory" && expanded.has(entry.path) && renderEntries(entry.children, depth + 1)}
     </div>
   ));
 
@@ -158,7 +159,7 @@ export function WorkspaceExplorer({
         </DropdownMenu>
       </div>
       <div role="tree" className="idea-slide-side-panel__scroll min-h-0 flex-1 overflow-y-auto py-2">
-        {entries.length > 0 ? renderEntries(entries, 0) : (
+        {entries.length > 0 ? renderEntries() : (
           <div className="px-4 py-8 text-center text-xs leading-5 text-gray-400">This Workspace is empty.</div>
         )}
       </div>

@@ -137,6 +137,14 @@ impl WorkspaceService {
         Ok(Self { root, read_only })
     }
 
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
+    pub fn is_read_only(&self) -> bool {
+        self.read_only
+    }
+
     pub fn open_result(&self) -> Result<WorkspaceOpenResult, String> {
         let name = self
             .root
@@ -154,6 +162,11 @@ impl WorkspaceService {
 
     pub fn scan(&self) -> Result<Vec<WorkspaceEntry>, String> {
         self.scan_directory(&self.root, Path::new(""))
+    }
+
+    pub fn entry(&self, relative_path: &str) -> Result<WorkspaceEntry, String> {
+        let path = self.resolve_existing(relative_path)?;
+        self.entry_for_path(&path)
     }
 
     pub fn read_file(&self, relative_path: &str) -> Result<Vec<u8>, String> {

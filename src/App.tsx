@@ -7,13 +7,18 @@ import { LaunchScreen } from "./components/LaunchScreen";
 import { EditorLayout } from "./components/EditorLayout";
 import { PresentationMode } from "./components/PresentationMode";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { RecoveryPrompt } from "./components/RecoveryPrompt";
 import {
   addRecentFile,
   chooseAndOpenStandaloneDocument,
   getOpenedFile,
+  deleteStandaloneRecoveryDraft,
+  exitApplication,
+  listStandaloneRecoveryDrafts,
   openStandaloneDocument,
   openWorkspace,
   type OpenedDocument,
+  type StandaloneRecoveryRecordData,
 } from "./lib/tauriCommands";
 import { getFileTypeDefinition } from "./lib/fileTypeRegistry";
 import { restoreWorkspaceDocuments } from "./lib/workspaceState";
@@ -48,16 +53,19 @@ function sessionFromOpened(
     filePath: path,
     displayName,
     fileType: opened.fileType,
-    status: "editable",
+    status: opened.readOnly ? "read-only" : "editable",
     model: opened.model,
     isDirty: false,
     revision: 0,
+    readOnly: opened.readOnly,
+    sourceModified: opened.sourceModified,
   };
 }
 
 function AppContent() {
   const { state, dispatch } = useAppStore();
   const [mcpVisible, setMcpVisible] = useState(false);
+  const [startupRecoveries, setStartupRecoveries] = useState<StandaloneRecoveryRecordData[]>([]);
   const isTauriRuntime = "__TAURI_INTERNALS__" in window;
   const windowLabel = isTauriRuntime ? getCurrentWindow().label : "main";
   const isRendererWindow = windowLabel === "mcp-renderer" || windowLabel === "preview-renderer";
@@ -120,6 +128,15 @@ function AppContent() {
   }, [isRendererWindow, isTauriRuntime]);
 
   useEffect(() => {
+    if (isRendererWindow || !isTauriRuntime || state.mode !== "launch") return;
+    const unlisten = getCurrentWindow().onCloseRequested((event) => {
+      event.preventDefault();
+      exitApplication().catch((error) => console.error("Failed to close IdeaNote:", error));
+    });
+    return () => { unlisten.then((dispose) => dispose()).catch(() => undefined); };
+  }, [isRendererWindow, isTauriRuntime, state.mode]);
+
+  useEffect(() => {
     if (isRendererWindow || !isTauriRuntime) return;
     getOpenedFile().then((path) => {
       if (path) return openStandalonePath(path);
@@ -130,10 +147,52 @@ function AppContent() {
     return () => { unlisten.then((dispose) => dispose()); };
   }, [isRendererWindow, isTauriRuntime, openStandalonePath]);
 
+  useEffect(() => {
+    if (isRendererWindow || !isTauriRuntime) return;
+    listStandaloneRecoveryDrafts()
+      .then((records) => setStartupRecoveries(records.filter((record) =>
+        !record.draft.sourcePath && record.draft.model?.type === "ideasketch")))
+      .catch((error) => console.warn("Standalone recovery drafts could not be listed:", error));
+  }, [isRendererWindow, isTauriRuntime]);
+
+  const startupRecovery = startupRecoveries[0];
+
+  const restoreStartupRecovery = useCallback(async () => {
+    if (!startupRecovery) return;
+    const sessionId = crypto.randomUUID();
+    await deleteStandaloneRecoveryDraft(startupRecovery.key).catch((error) => {
+      console.warn("Failed to retire standalone recovery draft:", error);
+    });
+    dispatch({
+      type: "OPEN_DOCUMENT",
+      document: {
+        id: sessionId,
+        mode: "standalone",
+        filePath: "",
+        displayName: "Recovered Untitled.is",
+        fileType: "ideasketch",
+        status: "editable",
+        model: startupRecovery.draft.model,
+        isDirty: true,
+        revision: 1,
+      },
+    });
+    setStartupRecoveries((records) => records.slice(1));
+  }, [dispatch, startupRecovery]);
+
+  const discardStartupRecovery = useCallback(async () => {
+    if (!startupRecovery) return;
+    await deleteStandaloneRecoveryDraft(startupRecovery.key).catch((error) => {
+      console.warn("Failed to discard standalone recovery draft:", error);
+    });
+    setStartupRecoveries((records) => records.slice(1));
+  }, [startupRecovery]);
+
   if (isRendererWindow) return null;
 
+  let content;
   if (state.mode === "launch") {
-    return (
+    content = (
       <LaunchScreen
         onNewFile={handleNewFile}
         onOpenWorkspace={handleOpenWorkspace}
@@ -141,28 +200,43 @@ function AppContent() {
         onOpenRecent={openStandalonePath}
       />
     );
-  }
-
-  if (state.presentationMode !== "none") {
-    if (state.presentationPage && state.presentationSessionId && state.presentationPageId) {
-      return (
-        <PresentationMode
-          slide={state.presentationPage}
-          mode={state.presentationMode}
-          transitionSpeed="slow"
-          onExit={handlePresentationExit}
+  } else {
+    content = (
+      <ErrorBoundary>
+        <EditorLayout
+          readOnly={mcpVisible}
+          onGoHome={() => dispatch({ type: "GO_HOME" })}
         />
-      );
-    }
+        {state.presentationMode !== "none"
+          && state.presentationPage
+          && state.presentationSessionId
+          && state.presentationPageId && (
+            <PresentationMode
+              slide={state.presentationPage}
+              mode={state.presentationMode}
+              transitionSpeed="slow"
+              onExit={handlePresentationExit}
+            />
+          )}
+      </ErrorBoundary>
+    );
   }
 
   return (
-    <ErrorBoundary>
-      <EditorLayout
-        readOnly={mcpVisible}
-        onGoHome={() => dispatch({ type: "GO_HOME" })}
-      />
-    </ErrorBoundary>
+    <>
+      {content}
+      {startupRecovery && (
+        <div className="fixed inset-x-4 top-4 z-[80]">
+          <RecoveryPrompt
+            draft={startupRecovery.draft}
+            sourceChanged={false}
+            onRestore={() => void restoreStartupRecovery()}
+            onDiscard={() => void discardStartupRecovery()}
+            onCancel={() => setStartupRecoveries([])}
+          />
+        </div>
+      )}
+    </>
   );
 }
 

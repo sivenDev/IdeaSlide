@@ -2,7 +2,7 @@
 id: "05"
 title: "Complete Workspace Reliability, Watching, and Recovery"
 type: "required"
-status: "draft"
+status: "complete"
 summary: "Protect open documents from external filesystem changes and recover unsaved work across Workspace and Standalone modes."
 source: "docs/superplan/human/prd.md"
 created: "2026-08-03"
@@ -40,8 +40,8 @@ parent: ""
 - `cargo test --manifest-path src-tauri/Cargo.toml workspace_watcher -- --nocapture`
 - Cases: external create/rename/remove; rapid bursts coalesced; own atomic save ignored; `.ideanote` and `.is.tmp` ignored; root removal reported; no Symlink recursion.
 
-- [ ] Add failing watcher normalization and self-write suppression tests.
-- [ ] Implement root-scoped watcher lifecycle and typed Tauri events.
+- [x] Add failing watcher normalization and self-write suppression tests.
+- [x] Implement root-scoped watcher lifecycle and typed Tauri events.
 
 ## Task 2: Protect Open Sessions from External Conflicts
 
@@ -68,8 +68,8 @@ parent: ""
 - `node --test tests/externalFileChanges.test.mjs tests/appStoreReducer.test.mjs tests/documentTabs.test.mjs`
 - Cases: clean modify; dirty modify; delete with in-memory retention; confirmed move path update; ambiguous move requests relocation; root missing; own save event no-op.
 
-- [ ] Implement pure external-change classification before UI wiring.
-- [ ] Add actionable conflict, missing, relocation, and read-only states.
+- [x] Implement pure external-change classification before UI wiring.
+- [x] Add actionable conflict, missing, relocation, and read-only states.
 
 ## Task 3: Persist and Restore Versioned Recovery Drafts
 
@@ -95,8 +95,8 @@ parent: ""
 - `node --test tests/recovery.test.mjs`
 - Cases: Workspace/Standalone locations; crash-like restart; stale source; corrupt draft; restore without immediate overwrite; clear after save/discard; metadata failure does not mark document saved.
 
-- [ ] Implement versioned recovery storage and safe location rules.
-- [ ] Add explicit restore/discard flow and draft lifecycle cleanup.
+- [x] Implement versioned recovery storage and safe location rules.
+- [x] Add explicit restore/discard flow and draft lifecycle cleanup.
 
 ## Task 4: Harden Shutdown, Save All, and Large-workspace Behavior
 
@@ -120,8 +120,8 @@ parent: ""
 - `node --test tests/saveAll.test.mjs tests/workspaceState.test.mjs tests/workspaceExplorerWiring.test.mjs`
 - Cases: one Save All failure; close with several dirty Tabs; metadata write failure after user-file success; thousands of metadata entries without document parsing; missing root relocation.
 
-- [ ] Make Save All and shutdown decisions explicit and failure-isolated.
-- [ ] Validate large-tree and lazy-restore behavior without premature editor hydration.
+- [x] Make Save All and shutdown decisions explicit and failure-isolated.
+- [x] Validate large-tree and lazy-restore behavior without premature editor hydration.
 
 ## Task 5: Complete the IdeaNote MVP Acceptance Matrix
 
@@ -140,8 +140,18 @@ parent: ""
 - `git diff --check`
 - Tauri acceptance: open untouched directory; create/save `drawing.is`; verify lazy `.ideanote`; edit two Tabs; restart/restore; externally modify/move/delete; recover dirty Workspace and Standalone documents; verify `.is v1` archive and v2 protection; confirm no Agent or import/export UI.
 
-- [ ] Run all automated checks once implementation stabilizes.
-- [ ] Complete the native acceptance flow and obtain human verification before marking the mainline complete.
+- [x] Run all automated checks once implementation stabilizes.
+- [x] Complete the native acceptance flow and obtain human verification before marking the mainline complete.
+
+## Delivery Evidence
+
+- `node --test tests/*.test.mjs`: 159 tests passed.
+- `cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture`: 63 tests passed, including macOS ambiguous rename pairing and the Standalone Recovery camel-case IPC contract.
+- `cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check`, `npm run build`, and `git diff --check`: passed; Vite reported only the existing Excalidraw chunking and bundle-size warnings.
+- Native acceptance used the isolated `IdeaNote Acceptance.app` bundle and confirmed external macOS rename/remove projection, clean and dirty external-change decisions, missing-root relocation, read-only-to-writable recovery, and no false conflict from application writes.
+- Crash/relaunch acceptance confirmed Workspace and unnamed Standalone recovery prompts, explicit Restore/Discard behavior, and draft cleanup after save or discard.
+- Native close acceptance confirmed Save, Discard, and Cancel behavior; saving an existing Standalone document updated its v1 archive before application exit.
+- Existing MVP acceptance remained intact: untouched Workspace open is side-effect free, first file creation lazily creates `.ideanote`, IdeaSketch stays `.is v1`, Cameras are hidden by default, Present remains available with zero Cameras, and no Agent or Workspace import/export UI is exposed.
 
 ## References
 - `docs/superplan/human/prd.md`

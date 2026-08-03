@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Draft | Complete |
-| --- | --- | --- | --- |
-| `required` | 5 | 1 | 4 |
-| `feature` | 6 | 0 | 6 |
-| `bugfix` | 4 | 0 | 4 |
+| Type | Plans | Complete |
+| --- | --- | --- |
+| `required` | 5 | 5 |
+| `feature` | 6 | 6 |
+| `bugfix` | 4 | 4 |
 
 ## Execution Order
 
@@ -16,7 +16,7 @@
 2. `02` [Build the Real Directory Workspace Foundation](02-directory-workspace-foundation.md) - `complete` (2026-08-03)
 3. `03` [Deliver the Multi-file Workspace Shell](03-multifile-workspace-shell.md) - `complete` (2026-08-03)
 4. `04` [Integrate IdeaSketch into Workspace and Standalone Sessions](04-ideasketch-editor-integration.md) - `complete` (2026-08-03)
-5. `05` [Complete Workspace Reliability, Watching, and Recovery](05-workspace-reliability-and-recovery.md) - `draft` (2026-08-03)
+5. `05` [Complete Workspace Reliability, Watching, and Recovery](05-workspace-reliability-and-recovery.md) - `complete` (2026-08-03)
 
 ## Plan Groups
 
@@ -28,7 +28,7 @@
 | `02` | [Build the Real Directory Workspace Foundation](02-directory-workspace-foundation.md) | `complete` | 2026-08-03 |
 | `03` | [Deliver the Multi-file Workspace Shell](03-multifile-workspace-shell.md) | `complete` | 2026-08-03 |
 | `04` | [Integrate IdeaSketch into Workspace and Standalone Sessions](04-ideasketch-editor-integration.md) | `complete` | 2026-08-03 |
-| `05` | [Complete Workspace Reliability, Watching, and Recovery](05-workspace-reliability-and-recovery.md) | `draft` | 2026-08-03 |
+| `05` | [Complete Workspace Reliability, Watching, and Recovery](05-workspace-reliability-and-recovery.md) | `complete` | 2026-08-03 |
 
 ### Feature Plans
 

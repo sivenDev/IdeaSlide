@@ -7,6 +7,9 @@ test('document Tabs expose dirty/status labels and complete close workflows', as
   assert.match(source, /role="tablist"/);
   assert.match(source, /document\.isDirty/);
   assert.match(source, /Missing/);
+  assert.match(source, /Conflict/);
+  assert.match(source, /Changed/);
+  assert.match(source, /Read only/);
   assert.match(source, /Protected/);
   assert.match(source, />Close Others</);
   assert.match(source, />Close to the Right</);

@@ -53,7 +53,7 @@ test('Workspace path remap updates open descendants without changing document id
   assert.equal(state.documents[0].id, 'one');
 });
 
-test('protected, unsupported, or missing sessions cannot be dirtied through model updates', () => {
+test('protected sessions cannot be dirtied through model updates', () => {
   const protectedDocument = { ...document('legacy', '/legacy.is', 'standalone'), status: 'legacy-protected' };
   const state = appStoreReducer({ ...createInitialAppState(), mode: 'standalone', documents: [protectedDocument] }, {
     type: 'UPDATE_DOCUMENT_MODEL',
@@ -62,4 +62,45 @@ test('protected, unsupported, or missing sessions cannot be dirtied through mode
   });
   assert.equal(state.documents[0].isDirty, false);
   assert.equal(state.documents[0].revision, 0);
+});
+
+test('conflict and missing sessions remain editable in memory for Save As recovery', () => {
+  const model = { type: 'ideasketch', formatVersion: '1.0', created: '', modified: '', pages: [] };
+  for (const status of ['conflict', 'missing', 'root-missing']) {
+    const session = { ...document(status, `/${status}.is`, 'standalone'), status };
+    const state = appStoreReducer({ ...createInitialAppState(), mode: 'standalone', documents: [session] }, {
+      type: 'UPDATE_DOCUMENT_MODEL',
+      sessionId: status,
+      model,
+    });
+    assert.equal(state.documents[0].isDirty, true);
+    assert.equal(state.documents[0].model, model);
+  }
+});
+
+test('Workspace watcher transitions clean, dirty, deleted, renamed, and missing-root sessions safely', () => {
+  const base = {
+    ...createInitialAppState(),
+    mode: 'workspace',
+    workspace: { root: '/workspace', name: 'workspace', readOnly: false, entries: [], metadata: { exists: true, diagnostics: [] }, expandedPaths: [] },
+    documents: [{ ...document('one', 'folder/drawing.is'), status: 'editable', sourceModified: 'before' }],
+    activeSessionId: 'one',
+  };
+  const modified = appStoreReducer(base, { type: 'APPLY_WORKSPACE_CHANGE', event: { kind: 'modify', path: 'folder/drawing.is', entry: { path: 'folder/drawing.is', name: 'drawing.is', kind: 'file', readOnly: false, modified: 'after', children: [] } } });
+  assert.equal(modified.documents[0].status, 'external-change');
+  const conflicted = appStoreReducer({ ...base, documents: [{ ...base.documents[0], isDirty: true }] }, { type: 'APPLY_WORKSPACE_CHANGE', event: { kind: 'modify', path: 'folder/drawing.is' } });
+  assert.equal(conflicted.documents[0].status, 'conflict');
+  const renamed = appStoreReducer(base, { type: 'APPLY_WORKSPACE_CHANGE', event: { kind: 'rename', oldPath: 'folder', newPath: 'renamed' } });
+  assert.equal(renamed.documents[0].filePath, 'renamed/drawing.is');
+  const removed = appStoreReducer(base, { type: 'APPLY_WORKSPACE_CHANGE', event: { kind: 'remove', path: 'folder' } });
+  assert.equal(removed.documents[0].status, 'missing');
+  const rootMissing = appStoreReducer(base, { type: 'APPLY_WORKSPACE_CHANGE', event: { kind: 'rootMissing' } });
+  assert.equal(rootMissing.workspace.status, 'root-missing');
+  assert.equal(rootMissing.documents[0].status, 'root-missing');
+  const writable = appStoreReducer({ ...base, documents: [{ ...base.documents[0], status: 'read-only', readOnly: true }] }, {
+    type: 'APPLY_WORKSPACE_CHANGE',
+    event: { kind: 'modify', path: 'folder/drawing.is', entry: { path: 'folder/drawing.is', name: 'drawing.is', kind: 'file', readOnly: false, modified: 'before', children: [] } },
+  });
+  assert.equal(writable.documents[0].status, 'editable');
+  assert.equal(writable.documents[0].readOnly, false);
 });
