@@ -7,7 +7,7 @@
 | Type | Plans | Complete |
 | --- | --- | --- |
 | `required` | 5 | 5 |
-| `feature` | 7 | 7 |
+| `feature` | 8 | 8 |
 | `bugfix` | 4 | 4 |
 
 ## Execution Order
@@ -41,6 +41,7 @@
 | `F005` | [Align Workspace Actions and Camera Presentation Header](features/F005-align-workspace-camera-actions.md) | `complete` | 2026-07-24 |
 | `F006` | [Apply Revision C Editor Shell Defaults](features/F006-revision-c-editor-shell-defaults.md) | `complete` | 2026-07-24 |
 | `F007` | [Standardize Title Bar File Action Icons](features/F007-framework-title-bar-icons.md) | `complete` | 2026-08-03 |
+| `F008` | [Standardize Workspace Tree Icons](features/F008-framework-workspace-tree-icons.md) | `complete` | 2026-08-03 |
 
 ### Bugfix Plans
 

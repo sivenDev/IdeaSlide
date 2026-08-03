@@ -70,3 +70,10 @@ Implement the approved Revision C editor shell in the Tauri frontend: hide the W
 - created: 2026-08-03
 
 Replace the current custom or text-like Home, New, Open, Save, and related title-bar action icons with icons from the project's existing UI icon framework. Preserve the compact layout, action behavior, tooltips, accessibility labels, disabled states, and save-status presentation.
+
+## F008: Use framework icons in the Workspace tree
+
+- status: done
+- created: 2026-08-03
+
+Replace the Workspace tree's text-like disclosure marks and diamond resource glyphs with Lucide framework icons. Use clear collapsed/expanded chevrons, closed/open folder icons, an identifiable IdeaSketch file icon, and a safe generic icon for unsupported files while preserving indentation, row hit targets, selection styling, accessibility, Symlink behavior, and Explorer actions.

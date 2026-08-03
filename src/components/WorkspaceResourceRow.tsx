@@ -1,6 +1,21 @@
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
+import {
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
+  File,
+  FilePenLine,
+  Folder,
+  FolderOpen,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import type { WorkspaceEntry } from "../types";
 import { Input } from "./ui/Input";
+
+const entryIconProps = { "aria-hidden": true, size: 15, strokeWidth: 1.8 } as const;
+const chevronIconProps = { "aria-hidden": true, size: 13, strokeWidth: 2 } as const;
+const rowActionIconProps = { "aria-hidden": true, size: 13, strokeWidth: 1.9 } as const;
 
 interface WorkspaceResourceRowProps {
   entry: WorkspaceEntry;
@@ -20,10 +35,12 @@ interface WorkspaceResourceRowProps {
 
 function EntryIcon({ entry, expanded }: { entry: WorkspaceEntry; expanded: boolean }) {
   if (entry.kind === "directory") {
-    return <span aria-hidden="true" className="text-[15px]">{expanded ? "▾" : "▸"}</span>;
+    return expanded ? <FolderOpen {...entryIconProps} /> : <Folder {...entryIconProps} />;
   }
-  if (entry.kind === "symlink") return <span aria-hidden="true">↗</span>;
-  return <span aria-hidden="true">{entry.fileType === "ideasketch" ? "◇" : "·"}</span>;
+  if (entry.kind === "symlink") return <ExternalLink {...entryIconProps} />;
+  return entry.fileType === "ideasketch"
+    ? <FilePenLine {...entryIconProps} />
+    : <File {...entryIconProps} />;
 }
 
 export function WorkspaceResourceRow({
@@ -120,9 +137,19 @@ export function WorkspaceResourceRow({
           onToggleExpanded();
         }}
       >
-        {isExpanded ? "⌄" : "›"}
+        {isExpanded
+          ? <ChevronDown {...chevronIconProps} />
+          : <ChevronRight {...chevronIconProps} />}
       </button>
-      <span className={`idea-slide-resource-icon ${entry.kind === "directory" ? "is-folder" : ""}`}>
+      <span className={`idea-slide-resource-icon ${
+        entry.kind === "directory"
+          ? "is-folder"
+          : entry.kind === "symlink"
+            ? "is-symlink"
+            : entry.fileType === "ideasketch"
+              ? "is-ideasketch"
+              : ""
+      }`}>
         <EntryIcon entry={entry} expanded={isExpanded} />
       </span>
       {isRenaming ? (
@@ -148,8 +175,28 @@ export function WorkspaceResourceRow({
       {!entry.fileType && entry.kind === "file" && <span className="text-[9px] uppercase text-gray-400">Unsupported</span>}
       {canMutate && !isRenaming && (
         <div className="hidden items-center gap-0.5 group-hover:flex group-focus-within:flex">
-          <button type="button" aria-label={`Rename ${entry.name}`} className="idea-slide-row-action" onClick={(event) => { event.stopPropagation(); setIsRenaming(true); }}>✎</button>
-          <button type="button" aria-label={`Move ${entry.name} to Trash`} className="idea-slide-row-action is-danger" onClick={(event) => { event.stopPropagation(); onTrash(); }}>×</button>
+          <button
+            type="button"
+            aria-label={`Rename ${entry.name}`}
+            className="idea-slide-row-action"
+            onClick={(event) => {
+              event.stopPropagation();
+              setIsRenaming(true);
+            }}
+          >
+            <Pencil {...rowActionIconProps} />
+          </button>
+          <button
+            type="button"
+            aria-label={`Move ${entry.name} to Trash`}
+            className="idea-slide-row-action is-danger"
+            onClick={(event) => {
+              event.stopPropagation();
+              onTrash();
+            }}
+          >
+            <Trash2 {...rowActionIconProps} />
+          </button>
         </div>
       )}
     </div>

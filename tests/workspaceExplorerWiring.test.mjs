@@ -23,6 +23,17 @@ test('Workspace Explorer is driven by real relative paths and backend filesystem
 
 test('Workspace rows keep Symlinks non-recursive and unsupported files safe', async () => {
   const source = await readSource('src/components/WorkspaceResourceRow.tsx');
+  assert.match(source, /from "lucide-react"/);
+  assert.match(source, /<ChevronRight /);
+  assert.match(source, /<ChevronDown /);
+  assert.match(source, /<Folder /);
+  assert.match(source, /<FolderOpen /);
+  assert.match(source, /<FilePenLine /);
+  assert.match(source, /<File /);
+  assert.match(source, /<ExternalLink /);
+  assert.match(source, /<Pencil /);
+  assert.match(source, /<Trash2 /);
+  assert.doesNotMatch(source, /[⌄›▾▸◇↗·✎×]/);
   assert.match(source, /entry\.kind === "symlink"/);
   assert.match(source, /Unsupported/);
   assert.match(source, /application\/x-ideanote-path/);
