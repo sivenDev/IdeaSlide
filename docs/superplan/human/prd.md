@@ -1,7 +1,7 @@
 # IdeaNote Product Requirements Document
 
 - status: draft
-- document_version: 0.1
+- document_version: 0.2
 - created: 2026-08-03
 - last_updated: 2026-08-03
 - product: IdeaNote
@@ -24,11 +24,19 @@ IdeaNote 不以“传统幻灯片”或“单一笔记文件”为核心，而�
 
 > 将想法组织成内容、数据和可运行流程的 AI Workspace。
 
+### 1.1 已确认设计决定
+
+- `.is` 保留并回退到既有 IdeaSlide v1 ZIP 结构。
+- `.is` 是 Workspace 中的一种资源文件，不再承担整个 Workspace 的持久化职责。
+- 一个 `.is` 可以包含一个或多个按顺序排列的 Excalidraw Slide。
+- `.is` v1 的 Manifest 和 `slides/{id}.json` 路径保持兼容，不引入新的必填格式头。
+- 当前 `.is` v2 Resource Tree 结构只作为旧 IdeaSlide Workspace 的导入来源，不作为 IdeaNote 新 `.is` 的写入格式。
+
 ## 2. 背景与问题
 
 现有 IdeaSlide 已经从传统 Slide 列表演进为包含 Folder 和 Canvas 的 Workspace Resource Explorer，但当前仍有以下限制：
 
-1. `.is` 同时承担 Workspace、Canvas 内容、媒体和日常自动保存容器，修改少量内容也需要重新生成整个 ZIP。
+1. 当前 `.is v2` 同时承担 Workspace、Canvas 内容、媒体和日常自动保存容器，修改少量内容也需要重新生成整个 ZIP。
 2. 产品和代码仍保留较强的 Slide/Presentation 心智，无法完整表达未来的 Markdown、Table、Workflow 和 Script。
 3. 当前不同功能直接围绕 Canvas 构建，缺少供 UI、AI Agent 和 Workflow 共同调用的统一操作层。
 4. 当前没有 Workspace 级 AI Agent，用户无法通过对话跨资源创建内容或编排自动化。
@@ -44,7 +52,7 @@ IdeaNote 不以“传统幻灯片”或“单一笔记文件”为核心，而�
 4. 提供 Workspace 级 AI Agent，使用户能够通过自然语言创建、读取、修改和关联资源。
 5. 为每种资源类型提供类型化 SDK，并让 UI、Agent 和 Workflow 复用同一套命令和验证逻辑。
 6. 为 Agent、Workflow 和 Script 提供可审计、可撤销、受权限控制的执行模型。
-7. 保留现有 IdeaSlide `.is` 文件的可迁移能力，避免已有内容丢失。
+7. 直接兼容既有 `.is v1`，并为现有 `.is v2` Workspace 提供无损导入，避免已有内容丢失。
 
 ### 3.2 成功标准
 
@@ -159,32 +167,62 @@ interface ChangeSet {
 
 ### 7.1 IdeaSketch (`.is`)
 
-IdeaSketch 是 Excalidraw Canvas 的包装格式，用于单个 Canvas 的导入、导出、分享和资源级备份。
+IdeaSketch 是 Excalidraw 的包装格式，也是 Workspace 中的一种 Resource。`.is` 回退并保持既有 IdeaSlide v1 ZIP 结构，而不是继续使用 v2 Resource Tree，也不重新定义为新的单 Canvas 格式。
 
-它应包含：
+一个 `.is` 可以包含一个或多个按顺序排列的 Excalidraw Slide：
 
-- 明确的格式身份，例如 `format: "ideanote.sketch"`。
-- IdeaSketch Schema 版本。
-- Excalidraw 引擎名称和版本。
-- Elements、必要的 AppState 和 Files。
-- Camera 元素和演示顺序。
-- 媒体索引与媒体内容。
-- 可选的预览信息，但缩略图不属于第一阶段要求。
+```text
+example.is
+├── manifest.json
+├── slides/
+│   ├── {slide-id-1}.json
+│   └── {slide-id-2}.json
+├── media/          # v1 兼容下可选或预留
+└── thumbnails/     # 预留，不属于第一阶段
+```
 
-建议的格式头：
+`manifest.json` 保持 v1 字段：
 
 ```json
 {
-  "format": "ideanote.sketch",
   "version": "1.0",
-  "engine": {
-    "name": "excalidraw",
-    "version": "0.18"
-  }
+  "created": "2026-08-03T00:00:00Z",
+  "modified": "2026-08-03T01:00:00Z",
+  "slides": [
+    {
+      "id": "slide-1",
+      "title": "Overview"
+    },
+    {
+      "id": "slide-2",
+      "title": "Architecture"
+    }
+  ]
 }
 ```
 
-当前 IdeaSlide `.is 1.0/2.0` 表示完整 Workspace，与新 IdeaSketch 语义冲突。新版本必须通过格式身份或明确版本区分，不能静默按新格式解释旧文件。
+每个 `slides/{id}.json` 保存一个 Excalidraw Scene：
+
+```json
+{
+  "type": "excalidraw",
+  "version": 2,
+  "elements": [],
+  "appState": {},
+  "files": {}
+}
+```
+
+格式规则：
+
+- Slide 顺序由 Manifest 中 `slides` 数组顺序决定。
+- Slide 名称由 `slides[].title` 保存。
+- Camera 继续作为对应 Slide `elements` 中带有 `customData.type = "camera"` 的 Excalidraw Rectangle 保存。
+- Camera 的播放顺序由 Camera Element 的 `customData.order` 决定。
+- Excalidraw 图片文件继续通过 Scene `files` 保持 v1 兼容；未来如需把媒体独立到 `media/`，必须通过新的格式版本设计，不能改变 v1 读取语义。
+- Folder、Workspace Resource Tree、Agent History 和 Workflow Run 不写入 `.is`，这些属于外层 Workspace。
+- IdeaNote 写出的 `.is` 使用 `version: "1.0"`，并接受现有兼容 v1 文件。
+- 当前 `.is v2` 不由新的 IdeaSketch Writer 写出，只通过 Legacy Workspace Import 读取。
 
 ### 7.2 IdeaTable (`.it`)
 
@@ -253,7 +291,7 @@ IdeaWorkflow 不属于第一阶段 MVP，但其命令和权限模型必须与 Ag
 
 ### 7.6 Workspace 导出格式
 
-当 `.is` 被重新定义为单个 IdeaSketch 后，需要新的 Workspace 级导入导出格式。暂以 `.inw`（IdeaNote Workspace）作为候选扩展名，最终名称属于待决事项。
+由于 `.is` 只表示使用 v1 结构的 IdeaSketch Resource，需要独立的 Workspace 级导入导出格式。暂以 `.inw`（IdeaNote Workspace）作为候选扩展名，最终名称属于待决事项。
 
 Workspace 导出包应包含完整资源树、所有资源内容、媒体、格式版本和必要元数据，但不默认包含本地缓存、完整 Agent 对话、Secret 明文或不必要的运行临时文件。
 
@@ -318,6 +356,9 @@ workspace.moveResource
 workspace.renameResource
 
 sketch.create
+sketch.createSlide
+sketch.renameSlide
+sketch.reorderSlides
 sketch.addElements
 sketch.updateElements
 sketch.createCamera
@@ -355,7 +396,8 @@ Agent 不得直接绕过 SDK 修改 Workspace 数据库或底层文件。
 
 - 回答与当前 Workspace 和选中资源有关的问题。
 - 创建 Folder、IdeaSketch 和 Markdown。
-- 读取和修改 IdeaSketch Elements。
+- 创建、重命名、排序和修改 IdeaSketch Slides。
+- 读取和修改指定 Slide 中的 IdeaSketch Elements。
 - 创建和调整 Camera。
 - 创建、读取和 Patch Markdown。
 - 移动、重命名和关联资源。
@@ -492,13 +534,25 @@ workspaces/{workspaceId}/
 
 ### 14.1 旧 IdeaSlide 导入
 
-系统必须能够识别现有 IdeaSlide `.is 1.0/2.0`：
+系统必须分别处理现有 IdeaSlide `.is v1` 和 `.is v2`：
 
-- 旧 Workspace 中的 Folder 和 Canvas 被导入为新 IdeaNote Workspace Resource。
-- Canvas 内容被转换为 IdeaSketch Resource。
-- Resource 名称、层级、顺序、媒体和 Camera 顺序保持不变。
+#### `.is v1`
+
+- 结构已经是新的 IdeaSketch Resource 格式，无需改写内部 Manifest 和 Slide 路径。
+- 导入后在 Workspace 中创建一个 `.is` Resource。
+- 原有 Slide 名称、顺序、Excalidraw 内容、Files 和 Camera 顺序保持不变。
 - 导入不覆盖原文件。
-- 导入完成后明确提示原文件仍然存在。
+
+#### `.is v2`
+
+- v2 被识别为旧 IdeaSlide Workspace，而不是 IdeaSketch Resource。
+- 导入时创建一个新的 IdeaNote Workspace。
+- 原 Folder 转换为新 Workspace Folder。
+- 每个 Canvas 转换为一个只含一个 Slide 的 `.is v1` Resource。
+- v2 中未来或未知的 Resource Type 必须作为 Unsupported Resource 保留原始元数据和内容，不得静默丢弃。
+- Resource 名称、层级、顺序、媒体和 Camera 顺序保持不变。
+- 当前活动 Canvas 映射为导入后活动的 `.is` Resource。
+- 导入不覆盖原文件，完成后明确提示原文件仍然存在。
 
 ### 14.2 Resource 导入
 
@@ -521,7 +575,8 @@ Home 展示：
 - Recent Workspaces。
 - New Workspace。
 - Import Workspace。
-- Import legacy IdeaSlide file。
+- Import IdeaSketch (`.is v1`)。
+- Import legacy IdeaSlide Workspace (`.is v2`)。
 - Workspace 名称、最近修改时间和可选预览。
 
 首页不再以 Recent `.is` Files 作为唯一入口。
@@ -578,8 +633,8 @@ Resource Editor Host 根据 Resource Type Registry 加载对应编辑器。未�
 8. Command Bus、Revision、ChangeSet 和基础 Undo。
 9. 右侧 Agent 面板。
 10. Agent 创建和修改 Folder、IdeaSketch、Markdown。
-11. 旧 IdeaSlide `.is` 导入。
-12. 单个 IdeaSketch 导入导出。
+11. `.is v1` IdeaSketch 直接导入，以及旧 `.is v2` Workspace 导入。
+12. IdeaSketch Resource 导入导出。
 13. Workspace 完整导出格式的最小可用版本。
 
 ### 18.2 延后范围
@@ -605,8 +660,9 @@ Resource Editor Host 根据 Resource Type Registry 加载对应编辑器。未�
 ### IdeaSketch
 
 - 现有 Excalidraw 编辑、Camera 和当前 Canvas Present 行为保持可用。
-- 单个 IdeaSketch 可以导入和导出。
-- 导出文件包含明确格式身份和版本。
+- 一个 IdeaSketch Resource 可以包含、重命名和排序多个 Slide。
+- IdeaSketch 可以按既有 `.is v1` 结构导入和导出。
+- 导出的 Manifest 使用 `version: "1.0"`、`slides[]` 和 `slides/{id}.json`。
 
 ### Markdown
 
@@ -623,8 +679,9 @@ Resource Editor Host 根据 Resource Type Registry 加载对应编辑器。未�
 
 ### 兼容
 
-- 现有 IdeaSlide `.is 1.0/2.0` 可以导入。
-- Folder、Canvas、顺序、名称、媒体和 Camera 顺序不会丢失。
+- 现有 IdeaSlide `.is v1` 可以作为 IdeaSketch Resource 直接导入。
+- 现有 IdeaSlide `.is v2` 可以作为旧 Workspace 导入并拆分为 Folder 和 `.is v1` Resource。
+- Folder、Canvas/Slide、顺序、名称、媒体和 Camera 顺序不会丢失。
 - 不支持的未来格式在读取内容前给出明确错误。
 
 ## 20. 发布阶段建议
@@ -634,14 +691,14 @@ Resource Editor Host 根据 Resource Type Registry 加载对应编辑器。未�
 - 评审并批准本 PRD。
 - 确定命名、格式扩展名和兼容策略。
 - 定义 Workspace Repository、Command Bus、Resource SDK 和 Agent Tool Protocol。
-- 建立性能基线和旧 `.is` 测试样本。
+- 建立性能基线以及 `.is v1/v2` 兼容测试样本。
 
 ### Phase 1：Workspace Core
 
 - 本地 Workspace 生命周期。
 - 增量持久化。
 - Resource Revision、ChangeSet、Undo。
-- IdeaSketch 拆分与旧格式导入。
+- `.is v1` Writer/Reader 恢复，以及 `.is v2` Legacy Workspace Import。
 
 ### Phase 2：Multi-resource Editor
 
@@ -672,9 +729,9 @@ Resource Editor Host 根据 Resource Type Registry 加载对应编辑器。未�
 
 同时开发 Canvas、Markdown、Table、Workflow、Script 和 Agent 会降低每个能力的完成度。必须坚持先完成 Workspace + IdeaSketch + Markdown + Agent 的最小闭环。
 
-### 21.2 `.is` 语义冲突
+### 21.2 `.is v1/v2` 双重语义
 
-当前 `.is` 已经代表 IdeaSlide Workspace。重新定义为 IdeaSketch 时必须有明确格式身份、迁移测试和用户提示。
+`.is v1` 将作为 IdeaSketch Resource 的正式格式，而 `.is v2` 曾被用作 IdeaSlide Workspace。Importer 必须先读取 Manifest Version，再决定按 Resource 或 Legacy Workspace 处理；Writer 只能写 v1，避免继续扩大双重语义。
 
 ### 21.3 Agent 直接修改数据
 
@@ -697,19 +754,18 @@ Agent Tool Protocol、Conversation 和 Workspace Context 不应绑定单一模�
 以下问题必须在进入开发计划前确定：
 
 1. `IdeaNote` 是否为最终产品名称，是否需要新的应用标识、Bundle ID 和仓库名称。
-2. `.is` 是否正式解释为 IdeaSketch，还是改用更明确的 `.ic` / `.isketch`。
-3. Workspace 导出格式是否使用 `.inw`，或采用其他名称。
-4. Workspace 第一版物理存储采用目录化 JSON、SQLite，还是混合方式。
-5. Workspace 是否允许用户选择任意本地目录，还是完全由应用管理。
-6. 打开旧 `.is` 时，是直接创建新 Workspace，还是提供只读预览后再导入。
-7. 第一阶段 Markdown 编辑器采用源码、所见即所得，还是双模式。
-8. Agent 第一阶段使用哪个模型 Provider，以及 API Key 的管理方式。
-9. Agent 修改默认自动应用，还是先生成 Preview 再由用户 Apply；哪些操作必须确认。
-10. ChangeSet 的历史保存周期和磁盘清理策略。
-11. Workspace 导出是否包含 Agent 会话和 Workflow Run 历史。
-12. 第一阶段是否支持多个 Resource Tab，还是保持单 Resource Editor。
-13. IdeaTable 和 IdeaWorkflow 的首个真实业务场景分别是什么。
-14. Script 第一阶段准备支持哪些语言和运行时。
+2. Workspace 导出格式是否使用 `.inw`，或采用其他名称。
+3. Workspace 第一版物理存储采用目录化 JSON、SQLite，还是混合方式。
+4. Workspace 是否允许用户选择任意本地目录，还是完全由应用管理。
+5. 打开 `.is v2` 时，是直接创建新 Workspace，还是提供只读预览后再导入。
+6. 第一阶段 Markdown 编辑器采用源码、所见即所得，还是双模式。
+7. Agent 第一阶段使用哪个模型 Provider，以及 API Key 的管理方式。
+8. Agent 修改默认自动应用，还是先生成 Preview 再由用户 Apply；哪些操作必须确认。
+9. ChangeSet 的历史保存周期和磁盘清理策略。
+10. Workspace 导出是否包含 Agent 会话和 Workflow Run 历史。
+11. 第一阶段是否支持多个 Resource Tab，还是保持单 Resource Editor。
+12. IdeaTable 和 IdeaWorkflow 的首个真实业务场景分别是什么。
+13. Script 第一阶段准备支持哪些语言和运行时。
 
 ## 23. 开发启动门槛
 
@@ -717,7 +773,7 @@ Agent Tool Protocol、Conversation 和 Workspace Context 不应绑定单一模�
 
 - 本 PRD 状态由 `draft` 更新为明确批准状态。
 - 第 22 节影响架构和兼容性的待决事项已经决策。
-- 旧 `.is` 迁移策略和测试样本已经确认。
+- `.is v1` 兼容写入、`.is v2` Workspace 导入策略和测试样本已经确认。
 - MVP 范围和非目标获得确认。
 - 根据最终 PRD 生成 Superplan 开发计划。
 - 所有开发计划通过人工评审和批准。
