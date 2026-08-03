@@ -1,82 +1,55 @@
 import { useEffect, useRef } from "react";
-import { saveFile } from "../lib/tauriCommands";
-import type { Slide, WorkspaceDocument } from "../types";
+import type { DocumentModel } from "../types";
 import { buildAutoSaveTriggerKey } from "../lib/autoSaveSignature";
 
 interface UseAutoSaveOptions {
+  enabled: boolean;
+  sessionId: string;
   filePath?: string;
-  workspace: WorkspaceDocument;
-  slides: Slide[];
+  revision: number;
   isDirty: boolean;
-  onSaveStart: () => WorkspaceDocument | void;
+  getModel: () => DocumentModel;
+  getEditVersion: () => number;
+  onSave: (model: DocumentModel) => Promise<void>;
   onSaveComplete: () => void;
   onSaveError: (error: Error) => void;
   debounceMs?: number;
 }
 
 export function useAutoSave({
+  enabled,
+  sessionId,
   filePath,
-  workspace,
-  slides,
+  revision,
   isDirty,
-  onSaveStart,
+  getModel,
+  getEditVersion,
+  onSave,
   onSaveComplete,
   onSaveError,
   debounceMs = 2000,
 }: UseAutoSaveOptions) {
-  const timeoutRef = useRef<number | null>(null);
-  const isSavingRef = useRef(false);
-  const workspaceRef = useRef(workspace);
-  const filePathRef = useRef(filePath);
-  const onSaveStartRef = useRef(onSaveStart);
-  const onSaveCompleteRef = useRef(onSaveComplete);
-  const onSaveErrorRef = useRef(onSaveError);
-
-  workspaceRef.current = workspace;
-  filePathRef.current = filePath;
-  onSaveStartRef.current = onSaveStart;
-  onSaveCompleteRef.current = onSaveComplete;
-  onSaveErrorRef.current = onSaveError;
-
-  const triggerKey = buildAutoSaveTriggerKey({
-    filePath,
-    slides,
-    isDirty,
-    debounceMs,
-  });
+  const callbacksRef = useRef({ getModel, getEditVersion, onSave, onSaveComplete, onSaveError });
+  callbacksRef.current = { getModel, getEditVersion, onSave, onSaveComplete, onSaveError };
+  const triggerKey = buildAutoSaveTriggerKey({ enabled, sessionId, filePath, revision, isDirty, debounceMs });
+  const triggerKeyRef = useRef(triggerKey);
+  triggerKeyRef.current = triggerKey;
 
   useEffect(() => {
-    if (!filePath || !isDirty || isSavingRef.current) {
-      return;
-    }
-
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-
-    timeoutRef.current = window.setTimeout(async () => {
-      timeoutRef.current = null;
-      isSavingRef.current = true;
-      const nextWorkspace = onSaveStartRef.current() ?? workspaceRef.current;
-
+    if (!enabled || !filePath || !isDirty) return;
+    const scheduledKey = triggerKey;
+    const timeout = window.setTimeout(async () => {
       try {
-        if (!filePathRef.current) {
-          return;
-        }
-
-        await saveFile(filePathRef.current, nextWorkspace);
-        onSaveCompleteRef.current();
-      } catch (error) {
-        onSaveErrorRef.current(error as Error);
-      } finally {
-        isSavingRef.current = false;
+        const editVersion = callbacksRef.current.getEditVersion();
+        await callbacksRef.current.onSave(callbacksRef.current.getModel());
+        if (
+          triggerKeyRef.current === scheduledKey
+          && callbacksRef.current.getEditVersion() === editVersion
+        ) callbacksRef.current.onSaveComplete();
+      } catch (cause) {
+        callbacksRef.current.onSaveError(cause instanceof Error ? cause : new Error(String(cause)));
       }
     }, debounceMs);
-
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, [triggerKey, debounceMs, filePath, isDirty]);
+    return () => window.clearTimeout(timeout);
+  }, [debounceMs, enabled, filePath, isDirty, triggerKey]);
 }

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Slide } from "../types";
 import {
   buildEditorDraftFromSlide,
-  buildContentsForPersistence,
   createDraftChangeSummary,
   flushEditorDraft,
   type EditorSlideDraft,
@@ -10,30 +9,30 @@ import {
 } from "../lib/editorSession.ts";
 
 interface UseEditorSessionOptions {
-  slide: Slide;
-  resourceId: string;
-  contents: Record<string, unknown>;
-  onCommit: (resourceId: string, payload: SlideCommitPayload) => void;
+  documentSessionId: string;
+  page: Slide;
+  onCommit: (documentSessionId: string, pageId: string, payload: SlideCommitPayload) => void;
   onDirty: () => void;
 }
 
 const PREVIEW_SYNC_DEBOUNCE_MS = 250;
 
 export function useEditorSession({
-  slide,
-  resourceId,
-  contents,
+  documentSessionId,
+  page,
   onCommit,
   onDirty,
 }: UseEditorSessionOptions) {
-  const initialDraft = buildEditorDraftFromSlide(slide);
-  const initialSummary = createDraftChangeSummary(slide, initialDraft);
+  const initialDraft = buildEditorDraftFromSlide(page);
+  const initialSummary = createDraftChangeSummary(page, initialDraft);
   const [draft, setDraft] = useState<EditorSlideDraft>(initialDraft);
   const [hasPendingCommit, setHasPendingCommit] = useState(initialSummary.hasPersistedChange);
   const [autoSaveVersion, setAutoSaveVersion] = useState(0);
-  const baseSlideRef = useRef(slide);
+  const baseSlideRef = useRef(page);
+  const documentSessionIdRef = useRef(documentSessionId);
   const draftRef = useRef(initialDraft);
   const changeSummaryRef = useRef(initialSummary);
+  const editVersionRef = useRef(0);
   const previewSyncTimeoutRef = useRef<number | null>(null);
 
   const clearPreviewSyncTimeout = useCallback(() => {
@@ -49,34 +48,24 @@ export function useEditorSession({
   }, []);
 
   useEffect(() => {
-    if (slide === baseSlideRef.current && slide.id === draftRef.current.slideId) {
+    if (page === baseSlideRef.current && page.id === draftRef.current.slideId && documentSessionId === documentSessionIdRef.current) {
       return;
     }
 
     clearPreviewSyncTimeout();
-    const nextDraft = buildEditorDraftFromSlide(slide);
-    const nextSummary = createDraftChangeSummary(slide, nextDraft);
-    baseSlideRef.current = slide;
+    const nextDraft = buildEditorDraftFromSlide(page);
+    const nextSummary = createDraftChangeSummary(page, nextDraft);
+    baseSlideRef.current = page;
+    documentSessionIdRef.current = documentSessionId;
     draftRef.current = nextDraft;
+    editVersionRef.current += 1;
     changeSummaryRef.current = nextSummary;
     setDraft(nextDraft);
     setHasPendingCommit(nextSummary.hasPersistedChange);
     setAutoSaveVersion((value) => value + 1);
-  }, [clearPreviewSyncTimeout, slide]);
+  }, [clearPreviewSyncTimeout, documentSessionId, page]);
 
   useEffect(() => clearPreviewSyncTimeout, [clearPreviewSyncTimeout]);
-
-  const getContentsForPersistence = useCallback(
-    () =>
-      buildContentsForPersistence(
-        contents,
-        resourceId,
-        baseSlideRef.current,
-        draftRef.current,
-        changeSummaryRef.current
-      ),
-    [contents, resourceId]
-  );
 
   const updateDraft = useCallback(
     (
@@ -94,6 +83,7 @@ export function useEditorSession({
       const nextSummary = createDraftChangeSummary(baseSlideRef.current, nextDraft);
 
       draftRef.current = nextDraft;
+      editVersionRef.current += 1;
       changeSummaryRef.current = nextSummary;
       setHasPendingCommit((previousValue) =>
         previousValue === nextSummary.hasPersistedChange ? previousValue : nextSummary.hasPersistedChange
@@ -119,7 +109,7 @@ export function useEditorSession({
     const { commitPayload } = flushed;
 
     if (commitPayload) {
-      onCommit(resourceId, commitPayload);
+      onCommit(documentSessionIdRef.current, baseSlideRef.current.id, commitPayload);
     }
 
     baseSlideRef.current = flushed.baseSlide;
@@ -127,16 +117,22 @@ export function useEditorSession({
     changeSummaryRef.current = createDraftChangeSummary(flushed.baseSlide, flushed.draft);
     setDraft(flushed.draft);
     setHasPendingCommit(changeSummaryRef.current.hasPersistedChange);
-    setAutoSaveVersion((value) => value + 1);
-
     return commitPayload;
-  }, [clearPreviewSyncTimeout, onCommit, resourceId]);
+  }, [clearPreviewSyncTimeout, onCommit]);
+
+  const flushDraftRef = useRef(flushDraft);
+  useEffect(() => {
+    flushDraftRef.current = flushDraft;
+  }, [flushDraft]);
+  useEffect(() => () => {
+    flushDraftRef.current();
+  }, []);
 
   return {
     autoSaveVersion,
     draft,
     flushDraft,
-    getContentsForPersistence,
+    getEditVersion: () => editVersionRef.current,
     hasPendingCommit,
     updateDraft,
   };

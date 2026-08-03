@@ -2,7 +2,13 @@ import type { Slide } from "../types.ts";
 import { buildSceneFingerprint } from "./sceneFingerprint.ts";
 import { slideToCanvasContent } from "./workspaceResources.ts";
 
-const PERSISTED_APP_STATE_KEYS = ["viewBackgroundColor", "gridSize"] as const;
+const PERSISTED_APP_STATE_KEYS = [
+  "viewBackgroundColor",
+  "gridSize",
+  "scrollX",
+  "scrollY",
+  "zoom",
+] as const;
 const DEFAULT_VIEW_BACKGROUND_COLOR = "#ffffff";
 
 export interface EditorSlideDraft {
@@ -94,6 +100,7 @@ export function buildSlideCommitPayload(
   return {
     slide: {
       id: previousSlide.id,
+      ...(previousSlide.title !== undefined ? { title: previousSlide.title } : {}),
       elements: draft.elements,
       appState: extractPersistedAppState(draft.appState),
       files: draft.files,

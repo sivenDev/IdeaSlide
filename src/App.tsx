@@ -144,12 +144,10 @@ function AppContent() {
   }
 
   if (state.presentationMode !== "none") {
-    const session = state.documents.find((document) => document.id === state.presentationSessionId);
-    const model = session?.model;
-    if (model?.type === "ideasketch" && model.pages[0]) {
+    if (state.presentationPage && state.presentationSessionId && state.presentationPageId) {
       return (
         <PresentationMode
-          slide={model.pages[0]}
+          slide={state.presentationPage}
           mode={state.presentationMode}
           transitionSpeed="slow"
           onExit={handlePresentationExit}

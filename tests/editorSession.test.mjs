@@ -10,7 +10,7 @@ async function loadModule() {
   }
 }
 
-test('extractPersistedAppState keeps persistent fields and strips transient editing state', async () => {
+test('extractPersistedAppState keeps Page viewport fields and strips transient editing state', async () => {
   const { extractPersistedAppState } = await loadModule();
 
   assert.equal(typeof extractPersistedAppState, 'function');
@@ -29,6 +29,9 @@ test('extractPersistedAppState keeps persistent fields and strips transient edit
   assert.deepEqual(persisted, {
     viewBackgroundColor: '#ffffff',
     gridSize: 16,
+    scrollX: 120,
+    scrollY: 80,
+    zoom: { value: 2 },
   });
 });
 
@@ -98,7 +101,7 @@ test('buildSlidesForPersistence applies the latest live draft snapshot to the cu
   );
 });
 
-test('buildSlideCommitPayload returns null when only transient appState changed', async () => {
+test('buildSlideCommitPayload returns null when only selection state changed', async () => {
   const { buildEditorDraftFromSlide, buildSlideCommitPayload } = await loadModule();
 
   assert.equal(typeof buildEditorDraftFromSlide, 'function');
@@ -115,14 +118,12 @@ test('buildSlideCommitPayload returns null when only transient appState changed'
   draft.appState = {
     ...draft.appState,
     selectedElementIds: { 'text-1': true },
-    scrollX: 40,
-    scrollY: 80,
   };
 
   assert.equal(buildSlideCommitPayload(slide, draft), null);
 });
 
-test('buildSlideCommitPayload ignores Excalidraw default white background when previous slide omitted it', async () => {
+test('buildSlideCommitPayload persists the zero-Camera Page viewport', async () => {
   const { buildEditorDraftFromSlide, buildSlideCommitPayload } = await loadModule();
 
   assert.equal(typeof buildEditorDraftFromSlide, 'function');
@@ -143,7 +144,19 @@ test('buildSlideCommitPayload ignores Excalidraw default white background when p
     scrollY: 80,
   };
 
-  assert.equal(buildSlideCommitPayload(slide, draft), null);
+  assert.deepEqual(buildSlideCommitPayload(slide, draft), {
+    slide: {
+      id: 'slide-1',
+      elements: [{ id: 'camera-1', version: 1 }],
+      appState: {
+        viewBackgroundColor: '#ffffff',
+        scrollX: 40,
+        scrollY: 80,
+      },
+      files: {},
+    },
+    contentChanged: false,
+  });
 });
 
 test('buildSlideCommitPayload returns persisted slide data when scene content changed', async () => {
@@ -322,7 +335,11 @@ test('flushEditorDraft resets the draft baseline after committing so save state 
     slide: {
       id: 'slide-1',
       elements: [{ id: 'text-1', version: 2 }],
-      appState: { viewBackgroundColor: '#ffffff' },
+      appState: {
+        viewBackgroundColor: '#ffffff',
+        scrollX: 120,
+        scrollY: 80,
+      },
       files: {},
     },
     contentChanged: true,

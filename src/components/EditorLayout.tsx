@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ask, message } from "@tauri-apps/plugin-dialog";
 import { useAppStore } from "../hooks/useAppStore";
 import { getFileTypeDefinition } from "../lib/fileTypeRegistry";
@@ -32,12 +32,13 @@ import {
   WORKSPACE_PANEL_MIN_WIDTH,
   clampWorkspacePanelWidth,
 } from "../lib/panelSizing";
-import type { DocumentSession, WorkspaceEntry } from "../types";
+import type { DocumentModel, DocumentSession, IdeaSketchDocument, IdeaSketchPage, WorkspaceEntry } from "../types";
 import { Toolbar } from "./Toolbar";
 import { WorkspaceExplorer } from "./WorkspaceExplorer";
 import { DocumentTabs } from "./DocumentTabs";
 import { DocumentEditorHost } from "./DocumentEditorHost";
 import { ResizableDivider } from "./ResizableDivider";
+import { IdeaSketchEditor } from "./IdeaSketchEditor";
 
 interface EditorLayoutProps {
   onGoHome: () => void;
@@ -76,6 +77,7 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
   const [showWorkspace, setShowWorkspace] = useState(state.mode === "workspace");
   const [workspacePanelWidth, setWorkspacePanelWidth] = useState(WORKSPACE_PANEL_DEFAULT_WIDTH);
   const [isResizingWorkspace, setIsResizingWorkspace] = useState(false);
+  const documentSnapshotProviders = useRef(new Map<string, () => IdeaSketchDocument>());
   const activeDocument = state.documents.find((document) => document.id === state.activeSessionId);
   const effectiveReadOnly = readOnly || Boolean(activeDocument?.readOnly) || activeDocument?.status === "read-only";
 
@@ -194,11 +196,12 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
   }, [dispatch, refreshTree, state.documents, state.workspace]);
 
   const saveDocument = useCallback(async (document: DocumentSession, forceSaveAs = false): Promise<boolean> => {
-    if (!document.model || document.status === "legacy-protected" || document.status === "unsupported" || document.status === "missing") return false;
+    const model = documentSnapshotProviders.current.get(document.id)?.() ?? document.model;
+    if (!model || document.status === "legacy-protected" || document.status === "unsupported" || document.status === "missing") return false;
     try {
       setIsSaving(true);
       if (document.mode === "workspace" && state.workspace && document.filePath && !forceSaveAs) {
-        const result = await saveWorkspaceDocument(state.workspace.root, document.filePath, document.model);
+        const result = await saveWorkspaceDocument(state.workspace.root, document.filePath, model);
         dispatch({ type: "MARK_DOCUMENT_SAVED", sessionId: document.id });
         if (!result.metadataError) dispatch({ type: "MARK_WORKSPACE_METADATA_EXISTS" });
         if (result.metadataError) {
@@ -209,7 +212,7 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
       let path = forceSaveAs ? "" : document.filePath;
       if (!path) path = await chooseStandaloneSavePath(document.displayName || "Untitled.is") ?? "";
       if (!path) return false;
-      await saveStandaloneDocument(path, document.model);
+      await saveStandaloneDocument(path, model);
       dispatch({ type: "UPDATE_DOCUMENT_PATH", sessionId: document.id, filePath: path, mode: "standalone" });
       dispatch({ type: "MARK_DOCUMENT_SAVED", sessionId: document.id });
       addRecentFile(path).catch(console.error);
@@ -221,6 +224,28 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
       setIsSaving(false);
     }
   }, [dispatch, state.workspace]);
+
+  const handleRegisterSnapshot = useCallback((sessionId: string, provider?: () => IdeaSketchDocument) => {
+    if (provider) documentSnapshotProviders.current.set(sessionId, provider);
+    else documentSnapshotProviders.current.delete(sessionId);
+  }, []);
+
+  const handleAutoSave = useCallback(async (sessionId: string, model: DocumentModel) => {
+    const document = state.documents.find((candidate) => candidate.id === sessionId);
+    if (!document || document.mode !== "workspace" || !state.workspace || !document.filePath) return;
+    setIsSaving(true);
+    try {
+      const result = await saveWorkspaceDocument(state.workspace.root, document.filePath, model);
+      if (!result.metadataError) dispatch({ type: "MARK_WORKSPACE_METADATA_EXISTS" });
+      if (result.metadataError) console.warn(`Workspace metadata was not updated: ${result.metadataError}`);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [dispatch, state.documents, state.workspace]);
+
+  const handleStartPresentation = useCallback((sessionId: string, page: IdeaSketchPage, mode: "preview" | "fullscreen") => {
+    dispatch({ type: "START_PRESENTATION", sessionId, pageId: page.id, page, mode });
+  }, [dispatch]);
 
   const handleSave = useCallback(() => activeDocument ? saveDocument(activeDocument) : Promise.resolve(false), [activeDocument, saveDocument]);
   const handleSaveAs = useCallback(() => activeDocument ? saveDocument(activeDocument, true) : Promise.resolve(false), [activeDocument, saveDocument]);
@@ -381,7 +406,28 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
             onReopenLast={() => dispatch({ type: "REOPEN_LAST_DOCUMENT" })}
           />
           <div className="min-h-0 flex-1 overflow-hidden">
-            <DocumentEditorHost document={activeDocument} fullPath={activeFullPath} />
+            <DocumentEditorHost
+              document={activeDocument}
+              fullPath={activeFullPath}
+              renderIdeaSketch={(document) => (
+                <IdeaSketchEditor
+                  document={document as DocumentSession<IdeaSketchDocument>}
+                  readOnly={readOnly || Boolean(document.readOnly) || document.status === "read-only"}
+                  editorRefreshToken={state.editorRefreshToken}
+                  onModelChange={(sessionId, model) => dispatch({ type: "UPDATE_DOCUMENT_MODEL", sessionId, model })}
+                  onDirty={(sessionId) => dispatch({ type: "MARK_DOCUMENT_DIRTY", sessionId })}
+                  onEditorStateChange={(sessionId, activePageId) => dispatch({
+                    type: "SET_DOCUMENT_EDITOR_STATE",
+                    sessionId,
+                    editorState: { activePageId },
+                  })}
+                  onRegisterSnapshot={handleRegisterSnapshot}
+                  onAutoSave={handleAutoSave}
+                  onAutoSaveComplete={(sessionId) => dispatch({ type: "MARK_DOCUMENT_SAVED", sessionId })}
+                  onStartPresentation={handleStartPresentation}
+                />
+              )}
+            />
           </div>
         </main>
       </div>

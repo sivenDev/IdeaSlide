@@ -2,7 +2,7 @@
 id: "04"
 title: "Integrate IdeaSketch into Workspace and Standalone Sessions"
 type: "required"
-status: "draft"
+status: "complete"
 summary: "Attach the existing Excalidraw, Pages, Cameras, Present, and MCP behaviors to active .is v1 document sessions."
 source: "docs/superplan/human/prd.md"
 created: "2026-08-03"
@@ -41,8 +41,8 @@ parent: ""
 - `node --test tests/ideaSketchReducer.test.mjs tests/editorSession.test.mjs tests/editorSessionRenderStability.test.mjs`
 - Cases: two open documents with identical Page ids remain isolated; pending edits commit to original Page; reorder/title persist; last Page cannot be removed.
 
-- [ ] Add failing multi-document Page and draft-isolation tests.
-- [ ] Implement pure Page state and session-aware draft commits.
+- [x] Add failing multi-document Page and draft-isolation tests.
+- [x] Implement pure Page state and session-aware draft commits.
 
 ## Task 2: Add the IdeaSketch Editor and Pages Control
 
@@ -69,8 +69,8 @@ parent: ""
 - `node --test tests/ideaSketchEditor.test.mjs tests/pageOrganizer.test.mjs tests/cameraBadgeWiring.test.mjs tests/canvasPresentationControls.test.mjs`
 - Interaction cases: Pages popover opens from the active document chrome; add/rename/reorder/delete/select works; Canvas controls stay top-right; Excalidraw never exposes native scene Save.
 
-- [ ] Implement the IdeaSketch host and compact Pages organizer.
-- [ ] Preserve stable Excalidraw onChange/API identities and presentation-exit refresh behavior.
+- [x] Implement the IdeaSketch host and compact Pages organizer.
+- [x] Preserve stable Excalidraw onChange/API identities and presentation-exit refresh behavior.
 
 ## Task 3: Rebind Cameras and Present to the Active Page
 
@@ -93,8 +93,8 @@ parent: ""
 - `node --test tests/cameraSidebarWiring.test.mjs tests/workspacePresentationOrder.test.mjs tests/editorChromeNavigation.test.mjs tests/cameraUtils.test.mjs`
 - Cases: Camera edits affect only active Page; Present zero/nonzero Camera behavior; Page/Tab cannot change presentation sequence; exit refreshes originating editor.
 
-- [ ] Adapt Cameras and Present to document/Page identity without changing their approved placement.
-- [ ] Replace obsolete workspace-resource presentation contracts with current-Page contracts.
+- [x] Adapt Cameras and Present to document/Page identity without changing their approved placement.
+- [x] Replace obsolete workspace-resource presentation contracts with current-Page contracts.
 
 ## Task 4: Apply Mode-specific Save Policies and MCP Compatibility
 
@@ -121,8 +121,8 @@ parent: ""
 - `cargo test --manifest-path src-tauri/Cargo.toml mcp -- --nocapture`
 - Cases: Workspace debounce; standalone no silent overwrite; Save All per-file results; MCP operations preserve titles/order/Cameras and output v1.
 
-- [ ] Implement Workspace-only autosave and explicit standalone save.
-- [ ] Route all editor and MCP persistence through the same v1 reader/writer.
+- [x] Implement Workspace-only autosave and explicit standalone save.
+- [x] Route all editor and MCP persistence through the same v1 reader/writer.
 
 ## Task 5: Verify IdeaSketch End to End
 
@@ -140,8 +140,17 @@ parent: ""
 - `git diff --check`
 - Tauri smoke: open two v1 files, edit/switch Pages and Tabs, add/reorder Cameras, Preview/Fullscreen, export image, save Workspace/Standalone documents, reopen and compare.
 
-- [ ] Run complete regression and native interaction matrices.
-- [ ] Inspect representative saved archives before completion.
+- [x] Run complete regression and native interaction matrices.
+- [x] Inspect representative saved archives before completion.
+
+## Delivery Evidence
+
+- `node --test tests/*.test.mjs` — all 145 frontend/library regressions passed, including new pure Page reducer coverage, document/Page draft isolation, Pages organizer contracts, frozen presentation origin, Workspace-only autosave identity, and zero-Camera viewport persistence.
+- `cargo test --manifest-path src-tauri/Cargo.toml mcp -- --nocapture` — all 19 MCP-scoped Rust tests passed; v1 Page list/add/delete/reorder/content operations preserve titles, order, payload alignment, and last-Page protection.
+- `cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture` — all 56 Rust tests passed, including canonical v1 archive layout, no-backup replacement, legacy-v2 protection, Workspace persistence, and representative archive round trips.
+- `npm run build` and `git diff --check` — passed; only the existing Excalidraw import-overlap and large-chunk informational warnings remain.
+- Browser smoke at `http://127.0.0.1:1420/`: New File opened a dirty standalone `Untitled.is`, the thumbnail-free Pages popover created and selected Page 2, Cameras stayed collapsed until the canvas control opened the right panel, Present remained available with zero Cameras, Preview entered presentation, and Escape returned to the originating editor.
+- The canonical Rust archive tests inspect the produced `manifest.json` plus `slides/{id}.json` entries and verify Page title/order/scene/media round trips; no `.is.bak` is produced.
 
 ## References
 - `docs/superplan/human/prd.md`

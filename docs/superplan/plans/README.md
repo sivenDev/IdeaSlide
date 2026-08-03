@@ -6,7 +6,7 @@
 
 | Type | Plans | Draft | Complete |
 | --- | --- | --- | --- |
-| `required` | 5 | 2 | 3 |
+| `required` | 5 | 1 | 4 |
 | `feature` | 6 | 0 | 6 |
 | `bugfix` | 4 | 0 | 4 |
 
@@ -15,7 +15,7 @@
 1. `01` [Establish the Shared Document Kernel and .is v1 Contract](01-shared-document-kernel-and-is-v1.md) - `complete` (2026-08-03)
 2. `02` [Build the Real Directory Workspace Foundation](02-directory-workspace-foundation.md) - `complete` (2026-08-03)
 3. `03` [Deliver the Multi-file Workspace Shell](03-multifile-workspace-shell.md) - `complete` (2026-08-03)
-4. `04` [Integrate IdeaSketch into Workspace and Standalone Sessions](04-ideasketch-editor-integration.md) - `draft` (2026-08-03)
+4. `04` [Integrate IdeaSketch into Workspace and Standalone Sessions](04-ideasketch-editor-integration.md) - `complete` (2026-08-03)
 5. `05` [Complete Workspace Reliability, Watching, and Recovery](05-workspace-reliability-and-recovery.md) - `draft` (2026-08-03)
 
 ## Plan Groups
@@ -27,7 +27,7 @@
 | `01` | [Establish the Shared Document Kernel and .is v1 Contract](01-shared-document-kernel-and-is-v1.md) | `complete` | 2026-08-03 |
 | `02` | [Build the Real Directory Workspace Foundation](02-directory-workspace-foundation.md) | `complete` | 2026-08-03 |
 | `03` | [Deliver the Multi-file Workspace Shell](03-multifile-workspace-shell.md) | `complete` | 2026-08-03 |
-| `04` | [Integrate IdeaSketch into Workspace and Standalone Sessions](04-ideasketch-editor-integration.md) | `draft` | 2026-08-03 |
+| `04` | [Integrate IdeaSketch into Workspace and Standalone Sessions](04-ideasketch-editor-integration.md) | `complete` | 2026-08-03 |
 | `05` | [Complete Workspace Reliability, Watching, and Recovery](05-workspace-reliability-and-recovery.md) | `draft` | 2026-08-03 |
 
 ### Feature Plans

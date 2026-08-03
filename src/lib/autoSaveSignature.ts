@@ -1,36 +1,26 @@
-import type { Slide } from "../types";
-import { extractPersistedAppState } from "./editorSession.ts";
-import { buildSceneFingerprint } from "./sceneFingerprint.ts";
-
 interface AutoSaveTriggerInput {
+  enabled: boolean;
+  sessionId: string;
   filePath?: string;
-  slides: Slide[];
+  revision: number;
   isDirty: boolean;
   debounceMs: number;
 }
 
-function buildSlidesSignature(slides: Slide[]) {
-  return slides
-    .map((slide) =>
-      [
-        slide.id,
-        buildSceneFingerprint(slide.elements, slide.files),
-        JSON.stringify(extractPersistedAppState(slide.appState)),
-      ].join("::"),
-    )
-    .join("|");
-}
-
 export function buildAutoSaveTriggerKey({
+  enabled,
+  sessionId,
   filePath,
-  slides,
+  revision,
   isDirty,
   debounceMs,
 }: AutoSaveTriggerInput) {
   return JSON.stringify({
+    enabled,
+    sessionId,
     filePath: filePath ?? "",
+    revision,
     isDirty,
     debounceMs,
-    slides: buildSlidesSignature(slides),
   });
 }

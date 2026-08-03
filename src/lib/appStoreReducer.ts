@@ -1,8 +1,10 @@
 import type {
   ApplicationState,
+  DocumentEditorState,
   DocumentModel,
   DocumentSession,
   DocumentStatus,
+  IdeaSketchPage,
   WorkspaceEntry,
   WorkspaceSession,
 } from "../types.ts";
@@ -18,7 +20,9 @@ export type AppStoreAction =
   | { type: "SET_DOCUMENT_MODEL"; sessionId: string; model: DocumentModel; status?: DocumentStatus; sourceModified?: string }
   | { type: "SET_DOCUMENT_STATUS"; sessionId: string; status: DocumentStatus; message?: string }
   | { type: "UPDATE_DOCUMENT_MODEL"; sessionId: string; model: DocumentModel }
+  | { type: "MARK_DOCUMENT_DIRTY"; sessionId: string }
   | { type: "MARK_DOCUMENT_SAVED"; sessionId: string; sourceModified?: string }
+  | { type: "SET_DOCUMENT_EDITOR_STATE"; sessionId: string; editorState: DocumentEditorState }
   | { type: "UPDATE_DOCUMENT_PATH"; sessionId: string; filePath: string; displayName?: string; mode?: "workspace" | "standalone" }
   | { type: "CLOSE_DOCUMENT"; sessionId: string }
   | { type: "CLOSE_OTHER_DOCUMENTS"; sessionId: string }
@@ -29,7 +33,7 @@ export type AppStoreAction =
   | { type: "SELECT_WORKSPACE_PATH"; path?: string }
   | { type: "SET_EXPANDED_PATHS"; paths: string[] }
   | { type: "REMAP_WORKSPACE_PATH"; fromPath: string; toPath: string }
-  | { type: "START_PRESENTATION"; sessionId: string; mode: "preview" | "fullscreen" }
+  | { type: "START_PRESENTATION"; sessionId: string; pageId: string; page: IdeaSketchPage; mode: "preview" | "fullscreen" }
   | { type: "EXIT_PRESENTATION" };
 
 export function createInitialAppState(): ApplicationState {
@@ -167,11 +171,30 @@ export function appStoreReducer(
           };
         }),
       };
+    case "MARK_DOCUMENT_DIRTY":
+      return {
+        ...state,
+        documents: state.documents.map((document) => {
+          if (document.id !== action.sessionId || document.status !== "editable") return document;
+          return document.isDirty ? document : {
+            ...document,
+            isDirty: true,
+            revision: document.revision + 1,
+          };
+        }),
+      };
     case "MARK_DOCUMENT_SAVED":
       return {
         ...state,
         documents: state.documents.map((document) => document.id === action.sessionId
           ? { ...document, isDirty: false, sourceModified: action.sourceModified ?? document.sourceModified }
+          : document),
+      };
+    case "SET_DOCUMENT_EDITOR_STATE":
+      return {
+        ...state,
+        documents: state.documents.map((document) => document.id === action.sessionId
+          ? { ...document, editorState: action.editorState }
           : document),
       };
     case "UPDATE_DOCUMENT_PATH": {
@@ -264,13 +287,21 @@ export function appStoreReducer(
     }
     case "START_PRESENTATION":
       return state.documents.some((document) => document.id === action.sessionId)
-        ? { ...state, presentationMode: action.mode, presentationSessionId: action.sessionId }
+        ? {
+            ...state,
+            presentationMode: action.mode,
+            presentationSessionId: action.sessionId,
+            presentationPageId: action.pageId,
+            presentationPage: action.page,
+          }
         : state;
     case "EXIT_PRESENTATION":
       return {
         ...state,
         presentationMode: "none",
         presentationSessionId: undefined,
+        presentationPageId: undefined,
+        presentationPage: undefined,
         editorRefreshToken: state.editorRefreshToken + 1,
       };
     default:

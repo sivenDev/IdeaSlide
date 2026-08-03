@@ -79,6 +79,10 @@ export interface IdeaSketchDocument {
   pages: IdeaSketchPage[];
 }
 
+export interface DocumentEditorState {
+  activePageId?: string;
+}
+
 export type DocumentModel = IdeaSketchDocument;
 
 export interface DocumentSession<TModel = DocumentModel> {
@@ -96,6 +100,7 @@ export interface DocumentSession<TModel = DocumentModel> {
   sourceModified?: string;
   protectedVersion?: string;
   message?: string;
+  editorState?: DocumentEditorState;
 }
 
 export interface PersistenceAdapter<TModel = DocumentModel> {
@@ -155,5 +160,7 @@ export interface ApplicationState {
   recentlyClosed: DocumentSession[];
   presentationMode: "none" | "preview" | "fullscreen";
   presentationSessionId?: string;
+  presentationPageId?: string;
+  presentationPage?: IdeaSketchPage;
   editorRefreshToken: number;
 }

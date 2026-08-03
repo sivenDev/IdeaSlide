@@ -1,19 +1,33 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-test('presentation order follows the workspace canvas projection', async () => {
-  const { projectWorkspaceToSlides } = await import('../src/lib/workspaceResources.ts');
-  const slides = projectWorkspaceToSlides({
-    resources: [
-      { id: 'canvas-root', type: 'canvas', name: 'Root', parentId: null, order: 1, contentRef: 'canvases/canvas-root.json' },
-      { id: 'folder', type: 'folder', name: 'Folder', parentId: null, order: 0 },
-      { id: 'canvas-child', type: 'canvas', name: 'Child', parentId: 'folder', order: 0, contentRef: 'canvases/canvas-child.json' },
+const { appStoreReducer, createInitialAppState } = await import('../src/lib/appStoreReducer.ts');
+
+function page(id, cameraOrder) {
+  return {
+    id,
+    title: id,
+    elements: [{ id: `camera-${id}`, type: 'rectangle', customData: { type: 'camera', order: cameraOrder } }],
+    appState: {},
+    files: {},
+  };
+}
+
+test('presentation freezes the originating document Page instead of traversing Pages or Tabs', () => {
+  const origin = page('page-current', 2);
+  const other = page('page-other', 1);
+  let state = {
+    ...createInitialAppState(),
+    mode: 'standalone',
+    documents: [
+      { id: 'document-a', mode: 'standalone', filePath: '/a.is', fileType: 'ideasketch', status: 'editable', model: { type: 'ideasketch', formatVersion: '1.0', created: '', modified: '', pages: [origin, other] }, isDirty: false, revision: 0 },
+      { id: 'document-b', mode: 'standalone', filePath: '/b.is', fileType: 'ideasketch', status: 'editable', model: { type: 'ideasketch', formatVersion: '1.0', created: '', modified: '', pages: [page('page-current', 9)] }, isDirty: false, revision: 0 },
     ],
-    contents: {
-      'canvas-root': { elements: [], appState: {}, files: {} },
-      'canvas-child': { elements: [], appState: {}, files: {} },
-    },
-    activeResourceId: 'canvas-root',
-  });
-  assert.deepEqual(slides.map((slide) => slide.id), ['canvas-child', 'canvas-root']);
+    activeSessionId: 'document-a',
+  };
+  state = appStoreReducer(state, { type: 'START_PRESENTATION', sessionId: 'document-a', pageId: origin.id, page: origin, mode: 'preview' });
+  state = appStoreReducer(state, { type: 'ACTIVATE_DOCUMENT', sessionId: 'document-b' });
+  assert.equal(state.presentationSessionId, 'document-a');
+  assert.equal(state.presentationPageId, 'page-current');
+  assert.equal(state.presentationPage, origin);
 });
