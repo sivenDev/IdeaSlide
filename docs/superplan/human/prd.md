@@ -1,7 +1,7 @@
 # IdeaNote Product Requirements Document
 
 - status: draft
-- document_version: 0.2
+- document_version: 0.3
 - created: 2026-08-03
 - last_updated: 2026-08-03
 - product: IdeaNote
@@ -31,6 +31,9 @@ IdeaNote 不以“传统幻灯片”或“单一笔记文件”为核心，而�
 - 一个 `.is` 可以包含一个或多个按顺序排列的 Excalidraw Slide。
 - `.is` v1 的 Manifest 和 `slides/{id}.json` 路径保持兼容，不引入新的必填格式头。
 - 当前 `.is` v2 Resource Tree 结构只作为旧 IdeaSlide Workspace 的导入来源，不作为 IdeaNote 新 `.is` 的写入格式。
+- IdeaNote 同时支持 Workspace Mode 和 Single File Mode。
+- 两种模式使用同一套 Resource Model、Editor、SDK、Command Bus、Undo 和 Agent Tools，只切换 Session Scope 与 Persistence Adapter，即“双模式、单内核”。
+- Single File Mode 直接打开和保存用户原文件，不静默导入 Workspace。
 
 ## 2. 背景与问题
 
@@ -53,6 +56,7 @@ IdeaNote 不以“传统幻灯片”或“单一笔记文件”为核心，而�
 5. 为每种资源类型提供类型化 SDK，并让 UI、Agent 和 Workflow 复用同一套命令和验证逻辑。
 6. 为 Agent、Workflow 和 Script 提供可审计、可撤销、受权限控制的执行模型。
 7. 直接兼容既有 `.is v1`，并为现有 `.is v2` Workspace 提供无损导入，避免已有内容丢失。
+8. 同时支持长期多资源工作的 Workspace Mode，以及快速打开真实文件的 Single File Mode，并保证两种模式的编辑行为一致。
 
 ### 3.2 成功标准
 
@@ -67,6 +71,8 @@ IdeaNote 不以“传统幻灯片”或“单一笔记文件”为核心，而�
 - 一次 Agent 请求产生一个或多个可追踪的 ChangeSet。
 - 用户能够查看 Agent 修改了哪些资源，并撤销修改。
 - 关闭并重新打开应用后，Workspace 状态完整恢复。
+- 用户可以双击或通过 Open File 直接编辑受支持文件，并使用 Save 写回原路径。
+- 同一种 Resource 在 Workspace Mode 和 Single File Mode 中使用相同编辑器和 SDK 行为。
 
 ## 4. 非目标
 
@@ -86,25 +92,34 @@ IdeaNote 不以“传统幻灯片”或“单一笔记文件”为核心，而�
 
 ### 5.1 Workspace-first
 
-Workspace 是持续编辑、自动保存、历史恢复和未来同步的主体。单个导出文件只是 Workspace 或 Resource 在某个时间点的快照。
+Workspace 是长期组织、多资源协作、自动保存、历史恢复和未来同步的主体。Single File Mode 中，用户打开的真实文件本身是持久化真相源；Workspace-first 不表示强制导入，而表示 Workspace 是使用 Agent、Workflow 和跨资源能力时的主要产品形态。
 
-### 5.2 Local-first
+### 5.2 Dual mode, single core
+
+IdeaNote 同时提供 Workspace Mode 和 Single File Mode，但不能形成两套产品内核：
+
+- Workspace Mode 面向长期组织、多资源 Agent 和 Workflow。
+- Single File Mode 面向双击打开、快速编辑、Save/Save As 和分享。
+- 两种模式共享 Resource Model、Resource Editor、Resource SDK、Command Bus、Schema Validator、Undo/Redo 和 Agent Tool Registry。
+- 差异只由 Document Session 的模式、持久化适配器和 Capability Scope 表达。
+
+### 5.3 Local-first
 
 没有网络时，用户仍然可以创建、编辑、搜索和运行不依赖网络的功能。AI 模型和外部服务不可用时，不影响基础编辑能力。
 
-### 5.3 Typed resources
+### 5.4 Typed resources
 
 每个资源具有明确的类型、Schema、编辑器、序列化器、迁移器和 SDK。Agent 不通过猜测 JSON 结构操作资源。
 
-### 5.4 One command system
+### 5.5 One command system
 
-用户界面、AI Agent、Workflow 和 Script 通过统一 Command Bus 修改 Workspace，避免出现多套行为不一致的实现。
+用户界面、AI Agent、Workflow 和 Script 通过统一 Command Bus 修改当前 Document Session，避免 Workspace 和 Standalone 出现多套行为不一致的实现。
 
-### 5.5 Reviewable automation
+### 5.6 Reviewable automation
 
 Agent 和自动化的行为必须可查看、可撤销、可重试，并保留运行记录。破坏性或超出既有权限范围的操作必须先确认。
 
-### 5.6 Extensible without redesign
+### 5.7 Extensible without redesign
 
 增加新资源类型时，不应重新设计 Workspace Explorer、存储模型、Agent 工具协议或基础编辑器宿主。
 
@@ -123,6 +138,8 @@ Workspace 是 IdeaNote 中的顶层对象，至少包含：
 - Agent 会话和 Workflow 运行记录的引用。
 
 Workspace 由应用管理并增量保存。用户可以导入和导出 Workspace，但日常编辑不依赖不断重写一个压缩包。
+
+本节只描述 Workspace Mode。Single File Mode 的顶层运行对象是 Document Session，真实文件由 FileRepository 管理。
 
 ### 6.2 Resource
 
@@ -162,6 +179,34 @@ interface ChangeSet {
 ```
 
 一个 Agent 请求可以调用多个工具，但应尽可能以一个可撤销事务提交。
+
+### 6.4 Document Session
+
+Document Session 表示当前编辑上下文，并把编辑器与具体存储方式解耦：
+
+```ts
+interface DocumentSession {
+  mode: "workspace" | "standalone";
+  resourceType: string;
+  resourceId: string;
+  persistence: PersistenceAdapter;
+  capabilityScope: CapabilityScope;
+}
+```
+
+两种 Session：
+
+```text
+Workspace Session
+  → WorkspaceRepository
+  → Resource 级增量保存
+
+Standalone Session
+  → FileRepository
+  → 读取和保存真实的 .is/.md/.it/.iwf 文件
+```
+
+Resource Editor 不判断文件来自 Workspace 还是本地路径，而是通过 Document Session 读取内容、提交 Command 和获取保存状态。
 
 ## 7. 资源类型与文件格式
 
@@ -384,6 +429,12 @@ markdown.patch
 
 Agent 不得直接绕过 SDK 修改 Workspace 数据库或底层文件。
 
+同一 SDK 必须能够在两种 Session 中运行：
+
+- Workspace Session 根据 Workspace Permission 修改一个或多个 Resource。
+- Standalone Session 默认只允许修改当前文件对应的 Resource。
+- 当前请求超出 Standalone Capability Scope 时，应提示用户将文件加入或转换为 Workspace，而不是静默扩大本地文件访问范围。
+
 ## 10. AI Agent
 
 ### 10.1 定位
@@ -444,6 +495,18 @@ Agent 默认获得最小必要上下文：
 - 用户主动引用的资源。
 
 Agent 不应默认读取整个 Workspace 的所有内容。跨目录或大量读取应通过工具调用完成，并在活动记录中可见。
+
+Agent Header 必须明确显示当前作用域：
+
+```text
+Context: Current page
+Context: Current file
+Context: Current workspace
+```
+
+- Standalone Session 默认只有 Current File Scope，不得静默读取相邻文件。
+- Workspace Session 可以在已授权范围内使用 Current Resource 或 Workspace Scope。
+- 用户在 Standalone Session 中要求创建多个关联文件时，Agent 应提供 Create Workspace from this file 或 Add to Workspace，而不是自行创建隐藏 Workspace。
 
 ## 11. Workflow Engine
 
@@ -513,7 +576,9 @@ workspaces/{workspaceId}/
 
 具体物理结构属于技术设计阶段决定，不应暴露给 UI 和 Agent。
 
-### 13.2 自动保存
+Workspace 中显示为 `diagram.is` 的 IdeaSketch Resource 可以使用内部规范化结构按 Slide 增量保存，不要求每次自动保存都生成 `.is v1` ZIP。只有 Resource Export、Share 或显式保存到外部文件时，才序列化为真实 `.is v1`。
+
+### 13.2 Workspace 自动保存
 
 - 仅保存发生变化的 Resource 和必要的 Workspace Metadata。
 - 不因修改一个 Resource 而重新压缩全部 Workspace。
@@ -530,18 +595,29 @@ workspaces/{workspaceId}/
 - 恢复失败时保留原始文件并提供诊断信息。
 - 第一阶段不要求完整版本历史，但数据模型必须允许后续增加 Snapshot 或 Operation Log。
 
+### 13.4 Single File 保存
+
+- Single File Mode 打开真实文件路径，不自动复制或导入 Workspace。
+- Save 写回当前文件，Save As 写入用户选择的新路径。
+- Workspace 的 `Saved locally` 与 Single File 的 `Saved` 必须使用不同的保存语义和状态来源。
+- `.is v1` 保存允许重写当前 `.is` ZIP，但影响范围只能是该文件，不能触发其他 Workspace Resource 的序列化。
+- Standalone 文件发生未保存修改时，应用应保留 Recovery Draft，但不能在用户未启用自动保存的情况下静默覆盖原文件。
+- 检测到文件被外部程序修改时，必须提示 Reload、Compare 或 Save As，不能直接覆盖外部修改。
+
 ## 14. 导入、导出与兼容
 
-### 14.1 旧 IdeaSlide 导入
+### 14.1 IdeaSlide 文件打开与迁移
 
 系统必须分别处理现有 IdeaSlide `.is v1` 和 `.is v2`：
 
 #### `.is v1`
 
 - 结构已经是新的 IdeaSketch Resource 格式，无需改写内部 Manifest 和 Slide 路径。
-- 导入后在 Workspace 中创建一个 `.is` Resource。
+- 双击文件或使用 Open File 时，以 Single File Mode 直接打开原文件。
+- Save 写回原 `.is v1` 文件。
+- 用户执行 Add to Workspace 时，才在 Workspace 中创建对应的 IdeaSketch Resource。
 - 原有 Slide 名称、顺序、Excalidraw 内容、Files 和 Camera 顺序保持不变。
-- 导入不覆盖原文件。
+- Add to Workspace 默认不覆盖原文件。
 
 #### `.is v2`
 
@@ -554,9 +630,14 @@ workspaces/{workspaceId}/
 - 当前活动 Canvas 映射为导入后活动的 `.is` Resource。
 - 导入不覆盖原文件，完成后明确提示原文件仍然存在。
 
-### 14.2 Resource 导入
+### 14.2 Resource 打开与加入 Workspace
 
-用户可以把 `.is`、`.md` 和未来支持的 `.it`、`.iwf` 导入当前 Workspace。导入产生新的 Resource ID，除非用户明确执行受支持的更新操作。
+- 用户可以通过 Open File 或系统文件关联直接打开 `.is v1`、`.md` 和未来支持的 `.it`、`.iwf`。
+- 直接打开进入 Single File Mode，并保留真实文件路径。
+- 直接打开不能静默创建 Workspace 或改变文件位置。
+- Add to Workspace 是显式操作，第一阶段至少支持 Copy into Workspace。
+- Move into Workspace 和 Link external file 是否进入第一阶段属于待决事项。
+- 加入 Workspace 后产生新的 Resource ID，外部原文件与 Workspace Resource 不默认保持双向同步。
 
 ### 14.3 导出
 
@@ -573,13 +654,14 @@ workspaces/{workspaceId}/
 Home 展示：
 
 - Recent Workspaces。
+- Recent Files。
 - New Workspace。
+- Open File。
 - Import Workspace。
-- Import IdeaSketch (`.is v1`)。
 - Import legacy IdeaSlide Workspace (`.is v2`)。
 - Workspace 名称、最近修改时间和可选预览。
 
-首页不再以 Recent `.is` Files 作为唯一入口。
+Recent Workspaces 和 Recent Files 必须分区展示，避免用户混淆 Workspace 自动保存与真实文件保存。
 
 ### 15.2 Workspace Shell
 
@@ -591,9 +673,33 @@ Home 展示：
 - Resource 级操作放在对应编辑器上下文中。
 - Workflow Run 等运行态信息不应挤入 Canvas 工具栏。
 
-### 15.3 Resource Editor
+Workspace Mode 标题栏建议提供：
+
+```text
+Home | New resource | Import | Export | Saved locally
+```
+
+### 15.3 Single File Shell
+
+Single File Mode 不显示 Workspace Explorer，除非当前文件类型自身需要内部导航：
+
+- `.is v1`：左侧显示该文件内部的 Pages，中心显示 Excalidraw，右侧显示 Agent。
+- `.md`、`.it`、`.iwf`：中心显示 Resource Editor，右侧显示 Agent；没有必要保留空白左侧栏。
+- 左右可见区域沿用同一套折叠、拖动和视觉规范。
+
+Single File Mode 标题栏建议提供：
+
+```text
+Home | Open | Save | Save As | Add to Workspace | filename
+```
+
+界面必须明确当前为 File Session，并显示真实文件名、保存状态和必要时的文件路径提示。
+
+### 15.4 Resource Editor
 
 Resource Editor Host 根据 Resource Type Registry 加载对应编辑器。未知或尚未安装编辑器的类型使用 Unsupported Resource 界面，允许查看元数据、导出原始内容或安装未来扩展，但不得丢弃内容。
+
+Workspace Mode 和 Single File Mode 必须加载相同的 Resource Editor 实现。不得为同一种格式维护两套编辑器或两套序列化逻辑。
 
 ## 16. 性能与可靠性要求
 
@@ -606,6 +712,7 @@ Resource Editor Host 根据 Resource Type Registry 加载对应编辑器。未�
 - AI 调用、导入导出和 Workflow 运行不得阻塞中心编辑器主要交互线程。
 - Agent Tool Call 可以取消，失败后不能留下部分提交状态。
 - Workspace 至少应支持数百个 Resource 的正常组织与增量保存；最终容量目标由基准测试确定。
+- Single File Mode 保存只处理当前文件；Workspace Mode 保存只处理 Dirty Resource，两者都不得无关地序列化其他已打开内容。
 
 ## 17. 可观测性与审计
 
@@ -624,18 +731,20 @@ Resource Editor Host 根据 Resource Type Registry 加载对应编辑器。未�
 ### 18.1 包含范围
 
 1. 产品术语从 IdeaSlide 转向 IdeaNote。
-2. Workspace 本地持久化与增量自动保存。
-3. Workspace Explorer 延续现有 Folder/Resource 模型。
-4. IdeaSketch Resource，保留现有 Excalidraw 和 Camera/Present 能力。
-5. Markdown Resource 与基础编辑器。
-6. Resource Type Registry 扩展。
-7. Workspace、Sketch、Markdown SDK。
-8. Command Bus、Revision、ChangeSet 和基础 Undo。
-9. 右侧 Agent 面板。
-10. Agent 创建和修改 Folder、IdeaSketch、Markdown。
-11. `.is v1` IdeaSketch 直接导入，以及旧 `.is v2` Workspace 导入。
-12. IdeaSketch Resource 导入导出。
-13. Workspace 完整导出格式的最小可用版本。
+2. Document Session 与 Workspace/Standalone Persistence Adapter。
+3. Workspace 本地持久化与增量自动保存。
+4. Single File Mode 的 Open、Save、Save As 和 Add to Workspace。
+5. Workspace Explorer 延续现有 Folder/Resource 模型。
+6. IdeaSketch Resource，保留现有 Excalidraw 和 Camera/Present 能力。
+7. Markdown Resource 与基础编辑器。
+8. Resource Type Registry 扩展。
+9. Workspace、Sketch、Markdown SDK。
+10. Command Bus、Revision、ChangeSet 和基础 Undo。
+11. 右侧 Agent 面板，同时支持 Workspace Scope 和 Current File Scope。
+12. Agent 创建和修改 Folder、IdeaSketch、Markdown。
+13. `.is v1` Standalone 直接打开，以及旧 `.is v2` Workspace 导入。
+14. IdeaSketch Resource 导入导出。
+15. Workspace 完整导出格式的最小可用版本。
 
 ### 18.2 延后范围
 
@@ -648,6 +757,16 @@ Resource Editor Host 根据 Resource Type Registry 加载对应编辑器。未�
 - 全量版本历史界面。
 
 ## 19. MVP 验收标准
+
+### 双模式与单内核
+
+- 用户可以从 Home、系统文件关联或双击文件进入 Single File Mode。
+- `.is v1` 和 `.md` 至少支持直接打开，未来 `.it`、`.iwf` 使用相同 Session 边界。
+- Single File Mode 直接编辑原文件，Save 写回原路径，且不会静默导入 Workspace。
+- 用户可以通过 Add to Workspace 显式复制当前文件为 Workspace Resource。
+- Workspace Mode 与 Single File Mode 对同一 Resource Type 使用相同 Editor、SDK、Command Bus 和 Schema Validator。
+- 两种模式的 Undo、Agent Tool Call 和格式校验行为一致。
+- UI 能明确区分 Workspace Session 与 File Session，以及 `Saved locally` 与文件 `Saved`。
 
 ### Workspace
 
@@ -672,6 +791,8 @@ Resource Editor Host 根据 Resource Type Registry 加载对应编辑器。未�
 ### Agent
 
 - Agent 能识别当前 Workspace、Resource 和显式引用上下文。
+- Agent 在 Standalone Session 中默认只操作当前文件。
+- Agent 在 Workspace Session 中可以按授权范围操作多个 Resource。
 - Agent 可以创建一个 IdeaSketch 和一个 Markdown，并写入有效内容。
 - Tool Call 和资源变化在 UI 中可见。
 - Agent 的一组成功修改可以撤销。
@@ -679,7 +800,7 @@ Resource Editor Host 根据 Resource Type Registry 加载对应编辑器。未�
 
 ### 兼容
 
-- 现有 IdeaSlide `.is v1` 可以作为 IdeaSketch Resource 直接导入。
+- 现有 IdeaSlide `.is v1` 可以在 Single File Mode 直接打开，并可通过 Add to Workspace 显式创建 IdeaSketch Resource。
 - 现有 IdeaSlide `.is v2` 可以作为旧 Workspace 导入并拆分为 Folder 和 `.is v1` Resource。
 - Folder、Canvas/Slide、顺序、名称、媒体和 Camera 顺序不会丢失。
 - 不支持的未来格式在读取内容前给出明确错误。
@@ -695,8 +816,10 @@ Resource Editor Host 根据 Resource Type Registry 加载对应编辑器。未�
 
 ### Phase 1：Workspace Core
 
+- Document Session 和 Persistence Adapter。
 - 本地 Workspace 生命周期。
 - 增量持久化。
+- Single File Open/Save/Save As。
 - Resource Revision、ChangeSet、Undo。
 - `.is v1` Writer/Reader 恢复，以及 `.is v2` Legacy Workspace Import。
 
@@ -733,19 +856,23 @@ Resource Editor Host 根据 Resource Type Registry 加载对应编辑器。未�
 
 `.is v1` 将作为 IdeaSketch Resource 的正式格式，而 `.is v2` 曾被用作 IdeaSlide Workspace。Importer 必须先读取 Manifest Version，再决定按 Resource 或 Legacy Workspace 处理；Writer 只能写 v1，避免继续扩大双重语义。
 
-### 21.3 Agent 直接修改数据
+### 21.3 双模式保存语义混淆
+
+Workspace 自动保存和 Single File Save 面向不同持久化目标。如果标题栏、状态文案或打开行为不明确，用户可能误以为文件已经写回磁盘或误以为文件被导入 Workspace。界面必须持续显示 Session Mode，并禁止静默模式切换。
+
+### 21.4 Agent 直接修改数据
 
 如果 Agent 绕过 Command Bus，会破坏 Undo、验证、审计和未来同步。所有修改必须通过统一 SDK。
 
-### 21.4 自动化安全
+### 21.5 自动化安全
 
 Workflow 和 Script 可能造成批量数据修改或外部信息泄露。权限和 Secret 模型不能推迟到 Workflow 完成后补做。
 
-### 21.5 用户对本地数据位置不明确
+### 21.6 用户对本地数据位置不明确
 
 Workspace 由应用管理后，用户可能担心数据是否真正保存。产品需要明确显示 `Saved locally`，并提供 Workspace 导出、备份和未来的 Show storage location 能力。
 
-### 21.6 AI Provider 耦合
+### 21.7 AI Provider 耦合
 
 Agent Tool Protocol、Conversation 和 Workspace Context 不应绑定单一模型提供商。模型接入层需要可替换，但第一阶段可以只正式支持一个 Provider。
 
@@ -758,14 +885,17 @@ Agent Tool Protocol、Conversation 和 Workspace Context 不应绑定单一模�
 3. Workspace 第一版物理存储采用目录化 JSON、SQLite，还是混合方式。
 4. Workspace 是否允许用户选择任意本地目录，还是完全由应用管理。
 5. 打开 `.is v2` 时，是直接创建新 Workspace，还是提供只读预览后再导入。
-6. 第一阶段 Markdown 编辑器采用源码、所见即所得，还是双模式。
-7. Agent 第一阶段使用哪个模型 Provider，以及 API Key 的管理方式。
-8. Agent 修改默认自动应用，还是先生成 Preview 再由用户 Apply；哪些操作必须确认。
-9. ChangeSet 的历史保存周期和磁盘清理策略。
-10. Workspace 导出是否包含 Agent 会话和 Workflow Run 历史。
-11. 第一阶段是否支持多个 Resource Tab，还是保持单 Resource Editor。
-12. IdeaTable 和 IdeaWorkflow 的首个真实业务场景分别是什么。
-13. Script 第一阶段准备支持哪些语言和运行时。
+6. Add to Workspace 第一阶段是否只支持 Copy，还是同时支持 Move 或 Link external file。
+7. Single File Mode 是否默认只使用手动 Save，还是提供可选自动保存。
+8. 外部文件修改冲突的 Compare 和 Merge 能力第一阶段做到什么程度。
+9. 第一阶段 Markdown 编辑器采用源码、所见即所得，还是双模式。
+10. Agent 第一阶段使用哪个模型 Provider，以及 API Key 的管理方式。
+11. Agent 修改默认自动应用，还是先生成 Preview 再由用户 Apply；哪些操作必须确认。
+12. ChangeSet 的历史保存周期和磁盘清理策略。
+13. Workspace 导出是否包含 Agent 会话和 Workflow Run 历史。
+14. 第一阶段是否支持多个 Resource Tab 和多个 Standalone File Session。
+15. IdeaTable 和 IdeaWorkflow 的首个真实业务场景分别是什么。
+16. Script 第一阶段准备支持哪些语言和运行时。
 
 ## 23. 开发启动门槛
 
@@ -774,6 +904,7 @@ Agent Tool Protocol、Conversation 和 Workspace Context 不应绑定单一模�
 - 本 PRD 状态由 `draft` 更新为明确批准状态。
 - 第 22 节影响架构和兼容性的待决事项已经决策。
 - `.is v1` 兼容写入、`.is v2` Workspace 导入策略和测试样本已经确认。
+- Workspace/Standalone Document Session、保存语义和模式切换规则已经确认。
 - MVP 范围和非目标获得确认。
 - 根据最终 PRD 生成 Superplan 开发计划。
 - 所有开发计划通过人工评审和批准。
