@@ -1,7 +1,7 @@
 # IdeaNote Product Requirements Document
 
 - status: accepted
-- document_version: 0.5
+- document_version: 0.6
 - created: 2026-08-03
 - last_updated: 2026-08-03
 - product: IdeaNote
@@ -463,7 +463,7 @@ Manifest：
 - Present 只播放当前 Page 中按顺序排列的 Cameras。
 - Workspace Mode 与 Single File Mode 使用同一个 Reader、Writer 和 Editor。
 - Writer 只写 `version: "1.0"`。
-- 保存使用临时文件和原子替换；覆盖前的备份策略在技术设计阶段确认。
+- 保存使用同目录临时文件和原子替换，不额外生成 `.is.bak` 备份文件。
 - `.is v2` 必须被识别为不受当前 Editor 支持的 Legacy Workspace，不能按 v1 覆盖。
 
 ## 12. 未来文件类型
@@ -764,7 +764,7 @@ IdeaSketch (.is)
 7. 只挂载当前活动 Editor；非活动 Tab 保留轻量 Document Session 和 Dirty Model，文件内容按需加载，并为后续内存压力卸载策略保留边界。
 8. 默认不跟随 Symlink；Symlink 作为不可递归的特殊条目显示，不能借此越过 Workspace Root。
 9. Delete 默认移动到系统 Trash；不能安全移动到 Trash 时不执行永久删除，并显示错误。
-10. `.is` 覆盖继续保留现有 `.is.bak` 安全策略；自动清理策略不属于当前 MVP。
+10. `.is` 覆盖不生成 `.is.bak`；只使用同目录临时文件和原子替换，失败时保留原文件并清理临时文件。
 11. `.is v2` 自动迁移延后到 Workspace Import/Export 阶段；当前版本只识别、说明并阻止覆盖。
 12. Markdown、IdeaTable 和 IdeaWorkflow 在各自启动前分别编写和批准详细 PRD；本阶段只保留注册表和 Editor Host 扩展边界。
 
