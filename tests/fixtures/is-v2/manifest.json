@@ -1,0 +1,24 @@
+{
+  "version": "2.0",
+  "created": "2026-07-22T10:00:00Z",
+  "modified": "2026-07-22T10:05:00Z",
+  "activeResourceId": "canvas-1",
+  "resources": [
+    {
+      "id": "folder-1",
+      "type": "folder",
+      "name": "Research",
+      "parentId": null,
+      "order": 0,
+      "contentRef": null
+    },
+    {
+      "id": "canvas-1",
+      "type": "canvas",
+      "name": "Concept map",
+      "parentId": "folder-1",
+      "order": 0,
+      "contentRef": "canvases/canvas-1.json"
+    }
+  ]
+}

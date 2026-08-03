@@ -109,7 +109,7 @@ pub fn remove_recent_file(path: String) -> Result<(), String> {
 mod tests {
     use super::*;
     use crate::commands;
-    use crate::file_format;
+    use crate::document_formats;
     use std::sync::{Mutex, OnceLock};
     use std::time::Duration;
     use tempfile::TempDir;
@@ -142,7 +142,7 @@ mod tests {
 
         std::env::set_var("IDEASLIDE_CONFIG_DIR", config_dir.path());
 
-        file_format::create_is_file(&scene_path).unwrap();
+        document_formats::create_file(&scene_path).unwrap();
 
         let scene_path_string = scene_path.to_string_lossy().to_string();
         add_recent_file(scene_path_string.clone()).unwrap();

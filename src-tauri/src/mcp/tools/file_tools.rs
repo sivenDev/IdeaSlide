@@ -12,7 +12,8 @@ pub fn handle_create_presentation(
     let fs = Arc::clone(file_service);
     let p = Path::new(path);
     let data = fs.create(p).map_err(|e| e.to_string())?;
-    serde_json::to_string_pretty(&data.manifest).map_err(|e| e.to_string())
+    let idea_sketch = data.as_idea_sketch()?;
+    serde_json::to_string_pretty(&idea_sketch.manifest).map_err(|e| e.to_string())
 }
 
 /// Open an existing .is presentation file. Returns manifest + slide list.
@@ -26,8 +27,9 @@ pub fn handle_open_presentation(
     let p = Path::new(path);
     let data = fs.read(p).map_err(|e| e.to_string())?;
     let slides: Vec<SlideInfo> = ss.list(&data);
+    let idea_sketch = data.as_idea_sketch()?;
     let result = serde_json::json!({
-        "manifest": data.manifest,
+        "manifest": idea_sketch.manifest,
         "slides": slides,
     });
     serde_json::to_string_pretty(&result).map_err(|e| e.to_string())
@@ -41,5 +43,6 @@ pub fn handle_get_presentation_info(
     let fs = Arc::clone(file_service);
     let p = Path::new(path);
     let data = fs.read(p).map_err(|e| e.to_string())?;
-    serde_json::to_string_pretty(&data.manifest).map_err(|e| e.to_string())
+    let idea_sketch = data.as_idea_sketch()?;
+    serde_json::to_string_pretty(&idea_sketch.manifest).map_err(|e| e.to_string())
 }

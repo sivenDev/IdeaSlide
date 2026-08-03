@@ -155,7 +155,7 @@ impl IdeaSlideServer {
         #[derive(Clone, Serialize)]
         struct StateChangedPayload {
             path: String,
-            data: crate::file_format::IsFileData,
+            data: crate::document_formats::DocumentFileData,
         }
 
         let _ = main_window.emit(

@@ -1,84 +1,89 @@
-# IdeaSlide `.is` File Format
+# IdeaNote `.is` File Format
 
-An `.is` file is a ZIP archive representing one IdeaSlide workspace. The format version is stored in `manifest.json` under the required `version` key.
+An `.is` file is a ZIP archive containing one IdeaSketch document. It is a document format, not a directory Workspace package. Workspace state belongs in the selected directory's `.ideanote/` metadata folder.
+
+## Module boundary
+
+IdeaNote resolves document types symmetrically on both sides of the Tauri boundary:
+
+- The frontend File Type Registry selects a document model, parser, serializer, and editor key.
+- The backend Document Format Registry selects an independent format module for recognition, validation, reading, writing, and save safety.
+- Generic Tauri commands exchange a typed document envelope and do not inspect IdeaSketch manifest or Page fields.
+
+The current registry contains only IdeaSketch (`.is`). Future Markdown, IdeaTable, and IdeaWorkflow modules can be registered without duplicating Workspace/Standalone persistence logic.
 
 ## Version policy
 
-Versions use `MAJOR.MINOR` decimal notation.
-
-- Increment `MAJOR` for incompatible manifest, payload, or semantic changes.
-- Increment `MINOR` for compatible additions within a major version.
-- Readers accept only versions or version ranges explicitly implemented by that build. A syntactically valid future version is not opened speculatively.
-- The manifest header and version are validated before any resource payload is read.
-
-The current writer emits `2.0`.
+Versions use `MAJOR.MINOR` decimal notation. The manifest header and `version` value are read before any Page payload.
 
 | Version | Read | Write | Behavior |
 | --- | --- | --- | --- |
-| `1.0` | Yes | No | Legacy flat slides are adapted to root-level Canvas resources in memory. The file is not modified until saved. |
-| `2.0` | Yes | Yes | Workspace resources and type-specific content references. |
-| Other | No | No | Rejected with the encountered and supported versions. |
+| `1.0` | Yes | Yes | Canonical IdeaSketch format used for new files and all saves. |
+| `2.0` | Header only | No | Protected legacy Workspace format. It is never hydrated, flattened, or overwritten by the v1 writer. |
+| Other | No | No | Missing, malformed, old-unknown, and future versions fail safely. |
 
-Missing versions, malformed versions, unsupported older versions, and future versions are rejected before payload loading. Saving a successfully opened `1.0` file upgrades it to `2.0`. Before replacing an existing file, IdeaSlide copies the previous archive to `<name>.is.bak`, writes the new archive to `<name>.is.tmp`, then atomically renames it.
+Opening `2.0` returns a structured `legacy-protected` result with a migration-deferred message. Workspace Import/Export and v2 migration are not part of the current MVP.
 
-## Format 2.0 archive
+## Format 1.0 archive
 
 ```text
 manifest.json
-canvases/{resource-id}.json
-media/index.json
-media/{media-id}.{extension}
+slides/{page-id}.json
+media/index.json              # optional legacy compatibility
+media/{media-id}.{extension}  # optional legacy compatibility
 ```
 
-Other registered or unknown resource types may use their own safe relative JSON content references, such as `datasets/{resource-id}.json`.
+The writer always emits `manifest.json` and one `slides/{id}.json` entry per ordered manifest Page. It emits `media/` entries only when legacy media payloads are explicitly supplied. Current Excalidraw image data normally remains inline in the scene `files` object.
 
 ### Manifest
 
 ```json
 {
-  "version": "2.0",
-  "created": "2026-07-22T10:00:00Z",
-  "modified": "2026-07-22T10:05:00Z",
-  "activeResourceId": "canvas-1",
-  "resources": [
-    {
-      "id": "folder-1",
-      "type": "folder",
-      "name": "Research",
-      "parentId": null,
-      "order": 0,
-      "contentRef": null
-    },
-    {
-      "id": "canvas-1",
-      "type": "canvas",
-      "name": "Concept map",
-      "parentId": "folder-1",
-      "order": 0,
-      "contentRef": "canvases/canvas-1.json"
-    }
+  "version": "1.0",
+  "created": "2026-08-03T10:00:00Z",
+  "modified": "2026-08-03T10:05:00Z",
+  "slides": [
+    { "id": "page-1", "title": "Overview" },
+    { "id": "page-2", "title": "Research" }
   ]
 }
 ```
 
-Resource requirements:
+Requirements:
 
-- `id` is stable and unique within the workspace.
-- `type` is a persisted string identifier. `folder` and `canvas` are currently registered.
-- `name` is user-editable display text.
-- `parentId` is `null` for a root resource or the id of a Folder.
-- `order` is unique among siblings and determines display order.
-- `activeResourceId` records the resource selected when the workspace was last saved; readers fall back to the first Canvas if it is absent or invalid.
-- Folders have no content reference.
-- Canvases use exactly `canvases/{id}.json`.
-- Parent cycles, missing parents, duplicate ids/orders, unsafe paths, missing content, and orphan content are rejected.
+- `version` is exactly `1.0` for writable documents.
+- `created` remains stable across saves; `modified` is refreshed by the IdeaSketch writer.
+- `slides` contains at least one Page and defines presentation order.
+- Every Page `id` is unique and contains only ASCII letters, digits, `_`, or `-`.
+- Every Page has exactly one matching `slides/{id}.json` payload.
+- Missing, duplicate, orphan, or non-object Page payloads are rejected.
+- Page titles and order are preserved exactly.
 
-Unknown resource types and unknown manifest/resource fields are preserved during load and save. Unsupported resources appear in the UI without an active editor; Canvas operations do not rewrite their payloads.
+### Page payload
 
-Canvas order for presentation and the slide-named MCP compatibility API is a deterministic depth-first traversal of the resource tree, with siblings ordered by `order` and then id.
+```json
+{
+  "type": "excalidraw",
+  "version": 2,
+  "elements": [],
+  "appState": {},
+  "files": {}
+}
+```
 
-## Format 1.0 migration
+The complete Excalidraw scene is preserved, including elements, application state, inline files, and Camera data stored by the editor. Presentation behavior is derived from the current IdeaSketch document and does not add a separate archive schema.
 
-Format `1.0` contains a required flat `slides` array in `manifest.json` and payloads at `slides/{id}.json`. On open, each slide becomes a root Canvas with the same id, title, order, and Excalidraw content. Empty titles receive `Canvas N` display names.
+## Save safety
 
-Format `2.0` intentionally omits the required v1 `slides` field. Older pre-version-gate readers therefore fail manifest deserialization instead of opening a v2 workspace and silently flattening its hierarchy.
+Saving validates the complete manifest, Page relationship, scene payloads, and optional media before replacing the target.
+
+1. Build the new ZIP in memory.
+2. Write it to the same-directory `<name>.is.tmp` path.
+3. Atomically rename the temporary file over the target.
+4. If replacement fails, retain the original target and remove the temporary file.
+
+The writer does not create `.is.bak` files.
+
+## Legacy media compatibility
+
+Older v1 archives may store binary images under `media/` with an optional `media/index.json`. The reader reconstructs those bytes for the frontend adapter. A later save may keep images inline in Excalidraw `files` and omit `media/`; this does not change the v1 manifest or Page contract.

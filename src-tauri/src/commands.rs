@@ -1,17 +1,17 @@
-use crate::file_format::{self, IsFileData};
+use crate::document_formats::{self, DocumentFileData, OpenDocumentResult};
 use std::path::PathBuf;
 use tauri::command;
 
 #[command]
-pub fn create_file(path: String) -> Result<IsFileData, String> {
+pub fn create_file(path: String) -> Result<DocumentFileData, String> {
     let path = PathBuf::from(&path);
-    file_format::create_is_file(&path)
+    document_formats::create_file(&path)
 }
 
 #[command]
-pub fn open_file(path: String) -> Result<IsFileData, String> {
+pub fn open_file(path: String) -> Result<OpenDocumentResult, String> {
     let path = PathBuf::from(&path);
-    let data = file_format::read_is_file(&path)?;
+    let result = document_formats::open_file(&path)?;
 
     // Opening a file should always refresh its recent-file timestamp, but a
     // failure to write user config must not block the actual file open.
@@ -19,18 +19,14 @@ pub fn open_file(path: String) -> Result<IsFileData, String> {
         eprintln!("[IdeaSlide] Failed to refresh recent file entry after open: {err}");
     }
 
-    Ok(data)
+    Ok(result)
 }
 
 #[command]
-pub fn save_file(path: String, data: IsFileData) -> Result<(), String> {
+pub fn save_file(path: String, data: DocumentFileData) -> Result<(), String> {
     let path = PathBuf::from(&path);
 
-    // Update modified timestamp
-    let mut data = data;
-    data.manifest.modified = chrono::Utc::now().to_rfc3339();
-
-    file_format::write_is_file(&path, &data)
+    document_formats::write_file(&path, &data)
 }
 
 #[command]

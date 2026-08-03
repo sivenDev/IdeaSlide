@@ -1,5 +1,5 @@
 mod commands;
-pub(crate) mod file_format;
+pub(crate) mod document_formats;
 mod mcp;
 mod recent_files;
 

@@ -1,0 +1,22 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "elements": [
+    {
+      "id": "title-1",
+      "type": "text",
+      "text": "IdeaNote"
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff"
+  },
+  "files": {
+    "image-1": {
+      "id": "image-1",
+      "mimeType": "image/png",
+      "dataURL": "data:image/png;base64,cG5n",
+      "created": 1785732000000
+    }
+  }
+}

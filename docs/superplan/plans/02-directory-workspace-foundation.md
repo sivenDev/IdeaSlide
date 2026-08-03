@@ -109,4 +109,4 @@ parent: ""
 - `src-tauri/src/commands.rs`
 - `src-tauri/src/lib.rs`
 - `src-tauri/src/recent_files.rs`
-- `src-tauri/src/file_format.rs`
+- `src-tauri/src/document_formats/mod.rs`

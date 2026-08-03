@@ -55,3 +55,44 @@ export interface FileManifest {
   createdAt: string;
   modifiedAt: string;
 }
+
+export type DocumentMode = "workspace" | "standalone";
+export type DocumentStatus =
+  | "editable"
+  | "legacy-protected"
+  | "unsupported"
+  | "invalid"
+  | "missing";
+
+export interface IdeaSketchPage extends Slide {
+  title: string;
+}
+
+export interface IdeaSketchDocument {
+  type: "ideasketch";
+  formatVersion: "1.0";
+  created: string;
+  modified: string;
+  pages: IdeaSketchPage[];
+}
+
+export type DocumentModel = IdeaSketchDocument;
+
+export interface DocumentSession<TModel = DocumentModel> {
+  id: string;
+  mode: DocumentMode;
+  filePath: string;
+  fileType: string;
+  status: DocumentStatus;
+  model?: TModel;
+  isDirty: boolean;
+  revision: number;
+  protectedVersion?: string;
+  message?: string;
+}
+
+export interface PersistenceAdapter<TModel = DocumentModel> {
+  load(): Promise<TModel>;
+  save(model: TModel): Promise<void>;
+  saveAs?(model: TModel, path: string): Promise<void>;
+}

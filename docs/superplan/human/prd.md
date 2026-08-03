@@ -1,7 +1,7 @@
 # IdeaNote Product Requirements Document
 
 - status: accepted
-- document_version: 0.6
+- document_version: 0.7
 - created: 2026-08-03
 - last_updated: 2026-08-03
 - product: IdeaNote
@@ -126,6 +126,8 @@ Workspace Mode 与 Single File Mode 不能维护两套编辑器和格式实现�
 ### 5.5 Extensible editors
 
 增加新文件类型时，不应重新设计 Workspace Explorer、Tabs、Session、保存流程或 Editor Host。
+
+文件编辑器必须在前端和后端同时模块化：前端通过 File Type Registry、Document Model、Parser、Serializer 和 Editor 组件注册；后端通过 Document Format Registry 和独立格式模块注册文件识别、验证、读取、写入与安全策略。通用 Commands 不直接包含某一种编辑器的格式实现。
 
 ### 5.6 Local-first and safe
 
@@ -767,6 +769,7 @@ IdeaSketch (.is)
 10. `.is` 覆盖不生成 `.is.bak`；只使用同目录临时文件和原子替换，失败时保留原文件并清理临时文件。
 11. `.is v2` 自动迁移延后到 Workspace Import/Export 阶段；当前版本只识别、说明并阻止覆盖。
 12. Markdown、IdeaTable 和 IdeaWorkflow 在各自启动前分别编写和批准详细 PRD；本阶段只保留注册表和 Editor Host 扩展边界。
+13. 文件类型扩展采用前后端对称模块化：IdeaSketch 前端模块与 Rust 后端格式模块只通过稳定注册表和通用命令边界接入。
 
 ## 23. 开发启动门槛
 

@@ -2,9 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use chrono::Utc;
-
-use crate::file_format::{self, IsFileData};
+use crate::document_formats::{self, DocumentFileData};
 use crate::mcp::error::ToolError;
 
 pub struct FileService {
@@ -27,35 +25,34 @@ impl FileService {
             .clone()
     }
 
-    pub fn create(&self, path: &Path) -> Result<IsFileData, ToolError> {
+    pub fn create(&self, path: &Path) -> Result<DocumentFileData, ToolError> {
         let lock = self.get_lock(path);
         let _guard = lock.lock().unwrap();
         if path.exists() {
             return Err(ToolError::FileAlreadyExists(path.display().to_string()));
         }
-        file_format::create_is_file(path).map_err(|e| ToolError::InvalidFile(e))
+        document_formats::create_file(path).map_err(ToolError::InvalidFile)
     }
 
-    pub fn read(&self, path: &Path) -> Result<IsFileData, ToolError> {
+    pub fn read(&self, path: &Path) -> Result<DocumentFileData, ToolError> {
         if !path.exists() {
             return Err(ToolError::FileNotFound(path.display().to_string()));
         }
-        file_format::read_is_file(path).map_err(|e| ToolError::InvalidFile(e))
+        document_formats::read_file(path).map_err(ToolError::InvalidFile)
     }
 
-    pub fn write(&self, path: &Path, data: &IsFileData) -> Result<(), ToolError> {
-        file_format::write_is_file(path, data).map_err(|e| ToolError::IoError(e))
+    pub fn write(&self, path: &Path, data: &DocumentFileData) -> Result<(), ToolError> {
+        document_formats::write_file(path, data).map_err(ToolError::IoError)
     }
 
     pub fn read_and_modify<F>(&self, path: &Path, f: F) -> Result<(), ToolError>
     where
-        F: FnOnce(&mut IsFileData) -> Result<(), ToolError>,
+        F: FnOnce(&mut DocumentFileData) -> Result<(), ToolError>,
     {
         let lock = self.get_lock(path);
         let _guard = lock.lock().unwrap();
         let mut data = self.read(path)?;
         f(&mut data)?;
-        data.manifest.modified = Utc::now().to_rfc3339();
         self.write(path, &data)
     }
 }
@@ -100,8 +97,9 @@ mod tests {
         svc.create(&path).unwrap();
 
         svc.read_and_modify(&path, |data| {
-            assert_eq!(data.contents.len(), 1);
-            assert_eq!(data.manifest.resources.len(), 1);
+            let data = data.as_idea_sketch().map_err(ToolError::InvalidContent)?;
+            assert_eq!(data.slides.len(), 1);
+            assert_eq!(data.manifest.slides.len(), 1);
             Ok(())
         })
         .unwrap();
@@ -113,13 +111,16 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("test.is");
         let created = svc.create(&path).unwrap();
-        let original_modified = created.manifest.modified.clone();
+        let original_modified = created.as_idea_sketch().unwrap().manifest.modified.clone();
 
         std::thread::sleep(std::time::Duration::from_millis(10));
 
         svc.read_and_modify(&path, |_data| Ok(())).unwrap();
 
         let updated = svc.read(&path).unwrap();
-        assert_ne!(updated.manifest.modified, original_modified);
+        assert_ne!(
+            updated.as_idea_sketch().unwrap().manifest.modified,
+            original_modified
+        );
     }
 }
