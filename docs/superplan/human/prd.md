@@ -1,7 +1,7 @@
 # IdeaNote Product Requirements Document
 
 - status: accepted
-- document_version: 0.7
+- document_version: 0.8
 - created: 2026-08-03
 - last_updated: 2026-08-03
 - product: IdeaNote
@@ -12,11 +12,11 @@
 
 ## 1. 产品概述
 
-IdeaNote 是一个 Local-first、多文件、多编辑器的桌面 Workspace。用户可以选择任意本地目录作为 Workspace，在真实目录中创建和编辑 IdeaSketch、IdeaTable、IdeaWorkflow 和 Markdown 文件，并在中间编辑区域通过 Tabs 同时打开多个文件。
+IdeaNote 是一个 Local-first、多文件、多编辑器的桌面 Workspace。用户可以选择任意本地目录作为 Workspace，在真实目录中创建和编辑 IdeaSketch、IdeaTable、IdeaWorkflow 和 Markdown 文件；中间区域始终聚焦当前文件，只显示一个前台编辑器。
 
 IdeaNote 同时支持：
 
-- Workspace Mode：选择一个真实目录，以文件树和多文件 Tabs 进行长期工作。
+- Workspace Mode：选择一个真实目录，以文件树导航多个文件，并在单一前台编辑器中处理当前文件。
 - Single File Mode：直接打开单个受支持文件，不要求创建或导入 Workspace。
 
 两种模式共享同一套文件模型、编辑器、格式解析与保存逻辑，即：
@@ -26,10 +26,10 @@ IdeaNote 同时支持：
 长期产品布局为左、中、右三栏：
 
 - 左侧：Workspace Explorer。
-- 中间：多文件 Editor Tabs。
+- 中间：当前文件的单一 Editor。
 - 右侧：AI Agent。
 
-当前阶段只实现左侧 Workspace Explorer、中间 Editor Tabs 和 IdeaSketch 编辑器。AI Agent、其他编辑器以及 Workspace 导入导出在后续阶段开发。
+当前阶段只实现左侧 Workspace Explorer、中间单一 Editor 和 IdeaSketch 编辑器。AI Agent、其他编辑器以及 Workspace 导入导出在后续阶段开发。
 
 ## 2. 已确认产品决定
 
@@ -40,8 +40,8 @@ IdeaNote 同时支持：
 5. 打开或浏览一个没有 `.ideanote/` 的目录时，不立即修改该目录。
 6. 第一次在 Workspace Mode 中成功创建或保存文件时，才生成 `.ideanote/`。
 7. Workspace Mode 和 Single File Mode 使用同一套 Editor、Parser、Serializer 和 Save Pipeline。
-8. 中间编辑区支持同时打开多个文件，通过 Tabs 切换。
-9. 从左侧新建文件后，新文件立即在中间的新 Tab 中打开。
+8. 中间编辑区不显示文件 Tabs，同时只呈现一个当前文件编辑器；文件切换由 Workspace Explorer 驱动。
+9. 从左侧新建文件后，新文件立即成为当前文件并在中间编辑器打开。
 10. 目标布局右侧为 AI Agent，但当前阶段不显示无功能的空 Agent 面板，只保留未来扩展边界。
 11. 当前唯一支持的编辑器是 Excalidraw，文件格式为 `.is v1`。
 12. 未来文件格式为 `.it`（IdeaTable）、`.iwf`（IdeaWorkflow）和 `.md`（Markdown）。
@@ -56,7 +56,7 @@ IdeaNote 同时支持：
 1. 建立真实目录驱动的 Workspace Mode。
 2. 建立 Single File Mode，并与 Workspace Mode 共用 IdeaSketch 编辑器。
 3. 建立可扩展的 File Type Registry 和 Editor Host。
-4. 建立左侧真实文件树和中间多文件 Tabs。
+4. 建立左侧真实文件树和中间单一前台编辑器。
 5. 实现 `.ideanote/` 延迟创建与 Workspace 状态恢复。
 6. 将 `.is` Writer/Reader 回退并固定为既有 v1 结构。
 7. 保留现有 Excalidraw、Pages、Cameras 和 Present 核心能力。
@@ -78,11 +78,11 @@ IdeaNote 同时支持：
 Open Workspace
   → 选择一个本地目录
   → 在左侧新建 drawing.is
-  → drawing.is 在中间新 Tab 打开
+  → drawing.is 成为当前文件并在中间打开
   → 使用 Excalidraw 编辑
   → 保存为真实 .is v1 文件
   → 首次保存后生成 .ideanote/
-  → 再打开 Workspace 时恢复文件树和 Tabs
+  → 再打开 Workspace 时恢复文件树和最后活动文件
 ```
 
 同时，用户可以双击或通过 Open File 直接打开一个 `.is v1` 文件，在 Single File Mode 中使用同一个编辑器并保存回原路径。
@@ -125,7 +125,7 @@ Workspace Mode 与 Single File Mode 不能维护两套编辑器和格式实现�
 
 ### 5.5 Extensible editors
 
-增加新文件类型时，不应重新设计 Workspace Explorer、Tabs、Session、保存流程或 Editor Host。
+增加新文件类型时，不应重新设计 Workspace Explorer、Document Session、保存流程或 Editor Host。
 
 文件编辑器必须在前端和后端同时模块化：前端通过 File Type Registry、Document Model、Parser、Serializer 和 Editor 组件注册；后端通过 Document Format Registry 和独立格式模块注册文件识别、验证、读取、写入与安全策略。通用 Commands 不直接包含某一种编辑器的格式实现。
 
@@ -182,7 +182,7 @@ Workspace Mode 与 Single File Mode 不能维护两套编辑器和格式实现�
   → 输入文件名
   → 创建有效的空 .is v1 文件
   → 生成 .ideanote/（如果尚不存在）
-  → 在中间新 Tab 打开
+  → 成为当前文件并在中间打开
   → 进入重命名或编辑状态
 ```
 
@@ -201,8 +201,8 @@ New Folder
 ### 6.3 Workspace 与真实文件
 
 - Workspace Explorer 中的路径是相对 Workspace Root 的真实路径。
-- 文件改名或移动后，已打开 Tab 必须更新路径和标题。
-- 同一个真实文件只能打开一个 Tab。
+- 文件改名或移动后，对应 Document Session 必须更新路径和标题。
+- 同一个真实文件只能存在一个 Document Session。
 - 不支持的文件仍然显示在树中，但不能被错误解析或修改。
 - 不支持的文件可以显示 Unsupported File 页面，并提供 Reveal in Finder 或 Open Externally。
 - Symlink 的遍历策略必须明确，不能无限递归或越过授权边界。
@@ -242,7 +242,7 @@ New Folder
 职责：
 
 - `workspace.json`：Workspace ID、Schema Version 和 Workspace 级设置。
-- `state.json`：打开的 Tabs、Active Tab、面板状态和最近活动文件。
+- `state.json`：最后活动文件、Explorer 展开状态和面板状态。
 - `recovery/`：未保存内容的恢复数据。
 - `cache/`：可重新生成的索引、预览和临时数据。
 - `.gitignore`：在 `.ideanote/` 内忽略易变的 `state.json`、`recovery/` 和 `cache/`；不得自动修改用户根目录的 `.gitignore`。
@@ -257,7 +257,7 @@ New Folder
 原子保存用户文件
   → 确认文件保存成功
   → 创建或更新 .ideanote/
-  → 更新 Tab 和 Workspace 状态
+  → 更新当前 Document Session 和 Workspace 状态
 ```
 
 - 用户文件保存成功但 `.ideanote/` 更新失败时，文件保存仍视为成功。
@@ -267,35 +267,34 @@ New Folder
 - 损坏的元数据不能阻止用户浏览真实目录和打开文件。
 - 无法解析元数据时，应保留原文件、使用安全默认状态，并显示诊断提示。
 
-## 8. Editor Tabs
+## 8. Single Active Editor
 
 ### 8.1 基本行为
 
-中间区域支持多个同时打开的文件：
+中间区域同时只显示一个当前文件编辑器：
 
-- 单击或双击左侧文件打开 Tab，具体交互在 UI 设计阶段确认。
-- 新建文件后立即打开新 Tab。
-- 同一路径只能存在一个 Tab。
-- Tab 显示文件名、文件类型图标和 Dirty 状态。
-- 可以切换、关闭、关闭其他、关闭右侧和重新打开最近关闭的 Tab。
-- 关闭 Dirty Tab 时提示 Save、Discard 或 Cancel。
-- 支持 Save、Save As 和 Save All。
-- 文件在外部被删除或移动时，Tab 显示明确状态并允许重新定位或关闭。
+- 单击 Workspace Explorer 中受支持的文件，使其成为当前文件并在中间打开。
+- 新建文件后立即成为当前文件。
+- 标题栏显示当前文件名、文件类型和保存状态。
+- 切换文件前，当前 Editor 必须先把尚未提交的编辑器草稿写回对应 Document Session。
+- Workspace 中可写文件继续使用防抖自动保存；保存失败、冲突、只读、丢失或 Recovery 状态保留在 Document Session，并在文件树和当前编辑器中显示。
+- 干净的非活动 Session 可以被释放或降级为轻量描述符；Dirty、冲突、丢失和恢复中的 Session 不能因切换文件而丢失。
+- 支持 Save、Save As 和 Save All，但不提供关闭其他、关闭右侧、重新打开最近关闭文件、前进/后退历史或快速打开等 Tab/导航功能。
+- 当前文件在外部被删除或移动时，编辑器显示明确状态并允许重新定位、Save As 或关闭。
 
 ### 8.2 Session 恢复
 
 当 `.ideanote/` 已存在时，Workspace 重新打开后恢复：
 
-- Open Tabs。
-- Active Tab。
-- 每个 Tab 的文件路径。
-- 可安全恢复的编辑器视图状态。
+- 最后活动文件的相对路径。
+- Explorer 展开状态。
+- 可安全恢复的当前编辑器视图状态。
 
 恢复要求：
 
-- 不存在的文件跳过并显示非阻塞提示。
-- 不因恢复 Tabs 一次性解析所有文件内容。
-- 文件内容按需加载。
+- 最后活动文件不存在时保持空编辑区并显示非阻塞提示。
+- Workspace 打开时最多按需加载最后活动文件，不预加载其他文件正文。
+- 旧版 `state.json` 中的 `openTabs` 只用于推导一个兼容的活动文件，不恢复标签集合。
 - 恢复失败不能阻止 Workspace 打开。
 
 ### 8.3 目标布局
@@ -304,10 +303,10 @@ New Folder
 
 ```text
 ┌──────────────────┬────────────────────────────────────────┐
-│ Workspace        │ Editor Tabs                            │
-│ Explorer         │ drawing.is | another.is               │
-│                  │                                        │
-│ Folders          │ Current File Editor                    │
+│ Workspace        │ Current File Editor                    │
+│ Explorer         │                                        │
+│                  │ drawing.is                             │
+│ Folders          │                                        │
 │ Files            │                                        │
 └──────────────────┴────────────────────────────────────────┘
 ```
@@ -316,9 +315,9 @@ New Folder
 
 ```text
 ┌──────────────────┬────────────────────────────┬──────────────────┐
-│ Workspace        │ Editor Tabs                │ AI Agent         │
+│ Workspace        │ Current File Editor        │ AI Agent         │
 │ Explorer         │                            │                  │
-│                  │ Current File Editor        │ Conversation     │
+│                  │                            │ Conversation     │
 │                  │                            │ Tool Activity    │
 └──────────────────┴────────────────────────────┴──────────────────┘
 ```
@@ -552,7 +551,7 @@ IdeaSketch (.is)
 
 ### 15.2 Recovery
 
-- Dirty Tab 应有 Recovery Draft。
+- Dirty Document Session 应有 Recovery Draft。
 - Workspace Mode 的 Recovery 存放在 `.ideanote/recovery/`。
 - Single File Mode 的 Recovery 存放在应用本地恢复目录，不能在原文件旁静默创建未知文件。
 - Recovery Draft 成功恢复后，由用户决定是否覆盖原文件。
@@ -560,16 +559,17 @@ IdeaSketch (.is)
 ### 15.3 外部修改
 
 - 文件监听必须忽略应用自己的原子替换事件，避免保存循环。
-- 外部内容变化时，未 Dirty 的 Tab 可以提示 Reload。
-- 外部内容变化且 Tab Dirty 时，不得静默合并或覆盖。
+- 外部内容变化时，未 Dirty 的 Document Session 可以提示 Reload。
+- 外部内容变化且 Document Session Dirty 时，不得静默合并或覆盖。
 - 文件被删除时保留内存内容，并提供 Save As 或 Close。
-- 文件移动或重命名时尽可能更新 Tab；无法确认时提示重新定位。
+- 文件移动或重命名时尽可能更新 Document Session；无法确认时提示重新定位。
 
 ## 16. 性能与可靠性
 
 - 打开 Workspace 时只扫描必要的目录元数据，不解析全部文件内容。
-- 文件内容按 Tab 打开按需加载。
-- 恢复 Tabs 时不得一次性解析所有文件。
+- 文件内容只在成为当前文件时按需加载。
+- 恢复 Workspace 时最多加载最后活动文件，不得批量解析历史文件。
+- 干净的非活动 Session 应允许释放其重型编辑器模型；受保护的 Dirty、冲突或 Recovery Session 继续保留。
 - 文件树需要为大量文件预留虚拟化和增量更新能力。
 - 保存一个文件的成本只与该文件相关。
 - `.ideanote/cache/` 中的数据必须可删除并重新生成。
@@ -582,7 +582,7 @@ IdeaSketch (.is)
 - 所有用户可见文案使用 English。
 - Workspace Mode 明确显示 Workspace Root 名称。
 - Single File Mode 明确显示真实文件名和保存状态。
-- Tab Dirty 状态必须清晰但不过度干扰。
+- 当前文件 Dirty 状态必须在标题栏清晰显示；非活动受保护 Session 的状态必须在 Workspace Explorer 中可识别。
 - 左侧 Explorer 和中间 Editor 之间支持有最小、最大宽度限制的拖动调整。
 - 左侧 Explorer 可以折叠。
 - 当前阶段不显示右侧 Agent 空占位。
@@ -597,8 +597,8 @@ IdeaSketch (.is)
 2. Open Workspace 目录选择。
 3. 真实目录 Workspace Explorer。
 4. `.ideanote/` 延迟生成。
-5. Workspace 状态和 Tabs 恢复。
-6. 多文件 Editor Tabs。
+5. Workspace 状态和最后活动文件恢复。
+6. 单一前台 Editor 与多文档 Session 内核。
 7. New Folder 和 New IdeaSketch。
 8. Rename、Move、Delete、Refresh。
 9. File Watcher 和基础外部修改提示。
@@ -634,14 +634,14 @@ IdeaSketch (.is)
 - `.ideanote/` 不出现在左侧文件树中。
 - 真实目录外部变化可以被检测并更新文件树。
 
-### Files and Tabs
+### Files and Editor
 
 - 用户可以在左侧创建 Folder 和 `.is`。
-- 新建 `.is` 是磁盘上的有效 v1 文件，并立即在中间新 Tab 打开。
-- 可以同时打开多个文件并切换 Tabs。
-- 同一个真实路径不会出现重复 Tab。
-- Dirty Tab 关闭时提供 Save、Discard、Cancel。
-- 已存在 `.ideanote/` 时，重新打开 Workspace 可以恢复有效 Tabs。
+- 新建 `.is` 是磁盘上的有效 v1 文件，并立即成为当前文件。
+- 点击另一个受支持文件后，中间区域切换到该文件，且始终只有一个前台 Editor。
+- 同一个真实路径不会出现重复 Document Session。
+- 文件切换前会提交当前编辑器草稿；Dirty、冲突和 Recovery Session 不会被静默丢弃。
+- 已存在 `.ideanote/` 时，重新打开 Workspace 可以恢复最后活动文件；旧版 Tab 状态不会恢复为标签栏。
 - 不支持的文件不会被修改或丢弃。
 
 ### Dual mode, single core
@@ -682,7 +682,7 @@ IdeaSketch (.is)
 - Open Workspace。
 - Workspace Explorer。
 - `.ideanote/` 延迟生成。
-- Multi-file Tabs。
+- Single Active Editor。
 - File Type Registry 和 Editor Host。
 - File Watcher 和 Session Restore。
 
@@ -737,9 +737,9 @@ IdeaSketch (.is)
 
 外部程序可以修改、移动或删除文件。必须通过 File Watcher、Dirty 检测和明确冲突提示避免覆盖用户数据。
 
-### 21.3 Tabs 导致内存增长
+### 21.3 后台 Document Session 导致内存增长
 
-同时打开大量 Excalidraw 文件可能消耗较多内存。必须按需加载，并为非活动 Tab 的卸载或快照恢复预留能力。
+即使界面只显示一个 Editor，切换大量 Excalidraw 文件仍可能累积文档模型。必须只挂载当前 Editor，允许释放干净的非活动模型，并始终保留 Dirty、冲突和 Recovery Session 的安全状态。
 
 ### 21.4 两套模式产生分叉
 
@@ -758,12 +758,12 @@ IdeaSketch (.is)
 以下决定作为当前主线计划的实施基线；后续可以通过新的 PRD 或 Feature Request 调整：
 
 1. 用户可见产品名称改为 `IdeaNote`；当前 MVP 不迁移仓库名、Cargo/npm package name、Bundle ID 或用户数据目录，避免把产品重构与安装迁移混在一起。
-2. `.ideanote/workspace.json` 使用 `schemaVersion: 1`，保存稳定的 `workspaceId`、创建/更新时间和 Workspace 级设置；`.ideanote/state.json` 使用 `schemaVersion: 1`，保存相对路径形式的 Tabs、Active Tab 和 Explorer 状态。
+2. `.ideanote/workspace.json` 使用 `schemaVersion: 1`，保存稳定的 `workspaceId`、创建/更新时间和 Workspace 级设置；新的 `.ideanote/state.json` 使用 `schemaVersion: 2`，保存相对路径形式的最后活动文件和 Explorer 状态。读取器继续兼容旧 `schemaVersion: 1` 的 `openTabs`/`activePath`，但只恢复一个活动文件，且仅打开 Workspace 不触发元数据重写。
 3. 第一版使用单个 `state.json`，并由 `.ideanote/.gitignore` 忽略 `state.json`、`recovery/` 和 `cache/`；不修改 Workspace 根目录的 `.gitignore`。
 4. Workspace Mode 同时提供显式 Save 和防抖自动保存；Single File Mode 默认只显式保存，并使用 Recovery Draft 防止意外丢失。
 5. 新建 IdeaSketch 默认名为 `Untitled.is`，冲突时使用递增后缀，并立即进入内联重命名。
-6. 单击受支持文件即打开或激活唯一 Tab；目录单击只选择，展开/收起由目录箭头和键盘操作负责。
-7. 只挂载当前活动 Editor；非活动 Tab 保留轻量 Document Session 和 Dirty Model，文件内容按需加载，并为后续内存压力卸载策略保留边界。
+6. 单击受支持文件即使其成为唯一前台文件；目录单击只选择，展开/收起由目录箭头和键盘操作负责。
+7. 只挂载当前活动 Editor；干净的非活动 Session 可以释放，Dirty、冲突、丢失和 Recovery Session 保留必要模型与状态。当前阶段不增加文件前进/后退历史、快速打开、最近关闭文件或其他 Tab 替代导航。
 8. 默认不跟随 Symlink；Symlink 作为不可递归的特殊条目显示，不能借此越过 Workspace Root。
 9. Delete 默认移动到系统 Trash；不能安全移动到 Trash 时不执行永久删除，并显示错误。
 10. `.is` 覆盖不生成 `.is.bak`；只使用同目录临时文件和原子替换，失败时保留原文件并清理临时文件。
