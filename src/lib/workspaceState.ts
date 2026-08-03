@@ -5,7 +5,8 @@ import type {
   WorkspaceSession,
 } from "../types.ts";
 
-export const WORKSPACE_STATE_SCHEMA_VERSION = 1;
+export const WORKSPACE_STATE_SCHEMA_VERSION = 2;
+const LEGACY_WORKSPACE_STATE_SCHEMA_VERSION = 1;
 
 export function flattenWorkspaceEntries(entries: WorkspaceEntry[]): WorkspaceEntry[] {
   const flattened: WorkspaceEntry[] = [];
@@ -49,20 +50,29 @@ export function restoreWorkspaceDocuments(workspace: WorkspaceSession): {
   skippedPaths: string[];
 } {
   const persisted = workspace.metadata.state;
-  if (!persisted || persisted.schemaVersion !== WORKSPACE_STATE_SCHEMA_VERSION) {
+  if (!persisted || ![
+    LEGACY_WORKSPACE_STATE_SCHEMA_VERSION,
+    WORKSPACE_STATE_SCHEMA_VERSION,
+  ].includes(persisted.schemaVersion)) {
     return { documents: [], skippedPaths: [] };
   }
   const entries = new Map(flattenWorkspaceEntries(workspace.entries).map((entry) => [entry.path, entry]));
   const skippedPaths: string[] = [];
-  const documents = persisted.openTabs.flatMap((path, index) => {
+  const candidates = persisted.schemaVersion === WORKSPACE_STATE_SCHEMA_VERSION
+    ? persisted.activePath ? [persisted.activePath] : []
+    : [persisted.activePath, ...(persisted.openTabs ?? [])]
+        .filter((path): path is string => Boolean(path))
+        .filter((path, index, paths) => paths.indexOf(path) === index);
+  let restored: DocumentSession | undefined;
+  for (const path of candidates) {
     const entry = entries.get(path);
     if (!entry || entry.kind !== "file") {
       skippedPaths.push(path);
-      return [];
+      continue;
     }
     const fileType = entry.fileType ?? "unsupported";
-    return [{
-      id: `restored-${index}-${path}`,
+    restored = {
+      id: `restored-${path}`,
       mode: "workspace" as const,
       filePath: path,
       displayName: entry.name,
@@ -72,20 +82,22 @@ export function restoreWorkspaceDocuments(workspace: WorkspaceSession): {
       isDirty: false,
       revision: 0,
       sourceModified: entry.modified ?? undefined,
-    }];
-  });
-  const activePath = documents.some((document) => document.filePath === persisted.activePath)
-    ? persisted.activePath ?? undefined
-    : documents[0]?.filePath;
-  return { documents, activePath, skippedPaths };
+    };
+    break;
+  }
+  return {
+    documents: restored ? [restored] : [],
+    activePath: restored?.filePath,
+    skippedPaths,
+  };
 }
 
 export function createWorkspaceStateSnapshot(state: ApplicationState) {
-  const workspaceDocuments = state.documents.filter((document) => document.mode === "workspace" && document.filePath);
-  const active = workspaceDocuments.find((document) => document.id === state.activeSessionId);
+  const active = state.documents.find((document) =>
+    document.id === state.activeSessionId && document.mode === "workspace" && document.filePath,
+  );
   return {
     schemaVersion: WORKSPACE_STATE_SCHEMA_VERSION,
-    openTabs: workspaceDocuments.map((document) => document.filePath),
     activePath: active?.filePath ?? null,
     expandedPaths: state.workspace?.expandedPaths ?? [],
   };

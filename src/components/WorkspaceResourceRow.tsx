@@ -10,7 +10,7 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
-import type { WorkspaceEntry } from "../types";
+import type { DocumentStatus, WorkspaceEntry } from "../types";
 import { Input } from "./ui/Input";
 
 const entryIconProps = { "aria-hidden": true, size: 15, strokeWidth: 1.8 } as const;
@@ -22,6 +22,10 @@ interface WorkspaceResourceRowProps {
   depth: number;
   isSelected: boolean;
   isExpanded: boolean;
+  isDocumentActive?: boolean;
+  isDocumentProtected?: boolean;
+  isDocumentDirty?: boolean;
+  documentStatus?: DocumentStatus;
   startRenaming?: boolean;
   readOnly?: boolean;
   onRenameStarted?: () => void;
@@ -31,6 +35,28 @@ interface WorkspaceResourceRowProps {
   onRename: (name: string) => void;
   onTrash: () => void;
   onMove: (sourcePath: string, destinationParentPath: string) => void;
+}
+
+function documentStatusLabel(status: DocumentStatus | undefined, dirty: boolean): string {
+  switch (status) {
+    case "conflict": return "Conflict";
+    case "missing": return "Missing";
+    case "read-only": return "Read only";
+    case "external-change": return "Changed on disk";
+    case "root-missing": return "Workspace unavailable";
+    case "error": return "Error";
+    case "legacy-protected": return "Protected format";
+    case "unsupported": return "Unsupported";
+    case "invalid": return "Invalid file";
+    default: return dirty ? "Unsaved changes" : "Protected session";
+  }
+}
+
+function documentStatusClassName(status: DocumentStatus | undefined, dirty: boolean): string {
+  if (["conflict", "error", "invalid", "missing", "root-missing"].includes(status ?? "")) {
+    return `is-${status}`;
+  }
+  return dirty ? "is-dirty" : `is-${status ?? "protected"}`;
 }
 
 function EntryIcon({ entry, expanded }: { entry: WorkspaceEntry; expanded: boolean }) {
@@ -48,6 +74,10 @@ export function WorkspaceResourceRow({
   depth,
   isSelected,
   isExpanded,
+  isDocumentActive = false,
+  isDocumentProtected = false,
+  isDocumentDirty = false,
+  documentStatus,
   startRenaming = false,
   readOnly = false,
   onRenameStarted,
@@ -58,7 +88,8 @@ export function WorkspaceResourceRow({
   onTrash,
   onMove,
 }: WorkspaceResourceRowProps) {
-  const canMutate = !readOnly && !entry.readOnly && entry.kind !== "symlink";
+  const isMissingEntry = documentStatus === "missing" || documentStatus === "root-missing";
+  const canMutate = !readOnly && !entry.readOnly && entry.kind !== "symlink" && !isMissingEntry;
   const [isRenaming, setIsRenaming] = useState(false);
   const [draftName, setDraftName] = useState(entry.name);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -108,10 +139,11 @@ export function WorkspaceResourceRow({
     <div
       role="treeitem"
       aria-selected={isSelected}
+      aria-current={isDocumentActive ? "page" : undefined}
       aria-expanded={entry.kind === "directory" ? isExpanded : undefined}
       tabIndex={0}
       draggable={canMutate}
-      className={`idea-slide-resource-row group ${isSelected ? "is-active" : ""}`}
+      className={`idea-slide-resource-row group ${isSelected ? "is-selected" : ""} ${isDocumentActive ? "is-active" : ""}`}
       style={{ paddingLeft: 7 + depth * 15 }}
       onClick={() => {
         onSelect();
@@ -173,6 +205,13 @@ export function WorkspaceResourceRow({
       )}
       {entry.kind === "symlink" && <span className="text-[9px] uppercase text-gray-400">Link</span>}
       {!entry.fileType && entry.kind === "file" && <span className="text-[9px] uppercase text-gray-400">Unsupported</span>}
+      {isDocumentProtected && (
+        <span
+          className={`idea-slide-resource-status ${documentStatusClassName(documentStatus, isDocumentDirty)}`}
+          title={documentStatusLabel(documentStatus, isDocumentDirty)}
+          aria-label={documentStatusLabel(documentStatus, isDocumentDirty)}
+        />
+      )}
       {canMutate && !isRenaming && (
         <div className="hidden items-center gap-0.5 group-hover:flex group-focus-within:flex">
           <button

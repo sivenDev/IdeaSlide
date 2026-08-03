@@ -65,8 +65,10 @@ html, body, #root {
   top: 50%;
   left: 50%;
   z-index: 1;
+  display: flex;
   max-width: min(26rem, 34vw);
-  overflow: hidden;
+  align-items: center;
+  gap: 0.4rem;
   color: #30343c;
   font-size: 0.875rem;
   font-weight: 650;
@@ -75,6 +77,23 @@ html, body, #root {
   text-overflow: ellipsis;
   transform: translate(-50%, -50%);
   white-space: nowrap;
+}
+
+.idea-slide-window-toolbar__title > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.idea-slide-window-toolbar__title-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex: 0 0 0.875rem;
+  color: var(--idea-slide-faint);
+}
+
+.idea-slide-window-toolbar__title-icon.is-ideasketch {
+  color: var(--idea-slide-accent);
 }
 
 .idea-slide-window-toolbar__drag-region {
@@ -140,72 +159,6 @@ html, body, #root {
   scrollbar-color: #c9ccd3 transparent;
   scrollbar-width: thin;
 }
-
-.ideanote-document-tabs {
-  display: flex;
-  min-width: 0;
-  height: 2.5rem;
-  flex: 0 0 2.5rem;
-  align-items: stretch;
-  border-bottom: 1px solid var(--idea-slide-boundary);
-  background: #f5f6f8;
-}
-
-.ideanote-document-tabs__scroll {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.ideanote-document-tabs__scroll::-webkit-scrollbar { display: none; }
-
-.ideanote-document-tab {
-  display: flex;
-  min-width: 9rem;
-  max-width: 15rem;
-  align-items: center;
-  gap: 0.4375rem;
-  border-right: 1px solid var(--idea-slide-boundary);
-  color: #676d78;
-  cursor: default;
-  font-size: 0.75rem;
-  outline: none;
-  padding: 0 0.5rem 0 0.75rem;
-}
-
-.ideanote-document-tab:hover { background: rgb(255 255 255 / 65%); }
-.ideanote-document-tab.is-active {
-  color: #262a31;
-  background: white;
-  box-shadow: inset 0 2px 0 var(--idea-slide-accent);
-}
-
-.ideanote-document-tab__icon { color: var(--idea-slide-faint); }
-.ideanote-document-tab__icon.is-ideasketch { color: var(--idea-slide-accent); }
-.ideanote-document-tab__name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ideanote-document-tab__status { color: #b45309; font-size: 0.625rem; }
-.ideanote-document-tab__dirty { width: 0.4375rem; height: 0.4375rem; flex: 0 0 0.4375rem; border-radius: 50%; background: var(--idea-slide-accent); }
-.ideanote-document-tab__close {
-  display: grid;
-  width: 1.125rem;
-  height: 1.125rem;
-  place-items: center;
-  border-radius: 0.25rem;
-  color: #8b9099;
-  font-size: 0.875rem;
-  line-height: 1;
-}
-.ideanote-document-tab__close:hover { color: #343840; background: #e9eaee; }
-.ideanote-document-tabs__reopen {
-  width: 2.25rem;
-  flex: 0 0 2.25rem;
-  border-left: 1px solid var(--idea-slide-boundary);
-  color: #777e89;
-}
-.ideanote-document-tabs__reopen:hover:not(:disabled) { color: var(--idea-slide-accent); background: white; }
-.ideanote-document-tabs__reopen:disabled { opacity: 0.35; }
 
 .ideanote-ideasketch-editor {
   display: flex;
@@ -588,6 +541,10 @@ html, body, #root {
   background: rgb(32 36 44 / 4.5%);
 }
 
+.idea-slide-resource-row.is-selected:not(.is-active) {
+  background: rgb(32 36 44 / 5.5%);
+}
+
 .idea-slide-resource-row.is-active {
   color: #37338e;
   background: var(--idea-slide-accent-soft);
@@ -658,6 +615,34 @@ html, body, #root {
 
 .idea-slide-resource-name {
   color: inherit;
+}
+
+.idea-slide-resource-status {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  flex: 0 0 0.4375rem;
+  border-radius: 50%;
+  background: #8b9099;
+  box-shadow: 0 0 0 2px rgb(139 144 153 / 12%);
+}
+
+.idea-slide-resource-status.is-dirty,
+.idea-slide-resource-status.is-external-change {
+  background: #d97706;
+  box-shadow: 0 0 0 2px rgb(217 119 6 / 12%);
+}
+
+.idea-slide-resource-status.is-conflict,
+.idea-slide-resource-status.is-error,
+.idea-slide-resource-status.is-invalid {
+  background: #dc4c4c;
+  box-shadow: 0 0 0 2px rgb(220 76 76 / 12%);
+}
+
+.idea-slide-resource-status.is-missing,
+.idea-slide-resource-status.is-root-missing {
+  background: #ea8a2f;
+  box-shadow: 0 0 0 2px rgb(234 138 47 / 12%);
 }
 
 .idea-slide-row-action {

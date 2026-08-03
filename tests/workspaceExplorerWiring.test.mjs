@@ -15,6 +15,8 @@ test('Workspace Explorer is driven by real relative paths and backend filesystem
   assert.match(source, /onRename/);
   assert.match(source, /onMove/);
   assert.match(source, /onTrash/);
+  assert.match(source, /documentIndicators/);
+  assert.match(source, /indicatorByPath/);
   assert.match(source, /New \{definition\.displayName\}/);
   assert.match(source, /New Folder/);
   assert.doesNotMatch(source, /WorkspaceResource\b/);
@@ -40,6 +42,12 @@ test('Workspace rows keep Symlinks non-recursive and unsupported files safe', as
   assert.match(source, /F2/);
   assert.match(source, /ArrowRight/);
   assert.match(source, /Move .* to Trash/);
+  assert.match(source, /isDocumentActive/);
+  assert.match(source, /documentStatus/);
+  assert.match(source, /idea-slide-resource-status/);
+  assert.match(source, /documentStatusClassName/);
+  assert.match(source, /\["conflict", "error", "invalid", "missing", "root-missing"\]/);
+  assert.match(source, /documentStatus === "missing" \|\| documentStatus === "root-missing"/);
 });
 
 test('Editor shell preserves bounded resize and shows Explorer only for Workspace sessions', async () => {

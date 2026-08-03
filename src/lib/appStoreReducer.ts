@@ -17,7 +17,6 @@ import {
   type InspectedFileState,
 } from "./externalFileChanges.ts";
 
-const RECENTLY_CLOSED_LIMIT = 10;
 const IN_MEMORY_EDITABLE_STATUSES: DocumentStatus[] = [
   "editable",
   "external-change",
@@ -31,7 +30,6 @@ export type AppStoreAction =
   | { type: "OPEN_WORKSPACE"; workspace: WorkspaceSession; restoredDocuments?: DocumentSession[]; activePath?: string }
   | { type: "REPLACE_WORKSPACE"; workspace: WorkspaceSession; reloadDocuments?: boolean }
   | { type: "OPEN_DOCUMENT"; document: DocumentSession }
-  | { type: "ACTIVATE_DOCUMENT"; sessionId: string }
   | { type: "SET_DOCUMENT_MODEL"; sessionId: string; model: DocumentModel; status?: DocumentStatus; sourceModified?: string; readOnly?: boolean }
   | { type: "SET_DOCUMENT_STATUS"; sessionId: string; status: DocumentStatus; message?: string }
   | { type: "UPDATE_DOCUMENT_MODEL"; sessionId: string; model: DocumentModel }
@@ -41,9 +39,6 @@ export type AppStoreAction =
   | { type: "SET_DOCUMENT_EDITOR_STATE"; sessionId: string; editorState: DocumentEditorState }
   | { type: "UPDATE_DOCUMENT_PATH"; sessionId: string; filePath: string; displayName?: string; mode?: "workspace" | "standalone" }
   | { type: "CLOSE_DOCUMENT"; sessionId: string }
-  | { type: "CLOSE_OTHER_DOCUMENTS"; sessionId: string }
-  | { type: "CLOSE_DOCUMENTS_TO_RIGHT"; sessionId: string }
-  | { type: "REOPEN_LAST_DOCUMENT" }
   | { type: "SET_WORKSPACE_ENTRIES"; entries: WorkspaceEntry[] }
   | { type: "APPLY_WORKSPACE_CHANGE"; event: WorkspaceChangeEvent }
   | { type: "APPLY_DOCUMENT_INSPECTION"; sessionId: string; inspection: InspectedFileState }
@@ -58,7 +53,6 @@ export function createInitialAppState(): ApplicationState {
   return {
     mode: "launch",
     documents: [],
-    recentlyClosed: [],
     presentationMode: "none",
     editorRefreshToken: 0,
   };
@@ -66,6 +60,10 @@ export function createInitialAppState(): ApplicationState {
 
 function basename(path: string): string {
   return normalizeDocumentPath(path).split("/").pop() || "Untitled.is";
+}
+
+function pathWithinWorkspaceEntry(path: string, parent: string): boolean {
+  return path === parent || path.startsWith(`${parent}/`);
 }
 
 export function createDocumentPathKey(
@@ -93,29 +91,8 @@ export function prepareDocumentSession(
   };
 }
 
-function nextActiveAfterClose(
-  documents: DocumentSession[],
-  closingIndex: number,
-): string | undefined {
-  return documents[closingIndex + 1]?.id ?? documents[closingIndex - 1]?.id;
-}
-
-function closeDocuments(
-  state: ApplicationState,
-  shouldClose: (document: DocumentSession, index: number) => boolean,
-): ApplicationState {
-  const closed = state.documents.filter(shouldClose);
-  if (closed.length === 0) return state;
-  const documents = state.documents.filter((document, index) => !shouldClose(document, index));
-  const activeSessionId = documents.some((document) => document.id === state.activeSessionId)
-    ? state.activeSessionId
-    : documents[0]?.id;
-  return {
-    ...state,
-    documents,
-    activeSessionId,
-    recentlyClosed: [...closed.reverse(), ...state.recentlyClosed].slice(0, RECENTLY_CLOSED_LIMIT),
-  };
+export function isProtectedDocumentSession(document: DocumentSession): boolean {
+  return document.isDirty || !["editable", "loading"].includes(document.status);
 }
 
 export function appStoreReducer(
@@ -134,7 +111,10 @@ export function appStoreReducer(
       return {
         ...createInitialAppState(),
         mode: "workspace",
-        workspace: action.workspace,
+        workspace: {
+          ...action.workspace,
+          selectedPath: action.activePath ?? action.workspace.selectedPath,
+        },
         documents,
         activeSessionId,
       };
@@ -194,23 +174,36 @@ export function appStoreReducer(
     }
     case "OPEN_DOCUMENT": {
       const document = prepareDocumentSession(action.document, state.workspace?.root);
+      if (document.mode === "standalone") {
+        return {
+          ...createInitialAppState(),
+          mode: "standalone",
+          documents: [document],
+          activeSessionId: document.id,
+        };
+      }
       const existing = document.pathKey
         ? state.documents.find((candidate) => candidate.pathKey === document.pathKey)
         : undefined;
+      const documents = state.documents.filter((candidate) =>
+        candidate.id === existing?.id || isProtectedDocumentSession(candidate),
+      );
       if (existing) {
-        return { ...state, activeSessionId: existing.id };
+        return {
+          ...state,
+          workspace: state.workspace ? { ...state.workspace, selectedPath: existing.filePath } : state.workspace,
+          documents,
+          activeSessionId: existing.id,
+        };
       }
       return {
         ...state,
-        mode: state.workspace ? "workspace" : "standalone",
-        documents: [...state.documents, document],
+        mode: "workspace",
+        workspace: state.workspace ? { ...state.workspace, selectedPath: document.filePath } : state.workspace,
+        documents: [...documents, document],
         activeSessionId: document.id,
       };
     }
-    case "ACTIVATE_DOCUMENT":
-      return state.documents.some((document) => document.id === action.sessionId)
-        ? { ...state, activeSessionId: action.sessionId }
-        : state;
     case "SET_DOCUMENT_MODEL":
       return {
         ...state,
@@ -300,46 +293,27 @@ export function appStoreReducer(
       };
     }
     case "CLOSE_DOCUMENT": {
-      const closingIndex = state.documents.findIndex((document) => document.id === action.sessionId);
-      if (closingIndex < 0) return state;
-      const closed = state.documents[closingIndex];
+      if (!state.documents.some((document) => document.id === action.sessionId)) return state;
       const documents = state.documents.filter((document) => document.id !== action.sessionId);
       return {
         ...state,
         documents,
         activeSessionId: state.activeSessionId === action.sessionId
-          ? nextActiveAfterClose(state.documents, closingIndex)
+          ? undefined
           : state.activeSessionId,
-        recentlyClosed: [closed, ...state.recentlyClosed].slice(0, RECENTLY_CLOSED_LIMIT),
       };
-    }
-    case "CLOSE_OTHER_DOCUMENTS":
-      return closeDocuments(state, (document) => document.id !== action.sessionId);
-    case "CLOSE_DOCUMENTS_TO_RIGHT": {
-      const index = state.documents.findIndex((document) => document.id === action.sessionId);
-      return index < 0 ? state : closeDocuments(state, (_document, candidateIndex) => candidateIndex > index);
-    }
-    case "REOPEN_LAST_DOCUMENT": {
-      const [document, ...recentlyClosed] = state.recentlyClosed;
-      if (!document) return state;
-      const prepared = prepareDocumentSession(document, state.workspace?.root);
-      const existing = prepared.pathKey
-        ? state.documents.find((candidate) => candidate.pathKey === prepared.pathKey)
-        : undefined;
-      return existing
-        ? { ...state, recentlyClosed, activeSessionId: existing.id }
-        : {
-            ...state,
-            documents: [...state.documents, prepared],
-            activeSessionId: prepared.id,
-            recentlyClosed,
-          };
     }
     case "SET_WORKSPACE_ENTRIES":
       return state.workspace ? { ...state, workspace: { ...state.workspace, entries: action.entries } } : state;
     case "APPLY_WORKSPACE_CHANGE": {
       if (!state.workspace) return state;
       const workspace = state.workspace;
+      const retainsRemovedEntry = action.event.kind === "remove"
+        && Boolean(action.event.path)
+        && state.documents.some((document) =>
+          document.mode === "workspace"
+          && pathWithinWorkspaceEntry(document.filePath, action.event.path!),
+        );
       const documents = state.documents.map((document) => {
         const decision = classifyExternalDocumentChange(document, action.event);
         switch (decision.kind) {
@@ -383,7 +357,9 @@ export function appStoreReducer(
           message: action.event.kind === "rootMissing"
             ? "The Workspace folder is no longer available. Relocate it to continue working."
             : workspace.message,
-          entries: applyWorkspaceTreeEvent(workspace.entries, action.event),
+          entries: retainsRemovedEntry
+            ? workspace.entries
+            : applyWorkspaceTreeEvent(workspace.entries, action.event),
         },
         documents,
       };

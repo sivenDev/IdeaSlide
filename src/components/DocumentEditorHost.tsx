@@ -23,9 +23,6 @@ export function DocumentEditorHost({ document, fullPath, renderIdeaSketch }: Doc
   if (document.status === "unsupported" || document.status === "legacy-protected" || document.status === "invalid" || document.status === "error") {
     return <UnsupportedFileView fileName={document.displayName || "file"} fullPath={fullPath} message={document.message} />;
   }
-  if (document.status === "missing") {
-    return <UnsupportedFileView fileName={document.displayName || "file"} fullPath={fullPath} message="This file is no longer available. Its in-memory session has been retained." />;
-  }
   const definition = getFileTypeDefinition(document.fileType);
   if (definition?.editor === "ideasketch" && document.model && renderIdeaSketch) {
     return <ErrorBoundary>{renderIdeaSketch(document)}</ErrorBoundary>;

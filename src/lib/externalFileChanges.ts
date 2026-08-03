@@ -41,6 +41,17 @@ export function classifyExternalDocumentChange(document: DocumentSession, event:
     if (document.status === "read-only" && document.readOnly && event.entry && !event.entry.readOnly) {
       return { kind: "writable" };
     }
+    if (document.status === "missing") {
+      return {
+        kind: "modified",
+        status: document.isDirty ? "conflict" : "external-change",
+        message: document.isDirty
+          ? "This file reappeared on disk while you have unsaved edits. Reload or use Save As; IdeaNote will not overwrite it silently."
+          : "This file reappeared on disk. Reload it to use the restored disk version.",
+        sourceModified: event.entry?.modified ?? undefined,
+        readOnly: event.entry?.readOnly,
+      };
+    }
     if (event.entry?.modified && document.sourceModified === event.entry.modified) {
       return { kind: "none" };
     }
@@ -66,6 +77,17 @@ export function classifyInspectedDocument(
   }
   if (inspection.readOnly) {
     return { kind: "read-only", message: "This file is read-only. Use Save As to keep your changes." };
+  }
+  if (document.status === "missing") {
+    return {
+      kind: "modified",
+      status: document.isDirty ? "conflict" : "external-change",
+      message: document.isDirty
+        ? "This file reappeared on disk while you have unsaved edits. Reload or use Save As; IdeaNote will not overwrite it silently."
+        : "This file reappeared on disk. Reload it to use the restored disk version.",
+      sourceModified: inspection.modified ?? undefined,
+      readOnly: false,
+    };
   }
   if (document.sourceModified && inspection.modified && document.sourceModified !== inspection.modified) {
     return {

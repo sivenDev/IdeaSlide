@@ -4,14 +4,19 @@ import { readFile } from 'node:fs/promises';
 
 const readSource = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('EditorLayout composes the real Workspace Explorer, document Tabs, and generic host', async () => {
+test('EditorLayout gives the center to one editor and uses Explorer as the file switcher', async () => {
   const source = await readSource('src/components/EditorLayout.tsx');
   assert.match(source, /from "\.\/WorkspaceExplorer"/);
-  assert.match(source, /from "\.\/DocumentTabs"/);
   assert.match(source, /from "\.\/DocumentEditorHost"/);
   assert.match(source, /<WorkspaceExplorer/);
-  assert.match(source, /<DocumentTabs/);
   assert.match(source, /<DocumentEditorHost/);
+  assert.match(source, /flushActiveDocumentSnapshot\(\)/);
+  assert.match(source, /const dirty = activeDocument\?\.isDirty \?\? false/);
+  assert.doesNotMatch(source, /DocumentTabs/);
+  assert.doesNotMatch(source, /ACTIVATE_DOCUMENT/);
+  assert.doesNotMatch(source, /recentlyClosed/);
+  assert.doesNotMatch(source, /REOPEN_LAST_DOCUMENT/);
+  assert.doesNotMatch(source, /CloseOthers|CloseRight/);
   assert.match(source, /side="left"/);
   assert.doesNotMatch(source, /ResourceEditorHost/);
   assert.doesNotMatch(source, /Agent/);
@@ -33,6 +38,18 @@ test('App routes presentation exit through the application reducer refresh token
   assert.match(reducer, /editorRefreshToken: state\.editorRefreshToken \+ 1/);
 });
 
+test('system file-open requests are coordinated by EditorLayout before replacing the foreground file', async () => {
+  const app = await readSource('src/App.tsx');
+  const editor = await readSource('src/components/EditorLayout.tsx');
+  assert.match(app, /pendingStandalonePath/);
+  assert.match(app, /requestStandalonePath/);
+  assert.match(app, /pendingStandalonePath=\{pendingStandalonePath\}/);
+  assert.match(app, /onPendingStandalonePathHandled/);
+  assert.doesNotMatch(app, /listen<string>\("file-open"[\s\S]*?openStandalonePath\(event\.payload\)/);
+  assert.match(editor, /if \(!await confirmSessionExit\(\)\) return/);
+  assert.match(editor, /openStandaloneDocument\(pendingStandalonePath\)/);
+});
+
 test('Toolbar keeps generic file commands and centered IdeaNote document title', async () => {
   const source = await readSource('src/components/Toolbar.tsx');
   assert.match(source, /from "lucide-react"/);
@@ -44,6 +61,7 @@ test('Toolbar keeps generic file commands and centered IdeaNote document title',
   assert.match(source, /<FileInput /);
   assert.match(source, /<FileOutput /);
   assert.match(source, /<SaveAll /);
+  assert.match(source, /<FilePenLine /);
   assert.doesNotMatch(source, /[⌂＋▱⌑⌄]/);
   assert.match(source, /aria-label="New File"/);
   assert.match(source, /Open Workspace/);
@@ -53,6 +71,7 @@ test('Toolbar keeps generic file commands and centered IdeaNote document title',
   assert.match(source, /Save All/);
   assert.match(source, /idea-slide-window-toolbar__title/);
   assert.match(source, /fileName \|\| "IdeaNote"/);
+  assert.match(source, /fileType === "ideasketch"/);
   assert.doesNotMatch(source, /aria-label="Present"/);
   assert.doesNotMatch(source, /aria-label="Cameras"/);
 });

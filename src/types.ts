@@ -136,7 +136,7 @@ export interface WorkspaceMetadataSnapshot {
   } | null;
   state?: {
     schemaVersion: number;
-    openTabs: string[];
+    openTabs?: string[];
     activePath?: string | null;
     expandedPaths: string[];
   } | null;
@@ -171,7 +171,6 @@ export interface ApplicationState {
   workspace?: WorkspaceSession;
   documents: DocumentSession[];
   activeSessionId?: string;
-  recentlyClosed: DocumentSession[];
   presentationMode: "none" | "preview" | "fullscreen";
   presentationSessionId?: string;
   presentationPageId?: string;

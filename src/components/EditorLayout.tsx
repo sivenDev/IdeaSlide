@@ -45,10 +45,10 @@ import {
 import { classifyRecoveryDraft, createRecoveryDraft, recoveryScopeForDocument, type RecoveryDraft } from "../lib/recovery";
 import { classifyInspectedDocument } from "../lib/externalFileChanges";
 import { saveAllDocuments } from "../lib/saveCoordinator";
+import { isProtectedDocumentSession } from "../lib/appStoreReducer";
 import type { DocumentModel, DocumentSession, IdeaSketchDocument, IdeaSketchPage, WorkspaceEntry } from "../types";
 import { Toolbar } from "./Toolbar";
 import { WorkspaceExplorer } from "./WorkspaceExplorer";
-import { DocumentTabs } from "./DocumentTabs";
 import { DocumentEditorHost } from "./DocumentEditorHost";
 import { ResizableDivider } from "./ResizableDivider";
 import { IdeaSketchEditor } from "./IdeaSketchEditor";
@@ -59,6 +59,8 @@ import { WorkspaceStatusNotice } from "./WorkspaceStatusNotice";
 interface EditorLayoutProps {
   onGoHome: () => void;
   readOnly?: boolean;
+  pendingStandalonePath?: string;
+  onPendingStandalonePathHandled?: () => void;
 }
 
 function sessionFromOpened(
@@ -88,7 +90,12 @@ function joinWorkspacePath(root: string, relativePath: string): string {
   return `${root.replace(/[\\/]$/, "")}/${relativePath}`;
 }
 
-export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) {
+export function EditorLayout({
+  onGoHome,
+  readOnly = false,
+  pendingStandalonePath,
+  onPendingStandalonePathHandled,
+}: EditorLayoutProps) {
   const { state, dispatch } = useAppStore();
   const [isSaving, setIsSaving] = useState(false);
   const [showWorkspace, setShowWorkspace] = useState(state.mode === "workspace");
@@ -178,8 +185,14 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
     dispatch({ type: "SET_WORKSPACE_ENTRIES", entries });
   }, [dispatch, state.workspace]);
 
+  const flushActiveDocumentSnapshot = useCallback(() => {
+    if (!activeDocument) return;
+    documentSnapshotProviders.current.get(activeDocument.id)?.();
+  }, [activeDocument]);
+
   const openEntry = useCallback((entry: WorkspaceEntry) => {
     if (!state.workspace || entry.kind !== "file") return;
+    flushActiveDocumentSnapshot();
     dispatch({
       type: "OPEN_DOCUMENT",
       document: {
@@ -196,7 +209,7 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
         revision: 0,
       },
     });
-  }, [dispatch, state.workspace]);
+  }, [dispatch, flushActiveDocumentSnapshot, state.workspace]);
 
   const handleCreateFolder = useCallback(async (parentPath: string) => {
     if (!state.workspace) throw new Error("No Workspace is open");
@@ -444,12 +457,6 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
     return true;
   }, [clearRecoveryForDocument, dispatch, saveDocument, state.documents]);
 
-  const closeCollection = useCallback(async (sessionIds: string[]) => {
-    for (const sessionId of sessionIds) {
-      if (!await requestClose(sessionId)) break;
-    }
-  }, [requestClose]);
-
   const confirmSessionExit = useCallback(async (): Promise<boolean> => {
     const dirtyDocuments = state.documents.filter((document) => document.isDirty);
     if (dirtyDocuments.length === 0) return true;
@@ -466,6 +473,8 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
     await Promise.all(dirtyDocuments.map(clearRecoveryForDocument));
     return true;
   }, [clearRecoveryForDocument, handleSaveAll, state.documents]);
+  const confirmSessionExitRef = useRef(confirmSessionExit);
+  confirmSessionExitRef.current = confirmSessionExit;
 
   const handleNewFile = useCallback(async () => {
     if (state.workspace) {
@@ -476,6 +485,7 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
       await handleCreateDocument(parentPath, "ideasketch");
       return;
     }
+    if (!await confirmSessionExit()) return;
     const definition = getFileTypeDefinition("ideasketch");
     if (!definition) return;
     dispatch({
@@ -485,13 +495,14 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
         fileType: definition.type, status: "editable", model: await definition.createEmpty(), isDirty: true, revision: 1,
       },
     });
-  }, [dispatch, handleCreateDocument, state.workspace]);
+  }, [confirmSessionExit, dispatch, handleCreateDocument, state.workspace]);
 
   const handleOpenFile = useCallback(async () => {
+    if (!await confirmSessionExit()) return;
     const { path, document } = await chooseAndOpenStandaloneDocument();
     dispatch({ type: "OPEN_DOCUMENT", document: sessionFromOpened(path, "standalone", document) });
     addRecentFile(path).catch(console.error);
-  }, [dispatch]);
+  }, [confirmSessionExit, dispatch]);
 
   const handleOpenWorkspace = useCallback(async () => {
     if (!await confirmSessionExit()) return;
@@ -499,6 +510,29 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
     const restored = restoreWorkspaceDocuments(workspace);
     dispatch({ type: "OPEN_WORKSPACE", workspace, restoredDocuments: restored.documents, activePath: restored.activePath });
   }, [confirmSessionExit, dispatch]);
+
+  useEffect(() => {
+    if (!pendingStandalonePath || !onPendingStandalonePathHandled) return;
+    let disposed = false;
+    const openPendingPath = async () => {
+      try {
+        if (!await confirmSessionExitRef.current()) return;
+        const opened = await openStandaloneDocument(pendingStandalonePath);
+        if (disposed) return;
+        dispatch({
+          type: "OPEN_DOCUMENT",
+          document: sessionFromOpened(pendingStandalonePath, "standalone", opened),
+        });
+        addRecentFile(pendingStandalonePath).catch(console.error);
+      } catch (error) {
+        console.error("Failed to open requested file:", error);
+      } finally {
+        if (!disposed) onPendingStandalonePathHandled();
+      }
+    };
+    void openPendingPath();
+    return () => { disposed = true; };
+  }, [dispatch, onPendingStandalonePathHandled, pendingStandalonePath]);
 
   const handleRelocateWorkspace = useCallback(async () => {
     const workspace = await openWorkspace();
@@ -629,12 +663,22 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
   const activeFullPath = activeDocument?.mode === "workspace" && state.workspace
     ? joinWorkspacePath(state.workspace.root, activeDocument.filePath)
     : activeDocument?.filePath;
-  const dirty = state.documents.some((document) => document.isDirty);
+  const dirty = activeDocument?.isDirty ?? false;
+  const documentIndicators = state.documents
+    .filter((document) => document.mode === "workspace" && Boolean(document.filePath))
+    .map((document) => ({
+      path: document.filePath,
+      isActive: document.id === state.activeSessionId,
+      isProtected: isProtectedDocumentSession(document),
+      isDirty: document.isDirty,
+      status: document.status,
+    }));
 
   return (
     <div className="idea-slide-editor-shell flex h-screen flex-col">
       <Toolbar
         fileName={activeDocument?.displayName || state.workspace?.name}
+        fileType={activeDocument?.fileType}
         isDirty={dirty}
         isSaving={isSaving}
         onNewFile={() => void handleNewFile()}
@@ -655,6 +699,7 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
                   entries={state.workspace.entries}
                   selectedPath={state.workspace.selectedPath}
                   expandedPaths={state.workspace.expandedPaths}
+                  documentIndicators={documentIndicators}
                   readOnly={readOnly || state.workspace.readOnly}
                   onSelect={(path) => dispatch({ type: "SELECT_WORKSPACE_PATH", path })}
                   onOpen={openEntry}
@@ -693,19 +738,6 @@ export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) 
               onDismissDiagnostics={() => setWorkspaceDiagnosticsHidden(true)}
             />
           )}
-          <DocumentTabs
-            documents={state.documents}
-            activeSessionId={state.activeSessionId}
-            recentlyClosedCount={state.recentlyClosed.length}
-            onActivate={(sessionId) => dispatch({ type: "ACTIVATE_DOCUMENT", sessionId })}
-            onRequestClose={(sessionId) => void requestClose(sessionId)}
-            onCloseOthers={(sessionId) => void closeCollection(state.documents.filter((document) => document.id !== sessionId).map((document) => document.id))}
-            onCloseRight={(sessionId) => {
-              const index = state.documents.findIndex((document) => document.id === sessionId);
-              void closeCollection(state.documents.slice(index + 1).map((document) => document.id));
-            }}
-            onReopenLast={() => dispatch({ type: "REOPEN_LAST_DOCUMENT" })}
-          />
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             {activeDocument && (
               <ExternalChangeNotice

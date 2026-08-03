@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ask } from "@tauri-apps/plugin-dialog";
-import type { WorkspaceEntry } from "../types";
+import type { DocumentStatus, WorkspaceEntry } from "../types";
 import { getCreatableFileTypeDefinitions } from "../lib/fileTypeRegistry";
 import { projectVisibleWorkspaceRows } from "../lib/workspaceState";
 import { WorkspaceResourceRow } from "./WorkspaceResourceRow";
@@ -16,6 +16,7 @@ interface WorkspaceExplorerProps {
   entries: WorkspaceEntry[];
   selectedPath?: string;
   expandedPaths: string[];
+  documentIndicators?: WorkspaceDocumentIndicator[];
   readOnly?: boolean;
   onSelect: (path: string) => void;
   onOpen: (entry: WorkspaceEntry) => void;
@@ -26,6 +27,14 @@ interface WorkspaceExplorerProps {
   onTrash: (path: string) => Promise<void>;
   onRefresh: () => Promise<void>;
   onExpandedPathsChange: (paths: string[]) => void;
+}
+
+export interface WorkspaceDocumentIndicator {
+  path: string;
+  isActive: boolean;
+  isProtected: boolean;
+  isDirty: boolean;
+  status: DocumentStatus;
 }
 
 const actionClassName = "idea-slide-panel-icon-button";
@@ -39,6 +48,7 @@ export function WorkspaceExplorer({
   entries,
   selectedPath,
   expandedPaths,
+  documentIndicators = [],
   readOnly = false,
   onSelect,
   onOpen,
@@ -54,6 +64,10 @@ export function WorkspaceExplorer({
   const expanded = useMemo(() => new Set(expandedPaths), [expandedPaths]);
   const visibleRows = useMemo(() => projectVisibleWorkspaceRows(entries, expanded), [entries, expanded]);
   const creatableTypes = useMemo(() => getCreatableFileTypeDefinitions(), []);
+  const indicatorByPath = useMemo(
+    () => new Map(documentIndicators.map((indicator) => [indicator.path, indicator])),
+    [documentIndicators],
+  );
 
   const selectedEntry = useMemo(() => {
     const find = (items: WorkspaceEntry[]): WorkspaceEntry | undefined => {
@@ -104,6 +118,10 @@ export function WorkspaceExplorer({
         depth={depth}
         isSelected={selectedPath === entry.path}
         isExpanded={expanded.has(entry.path)}
+        isDocumentActive={indicatorByPath.get(entry.path)?.isActive ?? false}
+        isDocumentProtected={indicatorByPath.get(entry.path)?.isProtected ?? false}
+        isDocumentDirty={indicatorByPath.get(entry.path)?.isDirty ?? false}
+        documentStatus={indicatorByPath.get(entry.path)?.status}
         readOnly={readOnly}
         startRenaming={renamePath === entry.path}
         onRenameStarted={() => setRenamePath(undefined)}

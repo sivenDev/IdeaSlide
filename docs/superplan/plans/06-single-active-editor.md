@@ -2,7 +2,7 @@
 id: "06"
 title: "Replace File Tabs with a Single Active Editor"
 type: "required"
-status: "draft"
+status: "complete"
 summary: "Remove the visible file Tab system while retaining a safe multi-document session kernel behind one foreground editor."
 source: "docs/superplan/human/prd.md"
 created: "2026-08-03"
@@ -43,8 +43,8 @@ parent: ""
 - `cargo test --manifest-path src-tauri/Cargo.toml workspace -- --nocapture`
 - Cases: canonical reactivation; clean inactive eviction; Dirty/conflict/missing retention; no recently-closed state; schema-v2 round trip; schema-v1 active-path fallback; missing active file; untouched Workspace remains side-effect free.
 
-- [ ] Add failing single-active reducer and metadata-compatibility contracts before changing production state.
-- [ ] Implement the new session and state schema without weakening document safety boundaries.
+- [x] Add failing single-active reducer and metadata-compatibility contracts before changing production state.
+- [x] Implement the new session and state schema without weakening document safety boundaries.
 
 ## Task 2: Remove the Tab Strip and Make Explorer the File Switcher
 
@@ -71,8 +71,8 @@ parent: ""
 - `node --test tests/editorChromeNavigation.test.mjs tests/workspaceExplorerWiring.test.mjs tests/panelDividerWiring.test.mjs`
 - Interaction cases: no vertical Tab strip; Explorer click switches one editor; active/Dirty/conflict rows remain recognizable at 180px minimum width; unsupported files keep their safe fallback; current file title and save indicator remain correct.
 
-- [ ] Remove the Tab component, CSS, and tests rather than leaving an unreachable module.
-- [ ] Recompose the editor shell and Explorer status projection without adding replacement history or quick-navigation controls.
+- [x] Remove the Tab component, CSS, and tests rather than leaving an unreachable module.
+- [x] Recompose the editor shell and Explorer status projection without adding replacement history or quick-navigation controls.
 
 ## Task 3: Preserve Switching, Saving, Recovery, and Presentation Safety
 
@@ -97,8 +97,8 @@ parent: ""
 - `node --test tests/ideaSketchEditor.test.mjs tests/saveAll.test.mjs tests/externalFileChanges.test.mjs tests/recovery.test.mjs tests/workspacePresentationOrder.test.mjs`
 - Cases: edit A then switch to B and return; autosave failure retained on A; external delete/conflict on inactive A; Recovery reopen; Standalone dirty replacement choices; Present exits to its originating file/Page; one-file save failure does not affect another retained protected session.
 
-- [ ] Centralize file replacement/activation around the existing snapshot, save, and close-decision boundaries.
-- [ ] Keep all safety and presentation regressions green without preserving visual Tab behavior.
+- [x] Centralize file replacement/activation around the existing snapshot, save, and close-decision boundaries.
+- [x] Keep all safety and presentation regressions green without preserving visual Tab behavior.
 
 ## Task 4: Verify and Deliver the Single-editor Workspace
 
@@ -117,8 +117,17 @@ parent: ""
 - `git diff --check`
 - Tauri acceptance: open a Workspace; switch among several `.is` files from Explorer; confirm no Tab strip; retain and revisit Dirty/conflict/missing states; restart and restore only the last active file; read legacy state v1; replace a Dirty Standalone file; verify Cameras/Present and sidebars still behave normally.
 
-- [ ] Run focused checks during implementation and the complete regression/build matrix once the behavior stabilizes.
-- [ ] Complete the native acceptance matrix and record compatibility evidence before marking plan 06 complete.
+- [x] Run focused checks during implementation and the complete regression/build matrix once the behavior stabilizes.
+- [x] Complete the native acceptance matrix and record compatibility evidence before marking plan 06 complete.
+
+## Delivery Evidence
+
+- Single-editor contract: reducer coverage proves canonical Workspace reactivation, clean inactive eviction, protected Dirty/conflict/missing/read-only/root-missing/error retention, Standalone replacement, no implicit close fallback, and no recently-closed or Tab-only actions. The active editor snapshot is flushed before Explorer activation, and system file-open requests use the existing Save/Discard/Cancel boundary before replacement.
+- Explorer safety: the active file and tree selection are distinct; protected sessions expose accessible severity-aware status dots. Removed files with retained sessions remain as Missing ghost rows, keep their IdeaSketch model editable in memory, can be revisited after switching away, and move to Conflict if the disk file reappears while unsaved edits exist.
+- Workspace metadata: frontend and Rust write schema v2 with only `activePath` and Explorer state. Rust accepts state schema v1 and forwards non-empty legacy `openTabs` to the frontend for one compatible fallback without rewriting metadata during browse-only open; v2 serialization omits `openTabs`.
+- UI and feature continuity: `DocumentTabs` and its CSS/tests were removed; the center area uses the recovered height. The title bar shows the active file type/name/save state, and IdeaSketch Pages, Cameras, Present, sidebars, resize bounds, recovery, watchers, Save All, and presentation ownership remain active.
+- Native Tauri acceptance used the isolated debug bundle `src-tauri/target/debug/bundle/macos/IdeaNote Plan06 Acceptance.app` (`com.zhengxiwan.ideanote.plan06`) and an isolated two-file Workspace under `/tmp`. It verified no Tab strip, Explorer-only switching, active title changes, Cameras/Present availability, restart plus Workspace reopen restoring only the last active file, native Missing and Conflict notices, editable in-memory Missing content, retained Missing rows after switching, and reactivation from Explorer. Standalone New displayed the expected unsaved foreground state; replacement coordination is covered by the regression suite because macOS dialog automation did not expose the nested confirmation sheet reliably.
+- Final verification: `node --test tests/*.test.mjs` passed 163 tests; `cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture` passed 64 tests; `cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check`, `npm run build`, and `git diff --check` passed. Vite retained the pre-existing Excalidraw dynamic/static import and large-chunk warnings with no new build failure.
 
 ## References
 - `docs/superplan/human/prd.md`

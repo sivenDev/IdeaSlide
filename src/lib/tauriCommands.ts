@@ -372,7 +372,7 @@ export async function chooseStandaloneSavePath(defaultName = "Untitled.is"): Pro
 
 export async function saveWorkspaceState(
   root: string,
-  state: { schemaVersion: number; openTabs: string[]; activePath?: string | null; expandedPaths: string[] },
+  state: { schemaVersion: number; activePath?: string | null; expandedPaths: string[] },
 ): Promise<void> {
   await invoke("save_workspace_state", { root, state });
 }

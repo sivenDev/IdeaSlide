@@ -38,6 +38,12 @@ test('duplicate watcher events matching the persisted baseline are ignored', () 
   assert.equal(classifyExternalDocumentChange(document({ isDirty: true }), event).kind, 'none');
 });
 
+test('a missing file that reappears is never hidden by baseline timestamp dedupe', () => {
+  const event = { kind: 'create', path: 'folder/drawing.is', entry: { ...entry('folder/drawing.is'), modified: 'before' } };
+  assert.equal(classifyExternalDocumentChange(document({ status: 'missing' }), event).status, 'external-change');
+  assert.equal(classifyExternalDocumentChange(document({ status: 'missing', isDirty: true }), event).status, 'conflict');
+});
+
 test('watcher clears read-only status when the same file becomes writable', () => {
   const event = { kind: 'modify', path: 'folder/drawing.is', entry: { ...entry('folder/drawing.is'), modified: 'before' } };
   assert.equal(classifyExternalDocumentChange(document({ status: 'read-only', readOnly: true }), event).kind, 'writable');
@@ -55,6 +61,7 @@ test('external remove retains the session model and rename remaps descendants', 
 test('save-time and standalone inspections block missing, read-only, and changed targets', () => {
   assert.equal(classifyInspectedDocument(document({ mode: 'standalone' }), { exists: false, readOnly: false }).kind, 'missing');
   assert.equal(classifyInspectedDocument(document(), { exists: true, readOnly: true, modified: 'before' }).kind, 'read-only');
+  assert.equal(classifyInspectedDocument(document({ status: 'missing', isDirty: true }), { exists: true, readOnly: false, modified: 'before' }).status, 'conflict');
   assert.equal(classifyInspectedDocument(document(), { exists: true, readOnly: false, modified: 'after' }).status, 'external-change');
   assert.equal(classifyInspectedDocument(document({ isDirty: true }), { exists: true, readOnly: false, modified: 'after' }).status, 'conflict');
   assert.equal(classifyInspectedDocument(document(), { exists: true, readOnly: false, modified: 'before' }).kind, 'none');

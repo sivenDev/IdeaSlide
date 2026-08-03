@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Draft | Complete |
-| --- | --- | --- | --- |
-| `required` | 6 | 1 | 5 |
-| `feature` | 8 | 0 | 8 |
-| `bugfix` | 4 | 0 | 4 |
+| Type | Plans | Complete |
+| --- | --- | --- |
+| `required` | 6 | 6 |
+| `feature` | 8 | 8 |
+| `bugfix` | 4 | 4 |
 
 ## Execution Order
 
@@ -17,7 +17,7 @@
 3. `03` [Deliver the Multi-file Workspace Shell](03-multifile-workspace-shell.md) - `complete` (2026-08-03)
 4. `04` [Integrate IdeaSketch into Workspace and Standalone Sessions](04-ideasketch-editor-integration.md) - `complete` (2026-08-03)
 5. `05` [Complete Workspace Reliability, Watching, and Recovery](05-workspace-reliability-and-recovery.md) - `complete` (2026-08-03)
-6. `06` [Replace File Tabs with a Single Active Editor](06-single-active-editor.md) - `draft` (2026-08-03)
+6. `06` [Replace File Tabs with a Single Active Editor](06-single-active-editor.md) - `complete` (2026-08-03)
 
 ## Plan Groups
 
@@ -30,7 +30,7 @@
 | `03` | [Deliver the Multi-file Workspace Shell](03-multifile-workspace-shell.md) | `complete` | 2026-08-03 |
 | `04` | [Integrate IdeaSketch into Workspace and Standalone Sessions](04-ideasketch-editor-integration.md) | `complete` | 2026-08-03 |
 | `05` | [Complete Workspace Reliability, Watching, and Recovery](05-workspace-reliability-and-recovery.md) | `complete` | 2026-08-03 |
-| `06` | [Replace File Tabs with a Single Active Editor](06-single-active-editor.md) | `draft` | 2026-08-03 |
+| `06` | [Replace File Tabs with a Single Active Editor](06-single-active-editor.md) | `complete` | 2026-08-03 |
 
 ### Feature Plans
 

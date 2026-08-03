@@ -7,7 +7,8 @@ use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 1;
+pub const WORKSPACE_CONFIG_SCHEMA_VERSION: u32 = 1;
+pub const WORKSPACE_STATE_SCHEMA_VERSION: u32 = 2;
 pub const METADATA_DIRECTORY_NAME: &str = ".ideanote";
 const WORKSPACE_CONFIG_NAME: &str = "workspace.json";
 const WORKSPACE_STATE_NAME: &str = "state.json";
@@ -49,7 +50,7 @@ impl WorkspaceConfig {
     fn new() -> Self {
         let now = Utc::now().to_rfc3339();
         Self {
-            schema_version: WORKSPACE_SCHEMA_VERSION,
+            schema_version: WORKSPACE_CONFIG_SCHEMA_VERSION,
             workspace_id: uuid::Uuid::new_v4().to_string(),
             created: now.clone(),
             modified: now,
@@ -62,7 +63,7 @@ impl WorkspaceConfig {
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceState {
     pub schema_version: u32,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub open_tabs: Vec<String>,
     pub active_path: Option<String>,
     #[serde(default)]
@@ -72,7 +73,7 @@ pub struct WorkspaceState {
 impl Default for WorkspaceState {
     fn default() -> Self {
         Self {
-            schema_version: WORKSPACE_SCHEMA_VERSION,
+            schema_version: WORKSPACE_STATE_SCHEMA_VERSION,
             open_tabs: Vec::new(),
             active_path: None,
             expanded_paths: Vec::new(),
@@ -332,7 +333,8 @@ impl WorkspaceService {
 
     pub fn save_state(&self, mut state: WorkspaceState) -> Result<(), String> {
         self.validate_state_paths(&state)?;
-        state.schema_version = WORKSPACE_SCHEMA_VERSION;
+        state.schema_version = WORKSPACE_STATE_SCHEMA_VERSION;
+        state.open_tabs.clear();
         self.ensure_metadata()?;
         let metadata_directory = self.root.join(METADATA_DIRECTORY_NAME);
         atomic_write_json(&metadata_directory.join(WORKSPACE_STATE_NAME), &state)?;
@@ -587,9 +589,6 @@ impl WorkspaceService {
     }
 
     fn validate_state_paths(&self, state: &WorkspaceState) -> Result<(), String> {
-        for path in &state.open_tabs {
-            let _ = normalize_relative_path(path, false)?;
-        }
         if let Some(path) = &state.active_path {
             let _ = normalize_relative_path(path, false)?;
         }
@@ -699,12 +698,12 @@ where
         .map_err(|error| format!("Failed to read {}: {error}", path.display()))?;
     let parsed: T = serde_json::from_str(&content)
         .map_err(|error| format!("Invalid {}: {error}", path.display()))?;
-    if parsed.schema_version() != WORKSPACE_SCHEMA_VERSION {
+    if !T::supports_schema_version(parsed.schema_version()) {
         return Err(format!(
             "Unsupported {} schemaVersion {}; expected {}",
             path.display(),
             parsed.schema_version(),
-            WORKSPACE_SCHEMA_VERSION
+            T::expected_schema_versions()
         ));
     }
     Ok(Some(parsed))
@@ -712,17 +711,35 @@ where
 
 trait HasSchemaVersion {
     fn schema_version(&self) -> u32;
+    fn supports_schema_version(version: u32) -> bool;
+    fn expected_schema_versions() -> &'static str;
 }
 
 impl HasSchemaVersion for WorkspaceConfig {
     fn schema_version(&self) -> u32 {
         self.schema_version
     }
+
+    fn supports_schema_version(version: u32) -> bool {
+        version == WORKSPACE_CONFIG_SCHEMA_VERSION
+    }
+
+    fn expected_schema_versions() -> &'static str {
+        "1"
+    }
 }
 
 impl HasSchemaVersion for WorkspaceState {
     fn schema_version(&self) -> u32 {
         self.schema_version
+    }
+
+    fn supports_schema_version(version: u32) -> bool {
+        matches!(version, 1 | WORKSPACE_STATE_SCHEMA_VERSION)
+    }
+
+    fn expected_schema_versions() -> &'static str {
+        "1 or 2"
     }
 }
 
@@ -958,12 +975,43 @@ mod tests {
             &fs::read(directory.path().join(".ideanote/state.json")).unwrap(),
         )
         .unwrap();
-        assert_eq!(state.schema_version, WORKSPACE_SCHEMA_VERSION);
+        assert_eq!(state.schema_version, WORKSPACE_STATE_SCHEMA_VERSION);
+        assert!(state.open_tabs.is_empty());
+        let serialized = fs::read_to_string(directory.path().join(".ideanote/state.json")).unwrap();
+        assert!(!serialized.contains("openTabs"));
         assert_eq!(
             fs::read_to_string(directory.path().join(".gitignore")).unwrap(),
             "user-rule\n"
         );
         assert!(!directory.path().join(".ideanote/state.json.tmp").exists());
+    }
+
+    #[test]
+    fn legacy_v1_workspace_state_loads_without_rewriting_metadata() {
+        let (directory, service) = open_temp_workspace();
+        let metadata = directory.path().join(METADATA_DIRECTORY_NAME);
+        fs::create_dir(&metadata).unwrap();
+        let legacy = r#"{
+  "schemaVersion": 1,
+  "openTabs": ["old.is", "active.is"],
+  "activePath": "active.is",
+  "expandedPaths": ["folder"]
+}"#;
+        fs::write(metadata.join(WORKSPACE_STATE_NAME), legacy).unwrap();
+
+        let snapshot = service.load_metadata();
+        let state = snapshot.state.unwrap();
+        assert_eq!(state.schema_version, 1);
+        assert_eq!(state.open_tabs, vec!["old.is", "active.is"]);
+        assert_eq!(state.active_path.as_deref(), Some("active.is"));
+        assert_eq!(
+            serde_json::to_value(&state).unwrap()["openTabs"],
+            serde_json::json!(["old.is", "active.is"]),
+        );
+        assert_eq!(
+            fs::read_to_string(metadata.join(WORKSPACE_STATE_NAME)).unwrap(),
+            legacy
+        );
     }
 
     #[test]

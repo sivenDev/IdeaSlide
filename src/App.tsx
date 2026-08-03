@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -66,6 +66,9 @@ function AppContent() {
   const { state, dispatch } = useAppStore();
   const [mcpVisible, setMcpVisible] = useState(false);
   const [startupRecoveries, setStartupRecoveries] = useState<StandaloneRecoveryRecordData[]>([]);
+  const [pendingStandalonePath, setPendingStandalonePath] = useState<string>();
+  const latestMode = useRef(state.mode);
+  latestMode.current = state.mode;
   const isTauriRuntime = "__TAURI_INTERNALS__" in window;
   const windowLabel = isTauriRuntime ? getCurrentWindow().label : "main";
   const isRendererWindow = windowLabel === "mcp-renderer" || windowLabel === "preview-renderer";
@@ -75,6 +78,18 @@ function AppContent() {
     dispatch({ type: "OPEN_DOCUMENT", document: sessionFromOpened(path, "standalone", opened) });
     addRecentFile(path).catch(console.error);
   }, [dispatch]);
+
+  const requestStandalonePath = useCallback((path: string) => {
+    if (latestMode.current === "launch") {
+      openStandalonePath(path).catch(console.error);
+      return;
+    }
+    setPendingStandalonePath(path);
+  }, [openStandalonePath]);
+
+  const handlePendingStandalonePathHandled = useCallback(() => {
+    setPendingStandalonePath(undefined);
+  }, []);
 
   const handleNewFile = useCallback(async () => {
     const definition = getFileTypeDefinition("ideasketch");
@@ -139,13 +154,13 @@ function AppContent() {
   useEffect(() => {
     if (isRendererWindow || !isTauriRuntime) return;
     getOpenedFile().then((path) => {
-      if (path) return openStandalonePath(path);
+      if (path) requestStandalonePath(path);
     }).catch(console.error);
     const unlisten = listen<string>("file-open", (event) => {
-      openStandalonePath(event.payload).catch(console.error);
+      requestStandalonePath(event.payload);
     });
     return () => { unlisten.then((dispose) => dispose()); };
-  }, [isRendererWindow, isTauriRuntime, openStandalonePath]);
+  }, [isRendererWindow, isTauriRuntime, requestStandalonePath]);
 
   useEffect(() => {
     if (isRendererWindow || !isTauriRuntime) return;
@@ -205,6 +220,8 @@ function AppContent() {
       <ErrorBoundary>
         <EditorLayout
           readOnly={mcpVisible}
+          pendingStandalonePath={pendingStandalonePath}
+          onPendingStandalonePathHandled={handlePendingStandalonePathHandled}
           onGoHome={() => dispatch({ type: "GO_HOME" })}
         />
         {state.presentationMode !== "none"

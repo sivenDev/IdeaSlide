@@ -3,6 +3,7 @@ import {
   ChevronDown,
   FileInput,
   FileOutput,
+  FilePenLine,
   FilePlus2,
   FolderOpen,
   House,
@@ -25,6 +26,7 @@ const menuIconProps = { "aria-hidden": true, size: 14, strokeWidth: 1.8 } as con
 
 interface ToolbarProps {
   fileName?: string;
+  fileType?: string;
   isDirty: boolean;
   isSaving: boolean;
   onNewFile: () => void;
@@ -38,6 +40,7 @@ interface ToolbarProps {
 
 export function Toolbar({
   fileName,
+  fileType,
   isDirty,
   isSaving,
   onNewFile,
@@ -114,7 +117,14 @@ export function Toolbar({
           </DropdownMenu>
           <SaveIndicator isDirty={isDirty} isSaving={isSaving} />
         </div>
-        <div className="idea-slide-window-toolbar__title">{fileName || "IdeaNote"}</div>
+        <div className="idea-slide-window-toolbar__title">
+          {fileName && (
+            fileType === "ideasketch"
+              ? <FilePenLine className="idea-slide-window-toolbar__title-icon is-ideasketch" aria-hidden size={14} strokeWidth={1.8} />
+              : <FileInput className="idea-slide-window-toolbar__title-icon" aria-hidden size={14} strokeWidth={1.8} />
+          )}
+          <span>{fileName || "IdeaNote"}</span>
+        </div>
         <div className="idea-slide-window-toolbar__drag-region" data-drag-region />
       </div>
     </TooltipProvider>

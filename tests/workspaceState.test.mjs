@@ -21,17 +21,40 @@ function workspace(state) {
   };
 }
 
-test('restore keeps lightweight supported and unsupported Tabs and skips missing files', () => {
+test('schema v2 restores at most one lightweight active document', () => {
   const restored = restoreWorkspaceDocuments(workspace({
-    schemaVersion: 1,
-    openTabs: ['missing.is', 'readme.md', 'drawing.is'],
+    schemaVersion: 2,
     activePath: 'drawing.is',
     expandedPaths: [],
   }));
-  assert.deepEqual(restored.documents.map((item) => item.status), ['unsupported', 'loading']);
-  assert.deepEqual(restored.skippedPaths, ['missing.is']);
+  assert.deepEqual(restored.documents.map((item) => item.status), ['loading']);
+  assert.deepEqual(restored.skippedPaths, []);
   assert.equal(restored.activePath, 'drawing.is');
-  assert.equal(restored.documents[1].model, undefined);
+  assert.equal(restored.documents[0].model, undefined);
+});
+
+test('legacy schema v1 openTabs chooses one compatible active file without restoring a collection', () => {
+  const restored = restoreWorkspaceDocuments(workspace({
+    schemaVersion: 1,
+    openTabs: ['missing.is', 'readme.md', 'drawing.is'],
+    activePath: 'missing.is',
+    expandedPaths: [],
+  }));
+  assert.deepEqual(restored.documents.map((item) => item.filePath), ['readme.md']);
+  assert.deepEqual(restored.skippedPaths, ['missing.is']);
+  assert.equal(restored.activePath, 'readme.md');
+  assert.equal(restored.documents[0].status, 'unsupported');
+});
+
+test('schema v2 missing active file is skipped without opening another file', () => {
+  const restored = restoreWorkspaceDocuments(workspace({
+    schemaVersion: 2,
+    activePath: 'missing.is',
+    expandedPaths: [],
+  }));
+  assert.deepEqual(restored.documents, []);
+  assert.deepEqual(restored.skippedPaths, ['missing.is']);
+  assert.equal(restored.activePath, undefined);
 });
 
 test('invalid or unsupported state schema falls back without blocking Workspace open', () => {
@@ -46,7 +69,7 @@ test('state persistence is disabled until metadata already exists', () => {
   assert.equal(mayPersistWorkspaceState(workspace(null)), true);
 });
 
-test('snapshot stores only Workspace relative paths and the active Workspace Tab', () => {
+test('snapshot stores only the active Workspace path and Explorer state', () => {
   const result = createWorkspaceStateSnapshot({
     mode: 'workspace',
     workspace: workspace(null),
@@ -55,11 +78,11 @@ test('snapshot stores only Workspace relative paths and the active Workspace Tab
       { id: 'two', mode: 'standalone', filePath: '/other.is', fileType: 'ideasketch', status: 'editable', isDirty: false, revision: 0 },
     ],
     activeSessionId: 'one',
-    recentlyClosed: [],
     presentationMode: 'none',
     editorRefreshToken: 0,
   });
-  assert.deepEqual(result.openTabs, ['drawing.is']);
+  assert.equal(result.schemaVersion, 2);
+  assert.equal('openTabs' in result, false);
   assert.equal(result.activePath, 'drawing.is');
 });
 
