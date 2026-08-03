@@ -322,7 +322,16 @@ fn read_media_entries<R: Read + Seek>(archive: &mut zip::ZipArchive<R>) -> Vec<M
     read_media_from_fallback_scan(archive)
 }
 
+#[derive(Debug, Clone, Copy)]
+enum WriteMode {
+    CreateNew,
+    Replace,
+}
+
 pub fn create_file(path: &Path) -> Result<IdeaSketchFileData, String> {
+    if path.exists() {
+        return Err(format!("File already exists: {}", path.display()));
+    }
     let manifest = Manifest::new();
     let data = IdeaSketchFileData {
         manifest: manifest.clone(),
@@ -332,7 +341,7 @@ pub fn create_file(path: &Path) -> Result<IdeaSketchFileData, String> {
         }],
         media: Vec::new(),
     };
-    write_file(path, &data)?;
+    write_file_with_mode(path, &data, WriteMode::CreateNew)?;
     Ok(data)
 }
 
@@ -421,6 +430,14 @@ pub fn read_file(path: &Path) -> Result<IdeaSketchFileData, String> {
 }
 
 pub fn write_file(path: &Path, data: &IdeaSketchFileData) -> Result<(), String> {
+    write_file_with_mode(path, data, WriteMode::Replace)
+}
+
+fn write_file_with_mode(
+    path: &Path,
+    data: &IdeaSketchFileData,
+    mode: WriteMode,
+) -> Result<(), String> {
     let mut manifest = data.manifest.clone();
     manifest.modified = chrono::Utc::now().to_rfc3339();
     validate_manifest(&manifest)?;
@@ -511,11 +528,19 @@ pub fn write_file(path: &Path, data: &IdeaSketchFileData) -> Result<(), String> 
     let temp_path = path.with_extension("is.tmp");
     fs::write(&temp_path, &buffer)
         .map_err(|error| format!("Failed to write temp file: {error}"))?;
-    if let Err(error) = fs::rename(&temp_path, path) {
+    let persist_result = match mode {
+        WriteMode::Replace => fs::rename(&temp_path, path)
+            .map_err(|error| format!("Failed to atomically replace file: {error}")),
+        WriteMode::CreateNew => fs::hard_link(&temp_path, path)
+            .map_err(|error| format!("Failed to atomically create new file: {error}"))
+            .map(|_| {
+                let _ = fs::remove_file(&temp_path);
+            }),
+    };
+    if persist_result.is_err() {
         let _ = fs::remove_file(&temp_path);
-        return Err(format!("Failed to atomically replace file: {error}"));
     }
-    Ok(())
+    persist_result
 }
 
 #[cfg(test)]
@@ -608,6 +633,17 @@ mod tests {
         assert_eq!(created.manifest.slides[0].title, "Untitled page");
         let read = read_file(&path).unwrap();
         assert_eq!(read.slides[0].content["type"], "excalidraw");
+        cleanup(&path);
+    }
+
+    #[test]
+    fn create_never_overwrites_an_existing_target() {
+        let path = make_temp_path("create_no_clobber");
+        fs::write(&path, b"existing").unwrap();
+        let error = create_file(&path).unwrap_err();
+        assert!(error.contains("already exists"));
+        assert_eq!(fs::read(&path).unwrap(), b"existing");
+        assert!(!path.with_extension("is.tmp").exists());
         cleanup(&path);
     }
 

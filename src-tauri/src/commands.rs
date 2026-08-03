@@ -1,4 +1,8 @@
 use crate::document_formats::{self, DocumentFileData, OpenDocumentResult};
+use crate::workspace::{
+    WorkspaceEntry, WorkspaceMutationResult, WorkspaceOpenResult, WorkspaceSaveResult,
+    WorkspaceService, WorkspaceState,
+};
 use std::path::PathBuf;
 use tauri::command;
 
@@ -32,4 +36,116 @@ pub fn save_file(path: String, data: DocumentFileData) -> Result<(), String> {
 #[command]
 pub fn write_file_bytes(path: String, data: Vec<u8>) -> Result<(), String> {
     std::fs::write(&path, &data).map_err(|e| format!("Failed to write file: {e}"))
+}
+
+#[command]
+pub fn open_workspace(root: String) -> Result<WorkspaceOpenResult, String> {
+    WorkspaceService::open(PathBuf::from(root).as_path())?.open_result()
+}
+
+#[command]
+pub fn scan_workspace(root: String) -> Result<Vec<WorkspaceEntry>, String> {
+    WorkspaceService::open(PathBuf::from(root).as_path())?.scan()
+}
+
+#[command]
+pub fn refresh_workspace(root: String) -> Result<Vec<WorkspaceEntry>, String> {
+    scan_workspace(root)
+}
+
+#[command]
+pub fn read_workspace_file(root: String, path: String) -> Result<Vec<u8>, String> {
+    WorkspaceService::open(PathBuf::from(root).as_path())?.read_file(&path)
+}
+
+#[command]
+pub fn create_workspace_folder(
+    root: String,
+    parent_path: String,
+    name: Option<String>,
+) -> Result<WorkspaceMutationResult<WorkspaceEntry>, String> {
+    WorkspaceService::open(PathBuf::from(root).as_path())?
+        .create_folder(&parent_path, name.as_deref())
+}
+
+#[command]
+pub fn create_workspace_document(
+    root: String,
+    parent_path: String,
+    file_type: String,
+    name: Option<String>,
+) -> Result<WorkspaceMutationResult<WorkspaceEntry>, String> {
+    WorkspaceService::open(PathBuf::from(root).as_path())?.create_document(
+        &parent_path,
+        &file_type,
+        name.as_deref(),
+    )
+}
+
+#[command]
+pub fn rename_workspace_entry(
+    root: String,
+    path: String,
+    new_name: String,
+) -> Result<WorkspaceEntry, String> {
+    WorkspaceService::open(PathBuf::from(root).as_path())?.rename_entry(&path, &new_name)
+}
+
+#[command]
+pub fn move_workspace_entry(
+    root: String,
+    path: String,
+    destination_parent_path: String,
+) -> Result<WorkspaceEntry, String> {
+    WorkspaceService::open(PathBuf::from(root).as_path())?
+        .move_entry(&path, &destination_parent_path)
+}
+
+#[command]
+pub fn trash_workspace_entry(root: String, path: String) -> Result<(), String> {
+    WorkspaceService::open(PathBuf::from(root).as_path())?.trash_entry(&path)
+}
+
+#[command]
+pub fn save_workspace_document(
+    root: String,
+    path: String,
+    data: DocumentFileData,
+) -> Result<WorkspaceSaveResult, String> {
+    WorkspaceService::open(PathBuf::from(root).as_path())?.save_document(&path, &data)
+}
+
+#[command]
+pub fn save_workspace_state(root: String, state: WorkspaceState) -> Result<(), String> {
+    WorkspaceService::open(PathBuf::from(root).as_path())?.save_state(state)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn workspace_commands_open_create_and_refresh_without_hidden_metadata_entries() {
+        let directory = TempDir::new().unwrap();
+        let root = directory.path().to_string_lossy().to_string();
+        let opened = open_workspace(root.clone()).unwrap();
+        assert!(opened.entries.is_empty());
+        assert!(!directory.path().join(".ideanote").exists());
+
+        let created =
+            create_workspace_document(root.clone(), String::new(), "ideasketch".to_string(), None)
+                .unwrap();
+        assert_eq!(created.value.path, "Untitled.is");
+        let entries = refresh_workspace(root).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].name, "Untitled.is");
+    }
+
+    #[test]
+    fn workspace_commands_reject_absolute_child_paths() {
+        let directory = TempDir::new().unwrap();
+        let root = directory.path().to_string_lossy().to_string();
+        assert!(read_workspace_file(root, "/tmp/outside".to_string()).is_err());
+    }
 }

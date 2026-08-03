@@ -71,6 +71,12 @@ pub fn definition_for_path(path: &Path) -> Option<&'static DocumentFormatDefinit
     })
 }
 
+pub fn definition_for_type(type_id: &str) -> Option<&'static DocumentFormatDefinition> {
+    DOCUMENT_FORMATS
+        .iter()
+        .find(|definition| definition.type_id.eq_ignore_ascii_case(type_id))
+}
+
 fn require_definition(path: &Path) -> Result<&'static DocumentFormatDefinition, String> {
     definition_for_path(path).ok_or_else(|| {
         format!(
@@ -138,6 +144,12 @@ mod tests {
         assert!(read_file(Path::new("notes.md"))
             .unwrap_err()
             .contains("Unsupported file type"));
+    }
+
+    #[test]
+    fn registry_resolves_type_ids_for_workspace_creation() {
+        let definition = definition_for_type("IDEASKETCH").unwrap();
+        assert_eq!(definition.extensions, ["is"]);
     }
 
     #[test]

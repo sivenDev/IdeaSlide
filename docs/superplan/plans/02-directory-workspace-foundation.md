@@ -2,7 +2,7 @@
 id: "02"
 title: "Build the Real Directory Workspace Foundation"
 type: "required"
-status: "draft"
+status: "complete"
 summary: "Add root-confined filesystem operations and lazily created, versioned .ideanote metadata for real directory workspaces."
 source: "docs/superplan/human/prd.md"
 created: "2026-08-03"
@@ -36,8 +36,8 @@ parent: ""
 - `cargo test --manifest-path src-tauri/Cargo.toml workspace -- --nocapture`
 - Cases: no side effect on open; traversal and Symlink escape rejected; `.ideanote` hidden; corrupt state defaults safely; read-only root reported.
 
-- [ ] Add failing tests for schema parsing, lazy metadata, root escape, hidden entries, Symlinks, and corruption fallback.
-- [ ] Document and implement the v1 Workspace metadata boundary.
+- [x] Add failing tests for schema parsing, lazy metadata, root escape, hidden entries, Symlinks, and corruption fallback.
+- [x] Document and implement the v1 Workspace metadata boundary.
 
 ## Task 2: Implement Real Directory Scans and Safe Mutations
 
@@ -62,9 +62,9 @@ parent: ""
 - `cargo test --manifest-path src-tauri/Cargo.toml commands -- --nocapture`
 - Behavior cases: large nested tree metadata scan; extension-independent unsupported files retained; unique `Untitled.is` naming; collision-safe move; Trash failure is non-destructive; no command accepts an absolute child path outside root.
 
-- [ ] Implement metadata-only tree scans and on-demand file reads.
-- [ ] Implement root-confined create, rename, move, Trash, refresh, and atomic write operations.
-- [ ] Register only explicit commands and retain clear English errors for the frontend.
+- [x] Implement metadata-only tree scans and on-demand file reads.
+- [x] Implement root-confined create, rename, move, Trash, refresh, and atomic write operations.
+- [x] Register only explicit commands and retain clear English errors for the frontend.
 
 ## Task 3: Create Metadata Only After Successful User-File Persistence
 
@@ -82,8 +82,8 @@ parent: ""
 - `cargo test --manifest-path src-tauri/Cargo.toml workspace -- --nocapture`
 - Cases: failed file creation produces no `.ideanote`; successful file plus failed metadata reports content success; state temp replacement is atomic; no root `.gitignore` mutation.
 
-- [ ] Enforce user-file-first ordering for create/save and metadata persistence.
-- [ ] Make metadata failures recoverable and independently observable.
+- [x] Enforce user-file-first ordering for create/save and metadata persistence.
+- [x] Make metadata failures recoverable and independently observable.
 
 ## Task 4: Verify the Workspace Service Boundary
 
@@ -100,8 +100,17 @@ parent: ""
 - `npm run build`
 - `git diff --check`
 
-- [ ] Run complete backend and build verification after focused tests pass.
-- [ ] Record temporary-directory integration evidence before completion.
+- [x] Run complete backend and build verification after focused tests pass.
+- [x] Record temporary-directory integration evidence before completion.
+
+## Delivery Evidence
+
+- `cargo test --manifest-path src-tauri/Cargo.toml workspace -- --nocapture` — 17 focused Workspace/command/registry tests passed, covering side-effect-free open, recursive metadata scans, traversal and internal-path rejection, Symlink non-following, read-only roots, corruption diagnostics, lazy metadata, user-file-first failure separation, rename/move collisions, Trash failure safety, and atomic temp cleanup.
+- `cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture` — all 55 Rust tests passed after the Workspace service and no-clobber IdeaSketch creation path stabilized.
+- `npm run build` — TypeScript and Vite production build passed; existing Excalidraw dynamic-import and large-chunk warnings remain informational.
+- `cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check` and `git diff --check` — passed.
+- `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets` completed with only the pre-existing `collapsible_match` warning in the unchanged main-window close handler; the new Workspace and format code added no Clippy warnings.
+- Temporary-directory integration tests created nested supported/unsupported files, valid `.is v1` documents, corrupt metadata, permission-restricted roots, collision targets, and simulated Trash/atomic-replace failures without accessing user files. They verified that root `.gitignore` stays unchanged and `.ideanote/recovery` plus `.ideanote/cache` remain absent until needed.
 
 ## References
 - `docs/superplan/human/prd.md`

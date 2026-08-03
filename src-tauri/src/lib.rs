@@ -2,6 +2,7 @@ mod commands;
 pub(crate) mod document_formats;
 mod mcp;
 mod recent_files;
+pub(crate) mod workspace;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -84,6 +85,17 @@ pub fn run() {
             commands::open_file,
             commands::save_file,
             commands::write_file_bytes,
+            commands::open_workspace,
+            commands::scan_workspace,
+            commands::refresh_workspace,
+            commands::read_workspace_file,
+            commands::create_workspace_folder,
+            commands::create_workspace_document,
+            commands::rename_workspace_entry,
+            commands::move_workspace_entry,
+            commands::trash_workspace_entry,
+            commands::save_workspace_document,
+            commands::save_workspace_state,
             recent_files::get_recent_files,
             recent_files::add_recent_file,
             recent_files::remove_recent_file,
