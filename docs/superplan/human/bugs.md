@@ -78,7 +78,7 @@
 
 ## B005: Navigator button is outside the Excalidraw toolbar
 
-- status: accepted
+- status: done
 - created: 2026-08-04
 
 The right-side Navigator toggle and Camera action are rendered in a separate top-right UI island next to the Excalidraw toolbar. Expected: remove that detached island, expose Navigator through Excalidraw's customizable left Main Menu, and keep Add camera only in the Cameras list header. The right divider remains a direct panel toggle.

@@ -889,63 +889,6 @@ html, body, #root {
   height: 0.8125rem;
 }
 
-.excalidraw .idea-slide-canvas-controls {
-  display: flex;
-  height: 2.5rem;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 0.125rem;
-  transform: translateX(-1.5rem);
-  border-radius: var(--border-radius-lg);
-  background: var(--island-bg-color);
-  box-shadow: var(--shadow-island);
-  padding: 0.25rem;
-  white-space: nowrap;
-}
-
-.excalidraw .layer-ui__wrapper__top-right:has(.idea-slide-canvas-controls) {
-  justify-content: flex-start;
-}
-
-.excalidraw .idea-slide-canvas-control-tooltip-trigger {
-  display: inline-flex;
-}
-
-.excalidraw .idea-slide-canvas-control.excalidraw-button {
-  display: inline-flex;
-  width: 2rem;
-  height: 2rem;
-  flex: 0 0 auto;
-  border: 0;
-  border-radius: calc(var(--border-radius-lg) - 2px);
-  color: var(--color-on-surface);
-  background: transparent;
-  line-height: 1;
-  padding: 0;
-  white-space: nowrap;
-}
-
-.excalidraw .idea-slide-canvas-control.excalidraw-button:hover:not(:disabled) {
-  background: var(--color-surface-low);
-}
-
-.excalidraw .idea-slide-canvas-control.excalidraw-button.selected {
-  border-color: transparent;
-  color: var(--color-primary-darker);
-  background: var(--color-primary-light);
-}
-
-.excalidraw .idea-slide-canvas-control.excalidraw-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.38;
-}
-
-.excalidraw .idea-slide-canvas-control.excalidraw-button svg {
-  width: 0.9375rem;
-  height: 0.9375rem;
-  flex: 0 0 0.9375rem;
-}
-
 @media (max-width: 1120px) {
   .idea-slide-save-indicator {
     margin-left: 0.1875rem;

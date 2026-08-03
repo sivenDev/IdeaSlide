@@ -26,3 +26,11 @@ test('camera sidebar is a text-only vertical list', async () => {
   assert.doesNotMatch(source, /uppercase/);
   assert.doesNotMatch(source, /amber-/);
 });
+
+test('camera sidebar header owns the single Camera creation action', async () => {
+  const source = await readFile(new URL('../src/components/CameraList.tsx', import.meta.url), 'utf8');
+
+  assert.equal(source.match(/aria-label="Add camera"/g)?.length, 1);
+  assert.equal(source.match(/onClick=\{onAddCamera\}/g)?.length, 1);
+  assert.equal(source.match(/<TooltipContent>Add camera<\/TooltipContent>/g)?.length, 1);
+});

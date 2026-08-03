@@ -1,4 +1,5 @@
 import { Excalidraw, MainMenu } from "@excalidraw/excalidraw";
+import { PanelRight } from "lucide-react";
 import { memo, useRef, useEffect, useMemo, useState, useCallback } from "react";
 import { getNextCameraOrder } from "../lib/cameraUtils";
 import {
@@ -10,7 +11,6 @@ import {
   enterCameraDrawingMode,
 } from "../lib/cameraDrawing";
 import { areSlideCanvasPropsEqual } from "../lib/slideCanvasProps";
-import { CanvasPresentationControls } from "./CanvasPresentationControls";
 
 function getScenePointerFromEvent(api: any, event: PointerEvent) {
   const appState = api.getAppState();
@@ -67,7 +67,6 @@ interface SlideCanvasProps {
   editorRefreshToken: number;
   isNavigatorOpen?: boolean;
   onToggleNavigator?: () => void;
-  onAddCamera?: () => void;
   cameraDrawingRequestToken?: number;
 }
 
@@ -92,7 +91,6 @@ function SlideCanvasInner({
   editorRefreshToken,
   isNavigatorOpen = false,
   onToggleNavigator,
-  onAddCamera,
   cameraDrawingRequestToken = 0,
 }: SlideCanvasProps) {
   // Use a ref to always have the latest onChange without causing re-renders
@@ -429,26 +427,21 @@ function SlideCanvasInner({
     });
   }, [isDrawingCamera]);
 
-  // Render custom UI in top-right corner
-  const renderTopRightUI = useCallback(() => {
-    if (viewMode || !onToggleNavigator) return null;
-
-    return (
-      <CanvasPresentationControls
-        isNavigatorOpen={isNavigatorOpen}
-        onToggleNavigator={onToggleNavigator}
-        onAddCamera={onAddCamera}
-      />
-    );
-  }, [
-    isNavigatorOpen,
-    onAddCamera,
-    onToggleNavigator,
-    viewMode,
-  ]);
   const mainMenu = useMemo(
     () => (
       <MainMenu>
+        {onToggleNavigator && (
+          <>
+            <MainMenu.Item
+              icon={<PanelRight aria-hidden="true" />}
+              selected={isNavigatorOpen}
+              onSelect={onToggleNavigator}
+            >
+              Navigator
+            </MainMenu.Item>
+            <MainMenu.Separator />
+          </>
+        )}
         <MainMenu.DefaultItems.SaveAsImage />
         <MainMenu.DefaultItems.ToggleTheme />
         <MainMenu.DefaultItems.ChangeCanvasBackground />
@@ -456,7 +449,7 @@ function SlideCanvasInner({
         <MainMenu.DefaultItems.Help />
       </MainMenu>
     ),
-    [],
+    [isNavigatorOpen, onToggleNavigator],
   );
 
   return (
@@ -479,7 +472,6 @@ function SlideCanvasInner({
           files,
         }}
         onChange={viewMode ? undefined : stableOnChange}
-        renderTopRightUI={renderTopRightUI}
         UIOptions={{
           canvasActions: excalidrawCanvasActions,
         }}

@@ -2,7 +2,7 @@
 id: "B005"
 title: "Move Navigator into the Excalidraw Main Menu"
 type: "bugfix"
-status: "draft"
+status: "complete"
 summary: "Remove the detached Canvas control island, put Navigator in Excalidraw's Main Menu, and keep Camera creation in the Cameras list."
 source: "docs/superplan/human/bugs.md"
 created: "2026-08-04"
@@ -41,8 +41,8 @@ parent: ""
 **Verification:**
 - `node --test tests/excalidrawMainMenu.test.mjs tests/cameraSidebarWiring.test.mjs tests/slideCanvasProps.test.mjs tests/tooltipWiring.test.mjs`
 
-- [ ] Add focused failing contracts for Main Menu Navigator and single-entry Camera creation.
-- [ ] Confirm failures identify the current top-right island and duplicate Add camera action.
+- [x] Add focused failing contracts for Main Menu Navigator and single-entry Camera creation.
+- [x] Confirm failures identify the current top-right island and duplicate Add camera action.
 
 ## Task 2: Move Navigator and Remove the Canvas Island
 
@@ -64,9 +64,9 @@ parent: ""
 - Run the focused Task 1 suite.
 - Interaction cases: Main Menu Navigator opens/closes Pages/Cameras; divider toggle remains synchronized; Cameras header Add camera opens Cameras and draws one frame; no Canvas/menu duplicate exists; view/read-only behavior remains safe.
 
-- [ ] Implement the Main Menu Navigator command and remove the top-right custom UI path.
-- [ ] Preserve Camera drawing, panel state, accessibility, and memoization boundaries.
-- [ ] Remove obsolete component, styles, props, and tests without widening editor behavior.
+- [x] Implement the Main Menu Navigator command and remove the top-right custom UI path.
+- [x] Preserve Camera drawing, panel state, accessibility, and memoization boundaries.
+- [x] Remove obsolete component, styles, props, and tests without widening editor behavior.
 
 ## Task 3: Verify and Deliver B005
 
@@ -86,8 +86,16 @@ parent: ""
 - `git diff --check`
 - Browser acceptance: no top-right custom island; Main Menu Navigator state and toggling; divider synchronization; single Cameras-header Add camera; Camera drawing; read-only/view mode; console errors.
 
-- [ ] Run focused checks during implementation and the complete frontend regression/build matrix once stable.
-- [ ] Record browser evidence, mark B005 done/complete, refresh the index, and create a separate `fix(B005)` commit excluding `AGENTS.md`.
+- [x] Run focused checks during implementation and the complete frontend regression/build matrix once stable.
+- [x] Record browser evidence, mark B005 done/complete, refresh the index, and create a separate `fix(B005)` commit excluding `AGENTS.md`.
+
+## Delivery Evidence
+- Focused regression first failed against the detached `renderTopRightUI` island and obsolete Canvas `onAddCamera` surface, then passed after the fix: `node --test tests/excalidrawMainMenu.test.mjs tests/cameraSidebarWiring.test.mjs tests/slideCanvasProps.test.mjs tests/tooltipWiring.test.mjs` (21 passed).
+- Full frontend regression passed: `node --test tests/*.test.mjs` (166 passed).
+- Production frontend build passed: `npm run build`; only the existing Excalidraw chunking and bundle-size warnings remain.
+- Native regression passed: `cargo test` (64 passed).
+- `git diff --check` passed.
+- Browser acceptance passed on the local Vite frontend: no detached Canvas control island; Main Menu contains one selected-aware Navigator item and no Add camera item; divider toggling stays synchronized; Cameras contains the only Add camera control; Present remains enabled with zero Cameras; drawing a Camera updates the Cameras count from 0 to 1; no console errors were reported.
 
 ## References
 - `docs/superplan/human/bugs.md`

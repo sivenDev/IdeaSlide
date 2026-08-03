@@ -44,15 +44,13 @@ test('Toolbar does not expose presentation actions', async () => {
   assert.doesNotMatch(source, /onStartPreview/);
 });
 
-test('Canvas Navigator and Camera tools use shared state-aware tooltips', async () => {
-  const source = await readSource('src/components/CanvasPresentationControls.tsx');
+test('CameraList keeps the Add camera tooltip on its header action', async () => {
+  const source = await readSource('src/components/CameraList.tsx');
 
   assert.match(source, /from "\.\/ui\/Tooltip"/);
   assert.match(source, /TooltipProvider/);
   assert.match(source, /TooltipTrigger/);
   assert.match(source, /TooltipContent/);
-  assert.match(source, /isNavigatorOpen \? "Hide navigator" : "Show navigator"/);
-  assert.match(source, /<TooltipContent>\{navigatorTooltip\}<\/TooltipContent>/);
   assert.match(source, /<TooltipContent>Add camera<\/TooltipContent>/);
   assert.doesNotMatch(source, /title=/);
 });

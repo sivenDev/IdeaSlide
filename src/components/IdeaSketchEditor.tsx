@@ -211,7 +211,6 @@ export function IdeaSketchEditor({
             editorRefreshToken={editorRefreshToken}
             isNavigatorOpen={showNavigator}
             onToggleNavigator={toggleNavigator}
-            onAddCamera={readOnly ? undefined : handleAddCamera}
             cameraDrawingRequestToken={cameraDrawingRequestToken}
           />
         </main>

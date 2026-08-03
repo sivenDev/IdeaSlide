@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Draft | Complete |
-| --- | --- | --- | --- |
-| `required` | 6 | 0 | 6 |
-| `feature` | 9 | 0 | 9 |
-| `bugfix` | 5 | 1 | 4 |
+| Type | Plans | Complete |
+| --- | --- | --- |
+| `required` | 6 | 6 |
+| `feature` | 9 | 9 |
+| `bugfix` | 5 | 5 |
 
 ## Execution Order
 
@@ -54,4 +54,4 @@
 | `B002` | [Refresh Editor After Presentation Exit](bugs/B002-refresh-editor-after-presentation-exit.md) | `complete` | 2026-07-02 |
 | `B003` | [Fix Release Package Manager Selection](bugs/B003-fix-release-package-manager-selection.md) | `complete` | 2026-07-22 |
 | `B004` | [Stabilize Editor Session Canvas Input](bugs/B004-stabilize-editor-session-slide.md) | `complete` | 2026-07-22 |
-| `B005` | [Move Navigator into the Excalidraw Main Menu](bugs/B005-integrate-navigator-into-excalidraw-toolbar.md) | `draft` | 2026-08-04 |
+| `B005` | [Move Navigator into the Excalidraw Main Menu](bugs/B005-integrate-navigator-into-excalidraw-toolbar.md) | `complete` | 2026-08-04 |
