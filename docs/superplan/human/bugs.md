@@ -78,7 +78,7 @@
 
 ## B005: Navigator button is outside the Excalidraw toolbar
 
-- status: proposed
+- status: accepted
 - created: 2026-08-04
 
 The right-side Navigator toggle and Camera action are rendered in a separate top-right UI island next to the Excalidraw toolbar, so the Navigator button is not visually part of the intended Excalidraw custom toolbar. Expected: expose these actions as one toolbar-integrated control group without a detached floating island.
