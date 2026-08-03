@@ -1,165 +1,157 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { WorkspaceStoreProvider, useWorkspaceStore } from "./hooks/useWorkspaceStore";
+import { AppStoreProvider, useAppStore } from "./hooks/useAppStore";
 import { LaunchScreen } from "./components/LaunchScreen";
 import { EditorLayout } from "./components/EditorLayout";
 import { PresentationMode } from "./components/PresentationMode";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { invoke } from "@tauri-apps/api/core";
-import { openRecentFile, getOpenedFile, convertFromIsFileData } from "./lib/tauriCommands";
+import {
+  addRecentFile,
+  chooseAndOpenStandaloneDocument,
+  getOpenedFile,
+  openStandaloneDocument,
+  openWorkspace,
+  type OpenedDocument,
+} from "./lib/tauriCommands";
+import { getFileTypeDefinition } from "./lib/fileTypeRegistry";
+import { restoreWorkspaceDocuments } from "./lib/workspaceState";
 import { initMcpRenderer } from "./lib/mcpRenderer";
 import { initPreviewRenderer } from "./lib/previewRenderer";
-import { canvasContentToSlide } from "./lib/workspaceResources";
-import type { WorkspaceDocument } from "./types";
+import type { DocumentSession } from "./types";
+
+function sessionFromOpened(
+  path: string,
+  mode: "workspace" | "standalone",
+  opened: OpenedDocument,
+): DocumentSession {
+  const id = crypto.randomUUID();
+  const displayName = path.replace(/\\/g, "/").split("/").pop() || "Untitled.is";
+  if (opened.status === "legacy-protected") {
+    return {
+      id,
+      mode,
+      filePath: path,
+      displayName,
+      fileType: opened.fileType,
+      status: "legacy-protected",
+      protectedVersion: opened.version,
+      message: opened.message,
+      isDirty: false,
+      revision: 0,
+    };
+  }
+  return {
+    id,
+    mode,
+    filePath: path,
+    displayName,
+    fileType: opened.fileType,
+    status: "editable",
+    model: opened.model,
+    isDirty: false,
+    revision: 0,
+  };
+}
 
 function AppContent() {
-  const { state, dispatch } = useWorkspaceStore();
-  const [showEditor, setShowEditor] = useState(false);
+  const { state, dispatch } = useAppStore();
   const [mcpVisible, setMcpVisible] = useState(false);
-  const [editorRefreshToken, setEditorRefreshToken] = useState(0);
-  const windowLabel = getCurrentWindow().label;
-  const isRendererWindow =
-    windowLabel === "mcp-renderer" || windowLabel === "preview-renderer";
+  const isTauriRuntime = "__TAURI_INTERNALS__" in window;
+  const windowLabel = isTauriRuntime ? getCurrentWindow().label : "main";
+  const isRendererWindow = windowLabel === "mcp-renderer" || windowLabel === "preview-renderer";
 
-  async function loadFileFromPath(filePath: string) {
-    const workspace = await openRecentFile(filePath);
-    dispatch({
-      type: "LOAD_WORKSPACE",
-      payload: { workspace, filePath },
-    });
-    setShowEditor(true);
-  }
-
-  function handleFileOpened(filePath: string, workspace: WorkspaceDocument) {
-    dispatch({
-      type: "LOAD_WORKSPACE",
-      payload: { workspace, filePath: filePath || undefined },
-    });
-    setShowEditor(true);
-  }
-
-  const handlePresentationExit = useCallback(() => {
-    dispatch({ type: 'EXIT_PRESENTATION' });
-    setEditorRefreshToken((value) => value + 1);
+  const openStandalonePath = useCallback(async (path: string) => {
+    const opened = await openStandaloneDocument(path);
+    dispatch({ type: "OPEN_DOCUMENT", document: sessionFromOpened(path, "standalone", opened) });
+    addRecentFile(path).catch(console.error);
   }, [dispatch]);
 
-  // Hidden renderer windows boot only the renderer event handlers.
+  const handleNewFile = useCallback(async () => {
+    const definition = getFileTypeDefinition("ideasketch");
+    if (!definition) throw new Error("IdeaSketch is not registered");
+    const model = await definition.createEmpty();
+    dispatch({
+      type: "OPEN_DOCUMENT",
+      document: {
+        id: crypto.randomUUID(),
+        mode: "standalone",
+        filePath: "",
+        displayName: "Untitled.is",
+        fileType: definition.type,
+        status: "editable",
+        model,
+        isDirty: true,
+        revision: 1,
+      },
+    });
+  }, [dispatch]);
+
+  const handleOpenWorkspace = useCallback(async () => {
+    const workspace = await openWorkspace();
+    const restored = restoreWorkspaceDocuments(workspace);
+    dispatch({
+      type: "OPEN_WORKSPACE",
+      workspace,
+      restoredDocuments: restored.documents,
+      activePath: restored.activePath,
+    });
+  }, [dispatch]);
+
+  const handleOpenFile = useCallback(async () => {
+    const { path, document } = await chooseAndOpenStandaloneDocument();
+    dispatch({ type: "OPEN_DOCUMENT", document: sessionFromOpened(path, "standalone", document) });
+    addRecentFile(path).catch(console.error);
+  }, [dispatch]);
+
+  const handlePresentationExit = useCallback(() => {
+    dispatch({ type: "EXIT_PRESENTATION" });
+  }, [dispatch]);
+
   useEffect(() => {
-    if (windowLabel === "mcp-renderer") {
-      initMcpRenderer().catch(console.error);
-    }
-    if (windowLabel === "preview-renderer") {
-      initPreviewRenderer().catch(console.error);
-    }
+    if (windowLabel === "mcp-renderer") initMcpRenderer().catch(console.error);
+    if (windowLabel === "preview-renderer") initPreviewRenderer().catch(console.error);
   }, [windowLabel]);
 
-  // MCP visible mode: check on startup and listen for state changes
   useEffect(() => {
-    if (isRendererWindow) return;
-    invoke<boolean>("is_mcp_visible").then((visible) => {
-      setMcpVisible(visible);
-    }).catch(() => {});
-  }, [isRendererWindow]);
+    if (isRendererWindow || !isTauriRuntime) return;
+    invoke<boolean>("is_mcp_visible").then(setMcpVisible).catch(() => undefined);
+  }, [isRendererWindow, isTauriRuntime]);
 
   useEffect(() => {
-    if (isRendererWindow) return;
-    if (!mcpVisible) return;
-    const unlisten = listen<{ path: string; data: any }>("mcp-state-changed", (event) => {
-      const workspace = convertFromIsFileData(event.payload.data);
-      dispatch({
-        type: "LOAD_WORKSPACE",
-        payload: { workspace, filePath: event.payload.path },
-      });
-      setShowEditor(true);
+    if (isRendererWindow || !isTauriRuntime) return;
+    getOpenedFile().then((path) => {
+      if (path) return openStandalonePath(path);
+    }).catch(console.error);
+    const unlisten = listen<string>("file-open", (event) => {
+      openStandalonePath(event.payload).catch(console.error);
     });
+    return () => { unlisten.then((dispose) => dispose()); };
+  }, [isRendererWindow, isTauriRuntime, openStandalonePath]);
 
-    const unlistenSession = listen<{
-      type: string;
-      session_id: string;
-      path?: string;
-      elements?: any[];
-      total_elements?: number;
-    }>("mcp-session-event", (event) => {
-      const { type, session_id, path, elements } = event.payload;
-      switch (type) {
-        case "elements_appended":
-          if (path && !showEditor) {
-            dispatch({ type: "SESSION_STARTED", sessionId: session_id, path });
-            setShowEditor(true);
-          }
-          if (elements) {
-            dispatch({ type: "SESSION_ELEMENTS_UPDATED", sessionId: session_id, elements });
-          }
-          break;
-        case "session_committed":
-        case "session_aborted":
-          dispatch({ type: "SESSION_ENDED", sessionId: session_id });
-          break;
-      }
-    });
+  if (isRendererWindow) return null;
 
-    return () => {
-      unlisten.then((fn) => fn());
-      unlistenSession.then((fn) => fn());
-    };
-  }, [isRendererWindow, mcpVisible, dispatch]);
-
-  // Cold start: check if app was launched by opening a .is file
-  useEffect(() => {
-    if (isRendererWindow) return;
-    getOpenedFile().then((filePath) => {
-      if (filePath) {
-        loadFileFromPath(filePath).catch((err) =>
-          console.error("Failed to open file on launch:", err)
-        );
-      }
-    });
-  }, [isRendererWindow]);
-
-  // Hot start: listen for file-open events while app is running
-  useEffect(() => {
-    if (isRendererWindow) return;
-    const unlisten = listen<string>("file-open", async (event) => {
-      try {
-        await loadFileFromPath(event.payload);
-      } catch (err) {
-        console.error("Failed to open file from system:", err);
-      }
-    });
-    return () => {
-      unlisten.then((fn) => fn());
-    };
-  }, [isRendererWindow, dispatch]);
-
-  if (isRendererWindow) {
-    return null;
-  }
-
-  if (!showEditor) {
-    return <LaunchScreen onFileOpened={handleFileOpened} />;
-  }
-
-  // Presentation mode takes priority over editor
-  if (state.presentationMode !== 'none') {
-    const workspace = {
-      resources: state.resources,
-      contents: state.contents,
-      activeResourceId: state.activeResourceId,
-      manifestExtra: state.manifestExtra,
-    };
-    const activeResource = state.resources.find(
-      (resource) => resource.id === state.activeResourceId,
+  if (state.mode === "launch") {
+    return (
+      <LaunchScreen
+        onNewFile={handleNewFile}
+        onOpenWorkspace={handleOpenWorkspace}
+        onOpenFile={handleOpenFile}
+        onOpenRecent={openStandalonePath}
+      />
     );
-    const activeSlide = activeResource?.type === "canvas"
-      ? canvasContentToSlide(workspace, activeResource)
-      : null;
-    if (activeSlide) {
+  }
+
+  if (state.presentationMode !== "none") {
+    const session = state.documents.find((document) => document.id === state.presentationSessionId);
+    const model = session?.model;
+    if (model?.type === "ideasketch" && model.pages[0]) {
       return (
         <PresentationMode
-          slide={activeSlide}
-          mode={state.presentationMode as 'preview' | 'fullscreen'}
-          transitionSpeed={state.transitionSpeed}
+          slide={model.pages[0]}
+          mode={state.presentationMode}
+          transitionSpeed="slow"
           onExit={handlePresentationExit}
         />
       );
@@ -169,9 +161,8 @@ function AppContent() {
   return (
     <ErrorBoundary>
       <EditorLayout
-        onGoHome={() => setShowEditor(false)}
         readOnly={mcpVisible}
-        editorRefreshToken={editorRefreshToken}
+        onGoHome={() => dispatch({ type: "GO_HOME" })}
       />
     </ErrorBoundary>
   );
@@ -180,9 +171,9 @@ function AppContent() {
 function App() {
   return (
     <ErrorBoundary>
-      <WorkspaceStoreProvider>
+      <AppStoreProvider>
         <AppContent />
-      </WorkspaceStoreProvider>
+      </AppStoreProvider>
     </ErrorBoundary>
   );
 }

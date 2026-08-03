@@ -59,10 +59,13 @@ export interface FileManifest {
 export type DocumentMode = "workspace" | "standalone";
 export type DocumentStatus =
   | "editable"
+  | "loading"
+  | "read-only"
   | "legacy-protected"
   | "unsupported"
   | "invalid"
-  | "missing";
+  | "missing"
+  | "error";
 
 export interface IdeaSketchPage extends Slide {
   title: string;
@@ -82,11 +85,15 @@ export interface DocumentSession<TModel = DocumentModel> {
   id: string;
   mode: DocumentMode;
   filePath: string;
+  pathKey?: string;
+  displayName?: string;
   fileType: string;
   status: DocumentStatus;
   model?: TModel;
   isDirty: boolean;
   revision: number;
+  readOnly?: boolean;
+  sourceModified?: string;
   protectedVersion?: string;
   message?: string;
 }
@@ -95,4 +102,58 @@ export interface PersistenceAdapter<TModel = DocumentModel> {
   load(): Promise<TModel>;
   save(model: TModel): Promise<void>;
   saveAs?(model: TModel, path: string): Promise<void>;
+}
+
+export type WorkspaceEntryKind = "file" | "directory" | "symlink";
+
+export interface WorkspaceEntry {
+  path: string;
+  name: string;
+  kind: WorkspaceEntryKind;
+  size?: number | null;
+  modified?: string | null;
+  readOnly: boolean;
+  fileType?: string | null;
+  children: WorkspaceEntry[];
+}
+
+export interface WorkspaceMetadataSnapshot {
+  exists: boolean;
+  workspace?: {
+    schemaVersion: number;
+    workspaceId: string;
+    created: string;
+    modified: string;
+    settings: Record<string, unknown>;
+  } | null;
+  state?: {
+    schemaVersion: number;
+    openTabs: string[];
+    activePath?: string | null;
+    expandedPaths: string[];
+  } | null;
+  diagnostics: string[];
+}
+
+export interface WorkspaceSession {
+  root: string;
+  name: string;
+  readOnly: boolean;
+  entries: WorkspaceEntry[];
+  metadata: WorkspaceMetadataSnapshot;
+  selectedPath?: string;
+  expandedPaths: string[];
+}
+
+export type ApplicationMode = "launch" | "workspace" | "standalone";
+
+export interface ApplicationState {
+  mode: ApplicationMode;
+  workspace?: WorkspaceSession;
+  documents: DocumentSession[];
+  activeSessionId?: string;
+  recentlyClosed: DocumentSession[];
+  presentationMode: "none" | "preview" | "fullscreen";
+  presentationSessionId?: string;
+  editorRefreshToken: number;
 }

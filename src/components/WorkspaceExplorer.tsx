@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import type { WorkspaceResource } from "../types";
-import { getCreatableResourceTypeDefinitions } from "../lib/resourceTypeRegistry";
+import { ask } from "@tauri-apps/plugin-dialog";
+import type { WorkspaceEntry } from "../types";
+import { getCreatableFileTypeDefinitions } from "../lib/fileTypeRegistry";
 import { WorkspaceResourceRow } from "./WorkspaceResourceRow";
 import {
   DropdownMenu,
@@ -10,196 +11,156 @@ import {
 } from "./ui/DropdownMenu";
 
 interface WorkspaceExplorerProps {
-  resources: WorkspaceResource[];
-  activeResourceId: string;
+  rootName: string;
+  entries: WorkspaceEntry[];
+  selectedPath?: string;
+  expandedPaths: string[];
   readOnly?: boolean;
-  onSelect: (resourceId: string) => void;
-  onAdd: (resourceType: string, parentId: string | null) => string;
-  onRename: (resourceId: string, name: string) => void;
-  onMove: (resourceId: string, parentId: string | null, index: number) => void;
-  onDelete: (resourceId: string) => void;
+  onSelect: (path: string) => void;
+  onOpen: (entry: WorkspaceEntry) => void;
+  onCreateFolder: (parentPath: string) => Promise<WorkspaceEntry>;
+  onCreateDocument: (parentPath: string, fileType: string) => Promise<WorkspaceEntry>;
+  onRename: (path: string, name: string) => Promise<void>;
+  onMove: (path: string, destinationParentPath: string) => Promise<void>;
+  onTrash: (path: string) => Promise<void>;
+  onRefresh: () => Promise<void>;
+  onExpandedPathsChange: (paths: string[]) => void;
 }
 
-const actionClassName =
-  "idea-slide-panel-icon-button";
+const actionClassName = "idea-slide-panel-icon-button";
+
+function parentPath(path: string): string {
+  return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+}
 
 export function WorkspaceExplorer({
-  resources,
-  activeResourceId,
+  rootName,
+  entries,
+  selectedPath,
+  expandedPaths,
   readOnly = false,
   onSelect,
-  onAdd,
+  onOpen,
+  onCreateFolder,
+  onCreateDocument,
   onRename,
   onMove,
-  onDelete,
+  onTrash,
+  onRefresh,
+  onExpandedPathsChange,
 }: WorkspaceExplorerProps) {
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(
-    () => new Set(resources.filter((resource) => resource.type === "folder").map((resource) => resource.id)),
-  );
-  const [renameResourceId, setRenameResourceId] = useState<string>();
-  const creatableResourceTypes = useMemo(
-    () => getCreatableResourceTypeDefinitions(),
-    [],
-  );
-  const childrenByParent = useMemo(() => {
-    const result = new Map<string | null, WorkspaceResource[]>();
-    for (const resource of resources) {
-      const siblings = result.get(resource.parentId) ?? [];
-      siblings.push(resource);
-      result.set(resource.parentId, siblings);
-    }
-    for (const siblings of result.values()) {
-      siblings.sort((left, right) => left.order - right.order || left.id.localeCompare(right.id));
-    }
-    return result;
-  }, [resources]);
+  const [renamePath, setRenamePath] = useState<string>();
+  const expanded = useMemo(() => new Set(expandedPaths), [expandedPaths]);
+  const creatableTypes = useMemo(() => getCreatableFileTypeDefinitions(), []);
 
-  const activeResource = resources.find((resource) => resource.id === activeResourceId);
-  const createParentId = activeResource?.type === "folder"
-    ? activeResource.id
-    : activeResource?.parentId ?? null;
+  const selectedEntry = useMemo(() => {
+    const find = (items: WorkspaceEntry[]): WorkspaceEntry | undefined => {
+      for (const entry of items) {
+        if (entry.path === selectedPath) return entry;
+        const nested = find(entry.children);
+        if (nested) return nested;
+      }
+      return undefined;
+    };
+    return find(entries);
+  }, [entries, selectedPath]);
+  const createParentPath = selectedEntry?.kind === "directory"
+    ? selectedEntry.path
+    : selectedEntry ? parentPath(selectedEntry.path) : "";
 
-  const toggleExpanded = (resourceId: string) => {
-    setExpandedIds((previous) => {
-      const next = new Set(previous);
-      if (next.has(resourceId)) next.delete(resourceId);
-      else next.add(resourceId);
-      return next;
-    });
+  const setExpanded = (next: Set<string>) => onExpandedPathsChange(Array.from(next));
+  const toggleExpanded = (path: string) => {
+    const next = new Set(expanded);
+    if (next.has(path)) next.delete(path); else next.add(path);
+    setExpanded(next);
   };
-
-  const createResource = (resourceType: string) => {
-    const createdResourceId = onAdd(resourceType, createParentId);
-    setRenameResourceId(createdResourceId);
-    if (createParentId) {
-      setExpandedIds((previous) => new Set(previous).add(createParentId));
-    }
-  };
-
   const expandAll = () => {
-    setExpandedIds(new Set(
-      resources.filter((resource) => resource.type === "folder").map((resource) => resource.id),
-    ));
+    const paths: string[] = [];
+    const visit = (items: WorkspaceEntry[]) => items.forEach((entry) => {
+      if (entry.kind === "directory") paths.push(entry.path);
+      visit(entry.children);
+    });
+    visit(entries);
+    onExpandedPathsChange(paths);
   };
 
-  const renderChildren = (parentId: string | null, depth: number): React.ReactNode =>
-    (childrenByParent.get(parentId) ?? []).map((resource) => {
-      const children = childrenByParent.get(resource.id) ?? [];
-      const isExpanded = expandedIds.has(resource.id);
-      return (
-        <div key={resource.id}>
-          <WorkspaceResourceRow
-            resource={resource}
-            depth={depth}
-            isActive={resource.id === activeResourceId}
-            isExpanded={isExpanded}
-            hasChildren={children.length > 0}
-            readOnly={readOnly}
-            startRenaming={resource.id === renameResourceId}
-            onRenameStarted={() => setRenameResourceId(undefined)}
-            onSelect={() => onSelect(resource.id)}
-            onToggleExpanded={() => toggleExpanded(resource.id)}
-            onRename={(name) => onRename(resource.id, name)}
-            onDelete={() => onDelete(resource.id)}
-            onDropResource={(resourceId, target) => {
-              const parent = target.type === "folder" ? target.id : target.parentId;
-              const index = target.type === "folder" ? children.length : target.order;
-              onMove(resourceId, parent, index);
-              if (target.type === "folder") {
-                setExpandedIds((previous) => new Set(previous).add(target.id));
-              }
-            }}
-          />
-          {resource.type === "folder" && isExpanded && renderChildren(resource.id, depth + 1)}
-        </div>
-      );
-    });
+  const createFolder = async () => {
+    const entry = await onCreateFolder(createParentPath);
+    setRenamePath(entry.path);
+    if (createParentPath) setExpanded(new Set(expanded).add(createParentPath));
+  };
+  const createDocument = async (fileType: string) => {
+    const entry = await onCreateDocument(createParentPath, fileType);
+    setRenamePath(entry.path);
+    if (createParentPath) setExpanded(new Set(expanded).add(createParentPath));
+  };
+
+  const renderEntries = (items: WorkspaceEntry[], depth: number): React.ReactNode => items.map((entry) => (
+    <div key={entry.path}>
+      <WorkspaceResourceRow
+        entry={entry}
+        depth={depth}
+        isSelected={selectedPath === entry.path}
+        isExpanded={expanded.has(entry.path)}
+        readOnly={readOnly}
+        startRenaming={renamePath === entry.path}
+        onRenameStarted={() => setRenamePath(undefined)}
+        onSelect={() => onSelect(entry.path)}
+        onOpen={() => onOpen(entry)}
+        onToggleExpanded={() => toggleExpanded(entry.path)}
+        onRename={(name) => void onRename(entry.path, name)}
+        onTrash={() => void (async () => {
+          const confirmed = await ask(`Move “${entry.name}” to Trash?`, {
+            title: "Move to Trash",
+            kind: "warning",
+            okLabel: "Move to Trash",
+            cancelLabel: "Cancel",
+          });
+          if (confirmed) await onTrash(entry.path);
+        })()}
+        onMove={(sourcePath, destinationParentPath) => void onMove(sourcePath, destinationParentPath)}
+      />
+      {entry.kind === "directory" && expanded.has(entry.path) && renderEntries(entry.children, depth + 1)}
+    </div>
+  ));
 
   return (
-    <aside className="idea-slide-side-panel flex h-full min-w-0 flex-col" aria-label="Workspace explorer">
-      <div
-        className="idea-slide-side-panel__header flex items-center gap-0.5 px-2"
-        aria-label="Workspace actions"
-      >
+    <aside className="idea-slide-side-panel flex h-full min-w-0 flex-col" aria-label="Workspace Explorer">
+      <div className="idea-slide-side-panel__header flex items-center gap-0.5 px-2" aria-label="Workspace actions">
+        <span className="min-w-0 flex-1 truncate px-1 text-xs font-semibold text-gray-700" title={rootName}>{rootName}</span>
         {!readOnly && (
           <>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button type="button" aria-label="New resource" title="New resource" className={actionClassName}>
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-                    <path d="M6 3h8l4 4v14H6V3Z" />
-                    <path d="M14 3v5h5M9 14h6M12 11v6" />
-                  </svg>
-                </button>
+                <button type="button" aria-label="New file" title="New file" className={actionClassName}>＋</button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-44">
-                {creatableResourceTypes.map((definition) => (
-                  <DropdownMenuItem
-                    key={definition.type}
-                    onSelect={() => createResource(definition.type)}
-                  >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-                      <rect x="4" y="4" width="16" height="16" rx="2" />
-                      <path d="m7 16 3-3 2 2 4-5 2 3" />
-                    </svg>
-                    {definition.label}
+              <DropdownMenuContent align="start">
+                {creatableTypes.map((definition) => (
+                  <DropdownMenuItem key={definition.type} onSelect={() => void createDocument(definition.type)}>
+                    New {definition.displayName} (.{definition.extensions[0]})
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-
-            <button
-              type="button"
-              aria-label="New folder"
-              title="New folder"
-              onClick={() => createResource("folder")}
-              className={actionClassName}
-            >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-                <path d="M3 6h7l2 2h9v11H3V6Z" />
-                <path d="M9 14h6M12 11v6" />
-              </svg>
-            </button>
-
+            <button type="button" aria-label="New Folder" title="New Folder" className={actionClassName} onClick={() => void createFolder()}>⌑</button>
             <span className="idea-slide-panel-action-separator" aria-hidden="true" />
           </>
         )}
-
-        <button
-          type="button"
-          aria-label="Collapse all"
-          title="Collapse all"
-          onClick={() => setExpandedIds(new Set())}
-          className={actionClassName}
-        >
-          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-            <path d="m7 9 5-5 5 5M7 15l5 5 5-5" />
-          </svg>
-        </button>
-
+        <button type="button" aria-label="Refresh Workspace" title="Refresh Workspace" className={actionClassName} onClick={() => void onRefresh()}>↻</button>
+        <button type="button" aria-label="Collapse all" title="Collapse all" className={actionClassName} onClick={() => onExpandedPathsChange([])}>⌃</button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              aria-label="More workspace actions"
-              title="More"
-              className={`${actionClassName} ml-auto`}
-            >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" stroke="none" aria-hidden="true">
-                <circle cx="5" cy="12" r="1.4" />
-                <circle cx="12" cy="12" r="1.4" />
-                <circle cx="19" cy="12" r="1.4" />
-              </svg>
-            </button>
+            <button type="button" aria-label="More Workspace actions" title="More" className={actionClassName}>•••</button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-36">
             <DropdownMenuItem onSelect={expandAll}>Expand all</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-
       <div role="tree" className="idea-slide-side-panel__scroll min-h-0 flex-1 overflow-y-auto py-2">
-        {renderChildren(null, 0)}
+        {entries.length > 0 ? renderEntries(entries, 0) : (
+          <div className="px-4 py-8 text-center text-xs leading-5 text-gray-400">This Workspace is empty.</div>
+        )}
       </div>
     </aside>
   );

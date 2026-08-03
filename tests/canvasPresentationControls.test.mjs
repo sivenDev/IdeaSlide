@@ -49,16 +49,17 @@ test('global Toolbar contains workspace actions only and no presentation menu', 
   assert.doesNotMatch(source, /aria-label="Present"/);
   assert.doesNotMatch(source, /onStartPreview/);
   assert.doesNotMatch(source, /onStartFullscreen/);
-  assert.doesNotMatch(source, /DropdownMenu/);
+  assert.match(source, /Open Workspace/);
+  assert.match(source, /Save All/);
 });
 
-test('App passes only the active Canvas into camera-only PresentationMode', async () => {
+test('App passes only the active IdeaSketch document Page into camera-only PresentationMode', async () => {
   const app = await readSource('src/App.tsx');
   const presentation = await readSource('src/components/PresentationMode.tsx');
 
-  assert.match(app, /canvasContentToSlide/);
-  assert.match(app, /activeResource.*type === "canvas"/s);
-  assert.match(app, /<PresentationMode[\s\S]*slide=\{/);
+  assert.match(app, /presentationSessionId/);
+  assert.match(app, /model\?\.type === "ideasketch"/);
+  assert.match(app, /<PresentationMode[\s\S]*slide=\{model\.pages\[0\]\}/);
   assert.doesNotMatch(app, /projectWorkspaceToSlides/);
 
   assert.match(presentation, /slide: Slide/);

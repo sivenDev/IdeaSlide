@@ -59,6 +59,11 @@ pub fn read_workspace_file(root: String, path: String) -> Result<Vec<u8>, String
 }
 
 #[command]
+pub fn open_workspace_document(root: String, path: String) -> Result<OpenDocumentResult, String> {
+    WorkspaceService::open(PathBuf::from(root).as_path())?.open_document(&path)
+}
+
+#[command]
 pub fn create_workspace_folder(
     root: String,
     parent_path: String,
@@ -147,5 +152,20 @@ mod tests {
         let directory = TempDir::new().unwrap();
         let root = directory.path().to_string_lossy().to_string();
         assert!(read_workspace_file(root, "/tmp/outside".to_string()).is_err());
+    }
+
+    #[test]
+    fn workspace_commands_open_supported_documents_through_the_registry() {
+        let directory = TempDir::new().unwrap();
+        let root = directory.path().to_string_lossy().to_string();
+        create_workspace_document(
+            root.clone(),
+            String::new(),
+            "ideasketch".to_string(),
+            Some("drawing.is".to_string()),
+        )
+        .unwrap();
+        let opened = open_workspace_document(root, "drawing.is".to_string()).unwrap();
+        assert!(matches!(opened, OpenDocumentResult::Editable { .. }));
     }
 }

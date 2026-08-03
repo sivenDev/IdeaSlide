@@ -32,8 +32,8 @@ test('Toolbar wires icon actions through the shared Tooltip primitives instead o
   assert.match(source, /<ToolbarAction/);
   assert.match(source, /from "\.\/ui\/Tooltip"/);
   assert.match(source, /TooltipProvider/);
-  assert.match(source, /tooltip="New file" aria-label="New file"/);
-  assert.match(source, /tooltip="Open file" aria-label="Open file"/);
+  assert.match(source, /tooltip="New File" aria-label="New File"/);
+  assert.match(source, /tooltip="Open" aria-label="Open"/);
   assert.doesNotMatch(source, /title="/);
 });
 

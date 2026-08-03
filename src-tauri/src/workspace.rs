@@ -1,4 +1,4 @@
-use crate::document_formats::{self, DocumentFileData};
+use crate::document_formats::{self, DocumentFileData, OpenDocumentResult};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -164,6 +164,16 @@ impl WorkspaceService {
             return Err("Workspace path is not a file".to_string());
         }
         fs::read(path).map_err(|error| format!("Failed to read Workspace file: {error}"))
+    }
+
+    pub fn open_document(&self, relative_path: &str) -> Result<OpenDocumentResult, String> {
+        let path = self.resolve_existing(relative_path)?;
+        let metadata = fs::metadata(&path)
+            .map_err(|error| format!("Failed to inspect Workspace document: {error}"))?;
+        if !metadata.is_file() {
+            return Err("Workspace path is not a file".to_string());
+        }
+        document_formats::open_file(&path)
     }
 
     pub fn create_folder(

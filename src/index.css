@@ -141,6 +141,72 @@ html, body, #root {
   scrollbar-width: thin;
 }
 
+.ideanote-document-tabs {
+  display: flex;
+  min-width: 0;
+  height: 2.5rem;
+  flex: 0 0 2.5rem;
+  align-items: stretch;
+  border-bottom: 1px solid var(--idea-slide-boundary);
+  background: #f5f6f8;
+}
+
+.ideanote-document-tabs__scroll {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ideanote-document-tabs__scroll::-webkit-scrollbar { display: none; }
+
+.ideanote-document-tab {
+  display: flex;
+  min-width: 9rem;
+  max-width: 15rem;
+  align-items: center;
+  gap: 0.4375rem;
+  border-right: 1px solid var(--idea-slide-boundary);
+  color: #676d78;
+  cursor: default;
+  font-size: 0.75rem;
+  outline: none;
+  padding: 0 0.5rem 0 0.75rem;
+}
+
+.ideanote-document-tab:hover { background: rgb(255 255 255 / 65%); }
+.ideanote-document-tab.is-active {
+  color: #262a31;
+  background: white;
+  box-shadow: inset 0 2px 0 var(--idea-slide-accent);
+}
+
+.ideanote-document-tab__icon { color: var(--idea-slide-faint); }
+.ideanote-document-tab__icon.is-ideasketch { color: var(--idea-slide-accent); }
+.ideanote-document-tab__name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ideanote-document-tab__status { color: #b45309; font-size: 0.625rem; }
+.ideanote-document-tab__dirty { width: 0.4375rem; height: 0.4375rem; flex: 0 0 0.4375rem; border-radius: 50%; background: var(--idea-slide-accent); }
+.ideanote-document-tab__close {
+  display: grid;
+  width: 1.125rem;
+  height: 1.125rem;
+  place-items: center;
+  border-radius: 0.25rem;
+  color: #8b9099;
+  font-size: 0.875rem;
+  line-height: 1;
+}
+.ideanote-document-tab__close:hover { color: #343840; background: #e9eaee; }
+.ideanote-document-tabs__reopen {
+  width: 2.25rem;
+  flex: 0 0 2.25rem;
+  border-left: 1px solid var(--idea-slide-boundary);
+  color: #777e89;
+}
+.ideanote-document-tabs__reopen:hover:not(:disabled) { color: var(--idea-slide-accent); background: white; }
+.ideanote-document-tabs__reopen:disabled { opacity: 0.35; }
+
 .idea-slide-side-panel__title {
   color: var(--idea-slide-text);
   font-size: 0.8125rem;

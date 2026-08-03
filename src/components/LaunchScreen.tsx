@@ -1,220 +1,107 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { getRecentFiles, createNewPresentation, openFile, openRecentFile, removeRecentFile } from "../lib/tauriCommands";
+import { getRecentFiles, removeRecentFile } from "../lib/tauriCommands";
 import type { RecentFile } from "../types";
-import type { WorkspaceDocument } from "../types";
-
-function formatRelativeTime(isoString: string): string {
-  try {
-    const now = new Date();
-    const opened = new Date(isoString);
-
-    if (isNaN(opened.getTime())) {
-      return "unknown";
-    }
-
-    const diffMs = now.getTime() - opened.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return "just now";
-    if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? '' : 's'} ago`;
-    if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
-
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    if (opened.toDateString() === yesterday.toDateString()) return "yesterday";
-
-    if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
-
-    return opened.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
-  } catch {
-    return "unknown";
-  }
-}
 
 interface LaunchScreenProps {
-  onFileOpened: (filePath: string, workspace: WorkspaceDocument) => void;
+  onNewFile: () => Promise<void> | void;
+  onOpenWorkspace: () => Promise<void> | void;
+  onOpenFile: () => Promise<void> | void;
+  onOpenRecent: (path: string) => Promise<void> | void;
 }
 
-export function LaunchScreen({ onFileOpened }: LaunchScreenProps) {
+function formatRelativeTime(isoString: string): string {
+  const timestamp = new Date(isoString).getTime();
+  if (!Number.isFinite(timestamp)) return "unknown";
+  const minutes = Math.floor((Date.now() - timestamp) / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+export function LaunchScreen({ onNewFile, onOpenWorkspace, onOpenFile, onOpenRecent }: LaunchScreenProps) {
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string>();
+  const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
 
   useEffect(() => {
-    loadRecentFiles();
+    getRecentFiles().then(setRecentFiles).finally(() => setLoading(false));
   }, []);
 
-  async function loadRecentFiles() {
+  const run = async (action: () => Promise<void> | void) => {
     try {
-      const files = await getRecentFiles();
-      setRecentFiles(files);
-    } catch (err) {
-      console.error("Failed to load recent files:", err);
-    } finally {
-      setLoading(false);
+      setError(undefined);
+      await action();
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      if (!/cancelled/i.test(message)) setError(message);
     }
-  }
-
-  function handleNewIdea() {
-    const { workspace } = createNewPresentation();
-    onFileOpened("", workspace);
-  }
-
-  async function handleOpenFile() {
-    try {
-      setError(null);
-      const { path, workspace } = await openFile();
-      onFileOpened(path, workspace);
-    } catch (err) {
-      if (err instanceof Error && err.message !== "File selection cancelled") {
-        setError(err.message);
-      }
-    }
-  }
-
-  async function handleOpenRecent(filePath: string) {
-    try {
-      setError(null);
-      const workspace = await openRecentFile(filePath);
-      onFileOpened(filePath, workspace);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to open file");
-    }
-  }
-
-  async function handleRemoveRecent(path: string) {
-    try {
-      await removeRecentFile(path);
-      setRecentFiles(files => files.filter(f => f.path !== path));
-    } catch (err) {
-      console.error("Failed to remove recent file:", err);
-    }
-  }
-
-  const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
+  };
 
   return (
     <div
-      className="h-screen flex"
-      onMouseDown={(e) => {
-        if (!(e.target as HTMLElement).closest('button, a, input, [data-no-drag]')) {
+      className="flex h-screen bg-[#f6f7f9]"
+      onMouseDown={(event) => {
+        if (!(event.target as HTMLElement).closest("button, a, input, [data-no-drag]")) {
           getCurrentWindow().startDragging();
         }
       }}
     >
-      {/* Left panel — gradient */}
-      <div className={`w-[45%] bg-gradient-to-br from-[#667eea] to-[#764ba2] flex flex-col justify-center px-10 relative overflow-hidden ${isMac ? "pt-8 pb-16" : "py-12"}`}>
-        {/* Geometric decorations */}
-        <div className="absolute -top-10 -right-10 w-[200px] h-[200px] rounded-full bg-white/5" />
-        <div className="absolute -bottom-15 -left-8 w-[250px] h-[250px] rounded-full bg-white/[0.03]" />
-        <div className="absolute top-1/2 right-5 w-[100px] h-[100px] border border-white/[0.08] rounded-2xl rotate-45" />
+      <section className={`relative flex w-[42%] min-w-[360px] flex-col justify-center overflow-hidden bg-gradient-to-br from-[#625dd6] via-[#6d63db] to-[#7b61c8] px-12 text-white ${isMac ? "pt-10" : ""}`}>
+        <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full border border-white/10" />
+        <div className="absolute -bottom-28 -left-20 h-80 w-80 rounded-full bg-white/[0.035]" />
+        <div className="relative z-10 max-w-sm">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/55">Local-first workspace</div>
+          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em]">IdeaNote</h1>
+          <p className="mt-4 max-w-xs text-sm leading-6 text-white/65">A calm place for visual thinking, real files, and ideas that grow beyond slides.</p>
 
-        <div className="relative z-10">
-          <div className="text-[11px] tracking-[3px] uppercase text-white/50 mb-3">Welcome to</div>
-          <h1 className="text-[32px] font-bold text-white tracking-tight">IdeaSlide</h1>
-          <div className="w-10 h-0.5 bg-white/40 mt-4 rounded-full" />
-          <p className="text-[13px] text-white/60 mt-4 leading-relaxed">
-            Where ideas take shape —<br />
-            <span className="text-white/45">powered by AI, drawn by you.</span>
-          </p>
+          {error && <div className="mt-5 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs text-white/90">{error}</div>}
 
-          {/* AI badge */}
-          <div className="inline-flex items-center gap-1.5 mt-4 px-3 py-1.5 rounded-full bg-gradient-to-br from-white/[0.12] to-white/5 border border-white/[0.15] backdrop-blur-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="2">
-              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-            </svg>
-            <span className="text-[10px] text-white/70 font-medium tracking-wider">AI-Powered</span>
+          <div className="mt-8 flex flex-col gap-2.5" data-no-drag>
+            <button type="button" onClick={() => void run(onNewFile)} className="flex items-center gap-3 rounded-xl border border-white/20 bg-white/15 px-5 py-3 text-left text-sm font-medium backdrop-blur transition hover:bg-white/20">
+              <span className="text-lg">＋</span><span>New File</span>
+            </button>
+            <button type="button" onClick={() => void run(onOpenWorkspace)} className="flex items-center gap-3 rounded-xl border border-white/15 bg-white/[0.09] px-5 py-3 text-left text-sm font-medium transition hover:bg-white/15">
+              <span className="text-base">▱</span><span>Open Workspace</span>
+            </button>
+            <button type="button" onClick={() => void run(onOpenFile)} className="flex items-center gap-3 rounded-xl border border-white/15 bg-white/[0.06] px-5 py-3 text-left text-sm font-medium transition hover:bg-white/12">
+              <span className="text-base">◇</span><span>Open File</span>
+            </button>
           </div>
+        </div>
+        <span className="absolute bottom-5 left-12 text-[10px] font-medium tracking-wide text-white/30">IdeaNote 0.1.0</span>
+      </section>
 
-          {error && (
-            <div className="mt-4 p-3 bg-white/10 border border-white/20 rounded-lg text-white text-sm">
-              {error}
+      <section className={`flex min-w-0 flex-1 flex-col bg-white px-10 pb-8 ${isMac ? "pt-16" : "pt-12"}`} data-no-drag>
+        <div className="flex items-end justify-between border-b border-gray-100 pb-4">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900">Recent Files</h2>
+            <p className="mt-1 text-xs text-gray-400">Standalone IdeaSketch documents</p>
+          </div>
+        </div>
+        <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
+          {loading ? <div className="py-8 text-sm text-gray-400">Loading…</div> : recentFiles.length === 0 ? (
+            <div className="py-12 text-center text-sm text-gray-400">No recent files yet.</div>
+          ) : recentFiles.map((file) => (
+            <div key={file.path} className="group flex items-center gap-3 rounded-lg px-3 py-3 hover:bg-gray-50">
+              <button type="button" className="min-w-0 flex-1 text-left" onClick={() => void run(() => onOpenRecent(file.path))}>
+                <div className="truncate text-sm font-medium text-gray-800">{file.name}</div>
+                <div className="mt-1 truncate text-xs text-gray-400">{file.path}</div>
+              </button>
+              <span className="text-[11px] text-gray-400">{formatRelativeTime(file.opened_at)}</span>
+              <button
+                type="button"
+                aria-label={`Remove ${file.name} from recent files`}
+                className="invisible flex h-6 w-6 items-center justify-center rounded-full text-gray-400 hover:bg-red-50 hover:text-red-600 group-hover:visible"
+                onClick={() => void removeRecentFile(file.path).then(() => setRecentFiles((files) => files.filter((item) => item.path !== file.path)))}
+              >×</button>
             </div>
-          )}
-
-          <div className="flex flex-col gap-2.5 mt-7">
-            <button
-              onClick={handleNewIdea}
-              className="w-full py-3 px-5 rounded-[10px] bg-white/[0.15] backdrop-blur-md border border-white/20 hover:bg-white/[0.22] transition-all text-white text-[13px] font-medium text-left flex items-center gap-3"
-            >
-              <span className="text-base">✦</span>
-              New Idea
-            </button>
-            <button
-              onClick={handleOpenFile}
-              className="w-full py-3 px-5 rounded-[10px] bg-white/[0.08] border border-white/[0.12] hover:bg-white/[0.14] transition-all text-white/90 text-[13px] font-medium text-left flex items-center gap-3"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-              </svg>
-              Open File
-            </button>
-          </div>
+          ))}
         </div>
-
-        {/* Version — bottom left */}
-        <div className="absolute bottom-5 left-10 z-10">
-          <span className="text-[10px] text-white/25 font-medium tracking-wide">v0.1.0</span>
-        </div>
-      </div>
-
-      {/* Right panel — recent files */}
-      <div className={`flex-1 bg-white flex flex-col px-8 py-10 ${isMac ? "pt-16" : "pt-16 pr-12"}`}>
-        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Recent Files</h2>
-
-        {loading ? (
-          <div className="text-sm text-gray-400">Loading...</div>
-        ) : recentFiles.length > 0 ? (
-          <div className="flex-1 overflow-y-auto -mx-3">
-            {recentFiles.map((file, i) => (
-              <div
-                key={file.path}
-                className={`group relative px-3 py-3 rounded-lg hover:bg-gray-50 transition-colors ${i > 0 ? "border-t border-gray-100" : ""}`}
-                data-no-drag
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <button
-                    onClick={() => handleOpenRecent(file.path)}
-                    className="flex-1 text-left min-w-0"
-                  >
-                    <div className="font-medium text-gray-900 text-sm truncate">{file.name}</div>
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemoveRecent(file.path);
-                    }}
-                    className="hidden group-hover:flex items-center justify-center w-[18px] h-[18px] rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors flex-shrink-0"
-                    aria-label="Remove from recent files"
-                    data-no-drag
-                  >
-                    <span className="text-[13px] font-semibold leading-none">×</span>
-                  </button>
-                </div>
-                <button
-                  onClick={() => handleOpenRecent(file.path)}
-                  className="w-full text-left"
-                >
-                  <div className="flex items-center justify-between mt-1">
-                    <div className="text-xs text-gray-400 truncate mr-4">{file.path}</div>
-                    <div className="text-xs text-gray-600 font-medium flex-shrink-0">
-                      {formatRelativeTime(file.opened_at)}
-                    </div>
-                  </div>
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <div className="text-sm text-gray-400">No recent files</div>
-            <div className="text-xs text-gray-300 mt-1">Open or create a file to get started</div>
-          </div>
-        )}
-      </div>
+      </section>
     </div>
   );
 }

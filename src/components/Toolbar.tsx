@@ -3,14 +3,23 @@ import { SaveIndicator } from "./SaveIndicator";
 import { Separator } from "./ui/Separator";
 import { ToolbarAction } from "./ui/ToolbarAction";
 import { TooltipProvider } from "./ui/Tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/DropdownMenu";
 
 interface ToolbarProps {
   fileName?: string;
   isDirty: boolean;
   isSaving: boolean;
-  onNewIdea: () => void;
+  onNewFile: () => void;
   onOpenFile: () => void;
+  onOpenWorkspace: () => void;
   onSave: () => void;
+  onSaveAs: () => void;
+  onSaveAll: () => void;
   onGoHome: () => void;
 }
 
@@ -18,13 +27,15 @@ export function Toolbar({
   fileName,
   isDirty,
   isSaving,
-  onNewIdea,
+  onNewFile,
   onOpenFile,
+  onOpenWorkspace,
   onSave,
+  onSaveAs,
+  onSaveAll,
   onGoHome,
 }: ToolbarProps) {
   const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
-
   return (
     <TooltipProvider>
       <div
@@ -36,26 +47,36 @@ export function Toolbar({
         }}
       >
         <div className="idea-slide-window-toolbar__commands">
-          <ToolbarAction tooltip="Back to home" aria-label="Back to home" onClick={onGoHome}>
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z" /><path d="M9 22V12h6v10" /></svg>
-          </ToolbarAction>
+          <ToolbarAction tooltip="Back to Home" aria-label="Back to Home" onClick={onGoHome}>⌂</ToolbarAction>
           <Separator orientation="vertical" className="idea-slide-window-toolbar__separator" />
-          <ToolbarAction tooltip="New file" aria-label="New file" onClick={onNewIdea}>
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6" /></svg>
-          </ToolbarAction>
-          <ToolbarAction tooltip="Open file" aria-label="Open file" onClick={onOpenFile}>
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2Z" /></svg>
-          </ToolbarAction>
-          <ToolbarAction tooltip="Save" aria-label="Save" onClick={onSave}>
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" /><path d="M17 21v-8H7v8M7 3v5h8" /></svg>
-          </ToolbarAction>
+          <ToolbarAction tooltip="New File" aria-label="New File" onClick={onNewFile}>＋</ToolbarAction>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <span>
+                <ToolbarAction tooltip="Open" aria-label="Open">▱</ToolbarAction>
+              </span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-44">
+              <DropdownMenuItem onSelect={onOpenWorkspace}>Open Workspace…</DropdownMenuItem>
+              <DropdownMenuItem onSelect={onOpenFile}>Open File…</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <ToolbarAction tooltip="Save" aria-label="Save" onClick={onSave}>⌑</ToolbarAction>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <span>
+                <ToolbarAction tooltip="More Save options" aria-label="More Save options">⌄</ToolbarAction>
+              </span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-40">
+              <DropdownMenuItem onSelect={onSave}>Save</DropdownMenuItem>
+              <DropdownMenuItem onSelect={onSaveAs}>Save As…</DropdownMenuItem>
+              <DropdownMenuItem onSelect={onSaveAll}>Save All</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <SaveIndicator isDirty={isDirty} isSaving={isSaving} />
         </div>
-
-        <div className="idea-slide-window-toolbar__title">
-          {fileName || "Untitled"}
-        </div>
-
+        <div className="idea-slide-window-toolbar__title">{fileName || "IdeaNote"}</div>
         <div className="idea-slide-window-toolbar__drag-region" data-drag-region />
       </div>
     </TooltipProvider>

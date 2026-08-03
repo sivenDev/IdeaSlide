@@ -4,61 +4,38 @@ import { readFile } from 'node:fs/promises';
 
 const readSource = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('workspace explorer uses an unlabeled compact registry-driven action bar', async () => {
+test('Workspace Explorer is driven by real relative paths and backend filesystem actions', async () => {
   const source = await readSource('src/components/WorkspaceExplorer.tsx');
-  assert.match(source, /getCreatableResourceTypeDefinitions/);
-  assert.match(source, /idea-slide-side-panel/);
-  assert.match(source, /idea-slide-side-panel__header/);
-  assert.match(source, /idea-slide-panel-icon-button/);
-  assert.match(source, /aria-label="New resource"/);
-  assert.match(source, /aria-label="New folder"/);
-  assert.match(source, /aria-label="Collapse all"/);
-  assert.match(source, /idea-slide-panel-action-separator/);
-  assert.match(source, /aria-label="More workspace actions"/);
-  assert.match(source, />Expand all</);
-  assert.match(source, /setExpandedIds\(new Set\(\)\)/);
-  assert.match(source, /resources\.filter\(\(resource\) => resource\.type === "folder"\)/);
-  assert.ok(source.indexOf('aria-label="New resource"') < source.indexOf('aria-label="New folder"'));
-  assert.ok(source.indexOf('aria-label="New folder"') < source.indexOf('idea-slide-panel-action-separator'));
-  assert.ok(source.indexOf('idea-slide-panel-action-separator') < source.indexOf('aria-label="Collapse all"'));
-  assert.ok(source.indexOf('aria-label="Collapse all"') < source.indexOf('aria-label="More workspace actions"'));
-  assert.doesNotMatch(source, />Workspace</);
-  assert.doesNotMatch(source, /Folder and Canvas/);
+  assert.match(source, /WorkspaceEntry/);
+  assert.match(source, /rootName/);
+  assert.match(source, /getCreatableFileTypeDefinitions/);
+  assert.match(source, /onCreateFolder/);
+  assert.match(source, /onCreateDocument/);
+  assert.match(source, /onRefresh/);
   assert.match(source, /onRename/);
   assert.match(source, /onMove/);
-  assert.match(source, /overflow-y-auto/);
+  assert.match(source, /onTrash/);
+  assert.match(source, /New \{definition\.displayName\}/);
+  assert.match(source, /New Folder/);
+  assert.doesNotMatch(source, /WorkspaceResource\b/);
   assert.doesNotMatch(source, /thumbnail/i);
 });
 
-test('workspace rows use the shared neutral and violet editor-shell states', async () => {
+test('Workspace rows keep Symlinks non-recursive and unsupported files safe', async () => {
   const source = await readSource('src/components/WorkspaceResourceRow.tsx');
-
-  assert.match(source, /idea-slide-resource-row/);
-  assert.match(source, /is-active/);
-  assert.match(source, /idea-slide-resource-icon/);
-  assert.doesNotMatch(source, /amber-/);
-});
-
-test('new resources enter inline rename and rows accept an external rename request', async () => {
-  const explorer = await readSource('src/components/WorkspaceExplorer.tsx');
-  const source = await readSource('src/components/WorkspaceResourceRow.tsx');
-
-  assert.match(explorer, /const createdResourceId = onAdd/);
-  assert.match(explorer, /renameResourceId/);
-  assert.match(source, /startRenaming/);
-  assert.match(source, /onRenameStarted/);
-  assert.match(explorer, /setRenameResourceId\(undefined\)/);
-  assert.match(source, /setIsRenaming\(true\)/);
+  assert.match(source, /entry\.kind === "symlink"/);
+  assert.match(source, /Unsupported/);
+  assert.match(source, /application\/x-ideanote-path/);
   assert.match(source, /F2/);
-  assert.match(source, /Enter/);
-  assert.match(source, /Escape/);
-  assert.match(source, /draggable/);
+  assert.match(source, /ArrowRight/);
+  assert.match(source, /Move .* to Trash/);
 });
 
-test('resource registry exposes ordered file types for the New resource menu', async () => {
-  const registry = await readSource('src/lib/resourceTypeRegistry.ts');
-
-  assert.match(registry, /createInResourceMenu/);
-  assert.match(registry, /getCreatableResourceTypeDefinitions/);
-  assert.match(registry, /filter/);
+test('Editor shell preserves bounded resize and shows Explorer only for Workspace sessions', async () => {
+  const source = await readSource('src/components/EditorLayout.tsx');
+  assert.match(source, /state\.workspace &&/);
+  assert.match(source, /WORKSPACE_PANEL_MIN_WIDTH/);
+  assert.match(source, /WORKSPACE_PANEL_MAX_WIDTH/);
+  assert.match(source, /clampWorkspacePanelWidth/);
+  assert.match(source, /<ResizableDivider/);
 });

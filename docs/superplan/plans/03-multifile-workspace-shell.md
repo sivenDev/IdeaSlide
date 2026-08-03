@@ -2,7 +2,7 @@
 id: "03"
 title: "Deliver the Multi-file Workspace Shell"
 type: "required"
-status: "draft"
+status: "complete"
 summary: "Replace the archive-internal resource tree with a real file explorer, deduplicated document tabs, and dual-mode application sessions."
 source: "docs/superplan/human/prd.md"
 created: "2026-08-03"
@@ -42,8 +42,8 @@ parent: ""
 - `node --test tests/appStoreReducer.test.mjs`
 - Cases: canonical-path dedupe; ordered Tab close fallback; close others/right; recently closed reopen; Workspace path remap; standalone isolation; missing/protected status cannot become silently writable.
 
-- [ ] Add failing reducer contracts for mode and multi-session invariants.
-- [ ] Implement the new application/session store and replace the v2 resource provider.
+- [x] Add failing reducer contracts for mode and multi-session invariants.
+- [x] Implement the new application/session store and replace the v2 resource provider.
 
 ## Task 2: Build the Real Explorer and Registry-driven Creation Flow
 
@@ -70,9 +70,9 @@ parent: ""
 - `node --test tests/workspaceExplorerWiring.test.mjs tests/launchScreen.test.mjs tests/fileTypeRegistry.test.mjs`
 - Interaction cases: opening a directory writes nothing; directory rows toggle; supported files open; unsupported files remain safe; new items target selected directory; move cannot escape root; Delete requests Trash; width remains bounded.
 
-- [ ] Replace internal resource actions with real filesystem commands.
-- [ ] Add New File, Open Workspace, and registry-driven creation behavior under IdeaNote terminology.
-- [ ] Preserve the approved compact neutral/violet panel and accessible resize rail.
+- [x] Replace internal resource actions with real filesystem commands.
+- [x] Add New File, Open Workspace, and registry-driven creation behavior under IdeaNote terminology.
+- [x] Preserve the approved compact neutral/violet panel and accessible resize rail.
 
 ## Task 3: Add Multi-file Tabs and the Generic Editor Host
 
@@ -101,9 +101,9 @@ parent: ""
 - `node --test tests/documentTabs.test.mjs tests/documentEditorHost.test.mjs tests/editorChromeNavigation.test.mjs`
 - Interaction cases: one Tab per path; inactive file not parsed until activated; dirty close Save/Discard/Cancel; Save All isolates per-file failure; protected/missing/unsupported sessions offer only safe actions.
 
-- [ ] Add failing Tab, host, dirty-close, and unsupported-file contracts.
-- [ ] Implement the multi-file center shell and generic persistence actions.
-- [ ] Keep only the active heavy editor mounted.
+- [x] Add failing Tab, host, dirty-close, and unsupported-file contracts.
+- [x] Implement the multi-file center shell and generic persistence actions.
+- [x] Keep only the active heavy editor mounted.
 
 ## Task 4: Restore Workspace Tabs from Versioned Metadata
 
@@ -124,8 +124,8 @@ parent: ""
 - `node --test tests/workspaceState.test.mjs tests/appStoreReducer.test.mjs tests/documentTabs.test.mjs`
 - Cases: missing file skipped; corrupt state preserved and ignored; unsupported Tab restored without parsing; active fallback deterministic; restore creates no metadata in a new directory.
 
-- [ ] Implement schema-v1 restore and safe fallback behavior.
-- [ ] Persist lightweight session state without serializing document contents.
+- [x] Implement schema-v1 restore and safe fallback behavior.
+- [x] Persist lightweight session state without serializing document contents.
 
 ## Task 5: Verify the Dual-mode Shell
 
@@ -143,8 +143,16 @@ parent: ""
 - `git diff --check`
 - Tauri smoke: Open Workspace, open several files, create/rename/move/Trash, resize/collapse Explorer, restart and restore Tabs, then open a standalone `.is` without `.ideanote` creation.
 
-- [ ] Run full automated verification after focused suites pass.
-- [ ] Complete and record the native shell smoke matrix.
+- [x] Run full automated verification after focused suites pass.
+- [x] Complete and record the native shell smoke matrix.
+
+## Delivery Evidence
+
+- `node --test tests/*.test.mjs` — all 139 frontend/library regressions passed after the v2 Workspace store and resource host were replaced by the application-session reducer, real Explorer, multi-file Tabs, generic Editor Host, unsupported fallback, and lazy Workspace restore contracts.
+- `cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture` — all 56 Rust tests passed, including the new root-confined `open_workspace_document` registry path.
+- `npm run build` — TypeScript and Vite production build passed; only the existing Excalidraw import-overlap and large-chunk informational warnings remain.
+- `cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check` and `git diff --check` — passed.
+- Local shell smoke: `npm run dev` rendered the IdeaNote Home and standalone multi-file shell without Tauri globals, New File opened one dirty `Untitled.is` Tab, only the active generic host mounted, and no Agent placeholder appeared. `npm run tauri dev` compiled and launched the native binary; an already-running installed IdeaSlide window prevented reliable automation of that separate dev window, so filesystem interactions remain covered by temporary-directory Rust integration tests rather than user-file mutation.
 
 ## References
 - `docs/superplan/human/prd.md`

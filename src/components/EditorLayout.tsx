@@ -1,400 +1,391 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ask, message, save } from "@tauri-apps/plugin-dialog";
-import { useWorkspaceStore } from "../hooks/useWorkspaceStore";
-import { useAutoSave } from "../hooks/useAutoSave";
-import { useEditorSession } from "../hooks/useEditorSession";
+import { useCallback, useEffect, useState } from "react";
+import { ask, message } from "@tauri-apps/plugin-dialog";
+import { useAppStore } from "../hooks/useAppStore";
+import { getFileTypeDefinition } from "../lib/fileTypeRegistry";
 import {
-  createNewPresentation,
-  openFile,
-  saveFile,
   addRecentFile,
+  chooseAndOpenStandaloneDocument,
+  chooseStandaloneSavePath,
+  createWorkspaceDocument,
+  createWorkspaceFolder,
+  moveWorkspaceEntry,
+  openStandaloneDocument,
+  openWorkspace,
+  openWorkspaceDocument,
+  refreshWorkspace,
+  renameWorkspaceEntry,
+  saveStandaloneDocument,
+  saveWorkspaceDocument,
+  saveWorkspaceState,
+  trashWorkspaceEntry,
+  type OpenedDocument,
 } from "../lib/tauriCommands";
 import {
-  canvasContentToSlide,
-  getOrderedCanvasResources,
-  projectWorkspaceToSlides,
-} from "../lib/workspaceResources";
-import { extractCameras, reorderCameras, type Camera } from "../lib/cameraUtils";
+  createWorkspaceStateSnapshot,
+  findWorkspaceEntry,
+  mayPersistWorkspaceState,
+  restoreWorkspaceDocuments,
+} from "../lib/workspaceState";
 import {
   WORKSPACE_PANEL_DEFAULT_WIDTH,
   WORKSPACE_PANEL_MAX_WIDTH,
   WORKSPACE_PANEL_MIN_WIDTH,
   clampWorkspacePanelWidth,
 } from "../lib/panelSizing";
-import type { WorkspaceDocument } from "../types";
+import type { DocumentSession, WorkspaceEntry } from "../types";
 import { Toolbar } from "./Toolbar";
 import { WorkspaceExplorer } from "./WorkspaceExplorer";
-import { ResourceEditorHost } from "./ResourceEditorHost";
-import { CameraList } from "./CameraList";
+import { DocumentTabs } from "./DocumentTabs";
+import { DocumentEditorHost } from "./DocumentEditorHost";
 import { ResizableDivider } from "./ResizableDivider";
 
 interface EditorLayoutProps {
   onGoHome: () => void;
   readOnly?: boolean;
-  editorRefreshToken: number;
 }
 
-export function EditorLayout({ onGoHome, readOnly = false, editorRefreshToken }: EditorLayoutProps) {
-  const { state, dispatch } = useWorkspaceStore();
+function sessionFromOpened(
+  path: string,
+  mode: "workspace" | "standalone",
+  opened: OpenedDocument,
+  readOnly = false,
+): DocumentSession {
+  const displayName = path.replace(/\\/g, "/").split("/").pop() || "Untitled.is";
+  if (opened.status === "legacy-protected") {
+    return {
+      id: crypto.randomUUID(), mode, filePath: path, displayName,
+      fileType: opened.fileType, status: "legacy-protected",
+      protectedVersion: opened.version, message: opened.message,
+      isDirty: false, revision: 0, readOnly: true,
+    };
+  }
+  return {
+    id: crypto.randomUUID(), mode, filePath: path, displayName,
+    fileType: opened.fileType, status: readOnly ? "read-only" : "editable",
+    model: opened.model, isDirty: false, revision: 0, readOnly,
+  };
+}
+
+function joinWorkspacePath(root: string, relativePath: string): string {
+  return `${root.replace(/[\\/]$/, "")}/${relativePath}`;
+}
+
+export function EditorLayout({ onGoHome, readOnly = false }: EditorLayoutProps) {
+  const { state, dispatch } = useAppStore();
   const [isSaving, setIsSaving] = useState(false);
-  const [showWorkspace, setShowWorkspace] = useState(false);
+  const [showWorkspace, setShowWorkspace] = useState(state.mode === "workspace");
   const [workspacePanelWidth, setWorkspacePanelWidth] = useState(WORKSPACE_PANEL_DEFAULT_WIDTH);
   const [isResizingWorkspace, setIsResizingWorkspace] = useState(false);
-  const [showCameras, setShowCameras] = useState(false);
-  const [cameraDrawingRequestToken, setCameraDrawingRequestToken] = useState(0);
-  const [selectedCameraId, setSelectedCameraId] = useState<string>();
-  const excalidrawApiRef = useRef<any>(null);
+  const activeDocument = state.documents.find((document) => document.id === state.activeSessionId);
+  const effectiveReadOnly = readOnly || Boolean(activeDocument?.readOnly) || activeDocument?.status === "read-only";
 
-  const workspace = useMemo<WorkspaceDocument>(() => ({
-    resources: state.resources,
-    contents: state.contents,
-    activeResourceId: state.activeResourceId,
-    manifestExtra: state.manifestExtra,
-  }), [state.resources, state.contents, state.activeResourceId, state.manifestExtra]);
-  const activeResource = state.resources.find((resource) => resource.id === state.activeResourceId)
-    ?? state.resources[0];
-  const canvasResources = useMemo(
-    () => getOrderedCanvasResources(state.resources),
-    [state.resources],
-  );
-  const sessionCanvasResource = activeResource?.type === "canvas"
-    ? activeResource
-    : canvasResources[0];
-  const currentSlide = useMemo(
-    () => canvasContentToSlide(workspace, sessionCanvasResource),
-    [workspace, sessionCanvasResource],
-  );
+  useEffect(() => setShowWorkspace(state.mode === "workspace"), [state.mode]);
 
-  const {
-    autoSaveVersion,
-    draft,
-    flushDraft,
-    getContentsForPersistence,
-    hasPendingCommit,
-    updateDraft,
-  } = useEditorSession({
-    slide: currentSlide,
-    resourceId: sessionCanvasResource.id,
-    contents: state.contents,
-    onCommit: (resourceId, payload) => {
-      dispatch({
-        type: "COMMIT_CANVAS",
-        payload: { resourceId, slide: payload.slide },
+  useEffect(() => {
+    if (!activeDocument || activeDocument.status !== "loading") return;
+    let cancelled = false;
+    const load = activeDocument.mode === "workspace" && state.workspace
+      ? openWorkspaceDocument(state.workspace.root, activeDocument.filePath)
+      : openStandaloneDocument(activeDocument.filePath);
+    load.then((opened) => {
+      if (cancelled) return;
+      if (opened.status === "editable") {
+        dispatch({
+          type: "SET_DOCUMENT_MODEL",
+          sessionId: activeDocument.id,
+          model: opened.model,
+          status: activeDocument.readOnly ? "read-only" : "editable",
+        });
+      } else {
+        dispatch({ type: "SET_DOCUMENT_STATUS", sessionId: activeDocument.id, status: "legacy-protected", message: opened.message });
+      }
+    }).catch((cause) => {
+      if (!cancelled) dispatch({
+        type: "SET_DOCUMENT_STATUS",
+        sessionId: activeDocument.id,
+        status: "error",
+        message: cause instanceof Error ? cause.message : String(cause),
       });
-    },
-    onDirty: () => {
-      if (!readOnly) dispatch({ type: "MARK_DIRTY" });
-    },
-  });
-  const updateDraftRef = useRef(updateDraft);
+    });
+    return () => { cancelled = true; };
+  }, [activeDocument, dispatch, state.workspace]);
+
   useEffect(() => {
-    updateDraftRef.current = updateDraft;
-  }, [updateDraft]);
+    if (!mayPersistWorkspaceState(state.workspace)) return;
+    const timer = window.setTimeout(() => {
+      if (!state.workspace) return;
+      saveWorkspaceState(state.workspace.root, createWorkspaceStateSnapshot(state)).catch(console.error);
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [state.activeSessionId, state.documents, state.workspace]);
 
-  const getWorkspaceForPersistence = useCallback((): WorkspaceDocument => ({
-    ...workspace,
-    contents: getContentsForPersistence(),
-  }), [getContentsForPersistence, workspace]);
-  const workspaceForPersistence = useMemo(
-    () => getWorkspaceForPersistence(),
-    [autoSaveVersion, getWorkspaceForPersistence],
-  );
-  const slidesForPersistence = useMemo(
-    () => projectWorkspaceToSlides(workspaceForPersistence),
-    [workspaceForPersistence],
-  );
-  const effectiveIsDirty = !readOnly && (state.isDirty || hasPendingCommit);
+  const refreshTree = useCallback(async () => {
+    if (!state.workspace) return;
+    const entries = await refreshWorkspace(state.workspace.root);
+    dispatch({ type: "SET_WORKSPACE_ENTRIES", entries });
+  }, [dispatch, state.workspace]);
 
-  useAutoSave({
-    filePath: state.filePath,
-    workspace: workspaceForPersistence,
-    slides: slidesForPersistence,
-    isDirty: effectiveIsDirty,
-    onSaveStart: () => {
-      flushDraft();
-      setIsSaving(true);
-      return getWorkspaceForPersistence();
-    },
-    onSaveComplete: () => {
-      setIsSaving(false);
-      dispatch({ type: "MARK_SAVED" });
-    },
-    onSaveError: (error) => {
-      setIsSaving(false);
-      console.error("Auto-save failed:", error);
-    },
-  });
+  const openEntry = useCallback((entry: WorkspaceEntry) => {
+    if (!state.workspace || entry.kind !== "file") return;
+    dispatch({
+      type: "OPEN_DOCUMENT",
+      document: {
+        id: crypto.randomUUID(),
+        mode: "workspace",
+        filePath: entry.path,
+        displayName: entry.name,
+        fileType: entry.fileType ?? "unsupported",
+        status: entry.fileType ? "loading" : "unsupported",
+        message: entry.fileType ? undefined : "This file type is not editable in the current IdeaNote MVP.",
+        readOnly: state.workspace.readOnly || entry.readOnly,
+        sourceModified: entry.modified ?? undefined,
+        isDirty: false,
+        revision: 0,
+      },
+    });
+  }, [dispatch, state.workspace]);
 
-  const cameras = useMemo(
-    () => activeResource?.type === "canvas" ? extractCameras(draft.elements) : [],
-    [activeResource?.type, draft.elements],
-  );
-  const activeCameraId = selectedCameraId && cameras.some((camera) => camera.id === selectedCameraId)
-    ? selectedCameraId
-    : undefined;
+  const handleCreateFolder = useCallback(async (parentPath: string) => {
+    if (!state.workspace) throw new Error("No Workspace is open");
+    const result = await createWorkspaceFolder(state.workspace.root, parentPath);
+    await refreshTree();
+    dispatch({ type: "SELECT_WORKSPACE_PATH", path: result.value.path });
+    return result.value;
+  }, [dispatch, refreshTree, state.workspace]);
 
-  useEffect(() => setSelectedCameraId(undefined), [activeResource?.id]);
-  useEffect(() => {
-    setSelectedCameraId((previous) =>
-      previous && cameras.some((camera) => camera.id === previous) ? previous : undefined,
-    );
-  }, [cameras]);
-
-  const canvasInitialScene = useMemo(() => ({
-    ...currentSlide,
-    elements: currentSlide.elements,
-    appState: currentSlide.appState,
-    files: currentSlide.files,
-  }), [currentSlide.id]);
-  const fileName = state.filePath?.split("/").pop();
-
-  function handleNewIdea() {
-    const { workspace: nextWorkspace } = createNewPresentation();
-    dispatch({ type: "LOAD_WORKSPACE", payload: { workspace: nextWorkspace } });
-  }
-
-  async function handleOpenFile() {
-    try {
-      const { path, workspace: nextWorkspace } = await openFile();
-      dispatch({ type: "LOAD_WORKSPACE", payload: { workspace: nextWorkspace, filePath: path } });
-    } catch (error) {
-      console.error("Failed to open file:", error);
+  const handleCreateDocument = useCallback(async (parentPath: string, fileType: string) => {
+    if (!state.workspace) throw new Error("No Workspace is open");
+    const result = await createWorkspaceDocument(state.workspace.root, parentPath, fileType);
+    if (!result.metadataError) dispatch({ type: "MARK_WORKSPACE_METADATA_EXISTS" });
+    await refreshTree();
+    dispatch({ type: "SELECT_WORKSPACE_PATH", path: result.value.path });
+    openEntry(result.value);
+    if (result.metadataError) {
+      await message(`The file was created, but Workspace state could not be saved: ${result.metadataError}`, {
+        title: "Workspace State Warning",
+        kind: "warning",
+      });
     }
-  }
+    return result.value;
+  }, [dispatch, openEntry, refreshTree, state.workspace]);
 
-  async function handleSave() {
-    if (!state.filePath) {
-      await handleSaveAs();
-      return;
-    }
+  const handleRename = useCallback(async (path: string, newName: string) => {
+    if (!state.workspace) return;
+    const renamed = await renameWorkspaceEntry(state.workspace.root, path, newName);
+    dispatch({ type: "REMAP_WORKSPACE_PATH", fromPath: path, toPath: renamed.path });
+    dispatch({ type: "SELECT_WORKSPACE_PATH", path: renamed.path });
+    await refreshTree();
+  }, [dispatch, refreshTree, state.workspace]);
+
+  const handleMove = useCallback(async (path: string, destinationParentPath: string) => {
+    if (!state.workspace) return;
+    const moved = await moveWorkspaceEntry(state.workspace.root, path, destinationParentPath);
+    dispatch({ type: "REMAP_WORKSPACE_PATH", fromPath: path, toPath: moved.path });
+    dispatch({ type: "SELECT_WORKSPACE_PATH", path: moved.path });
+    await refreshTree();
+  }, [dispatch, refreshTree, state.workspace]);
+
+  const handleTrash = useCallback(async (path: string) => {
+    if (!state.workspace) return;
+    await trashWorkspaceEntry(state.workspace.root, path);
+    state.documents.filter((document) => document.mode === "workspace" && (document.filePath === path || document.filePath.startsWith(`${path}/`)))
+      .forEach((document) => dispatch({ type: "SET_DOCUMENT_STATUS", sessionId: document.id, status: "missing", message: "The file was moved to Trash." }));
+    await refreshTree();
+  }, [dispatch, refreshTree, state.documents, state.workspace]);
+
+  const saveDocument = useCallback(async (document: DocumentSession, forceSaveAs = false): Promise<boolean> => {
+    if (!document.model || document.status === "legacy-protected" || document.status === "unsupported" || document.status === "missing") return false;
     try {
       setIsSaving(true);
-      flushDraft();
-      await saveFile(state.filePath, getWorkspaceForPersistence());
-      dispatch({ type: "MARK_SAVED" });
-      addRecentFile(state.filePath).catch(console.error);
-    } catch (error) {
-      console.error("Failed to save:", error);
-      await message(`Failed to save file: ${error instanceof Error ? error.message : String(error)}`, {
-        title: "Save Error",
-        kind: "error",
-      });
+      if (document.mode === "workspace" && state.workspace && document.filePath && !forceSaveAs) {
+        const result = await saveWorkspaceDocument(state.workspace.root, document.filePath, document.model);
+        dispatch({ type: "MARK_DOCUMENT_SAVED", sessionId: document.id });
+        if (!result.metadataError) dispatch({ type: "MARK_WORKSPACE_METADATA_EXISTS" });
+        if (result.metadataError) {
+          await message(`The document was saved, but Workspace state could not be saved: ${result.metadataError}`, { title: "Workspace State Warning", kind: "warning" });
+        }
+        return true;
+      }
+      let path = forceSaveAs ? "" : document.filePath;
+      if (!path) path = await chooseStandaloneSavePath(document.displayName || "Untitled.is") ?? "";
+      if (!path) return false;
+      await saveStandaloneDocument(path, document.model);
+      dispatch({ type: "UPDATE_DOCUMENT_PATH", sessionId: document.id, filePath: path, mode: "standalone" });
+      dispatch({ type: "MARK_DOCUMENT_SAVED", sessionId: document.id });
+      addRecentFile(path).catch(console.error);
+      return true;
+    } catch (cause) {
+      await message(`Failed to save file: ${cause instanceof Error ? cause.message : String(cause)}`, { title: "Save Error", kind: "error" });
+      return false;
     } finally {
       setIsSaving(false);
     }
-  }
+  }, [dispatch, state.workspace]);
 
-  async function handleSaveAs() {
-    try {
-      const filePath = await save({
-        filters: [{ name: "IdeaSlide", extensions: ["is"] }],
-        defaultPath: fileName || "Untitled.is",
-      });
-      if (!filePath) return;
-      flushDraft();
-      const nextWorkspace = getWorkspaceForPersistence();
-      await saveFile(filePath, nextWorkspace);
-      dispatch({ type: "LOAD_WORKSPACE", payload: { workspace: nextWorkspace, filePath } });
-      addRecentFile(filePath).catch(console.error);
-    } catch (error) {
-      console.error("Failed to save file:", error);
+  const handleSave = useCallback(() => activeDocument ? saveDocument(activeDocument) : Promise.resolve(false), [activeDocument, saveDocument]);
+  const handleSaveAs = useCallback(() => activeDocument ? saveDocument(activeDocument, true) : Promise.resolve(false), [activeDocument, saveDocument]);
+  const handleSaveAll = useCallback(async () => {
+    const results: string[] = [];
+    for (const document of state.documents.filter((item) => item.isDirty)) {
+      if (!await saveDocument(document)) results.push(document.displayName || document.filePath || "Untitled.is");
     }
-  }
+    if (results.length > 0) await message(`Some files could not be saved:\n${results.join("\n")}`, { title: "Save All", kind: "warning" });
+  }, [saveDocument, state.documents]);
 
-  const handleSaveCallback = useCallback(handleSave, [
-    state.filePath,
-    flushDraft,
-    getWorkspaceForPersistence,
-    dispatch,
-  ]);
+  const requestClose = useCallback(async (sessionId: string): Promise<boolean> => {
+    const document = state.documents.find((item) => item.id === sessionId);
+    if (!document) return true;
+    if (document.isDirty) {
+      const shouldSave = await ask(`Save changes to “${document.displayName || "Untitled.is"}” before closing?`, {
+        title: "Unsaved Changes", kind: "warning", okLabel: "Save", cancelLabel: "More Options",
+      });
+      if (shouldSave) {
+        if (!await saveDocument(document)) return false;
+      } else {
+        const discard = await ask("Discard the unsaved changes?", {
+          title: "Unsaved Changes", kind: "warning", okLabel: "Discard", cancelLabel: "Cancel",
+        });
+        if (!discard) return false;
+      }
+    }
+    dispatch({ type: "CLOSE_DOCUMENT", sessionId });
+    return true;
+  }, [dispatch, saveDocument, state.documents]);
+
+  const closeCollection = useCallback(async (sessionIds: string[]) => {
+    for (const sessionId of sessionIds) {
+      if (!await requestClose(sessionId)) break;
+    }
+  }, [requestClose]);
+
+  const handleNewFile = useCallback(async () => {
+    if (state.workspace) {
+      const selected = state.workspace.selectedPath
+        ? findWorkspaceEntry(state.workspace.entries, state.workspace.selectedPath)
+        : undefined;
+      const parentPath = selected?.kind === "directory" ? selected.path : selected?.path.includes("/") ? selected.path.slice(0, selected.path.lastIndexOf("/")) : "";
+      await handleCreateDocument(parentPath, "ideasketch");
+      return;
+    }
+    const definition = getFileTypeDefinition("ideasketch");
+    if (!definition) return;
+    dispatch({
+      type: "OPEN_DOCUMENT",
+      document: {
+        id: crypto.randomUUID(), mode: "standalone", filePath: "", displayName: "Untitled.is",
+        fileType: definition.type, status: "editable", model: await definition.createEmpty(), isDirty: true, revision: 1,
+      },
+    });
+  }, [dispatch, handleCreateDocument, state.workspace]);
+
+  const handleOpenFile = useCallback(async () => {
+    const { path, document } = await chooseAndOpenStandaloneDocument();
+    dispatch({ type: "OPEN_DOCUMENT", document: sessionFromOpened(path, "standalone", document) });
+    addRecentFile(path).catch(console.error);
+  }, [dispatch]);
+
+  const handleOpenWorkspace = useCallback(async () => {
+    const workspace = await openWorkspace();
+    const restored = restoreWorkspaceDocuments(workspace);
+    dispatch({ type: "OPEN_WORKSPACE", workspace, restoredDocuments: restored.documents, activePath: restored.activePath });
+  }, [dispatch]);
+
+  const handleGoHome = useCallback(async () => {
+    if (state.documents.some((document) => document.isDirty)) {
+      const leave = await ask("There are unsaved files. Leave the current session?", { title: "Unsaved Changes", kind: "warning", okLabel: "Leave", cancelLabel: "Stay" });
+      if (!leave) return;
+    }
+    onGoHome();
+  }, [onGoHome, state.documents]);
+
   useEffect(() => {
     const isMac = navigator.platform.toUpperCase().includes("MAC");
-    const handleKeyDown = async (event: KeyboardEvent) => {
-      if ((isMac ? event.metaKey : event.ctrlKey) && event.key.toLowerCase() === "s") {
-        event.preventDefault();
-        await handleSaveCallback();
-      }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!(isMac ? event.metaKey : event.ctrlKey) || event.key.toLowerCase() !== "s") return;
+      event.preventDefault();
+      if (event.altKey) void handleSaveAll();
+      else if (event.shiftKey) void handleSaveAs();
+      else void handleSave();
     };
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [handleSaveCallback]);
+  }, [handleSave, handleSaveAll, handleSaveAs]);
 
-  const handleGoHome = useCallback(async () => {
-    if (effectiveIsDirty) {
-      try {
-        const shouldLeave = await ask("You have unsaved changes. Leave without saving?", {
-          title: "Unsaved Changes",
-          kind: "warning",
-          okLabel: "Leave",
-          cancelLabel: "Stay",
-        });
-        if (!shouldLeave) return;
-      } catch (error) {
-        console.error("Dialog error:", error);
-        return;
-      }
-    }
-    flushDraft();
-    onGoHome();
-  }, [effectiveIsDirty, flushDraft, onGoHome]);
-
-  const handleSelectResource = useCallback((resourceId: string) => {
-    flushDraft();
-    dispatch({ type: "SET_ACTIVE_RESOURCE", payload: { resourceId } });
-  }, [dispatch, flushDraft]);
-  const handleAddResource = useCallback((resourceType: string, parentId: string | null) => {
-    const resourceId = crypto.randomUUID();
-    flushDraft();
-    dispatch({ type: "ADD_RESOURCE", payload: { resourceType, resourceId, parentId } });
-    return resourceId;
-  }, [dispatch, flushDraft]);
-  const handleMoveResource = useCallback((resourceId: string, parentId: string | null, index: number) => {
-    flushDraft();
-    dispatch({ type: "MOVE_RESOURCE", payload: { resourceId, parentId, index } });
-  }, [dispatch, flushDraft]);
-  const handleDeleteResource = useCallback(async (resourceId: string) => {
-    const resource = state.resources.find((item) => item.id === resourceId);
-    if (!resource) return;
-    const hasChildren = state.resources.some((item) => item.parentId === resourceId);
-    if (resource.type === "folder" && hasChildren) {
-      const confirmed = await ask("Delete this folder and all supported resources inside it?", {
-        title: "Delete Folder",
-        kind: "warning",
-        okLabel: "Delete",
-        cancelLabel: "Cancel",
-      });
-      if (!confirmed) return;
-    }
-    flushDraft();
-    dispatch({ type: "DELETE_RESOURCE", payload: { resourceId } });
-  }, [dispatch, flushDraft, state.resources]);
-
-  const handleSelectCamera = useCallback((camera: Camera) => {
-    const api = excalidrawApiRef.current;
-    if (!api) return;
-    setSelectedCameraId(camera.id);
-    const element = api.getSceneElements().find((item: any) => item.id === camera.id);
-    if (!element) return;
-    api.setActiveTool({ type: "selection" });
-    api.updateScene({ appState: { selectedElementIds: { [camera.id]: true } } });
-    api.scrollToContent([element], { fitToContent: true, animate: true, duration: 300 });
-  }, []);
-  const handleDeleteCamera = useCallback((cameraId: string) => {
-    const api = excalidrawApiRef.current;
-    if (!api) return;
-    if (activeCameraId === cameraId) setSelectedCameraId(undefined);
-    const elements = draft.elements.filter((element: any) => element.id !== cameraId);
-    api.updateScene({
-      elements,
-      ...(activeCameraId === cameraId ? { appState: { selectedElementIds: {} } } : {}),
-    });
-  }, [activeCameraId, draft.elements]);
-  const handleReorderCameras = useCallback((orderedCameraIds: string[]) => {
-    const api = excalidrawApiRef.current;
-    if (!api) return;
-    api.updateScene({ elements: reorderCameras(draft.elements, orderedCameraIds) });
-  }, [draft.elements]);
-  const handleToggleCameras = useCallback(() => {
-    setShowCameras((visible) => !visible);
-  }, []);
-  const handleRequestCameraDrawing = useCallback(() => {
-    setShowCameras(true);
-    setCameraDrawingRequestToken((token) => token + 1);
-  }, []);
-  const handleStartPresentation = useCallback((mode: "preview" | "fullscreen") => {
-    flushDraft();
-    dispatch({ type: "START_PRESENTATION", payload: { mode } });
-  }, [dispatch, flushDraft]);
-  const handleStartPreview = useCallback(
-    () => handleStartPresentation("preview"),
-    [handleStartPresentation],
-  );
-  const handleStartFullscreen = useCallback(
-    () => handleStartPresentation("fullscreen"),
-    [handleStartPresentation],
-  );
+  const activeFullPath = activeDocument?.mode === "workspace" && state.workspace
+    ? joinWorkspacePath(state.workspace.root, activeDocument.filePath)
+    : activeDocument?.filePath;
+  const dirty = state.documents.some((document) => document.isDirty);
 
   return (
     <div className="idea-slide-editor-shell flex h-screen flex-col">
       <Toolbar
-        fileName={fileName}
-        isDirty={effectiveIsDirty}
+        fileName={activeDocument?.displayName || state.workspace?.name}
+        isDirty={dirty}
         isSaving={isSaving}
-        onNewIdea={handleNewIdea}
-        onOpenFile={handleOpenFile}
-        onSave={handleSave}
-        onGoHome={handleGoHome}
+        onNewFile={() => void handleNewFile()}
+        onOpenFile={() => void handleOpenFile()}
+        onOpenWorkspace={() => void handleOpenWorkspace()}
+        onSave={() => void handleSave()}
+        onSaveAs={() => void handleSaveAs()}
+        onSaveAll={() => void handleSaveAll()}
+        onGoHome={() => void handleGoHome()}
       />
-
-      {state.activeSessions.size > 0 && (
-        <div className="flex items-center gap-2 border-b border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-700">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-blue-500" />
-          Streaming: {Array.from(state.activeSessions.values()).map((session) => `${session.elements.length} elements`).join(", ")}
-        </div>
-      )}
-
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div
-          className={`h-full flex-shrink-0 overflow-hidden ${isResizingWorkspace ? "" : "transition-[width] duration-200"}`}
-          style={{ width: showWorkspace ? workspacePanelWidth : 0 }}
-        >
-          <div className="h-full" style={{ width: workspacePanelWidth }}>
-            <WorkspaceExplorer
-              resources={state.resources}
-              activeResourceId={state.activeResourceId}
-              readOnly={readOnly}
-              onSelect={handleSelectResource}
-              onAdd={handleAddResource}
-              onRename={(resourceId, name) => dispatch({ type: "RENAME_RESOURCE", payload: { resourceId, name } })}
-              onMove={handleMoveResource}
-              onDelete={handleDeleteResource}
+        {state.workspace && (
+          <>
+            <div className={`h-full flex-shrink-0 overflow-hidden ${isResizingWorkspace ? "" : "transition-[width] duration-200"}`} style={{ width: showWorkspace ? workspacePanelWidth : 0 }}>
+              <div className="h-full" style={{ width: workspacePanelWidth }}>
+                <WorkspaceExplorer
+                  rootName={state.workspace.name}
+                  entries={state.workspace.entries}
+                  selectedPath={state.workspace.selectedPath}
+                  expandedPaths={state.workspace.expandedPaths}
+                  readOnly={readOnly || state.workspace.readOnly}
+                  onSelect={(path) => dispatch({ type: "SELECT_WORKSPACE_PATH", path })}
+                  onOpen={openEntry}
+                  onCreateFolder={handleCreateFolder}
+                  onCreateDocument={handleCreateDocument}
+                  onRename={handleRename}
+                  onMove={handleMove}
+                  onTrash={handleTrash}
+                  onRefresh={refreshTree}
+                  onExpandedPathsChange={(paths) => dispatch({ type: "SET_EXPANDED_PATHS", paths })}
+                />
+              </div>
+            </div>
+            <ResizableDivider
+              side="left"
+              isVisible={showWorkspace}
+              size={workspacePanelWidth}
+              minSize={WORKSPACE_PANEL_MIN_WIDTH}
+              maxSize={WORKSPACE_PANEL_MAX_WIDTH}
+              onResize={(width) => setWorkspacePanelWidth(clampWorkspacePanelWidth(width))}
+              onResizeStart={() => setIsResizingWorkspace(true)}
+              onResizeEnd={() => setIsResizingWorkspace(false)}
+              onToggle={() => setShowWorkspace((visible) => !visible)}
             />
-          </div>
-        </div>
-        <ResizableDivider
-          side="left"
-          isVisible={showWorkspace}
-          size={workspacePanelWidth}
-          minSize={WORKSPACE_PANEL_MIN_WIDTH}
-          maxSize={WORKSPACE_PANEL_MAX_WIDTH}
-          onResize={(nextWidth) => setWorkspacePanelWidth(clampWorkspacePanelWidth(nextWidth))}
-          onResizeStart={() => setIsResizingWorkspace(true)}
-          onResizeEnd={() => setIsResizingWorkspace(false)}
-          onToggle={() => setShowWorkspace((visible) => !visible)}
-        />
-
-        <main className="relative min-w-0 flex-1 overflow-hidden">
-          <div className="absolute inset-0">
-            <ResourceEditorHost
-              resource={activeResource}
-              slide={canvasInitialScene}
-              onChange={(elements, appState, files) => updateDraftRef.current(elements, appState, files)}
-              onApiReady={(api) => { excalidrawApiRef.current = api; }}
-              editorRefreshToken={editorRefreshToken}
-              cameraCount={cameras.length}
-              isCameraListOpen={showCameras}
-              onToggleCameras={handleToggleCameras}
-              cameraDrawingRequestToken={cameraDrawingRequestToken}
-            />
+          </>
+        )}
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <DocumentTabs
+            documents={state.documents}
+            activeSessionId={state.activeSessionId}
+            recentlyClosedCount={state.recentlyClosed.length}
+            onActivate={(sessionId) => dispatch({ type: "ACTIVATE_DOCUMENT", sessionId })}
+            onRequestClose={(sessionId) => void requestClose(sessionId)}
+            onCloseOthers={(sessionId) => void closeCollection(state.documents.filter((document) => document.id !== sessionId).map((document) => document.id))}
+            onCloseRight={(sessionId) => {
+              const index = state.documents.findIndex((document) => document.id === sessionId);
+              void closeCollection(state.documents.slice(index + 1).map((document) => document.id));
+            }}
+            onReopenLast={() => dispatch({ type: "REOPEN_LAST_DOCUMENT" })}
+          />
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <DocumentEditorHost document={activeDocument} fullPath={activeFullPath} />
           </div>
         </main>
-
-        <ResizableDivider side="right" isVisible={showCameras} onToggle={() => setShowCameras((visible) => !visible)} />
-        <div className={`h-full flex-shrink-0 overflow-hidden transition-[width] duration-200 ${showCameras ? "w-[244px]" : "w-0"}`}>
-          <div className="h-full w-[244px]">
-            <CameraList
-              cameras={cameras}
-              activeCameraId={activeCameraId}
-              onCameraSelect={handleSelectCamera}
-              onCameraDelete={handleDeleteCamera}
-              onReorder={handleReorderCameras}
-              onAddCamera={readOnly ? undefined : handleRequestCameraDrawing}
-              onStartPreview={handleStartPreview}
-              onStartFullscreen={handleStartFullscreen}
-            />
-          </div>
-        </div>
       </div>
+      {effectiveReadOnly && <div className="absolute bottom-3 right-3 rounded-full bg-gray-900/80 px-3 py-1.5 text-[11px] font-medium text-white">Read only</div>}
     </div>
   );
 }

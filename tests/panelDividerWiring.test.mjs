@@ -34,13 +34,13 @@ test('divider supports optional pointer resizing without requiring it for the fi
   assert.doesNotMatch(editor, /side="right"[\s\S]*onResize=/);
 });
 
-test('workspace and cameras panels start collapsed while both divider toggles remain mounted', async () => {
+test('Workspace Explorer is visible by default in Workspace mode and remains collapsible', async () => {
   const editor = await readFile(new URL('../src/components/EditorLayout.tsx', import.meta.url), 'utf8');
 
-  assert.match(editor, /const \[showWorkspace, setShowWorkspace\] = useState\(false\)/);
-  assert.match(editor, /const \[showCameras, setShowCameras\] = useState\(false\)/);
+  assert.match(editor, /useState\(state\.mode === "workspace"\)/);
+  assert.match(editor, /setShowWorkspace\(state\.mode === "workspace"\)/);
   assert.match(editor, /<ResizableDivider[\s\S]*side="left"[\s\S]*isVisible=\{showWorkspace\}/);
-  assert.match(editor, /<ResizableDivider side="right" isVisible=\{showCameras\}/);
+  assert.doesNotMatch(editor, /side="right"/);
 });
 
 test('resize rail styling exposes a full-height interaction gutter and visible active state', async () => {

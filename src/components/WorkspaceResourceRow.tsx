@@ -1,70 +1,52 @@
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
-import type { WorkspaceResource } from "../types";
+import type { WorkspaceEntry } from "../types";
 import { Input } from "./ui/Input";
-import { getResourceTypeDefinition, isRegisteredResourceType } from "../lib/resourceTypeRegistry";
 
 interface WorkspaceResourceRowProps {
-  resource: WorkspaceResource;
+  entry: WorkspaceEntry;
   depth: number;
-  isActive: boolean;
+  isSelected: boolean;
   isExpanded: boolean;
-  hasChildren: boolean;
-  readOnly?: boolean;
   startRenaming?: boolean;
+  readOnly?: boolean;
   onRenameStarted?: () => void;
   onSelect: () => void;
+  onOpen: () => void;
   onToggleExpanded: () => void;
   onRename: (name: string) => void;
-  onDelete: () => void;
-  onDropResource: (resourceId: string, target: WorkspaceResource) => void;
+  onTrash: () => void;
+  onMove: (sourcePath: string, destinationParentPath: string) => void;
 }
 
-function ResourceIcon({ type, expanded }: { type: string; expanded: boolean }) {
-  const icon = getResourceTypeDefinition(type)?.icon ?? "file";
-  if (icon === "folder") {
-    return (
-      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7">
-        <path d={expanded ? "M3 7h7l2 2h9l-2 10H4L3 7Z" : "M3 6h7l2 2h9v11H3V6Z"} />
-      </svg>
-    );
+function EntryIcon({ entry, expanded }: { entry: WorkspaceEntry; expanded: boolean }) {
+  if (entry.kind === "directory") {
+    return <span aria-hidden="true" className="text-[15px]">{expanded ? "▾" : "▸"}</span>;
   }
-  if (icon === "canvas") {
-    return (
-      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7">
-        <rect x="4" y="4" width="16" height="16" rx="2" />
-        <path d="m7 16 3-3 2 2 4-5 2 3" />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7">
-      <path d="M6 3h9l4 4v14H6V3Z" />
-      <path d="M15 3v5h5" />
-    </svg>
-  );
+  if (entry.kind === "symlink") return <span aria-hidden="true">↗</span>;
+  return <span aria-hidden="true">{entry.fileType === "ideasketch" ? "◇" : "·"}</span>;
 }
 
 export function WorkspaceResourceRow({
-  resource,
+  entry,
   depth,
-  isActive,
+  isSelected,
   isExpanded,
-  hasChildren,
-  readOnly = false,
   startRenaming = false,
+  readOnly = false,
   onRenameStarted,
   onSelect,
+  onOpen,
   onToggleExpanded,
   onRename,
-  onDelete,
-  onDropResource,
+  onTrash,
+  onMove,
 }: WorkspaceResourceRowProps) {
-  const canMutate = !readOnly && isRegisteredResourceType(resource.type);
+  const canMutate = !readOnly && !entry.readOnly && entry.kind !== "symlink";
   const [isRenaming, setIsRenaming] = useState(false);
-  const [draftName, setDraftName] = useState(resource.name);
+  const [draftName, setDraftName] = useState(entry.name);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => setDraftName(resource.name), [resource.name]);
+  useEffect(() => setDraftName(entry.name), [entry.name]);
   useEffect(() => {
     if (!startRenaming || !canMutate) return;
     setIsRenaming(true);
@@ -76,8 +58,8 @@ export function WorkspaceResourceRow({
 
   const commitRename = () => {
     const name = draftName.trim();
-    if (name && name !== resource.name) onRename(name);
-    setDraftName(name || resource.name);
+    if (name && name !== entry.name) onRename(name);
+    setDraftName(name || entry.name);
     setIsRenaming(false);
   };
 
@@ -87,108 +69,87 @@ export function WorkspaceResourceRow({
       setIsRenaming(true);
     } else if (event.key === "Enter") {
       event.preventDefault();
-      onSelect();
-    } else if (event.key === "ArrowRight" && resource.type === "folder" && !isExpanded) {
+      entry.kind === "directory" ? onToggleExpanded() : onOpen();
+    } else if (event.key === "ArrowRight" && entry.kind === "directory" && !isExpanded) {
       onToggleExpanded();
-    } else if (event.key === "ArrowLeft" && resource.type === "folder" && isExpanded) {
+    } else if (event.key === "ArrowLeft" && entry.kind === "directory" && isExpanded) {
       onToggleExpanded();
     }
   };
 
+  const destinationParentPath = entry.kind === "directory"
+    ? entry.path
+    : entry.path.includes("/") ? entry.path.slice(0, entry.path.lastIndexOf("/")) : "";
+
   const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    const resourceId = event.dataTransfer.getData("application/x-ideaslide-resource");
-    if (resourceId && resourceId !== resource.id) onDropResource(resourceId, resource);
+    const sourcePath = event.dataTransfer.getData("application/x-ideanote-path");
+    if (sourcePath && sourcePath !== entry.path) onMove(sourcePath, destinationParentPath);
   };
 
   return (
     <div
       role="treeitem"
-      aria-selected={isActive}
-      aria-expanded={resource.type === "folder" ? isExpanded : undefined}
+      aria-selected={isSelected}
+      aria-expanded={entry.kind === "directory" ? isExpanded : undefined}
       tabIndex={0}
       draggable={canMutate}
+      className={`idea-slide-resource-row group ${isSelected ? "is-active" : ""}`}
+      style={{ paddingLeft: 7 + depth * 15 }}
+      onClick={() => {
+        onSelect();
+        if (entry.kind === "file") onOpen();
+      }}
+      onDoubleClick={() => entry.kind === "directory" && onToggleExpanded()}
+      onKeyDown={handleKeyDown}
       onDragStart={(event) => {
         event.dataTransfer.effectAllowed = "move";
-        event.dataTransfer.setData("application/x-ideaslide-resource", resource.id);
+        event.dataTransfer.setData("application/x-ideanote-path", entry.path);
       }}
       onDragOver={(event) => {
-        event.preventDefault();
-        event.dataTransfer.dropEffect = "move";
+        if (entry.kind !== "symlink") event.preventDefault();
       }}
       onDrop={handleDrop}
-      onKeyDown={handleKeyDown}
-      onDoubleClick={() => canMutate && setIsRenaming(true)}
-      className={`idea-slide-resource-row group ${isActive ? "is-active" : ""}`}
-      style={{ paddingLeft: 6 + depth * 16 }}
     >
       <button
         type="button"
-        aria-label={isExpanded ? "Collapse folder" : "Expand folder"}
+        aria-label={isExpanded ? "Collapse Folder" : "Expand Folder"}
+        className={`idea-slide-resource-chevron ${entry.kind !== "directory" ? "invisible" : ""}`}
         onClick={(event) => {
           event.stopPropagation();
-          if (resource.type === "folder") onToggleExpanded();
+          onToggleExpanded();
         }}
-        className={`idea-slide-resource-chevron ${
-          resource.type !== "folder" || !hasChildren ? "invisible" : ""
-        }`}
       >
         {isExpanded ? "⌄" : "›"}
       </button>
-
-      <button
-        type="button"
-        onClick={onSelect}
-        className="flex min-w-0 flex-1 items-center gap-2 text-left"
-      >
-        <span className={`idea-slide-resource-icon ${resource.type === "folder" ? "is-folder" : ""}`}>
-          <ResourceIcon type={resource.type} expanded={isExpanded} />
-        </span>
-        {isRenaming ? (
-          <Input
-            ref={inputRef}
-            value={draftName}
-            onChange={(event) => setDraftName(event.target.value)}
-            onBlur={commitRename}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") commitRename();
-              if (event.key === "Escape") {
-                setDraftName(resource.name);
-                setIsRenaming(false);
-              }
-              event.stopPropagation();
-            }}
-            onClick={(event) => event.stopPropagation()}
-          />
-        ) : (
-          <span className="idea-slide-resource-name truncate">{resource.name}</span>
-        )}
-      </button>
-
+      <span className={`idea-slide-resource-icon ${entry.kind === "directory" ? "is-folder" : ""}`}>
+        <EntryIcon entry={entry} expanded={isExpanded} />
+      </span>
+      {isRenaming ? (
+        <Input
+          ref={inputRef}
+          value={draftName}
+          onChange={(event) => setDraftName(event.target.value)}
+          onBlur={commitRename}
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") commitRename();
+            if (event.key === "Escape") {
+              setDraftName(entry.name);
+              setIsRenaming(false);
+            }
+            event.stopPropagation();
+          }}
+        />
+      ) : (
+        <span className="idea-slide-resource-name min-w-0 flex-1 truncate">{entry.name}</span>
+      )}
+      {entry.kind === "symlink" && <span className="text-[9px] uppercase text-gray-400">Link</span>}
+      {!entry.fileType && entry.kind === "file" && <span className="text-[9px] uppercase text-gray-400">Unsupported</span>}
       {canMutate && !isRenaming && (
         <div className="hidden items-center gap-0.5 group-hover:flex group-focus-within:flex">
-          <button
-            type="button"
-            aria-label={`Rename ${resource.name}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              setIsRenaming(true);
-            }}
-            className="idea-slide-row-action"
-          >
-            ✎
-          </button>
-          <button
-            type="button"
-            aria-label={`Delete ${resource.name}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              onDelete();
-            }}
-            className="idea-slide-row-action is-danger"
-          >
-            ×
-          </button>
+          <button type="button" aria-label={`Rename ${entry.name}`} className="idea-slide-row-action" onClick={(event) => { event.stopPropagation(); setIsRenaming(true); }}>✎</button>
+          <button type="button" aria-label={`Move ${entry.name} to Trash`} className="idea-slide-row-action is-danger" onClick={(event) => { event.stopPropagation(); onTrash(); }}>×</button>
         </div>
       )}
     </div>
