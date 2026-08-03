@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 test('camera sidebar is a text-only vertical list', async () => {
   const source = await readFile(new URL('../src/components/CameraList.tsx', import.meta.url), 'utf8');
   assert.match(source, /idea-slide-side-panel/);
-  assert.match(source, /idea-slide-side-panel__header/);
+  assert.match(source, /idea-slide-navigator-toolbar/);
   assert.match(source, /idea-slide-camera-row/);
   assert.match(source, /idea-slide-camera-empty/);
   assert.match(source, /aria-label="Add camera"/);

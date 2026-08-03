@@ -1,5 +1,7 @@
+import { ChevronDown, ChevronUp, Play, Plus, Trash2 } from "lucide-react";
 import { useCallback } from "react";
 import { moveItemByOffset, type Camera } from "../lib/cameraUtils";
+import { cn } from "../lib/cn";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +18,7 @@ import {
 interface CameraListProps {
   cameras: Camera[];
   activeCameraId?: string;
+  readOnly?: boolean;
   onCameraSelect: (camera: Camera) => void;
   onCameraDelete: (cameraId: string) => void;
   onReorder: (orderedCameraIds: string[]) => void;
@@ -27,6 +30,7 @@ interface CameraListProps {
 export function CameraList({
   cameras,
   activeCameraId,
+  readOnly = false,
   onCameraSelect,
   onCameraDelete,
   onReorder,
@@ -35,15 +39,15 @@ export function CameraList({
   onStartFullscreen,
 }: CameraListProps) {
   const handleMove = useCallback((index: number, offset: -1 | 1) => {
+    if (readOnly) return;
     const ids = moveItemByOffset(cameras.map((camera) => camera.id), index, offset);
     if (ids.some((id, itemIndex) => id !== cameras[itemIndex]?.id)) onReorder(ids);
-  }, [cameras, onReorder]);
+  }, [cameras, onReorder, readOnly]);
 
   return (
-    <aside className="idea-slide-side-panel flex h-full min-w-0 flex-col" aria-label="Cameras">
-      <div className="idea-slide-side-panel__header flex items-center px-3">
-        <div className="idea-slide-side-panel__title">Cameras</div>
-        <span className="idea-slide-panel-count">{cameras.length}</span>
+    <section className="idea-slide-side-panel idea-slide-navigator-list" aria-label="Cameras">
+      <div className="idea-slide-navigator-toolbar">
+        <span className="idea-slide-navigator-toolbar__context">Current Page</span>
         <div className="idea-slide-camera-header-actions">
           <TooltipProvider>
             <Tooltip>
@@ -55,9 +59,7 @@ export function CameraList({
                   onClick={onAddCamera}
                   className="idea-slide-panel-add-button"
                 >
-                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                    <path d="M8 3v10M3 8h10" />
-                  </svg>
+                  <Plus aria-hidden="true" />
                 </button>
               </TooltipTrigger>
               <TooltipContent>Add camera</TooltipContent>
@@ -71,13 +73,9 @@ export function CameraList({
                 aria-label="Present"
                 className="idea-slide-camera-present-button"
               >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="m8 5 11 7-11 7V5Z" />
-                </svg>
+                <Play aria-hidden="true" />
                 <span>Present</span>
-                <svg className="idea-slide-camera-present-button__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                  <path d="m4 6 4 4 4-4" />
-                </svg>
+                <ChevronDown className="idea-slide-camera-present-button__chevron" aria-hidden="true" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">
@@ -103,22 +101,24 @@ export function CameraList({
             return (
               <div
                 key={camera.id}
-                className={`idea-slide-camera-row group ${active ? "is-active" : ""}`}
+                className={cn("idea-slide-camera-row group", active && "is-active")}
               >
                 <button type="button" onClick={() => onCameraSelect(camera)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
                   <span className="idea-slide-camera-row__number">{camera.order}</span>
                   <span className="idea-slide-camera-row__name truncate">Camera {camera.order}</span>
                 </button>
-                <div className="hidden items-center group-hover:flex group-focus-within:flex">
-                  <button type="button" aria-label={`Move up camera ${camera.order}`} disabled={index === 0} onClick={() => handleMove(index, -1)} className="idea-slide-row-action disabled:opacity-30">↑</button>
-                  <button type="button" aria-label={`Move down camera ${camera.order}`} disabled={index === cameras.length - 1} onClick={() => handleMove(index, 1)} className="idea-slide-row-action disabled:opacity-30">↓</button>
-                  <button type="button" aria-label={`Delete camera ${camera.order}`} onClick={() => onCameraDelete(camera.id)} className="idea-slide-row-action is-danger">×</button>
-                </div>
+                {!readOnly && (
+                  <div className="hidden items-center group-hover:flex group-focus-within:flex">
+                    <button type="button" aria-label={"Move up camera " + camera.order} disabled={index === 0} onClick={() => handleMove(index, -1)} className="idea-slide-row-action disabled:opacity-30"><ChevronUp aria-hidden="true" /></button>
+                    <button type="button" aria-label={"Move down camera " + camera.order} disabled={index === cameras.length - 1} onClick={() => handleMove(index, 1)} className="idea-slide-row-action disabled:opacity-30"><ChevronDown aria-hidden="true" /></button>
+                    <button type="button" aria-label={"Delete camera " + camera.order} onClick={() => onCameraDelete(camera.id)} className="idea-slide-row-action is-danger"><Trash2 aria-hidden="true" /></button>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       )}
-    </aside>
+    </section>
   );
 }

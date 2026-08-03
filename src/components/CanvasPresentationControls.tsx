@@ -1,4 +1,5 @@
 import { Button as ExcalidrawButton } from "@excalidraw/excalidraw";
+import { PanelRight, Scan } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -7,17 +8,17 @@ import {
 } from "./ui/Tooltip";
 
 interface CanvasPresentationControlsProps {
-  cameraCount: number;
-  isCameraListOpen: boolean;
-  onToggleCameras: () => void;
+  isNavigatorOpen: boolean;
+  onToggleNavigator: () => void;
+  onAddCamera?: () => void;
 }
 
 export function CanvasPresentationControls({
-  cameraCount,
-  isCameraListOpen,
-  onToggleCameras,
+  isNavigatorOpen,
+  onToggleNavigator,
+  onAddCamera,
 }: CanvasPresentationControlsProps) {
-  const camerasTooltip = isCameraListOpen ? "Hide cameras" : "Show cameras";
+  const navigatorTooltip = isNavigatorOpen ? "Hide navigator" : "Show navigator";
 
   return (
     <TooltipProvider>
@@ -26,22 +27,32 @@ export function CanvasPresentationControls({
           <TooltipTrigger asChild>
             <span className="idea-slide-canvas-control-tooltip-trigger">
               <ExcalidrawButton
-                onSelect={onToggleCameras}
-                selected={isCameraListOpen}
-                aria-label={camerasTooltip}
-                aria-pressed={isCameraListOpen}
-                className="idea-slide-canvas-control idea-slide-canvas-control--cameras"
+                onSelect={onToggleNavigator}
+                selected={isNavigatorOpen}
+                aria-label={navigatorTooltip}
+                aria-pressed={isNavigatorOpen}
+                className="idea-slide-canvas-control idea-slide-canvas-control--navigator"
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                  <rect x="3" y="5" width="18" height="14" rx="2" />
-                  <path d="M8 5 9.5 2.8h5L16 5M8 12h8" />
-                </svg>
-                <span className="idea-slide-canvas-control__label">Cameras</span>
-                <span className="idea-slide-canvas-control__count">{cameraCount}</span>
+                <PanelRight aria-hidden="true" />
               </ExcalidrawButton>
             </span>
           </TooltipTrigger>
-          <TooltipContent>{camerasTooltip}</TooltipContent>
+          <TooltipContent>{navigatorTooltip}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="idea-slide-canvas-control-tooltip-trigger">
+              <ExcalidrawButton
+                onSelect={onAddCamera ?? (() => undefined)}
+                disabled={!onAddCamera}
+                aria-label="Add camera"
+                className="idea-slide-canvas-control idea-slide-canvas-control--camera"
+              >
+                <Scan aria-hidden="true" />
+              </ExcalidrawButton>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>Add camera</TooltipContent>
         </Tooltip>
       </div>
     </TooltipProvider>

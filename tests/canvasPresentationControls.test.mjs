@@ -4,14 +4,19 @@ import { readFile } from 'node:fs/promises';
 
 const readSource = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('Canvas presentation controls expose only the Cameras toggle and count', async () => {
+test('Canvas custom controls expose Navigator and Add camera tools', async () => {
   const source = await readSource('src/components/CanvasPresentationControls.tsx');
 
   assert.match(source, /Button as ExcalidrawButton/);
   assert.match(source, /idea-slide-canvas-controls/);
-  assert.match(source, /idea-slide-canvas-control__label/);
-  assert.match(source, /idea-slide-canvas-control__count/);
-  assert.match(source, /aria-pressed=\{isCameraListOpen\}/);
+  assert.match(source, /aria-label=\{navigatorTooltip\}/);
+  assert.match(source, /aria-pressed=\{isNavigatorOpen\}/);
+  assert.match(source, /aria-label="Add camera"/);
+  assert.match(source, /disabled=\{!onAddCamera\}/);
+  assert.match(source, /onToggleNavigator/);
+  assert.match(source, /onAddCamera/);
+  assert.doesNotMatch(source, /cameraCount/);
+  assert.doesNotMatch(source, />Cameras</);
   assert.doesNotMatch(source, /DropdownMenu/);
   assert.doesNotMatch(source, /aria-label="Present"/);
   assert.doesNotMatch(source, /onStartPreview/);
@@ -19,14 +24,15 @@ test('Canvas presentation controls expose only the Cameras toggle and count', as
   assert.doesNotMatch(source, /controlClassName/);
 });
 
-test('Canvas presentation controls keep scoped no-wrap responsive styling without obsolete Present rules', async () => {
+test('Canvas custom controls keep compact toolbar-aligned styling without obsolete count rules', async () => {
   const source = await readSource('src/index.css');
 
   assert.match(source, /\.idea-slide-canvas-controls/);
   assert.match(source, /white-space:\s*nowrap/);
-  assert.match(source, /@media \(max-width:\s*1400px\)/);
+  assert.match(source, /layer-ui__wrapper__top-right/);
   assert.doesNotMatch(source, /idea-slide-canvas-controls__divider/);
   assert.doesNotMatch(source, /idea-slide-canvas-control--present/);
+  assert.doesNotMatch(source, /idea-slide-canvas-control__count/);
 });
 
 test('SlideCanvas renders contextual controls and consumes each Add Camera request token once', async () => {
@@ -37,6 +43,9 @@ test('SlideCanvas renders contextual controls and consumes each Add Camera reque
   assert.match(source, /lastCameraDrawingRequestTokenRef/);
   assert.match(source, /startCameraDrawing\(\)/);
   assert.match(source, /<CanvasPresentationControls/);
+  assert.match(source, /isNavigatorOpen=/);
+  assert.match(source, /onToggleNavigator=/);
+  assert.match(source, /onAddCamera=/);
   assert.doesNotMatch(source, /onStartPreview=\{onStartPreview\}/);
   assert.doesNotMatch(source, /onStartFullscreen=\{onStartFullscreen\}/);
   assert.doesNotMatch(source, /Draw a camera rectangle/);

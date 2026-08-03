@@ -77,3 +77,10 @@ Replace the current custom or text-like Home, New, Open, Save, and related title
 - created: 2026-08-03
 
 Replace the Workspace tree's text-like disclosure marks and diamond resource glyphs with Lucide framework icons. Use clear collapsed/expanded chevrons, closed/open folder icons, an identifiable IdeaSketch file icon, and a safe generic icon for unsupported files while preserving indentation, row hit targets, selection styling, accessibility, Symlink behavior, and Explorer actions.
+
+## F009: Unify Pages and Cameras in a tabbed IdeaSketch navigator
+
+- status: done
+- created: 2026-08-04
+
+Merge the IdeaSketch Page list into the existing right-side document navigator and switch between Pages and Cameras with fixed, non-collapsible tabs. Keep Cameras scoped to the active Page, preserve Page and Camera create/select/rename/reorder/delete behavior and Present behavior, and do not add thumbnails. Remove the separate Page popover, the redundant Page shortcut above the Canvas, and the floating top-right Cameras control. Expose the document navigator and camera drawing action through compact Excalidraw-aligned custom toolbar controls with accessible tooltips, while keeping the right panel hidden by default and toggleable through the existing divider.

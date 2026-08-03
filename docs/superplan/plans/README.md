@@ -7,7 +7,7 @@
 | Type | Plans | Complete |
 | --- | --- | --- |
 | `required` | 6 | 6 |
-| `feature` | 8 | 8 |
+| `feature` | 9 | 9 |
 | `bugfix` | 4 | 4 |
 
 ## Execution Order
@@ -44,6 +44,7 @@
 | `F006` | [Apply Revision C Editor Shell Defaults](features/F006-revision-c-editor-shell-defaults.md) | `complete` | 2026-07-24 |
 | `F007` | [Standardize Title Bar File Action Icons](features/F007-framework-title-bar-icons.md) | `complete` | 2026-08-03 |
 | `F008` | [Standardize Workspace Tree Icons](features/F008-framework-workspace-tree-icons.md) | `complete` | 2026-08-03 |
+| `F009` | [Unify Pages and Cameras in a Tabbed IdeaSketch Navigator](features/F009-tabbed-ideasketch-navigator.md) | `complete` | 2026-08-04 |
 
 ### Bugfix Plans
 

@@ -11,11 +11,12 @@ import {
 } from "../lib/ideaSketchReducer";
 import { extractCameras, reorderCameras, type Camera } from "../lib/cameraUtils";
 import { SlideCanvas } from "./SlideCanvas";
-import { CameraList } from "./CameraList";
 import { ResizableDivider } from "./ResizableDivider";
-import { PageOrganizer } from "./PageOrganizer";
-
-const CAMERA_PANEL_WIDTH = 244;
+import {
+  IdeaSketchNavigator,
+  type IdeaSketchNavigatorTab,
+} from "./IdeaSketchNavigator";
+const NAVIGATOR_PANEL_WIDTH = 244;
 
 interface IdeaSketchEditorProps {
   document: DocumentSession<IdeaSketchDocument>;
@@ -50,7 +51,8 @@ export function IdeaSketchEditor({
   );
   const editorStateRef = useRef(editorState);
   const emittedModelRef = useRef<IdeaSketchDocument | undefined>(undefined);
-  const [showCameras, setShowCameras] = useState(false);
+  const [showNavigator, setShowNavigator] = useState(false);
+  const [navigatorTab, setNavigatorTab] = useState<IdeaSketchNavigatorTab>("pages");
   const [cameraDrawingRequestToken, setCameraDrawingRequestToken] = useState(0);
   const [selectedCameraId, setSelectedCameraId] = useState<string>();
   const excalidrawApiRef = useRef<any>(null);
@@ -184,22 +186,18 @@ export function IdeaSketchEditor({
   const handleApiReady = useCallback((api: any) => {
     excalidrawApiRef.current = api;
   }, []);
-  const toggleCameras = useCallback(() => setShowCameras((visible) => !visible), []);
-
+  const openNavigator = useCallback((tab: IdeaSketchNavigatorTab) => {
+    setNavigatorTab(tab);
+    setShowNavigator(true);
+  }, []);
+  const toggleNavigator = useCallback(() => setShowNavigator((visible) => !visible), []);
+  const handleAddCamera = useCallback(() => {
+    if (readOnly) return;
+    openNavigator("cameras");
+    setCameraDrawingRequestToken((token) => token + 1);
+  }, [openNavigator, readOnly]);
   return (
     <div className="ideanote-ideasketch-editor">
-      <div className="ideanote-ideasketch-editor__chrome">
-        <PageOrganizer
-          pages={editorState.document.pages}
-          activePageId={editorState.activePageId}
-          readOnly={readOnly}
-          onSelect={selectPage}
-          onAdd={addPage}
-          onRename={renamePage}
-          onReorder={reorderPage}
-          onDelete={deletePage}
-        />
-      </div>
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <main className="relative min-w-0 flex-1 overflow-hidden">
           <SlideCanvas
@@ -211,25 +209,32 @@ export function IdeaSketchEditor({
             onApiReady={handleApiReady}
             viewMode={readOnly}
             editorRefreshToken={editorRefreshToken}
-            cameraCount={cameras.length}
-            isCameraListOpen={showCameras}
-            onToggleCameras={toggleCameras}
+            isNavigatorOpen={showNavigator}
+            onToggleNavigator={toggleNavigator}
+            onAddCamera={readOnly ? undefined : handleAddCamera}
             cameraDrawingRequestToken={cameraDrawingRequestToken}
           />
         </main>
-        <ResizableDivider side="right" isVisible={showCameras} onToggle={toggleCameras} />
-        <div className="h-full flex-shrink-0 overflow-hidden transition-[width] duration-200" style={{ width: showCameras ? CAMERA_PANEL_WIDTH : 0 }}>
-          <div className="h-full" style={{ width: CAMERA_PANEL_WIDTH }}>
-            <CameraList
+        <ResizableDivider side="right" isVisible={showNavigator} onToggle={toggleNavigator} />
+        <div className="h-full flex-shrink-0 overflow-hidden transition-[width] duration-200" style={{ width: showNavigator ? NAVIGATOR_PANEL_WIDTH : 0 }}>
+          <div className="h-full" style={{ width: NAVIGATOR_PANEL_WIDTH }}>
+            <IdeaSketchNavigator
+              activeTab={navigatorTab}
+              onTabChange={setNavigatorTab}
+              pages={editorState.document.pages}
+              activePageId={editorState.activePageId}
               cameras={cameras}
               activeCameraId={activeCameraId}
+              readOnly={readOnly}
+              onPageSelect={selectPage}
+              onPageAdd={addPage}
+              onPageRename={renamePage}
+              onPageReorder={reorderPage}
+              onPageDelete={deletePage}
               onCameraSelect={selectCamera}
               onCameraDelete={deleteCamera}
-              onReorder={reorderCameraList}
-              onAddCamera={readOnly ? undefined : () => {
-                setShowCameras(true);
-                setCameraDrawingRequestToken((token) => token + 1);
-              }}
+              onCameraReorder={reorderCameraList}
+              onAddCamera={readOnly ? undefined : handleAddCamera}
               onStartPreview={() => startPresentation("preview")}
               onStartFullscreen={() => startPresentation("fullscreen")}
             />

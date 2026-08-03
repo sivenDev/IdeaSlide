@@ -9,9 +9,9 @@ async function readSource(path) {
 test('CameraList exposes accessible labels for compact sidebar actions', async () => {
   const source = await readSource('src/components/CameraList.tsx');
 
-  assert.match(source, /aria-label=\{`Move up camera/);
-  assert.match(source, /aria-label=\{`Move down camera/);
-  assert.match(source, /aria-label=\{`Delete camera/);
+  assert.match(source, /aria-label=\{"Move up camera " \+ camera\.order\}/);
+  assert.match(source, /aria-label=\{"Move down camera " \+ camera\.order\}/);
+  assert.match(source, /aria-label=\{"Delete camera " \+ camera\.order\}/);
   assert.doesNotMatch(source, /title=/);
 });
 
@@ -44,15 +44,16 @@ test('Toolbar does not expose presentation actions', async () => {
   assert.doesNotMatch(source, /onStartPreview/);
 });
 
-test('Canvas Cameras toggle uses the shared tooltip with state-aware visible copy', async () => {
+test('Canvas Navigator and Camera tools use shared state-aware tooltips', async () => {
   const source = await readSource('src/components/CanvasPresentationControls.tsx');
 
   assert.match(source, /from "\.\/ui\/Tooltip"/);
   assert.match(source, /TooltipProvider/);
   assert.match(source, /TooltipTrigger/);
   assert.match(source, /TooltipContent/);
-  assert.match(source, /isCameraListOpen \? "Hide cameras" : "Show cameras"/);
-  assert.match(source, /<TooltipContent>\{camerasTooltip\}<\/TooltipContent>/);
+  assert.match(source, /isNavigatorOpen \? "Hide navigator" : "Show navigator"/);
+  assert.match(source, /<TooltipContent>\{navigatorTooltip\}<\/TooltipContent>/);
+  assert.match(source, /<TooltipContent>Add camera<\/TooltipContent>/);
   assert.doesNotMatch(source, /title=/);
 });
 

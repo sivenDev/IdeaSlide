@@ -6,7 +6,7 @@ test('side panel divider exposes vertical left and right collapse markers', asyn
   const source = await readFile(new URL('../src/components/ResizableDivider.tsx', import.meta.url), 'utf8');
   assert.match(source, /side: "left" \| "right"/);
   assert.match(source, /Hide workspace|Show workspace/);
-  assert.match(source, /Hide cameras|Show cameras/);
+  assert.match(source, /Hide navigator|Show navigator/);
   assert.match(source, /idea-slide-resize-rail/);
   assert.match(source, /idea-slide-resize-rail__toggle/);
 });

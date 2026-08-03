@@ -65,9 +65,9 @@ interface SlideCanvasProps {
   viewMode?: boolean;
   onApiReady?: (api: any) => void;
   editorRefreshToken: number;
-  cameraCount?: number;
-  isCameraListOpen?: boolean;
-  onToggleCameras?: () => void;
+  isNavigatorOpen?: boolean;
+  onToggleNavigator?: () => void;
+  onAddCamera?: () => void;
   cameraDrawingRequestToken?: number;
 }
 
@@ -90,9 +90,9 @@ function SlideCanvasInner({
   viewMode,
   onApiReady,
   editorRefreshToken,
-  cameraCount = 0,
-  isCameraListOpen = false,
-  onToggleCameras,
+  isNavigatorOpen = false,
+  onToggleNavigator,
+  onAddCamera,
   cameraDrawingRequestToken = 0,
 }: SlideCanvasProps) {
   // Use a ref to always have the latest onChange without causing re-renders
@@ -431,19 +431,19 @@ function SlideCanvasInner({
 
   // Render custom UI in top-right corner
   const renderTopRightUI = useCallback(() => {
-    if (viewMode || !onToggleCameras) return null;
+    if (viewMode || !onToggleNavigator) return null;
 
     return (
       <CanvasPresentationControls
-        cameraCount={cameraCount}
-        isCameraListOpen={isCameraListOpen}
-        onToggleCameras={onToggleCameras}
+        isNavigatorOpen={isNavigatorOpen}
+        onToggleNavigator={onToggleNavigator}
+        onAddCamera={onAddCamera}
       />
     );
   }, [
-    cameraCount,
-    isCameraListOpen,
-    onToggleCameras,
+    isNavigatorOpen,
+    onAddCamera,
+    onToggleNavigator,
     viewMode,
   ]);
   const mainMenu = useMemo(

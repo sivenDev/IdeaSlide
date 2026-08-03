@@ -36,7 +36,7 @@ export function ResizableDivider({
   const canResize = isVisible && Boolean(onResize);
   const title = isLeft
     ? isVisible ? "Hide workspace" : "Show workspace"
-    : isVisible ? "Hide cameras" : "Show cameras";
+    : isVisible ? "Hide navigator" : "Show navigator";
   const arrow = isLeft
     ? isVisible ? "‹" : "›"
     : isVisible ? "›" : "‹";

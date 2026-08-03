@@ -149,3 +149,30 @@ test('areSlideCanvasPropsEqual forces rerender when editor refresh token changes
     false,
   );
 });
+
+test('areSlideCanvasPropsEqual tracks navigator and Camera tool callbacks', async () => {
+  const { areSlideCanvasPropsEqual } = await loadModule();
+  const elements = [];
+  const appState = {};
+  const files = {};
+  const onChange = () => {};
+  const onApiReady = () => {};
+  const onToggleNavigator = () => {};
+  const onAddCamera = () => {};
+  const base = {
+    slideId: 'slide-1',
+    elements,
+    appState,
+    files,
+    onChange,
+    onApiReady,
+    viewMode: false,
+    isNavigatorOpen: false,
+    onToggleNavigator,
+    onAddCamera,
+  };
+
+  assert.equal(areSlideCanvasPropsEqual(base, { ...base, isNavigatorOpen: true }), false);
+  assert.equal(areSlideCanvasPropsEqual(base, { ...base, onToggleNavigator: () => {} }), false);
+  assert.equal(areSlideCanvasPropsEqual(base, { ...base, onAddCamera: () => {} }), false);
+});
