@@ -1,14 +1,14 @@
 # IdeaNote Product Requirements Document
 
-- status: draft
-- document_version: 0.4
+- status: accepted
+- document_version: 0.5
 - created: 2026-08-03
 - last_updated: 2026-08-03
 - product: IdeaNote
 - predecessor: IdeaSlide
-- implementation_authorized: false
+- implementation_authorized: true
 
-> 本文档定义 IdeaSlide 向 IdeaNote 演进后的产品结构和分阶段范围。当前状态为草案，仅用于评审和持续完善；在本文档获得明确批准并据此生成、评审开发计划之前，不进入实现阶段。
+> 本文档定义 IdeaSlide 向 IdeaNote 演进后的产品结构和分阶段范围。产品方向与当前 MVP 已获得实施授权；具体业务代码仍须依据通过人工评审的 Superplan 主线计划执行。
 
 ## 1. 产品概述
 
@@ -751,22 +751,22 @@ IdeaSketch (.is)
 
 当前 `.is v2` 曾表示旧 Workspace，而新 Writer 只写 v1。读取时必须先检查版本，v2 必须阻止覆盖并留待未来迁移。
 
-## 22. 待决事项
+## 22. 当前 MVP 的实施默认
 
-进入开发计划前需要确认：
+以下决定作为当前主线计划的实施基线；后续可以通过新的 PRD 或 Feature Request 调整：
 
-1. `IdeaNote` 是否为最终产品名称，以及 Bundle ID、应用目录和仓库是否同步改名。
-2. `.ideanote/workspace.json` 与 `state.json` 的精确 Schema。
-3. `state.json` 是否按设备或用户拆分，避免在 Git Workspace 中频繁冲突。
-4. Workspace Mode 默认是手动 Save、自动保存，还是两者结合。
-5. 新建文件时的命名交互和默认名称。
-6. 单击与双击文件打开 Tab 的具体规则。
-7. 非活动 Excalidraw Tab 的内存释放策略。
-8. Symlink 是否默认跟随，以及允许范围。
-9. Delete 使用系统 Trash 还是永久删除。
-10. `.is` 覆盖前是否保留 `.bak`，以及备份清理策略。
-11. `.is v2` 迁移功能进入哪个后续版本。
-12. Markdown、IdeaTable、IdeaWorkflow 的详细 PRD 是否分别编写。
+1. 用户可见产品名称改为 `IdeaNote`；当前 MVP 不迁移仓库名、Cargo/npm package name、Bundle ID 或用户数据目录，避免把产品重构与安装迁移混在一起。
+2. `.ideanote/workspace.json` 使用 `schemaVersion: 1`，保存稳定的 `workspaceId`、创建/更新时间和 Workspace 级设置；`.ideanote/state.json` 使用 `schemaVersion: 1`，保存相对路径形式的 Tabs、Active Tab 和 Explorer 状态。
+3. 第一版使用单个 `state.json`，并由 `.ideanote/.gitignore` 忽略 `state.json`、`recovery/` 和 `cache/`；不修改 Workspace 根目录的 `.gitignore`。
+4. Workspace Mode 同时提供显式 Save 和防抖自动保存；Single File Mode 默认只显式保存，并使用 Recovery Draft 防止意外丢失。
+5. 新建 IdeaSketch 默认名为 `Untitled.is`，冲突时使用递增后缀，并立即进入内联重命名。
+6. 单击受支持文件即打开或激活唯一 Tab；目录单击只选择，展开/收起由目录箭头和键盘操作负责。
+7. 只挂载当前活动 Editor；非活动 Tab 保留轻量 Document Session 和 Dirty Model，文件内容按需加载，并为后续内存压力卸载策略保留边界。
+8. 默认不跟随 Symlink；Symlink 作为不可递归的特殊条目显示，不能借此越过 Workspace Root。
+9. Delete 默认移动到系统 Trash；不能安全移动到 Trash 时不执行永久删除，并显示错误。
+10. `.is` 覆盖继续保留现有 `.is.bak` 安全策略；自动清理策略不属于当前 MVP。
+11. `.is v2` 自动迁移延后到 Workspace Import/Export 阶段；当前版本只识别、说明并阻止覆盖。
+12. Markdown、IdeaTable 和 IdeaWorkflow 在各自启动前分别编写和批准详细 PRD；本阶段只保留注册表和 Editor Host 扩展边界。
 
 ## 23. 开发启动门槛
 
