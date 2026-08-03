@@ -63,3 +63,10 @@ Implement the approved Revision B editor-shell prototype in the Tauri frontend. 
 - created: 2026-07-24
 
 Implement the approved Revision C editor shell in the Tauri frontend: hide the Workspace and Cameras sidebars by default; keep both divider expand controls available; show a visible Show cameras / Hide cameras hover tooltip on the Excalidraw canvas Cameras toggle; arrange Home, New, Open, Save, and save status as a compact left title-bar command cluster while centering the current .is document title independently; and keep Present enabled in the Cameras header even when the selected Canvas has zero Cameras. Present must continue to target only the selected Canvas. Preserve existing sidebar resizing, resource and camera behavior, persistence, neutral/violet styling, and text-only lists. Thumbnails and new resource types remain out of scope.
+
+## F007: Use framework icons for title bar file actions
+
+- status: done
+- created: 2026-08-03
+
+Replace the current custom or text-like Home, New, Open, Save, and related title-bar action icons with icons from the project's existing UI icon framework. Preserve the compact layout, action behavior, tooltips, accessibility labels, disabled states, and save-status presentation.

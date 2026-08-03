@@ -35,6 +35,16 @@ test('App routes presentation exit through the application reducer refresh token
 
 test('Toolbar keeps generic file commands and centered IdeaNote document title', async () => {
   const source = await readSource('src/components/Toolbar.tsx');
+  assert.match(source, /from "lucide-react"/);
+  assert.match(source, /<House /);
+  assert.match(source, /<FilePlus2 /);
+  assert.match(source, /<FolderOpen /);
+  assert.match(source, /<Save /);
+  assert.match(source, /<ChevronDown /);
+  assert.match(source, /<FileInput /);
+  assert.match(source, /<FileOutput /);
+  assert.match(source, /<SaveAll /);
+  assert.doesNotMatch(source, /[⌂＋▱⌑⌄]/);
   assert.match(source, /aria-label="New File"/);
   assert.match(source, /Open Workspace/);
   assert.match(source, /Open File/);
