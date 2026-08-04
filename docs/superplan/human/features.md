@@ -84,3 +84,10 @@ Replace the Workspace tree's text-like disclosure marks and diamond resource gly
 - created: 2026-08-04
 
 Merge the IdeaSketch Page list into the existing right-side document navigator and switch between Pages and Cameras with fixed, non-collapsible tabs. Keep Cameras scoped to the active Page, preserve Page and Camera create/select/rename/reorder/delete behavior and Present behavior, and do not add thumbnails. Remove the separate Page popover, the redundant Page shortcut above the Canvas, and the floating top-right Cameras control. Expose the document navigator and camera drawing action through compact Excalidraw-aligned custom toolbar controls with accessible tooltips, while keeping the right panel hidden by default and toggleable through the existing divider.
+
+## F010: Clarify Save Menu and Workspace Explorer Actions
+
+- status: accepted
+- created: 2026-08-04
+
+Remove the duplicate Save and Save All entries from the title-bar save dropdown while retaining the primary Save button, Save As, and non-toolbar save coordination behavior. Replace the Workspace Explorer header's symbolic text controls with clear framework icons, consistent grouping, accessible labels, and tooltips for New File, New Folder, Refresh, Collapse All, and additional tree actions.

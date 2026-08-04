@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Complete |
-| --- | --- | --- |
-| `required` | 6 | 6 |
-| `feature` | 9 | 9 |
-| `bugfix` | 6 | 6 |
+| Type | Plans | Draft | Complete |
+| --- | --- | --- | --- |
+| `required` | 6 | 0 | 6 |
+| `feature` | 10 | 1 | 9 |
+| `bugfix` | 6 | 0 | 6 |
 
 ## Execution Order
 
@@ -45,6 +45,7 @@
 | `F007` | [Standardize Title Bar File Action Icons](features/F007-framework-title-bar-icons.md) | `complete` | 2026-08-03 |
 | `F008` | [Standardize Workspace Tree Icons](features/F008-framework-workspace-tree-icons.md) | `complete` | 2026-08-03 |
 | `F009` | [Unify Pages and Cameras in a Tabbed IdeaSketch Navigator](features/F009-tabbed-ideasketch-navigator.md) | `complete` | 2026-08-04 |
+| `F010` | [Clarify Save Menu and Workspace Explorer Actions](features/F010-clarify-save-and-workspace-actions.md) | `draft` | 2026-08-04 |
 
 ### Bugfix Plans
 
