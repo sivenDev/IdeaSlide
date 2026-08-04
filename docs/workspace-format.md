@@ -8,10 +8,10 @@ Opening or refreshing a Workspace performs a metadata-only directory scan:
 
 - It does not parse document payloads.
 - It does not create `.ideanote/`, sample files, or configuration.
-- It includes unsupported files so the Explorer can show them safely.
-- It reports supported file types using the backend Document Format Registry.
+- It preserves real directory nodes, including directories with no currently supported files.
+- It includes regular files only when the backend Document Format Registry marks their type openable; the current visible file type is `.is`.
 - It lists Symlinks as non-expandable entries and never follows them.
-- It hides `.ideanote/` and IdeaSketch temporary files such as `drawing.is.tmp`.
+- It hides the entire `.ideanote/` subtree and unsupported regular files.
 
 Every command receives a Workspace root and a normalized relative child path. Absolute paths, `..`, `.`, internal metadata targets, Symlink traversal, and paths that resolve outside the canonical root are rejected.
 
@@ -25,10 +25,11 @@ The metadata directory is created only after one of these successful, user-autho
 
 Browsing, opening files, refreshing, and creating a Folder do not create metadata.
 
-User-file persistence is the primary transaction:
+User-file persistence is the primary transaction. A first write may prepare hidden staging transactionally, but a failed operation removes the newly created staging tree so no `.ideanote/` remains:
 
 ```text
-write/create user file successfully
+prepare .ideanote/tmp staging
+  → write/create user file successfully
   → create or update .ideanote/
   → return content success plus any separate metadata error
 ```
@@ -41,10 +42,13 @@ If metadata creation fails, the successfully written user file is retained. A fa
 .ideanote/
 ├── workspace.json
 ├── state.json
+├── recovery/
+├── tmp/
+├── cache/
 └── .gitignore
 ```
 
-`recovery/` and `cache/` are reserved but created only when their features need them.
+`tmp/` is the only Workspace staging location for document, metadata, and Recovery replacement writes. It is created when Workspace persistence first needs it and must contain no abandoned staging file after a completed operation. `recovery/` and `cache/` remain durable-recovery and regenerable-cache boundaries created only when their features need them.
 
 ### `workspace.json`
 
@@ -80,6 +84,7 @@ All paths are root-relative and pass the same traversal/internal-path validation
 ```gitignore
 state.json
 recovery/
+tmp/
 cache/
 ```
 
@@ -89,7 +94,7 @@ IdeaNote never modifies the Workspace root's `.gitignore`.
 
 Missing metadata is treated as a new in-memory Workspace. Invalid JSON or an unsupported `schemaVersion` is preserved on disk, ignored in favor of safe defaults, and returned as a diagnostic without blocking directory access.
 
-Metadata JSON writes use a same-directory temporary file, flush it, and atomically rename it over the target. Failed replacement removes the temporary file and reports the error.
+Metadata JSON and Workspace Recovery writes flush a collision-free staging file under `.ideanote/tmp/` and atomically commit it to the durable target. Failed replacement retains the original target, removes the staging file, and reports the error. IdeaNote may add a missing `tmp/` rule to its internal `.ideanote/.gitignore`, but never modifies the Workspace root's `.gitignore`.
 
 ## File operations
 

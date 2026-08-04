@@ -3,6 +3,7 @@ pub(crate) mod document_formats;
 mod mcp;
 mod recent_files;
 mod recovery;
+pub(crate) mod safe_write;
 pub(crate) mod workspace;
 mod workspace_watcher;
 

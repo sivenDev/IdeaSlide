@@ -176,10 +176,7 @@ fn relative_path(root: &Path, path: &Path) -> Option<String> {
 
 fn ignored_relative(path: &str) -> bool {
     let first = path.split('/').next().unwrap_or_default();
-    first == METADATA_DIRECTORY_NAME
-        || path.ends_with(".is.tmp")
-        || path.ends_with(".tmp")
-        || path.is_empty()
+    first.eq_ignore_ascii_case(METADATA_DIRECTORY_NAME) || path.is_empty()
 }
 
 fn crosses_symlink(root: &Path, path: &Path) -> bool {
@@ -403,6 +400,7 @@ mod tests {
     fn normalizes_create_remove_and_rename_without_internal_paths() {
         let dir = TempDir::new().unwrap();
         std::fs::write(dir.path().join("a.is"), b"x").unwrap();
+        std::fs::write(dir.path().join("notes.txt"), b"x").unwrap();
         let expected = Arc::new(Mutex::new(HashMap::new()));
         let create =
             Event::new(EventKind::Create(CreateKind::File)).add_path(dir.path().join("a.is"));
@@ -413,6 +411,14 @@ mod tests {
         let hidden = Event::new(EventKind::Create(CreateKind::File))
             .add_path(dir.path().join(".ideanote/state.json"));
         assert!(normalize_event(dir.path(), &hidden, &expected).is_empty());
+        let hidden_case_variant = Event::new(EventKind::Create(CreateKind::File))
+            .add_path(dir.path().join(".IdeaNote/tmp/staged"));
+        assert!(normalize_event(dir.path(), &hidden_case_variant, &expected).is_empty());
+        let unsupported =
+            Event::new(EventKind::Create(CreateKind::File)).add_path(dir.path().join("notes.txt"));
+        let unsupported_changes = normalize_event(dir.path(), &unsupported, &expected);
+        assert_eq!(unsupported_changes.len(), 1);
+        assert!(unsupported_changes[0].entry.is_none());
         let remove =
             Event::new(EventKind::Remove(RemoveKind::File)).add_path(dir.path().join("a.is"));
         assert_eq!(
@@ -427,6 +433,30 @@ mod tests {
                 .old_path
                 .as_deref(),
             Some("a.is")
+        );
+
+        std::fs::rename(dir.path().join("a.is"), dir.path().join("a.txt")).unwrap();
+        let supported_to_unsupported =
+            Event::new(EventKind::Modify(ModifyKind::Name(RenameMode::Both)))
+                .add_path(dir.path().join("a.is"))
+                .add_path(dir.path().join("a.txt"));
+        let changes = normalize_event(dir.path(), &supported_to_unsupported, &expected);
+        assert_eq!(changes.len(), 1);
+        assert!(changes[0].entry.is_none());
+
+        std::fs::rename(dir.path().join("notes.txt"), dir.path().join("notes.is")).unwrap();
+        let unsupported_to_supported =
+            Event::new(EventKind::Modify(ModifyKind::Name(RenameMode::Both)))
+                .add_path(dir.path().join("notes.txt"))
+                .add_path(dir.path().join("notes.is"));
+        let changes = normalize_event(dir.path(), &unsupported_to_supported, &expected);
+        assert_eq!(changes.len(), 1);
+        assert_eq!(
+            changes[0]
+                .entry
+                .as_ref()
+                .and_then(|entry| entry.file_type.as_deref()),
+            Some("ideasketch")
         );
     }
 

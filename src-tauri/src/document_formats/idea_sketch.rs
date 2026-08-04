@@ -1,3 +1,4 @@
+use crate::safe_write::{self, WriteMode};
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
 use serde::{Deserialize, Serialize};
@@ -322,13 +323,18 @@ fn read_media_entries<R: Read + Seek>(archive: &mut zip::ZipArchive<R>) -> Vec<M
     read_media_from_fallback_scan(archive)
 }
 
-#[derive(Debug, Clone, Copy)]
-enum WriteMode {
-    CreateNew,
-    Replace,
+#[cfg(test)]
+pub fn create_file(path: &Path) -> Result<IdeaSketchFileData, String> {
+    let staging_directory = path
+        .parent()
+        .ok_or_else(|| "IdeaSketch path has no parent".to_string())?;
+    create_file_with_staging(path, staging_directory)
 }
 
-pub fn create_file(path: &Path) -> Result<IdeaSketchFileData, String> {
+pub fn create_file_with_staging(
+    path: &Path,
+    staging_directory: &Path,
+) -> Result<IdeaSketchFileData, String> {
     if path.exists() {
         return Err(format!("File already exists: {}", path.display()));
     }
@@ -341,7 +347,7 @@ pub fn create_file(path: &Path) -> Result<IdeaSketchFileData, String> {
         }],
         media: Vec::new(),
     };
-    write_file_with_mode(path, &data, WriteMode::CreateNew)?;
+    write_file_with_mode(path, &data, staging_directory, WriteMode::CreateNew)?;
     Ok(data)
 }
 
@@ -429,13 +435,26 @@ pub fn read_file(path: &Path) -> Result<IdeaSketchFileData, String> {
     }
 }
 
+#[cfg(test)]
 pub fn write_file(path: &Path, data: &IdeaSketchFileData) -> Result<(), String> {
-    write_file_with_mode(path, data, WriteMode::Replace)
+    let staging_directory = path
+        .parent()
+        .ok_or_else(|| "IdeaSketch path has no parent".to_string())?;
+    write_file_with_staging(path, data, staging_directory)
+}
+
+pub fn write_file_with_staging(
+    path: &Path,
+    data: &IdeaSketchFileData,
+    staging_directory: &Path,
+) -> Result<(), String> {
+    write_file_with_mode(path, data, staging_directory, WriteMode::Replace)
 }
 
 fn write_file_with_mode(
     path: &Path,
     data: &IdeaSketchFileData,
+    staging_directory: &Path,
     mode: WriteMode,
 ) -> Result<(), String> {
     let mut manifest = data.manifest.clone();
@@ -525,27 +544,13 @@ fn write_file_with_mode(
             .map_err(|error| format!("Failed to finalize zip: {error}"))?;
     }
 
-    let temp_path = path.with_extension("is.tmp");
-    fs::write(&temp_path, &buffer)
-        .map_err(|error| format!("Failed to write temp file: {error}"))?;
-    let persist_result = match mode {
-        WriteMode::Replace => fs::rename(&temp_path, path)
-            .map_err(|error| format!("Failed to atomically replace file: {error}")),
-        WriteMode::CreateNew => fs::hard_link(&temp_path, path)
-            .map_err(|error| format!("Failed to atomically create new file: {error}"))
-            .map(|_| {
-                let _ = fs::remove_file(&temp_path);
-            }),
-    };
-    if persist_result.is_err() {
-        let _ = fs::remove_file(&temp_path);
-    }
-    persist_result
+    safe_write::write_bytes(path, staging_directory, &buffer, mode)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::TempDir;
 
     fn make_temp_path(name: &str) -> std::path::PathBuf {
         let directory = std::env::temp_dir().join(format!(
@@ -740,6 +745,22 @@ mod tests {
             "after"
         );
         cleanup(&path);
+    }
+
+    #[test]
+    fn caller_selected_staging_directory_keeps_target_directory_clean() {
+        let root = TempDir::new().unwrap();
+        let documents = root.path().join("documents");
+        let staging = root.path().join(".ideanote/tmp");
+        fs::create_dir_all(&documents).unwrap();
+        fs::create_dir_all(&staging).unwrap();
+        let path = documents.join("drawing.is");
+
+        write_file_with_staging(&path, &data_with_pages(&["content"]), &staging).unwrap();
+
+        assert!(path.is_file());
+        assert!(!path.with_extension("is.tmp").exists());
+        assert_eq!(fs::read_dir(&staging).unwrap().count(), 0);
     }
 
     #[test]

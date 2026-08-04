@@ -1,3 +1,5 @@
+use crate::safe_write::{self, WriteMode};
+use crate::workspace::WorkspaceService;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -46,33 +48,55 @@ fn key_for(value: &str) -> String {
     format!("{hash:016x}.json")
 }
 
-fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
-    let parent = path
-        .parent()
-        .ok_or_else(|| "Recovery path has no parent".to_string())?;
-    fs::create_dir_all(parent)
-        .map_err(|error| format!("Failed to create recovery directory: {error}"))?;
-    let temp = path.with_extension("json.tmp");
-    fs::write(&temp, bytes).map_err(|error| format!("Failed to write recovery draft: {error}"))?;
-    fs::rename(&temp, path).map_err(|error| {
-        let _ = fs::remove_file(&temp);
-        format!("Failed to replace recovery draft: {error}")
-    })
+fn atomic_write(path: &Path, staging_directory: &Path, bytes: &[u8]) -> Result<(), String> {
+    safe_write::write_bytes(path, staging_directory, bytes, WriteMode::Replace)
 }
 
-fn recovery_path(app: &tauri::AppHandle, scope: &RecoveryScope) -> Result<PathBuf, String> {
+fn workspace_recovery_path(root: &Path, path: &str) -> Result<PathBuf, String> {
+    let workspace = WorkspaceService::open(root)?;
+    Ok(workspace
+        .root()
+        .join(".ideanote/recovery")
+        .join(key_for(path)))
+}
+
+fn workspace_recovery_locations(root: &Path, path: &str) -> Result<(PathBuf, PathBuf), String> {
+    let workspace = WorkspaceService::open(root)?;
+    Ok((
+        workspace
+            .root()
+            .join(".ideanote/recovery")
+            .join(key_for(path)),
+        workspace.ensure_temp_directory()?,
+    ))
+}
+
+fn recovery_locations(
+    app: &tauri::AppHandle,
+    scope: &RecoveryScope,
+) -> Result<(PathBuf, PathBuf), String> {
     match scope {
-        RecoveryScope::Workspace { root, path } => Ok(PathBuf::from(root)
-            .join(".ideanote")
-            .join("recovery")
-            .join(key_for(path))),
+        RecoveryScope::Workspace { root, path } => {
+            workspace_recovery_locations(Path::new(root), path)
+        }
         RecoveryScope::Standalone { path, session_id } => {
             let base = app
                 .path()
                 .app_data_dir()
                 .map_err(|error| format!("Failed to resolve app data directory: {error}"))?;
             let identity = if path.is_empty() { session_id } else { path };
-            Ok(base.join("recovery").join(key_for(identity)))
+            let recovery = base.join("recovery");
+            Ok((recovery.join(key_for(identity)), recovery))
+        }
+    }
+}
+
+fn recovery_path(app: &tauri::AppHandle, scope: &RecoveryScope) -> Result<PathBuf, String> {
+    match scope {
+        RecoveryScope::Workspace { root, path } => workspace_recovery_path(Path::new(root), path),
+        RecoveryScope::Standalone { path, session_id } => {
+            let identity = if path.is_empty() { session_id } else { path };
+            Ok(standalone_recovery_directory(app)?.join(key_for(identity)))
         }
     }
 }
@@ -135,7 +159,8 @@ pub fn write_recovery_draft(
     draft.timestamp = Utc::now().to_rfc3339();
     let bytes = serde_json::to_vec_pretty(&draft)
         .map_err(|error| format!("Failed to serialize recovery draft: {error}"))?;
-    atomic_write(&recovery_path(&app, &scope)?, &bytes)
+    let (path, staging_directory) = recovery_locations(&app, &scope)?;
+    atomic_write(&path, &staging_directory, &bytes)
 }
 
 #[tauri::command]
@@ -210,18 +235,44 @@ mod tests {
             timestamp: Utc::now().to_rfc3339(),
             model: serde_json::json!({"type":"ideasketch"}),
         };
-        atomic_write(&path, &serde_json::to_vec(&draft).unwrap()).unwrap();
+        let staging = dir.path().join("tmp");
+        atomic_write(&path, &staging, &serde_json::to_vec(&draft).unwrap()).unwrap();
         let loaded: RecoveryDraft = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
         assert_eq!(loaded, draft);
+        assert_eq!(fs::read_dir(&staging).unwrap().count(), 0);
         fs::write(&path, b"not-json").unwrap();
         assert!(serde_json::from_slice::<RecoveryDraft>(&fs::read(&path).unwrap()).is_err());
         assert!(path.exists());
     }
 
     #[test]
+    fn workspace_recovery_path_lookup_does_not_create_metadata() {
+        let directory = TempDir::new().unwrap();
+
+        let path = workspace_recovery_path(directory.path(), "drawing.is").unwrap();
+
+        let canonical_root = fs::canonicalize(directory.path()).unwrap();
+        assert!(path.starts_with(canonical_root.join(".ideanote/recovery")));
+        assert!(!directory.path().join(".ideanote").exists());
+    }
+
+    #[test]
     fn workspace_keys_are_stable_and_do_not_expose_relative_paths() {
         assert_eq!(key_for("folder/drawing.is"), key_for("folder/drawing.is"));
         assert!(!key_for("folder/drawing.is").contains("drawing"));
+    }
+
+    #[test]
+    fn workspace_recovery_stages_only_under_ideanote_tmp() {
+        let directory = TempDir::new().unwrap();
+        let (target, staging) =
+            workspace_recovery_locations(directory.path(), "folder/drawing.is").unwrap();
+        let root = directory.path().canonicalize().unwrap();
+        assert!(target.starts_with(root.join(".ideanote/recovery")));
+        assert_eq!(staging, root.join(".ideanote/tmp"));
+        atomic_write(&target, &staging, b"draft").unwrap();
+        assert_eq!(fs::read(target).unwrap(), b"draft");
+        assert_eq!(fs::read_dir(staging).unwrap().count(), 0);
     }
 
     #[test]

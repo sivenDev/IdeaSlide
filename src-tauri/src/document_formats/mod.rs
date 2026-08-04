@@ -51,6 +51,7 @@ pub struct DocumentFormatDefinition {
     pub type_id: &'static str,
     pub display_name: &'static str,
     pub extensions: &'static [&'static str],
+    pub openable: bool,
     pub kind: DocumentFormatKind,
 }
 
@@ -58,6 +59,7 @@ pub const DOCUMENT_FORMATS: &[DocumentFormatDefinition] = &[DocumentFormatDefini
     type_id: "ideasketch",
     display_name: "IdeaSketch",
     extensions: &["is"],
+    openable: true,
     kind: DocumentFormatKind::IdeaSketch,
 }];
 
@@ -77,6 +79,10 @@ pub fn definition_for_type(type_id: &str) -> Option<&'static DocumentFormatDefin
         .find(|definition| definition.type_id.eq_ignore_ascii_case(type_id))
 }
 
+pub fn is_openable_path(path: &Path) -> bool {
+    definition_for_path(path).is_some_and(|definition| definition.openable)
+}
+
 fn require_definition(path: &Path) -> Result<&'static DocumentFormatDefinition, String> {
     definition_for_path(path).ok_or_else(|| {
         format!(
@@ -89,9 +95,20 @@ fn require_definition(path: &Path) -> Result<&'static DocumentFormatDefinition, 
 }
 
 pub fn create_file(path: &Path) -> Result<DocumentFileData, String> {
+    let staging_directory = path
+        .parent()
+        .ok_or_else(|| "Document path has no parent".to_string())?;
+    create_file_with_staging(path, staging_directory)
+}
+
+pub fn create_file_with_staging(
+    path: &Path,
+    staging_directory: &Path,
+) -> Result<DocumentFileData, String> {
     match require_definition(path)?.kind {
         DocumentFormatKind::IdeaSketch => {
-            idea_sketch::create_file(path).map(DocumentFileData::IdeaSketch)
+            idea_sketch::create_file_with_staging(path, staging_directory)
+                .map(DocumentFileData::IdeaSketch)
         }
     }
 }
@@ -122,8 +139,21 @@ pub fn read_file(path: &Path) -> Result<DocumentFileData, String> {
 }
 
 pub fn write_file(path: &Path, data: &DocumentFileData) -> Result<(), String> {
+    let staging_directory = path
+        .parent()
+        .ok_or_else(|| "Document path has no parent".to_string())?;
+    write_file_with_staging(path, data, staging_directory)
+}
+
+pub fn write_file_with_staging(
+    path: &Path,
+    data: &DocumentFileData,
+    staging_directory: &Path,
+) -> Result<(), String> {
     match require_definition(path)?.kind {
-        DocumentFormatKind::IdeaSketch => idea_sketch::write_file(path, data.as_idea_sketch()?),
+        DocumentFormatKind::IdeaSketch => {
+            idea_sketch::write_file_with_staging(path, data.as_idea_sketch()?, staging_directory)
+        }
     }
 }
 
@@ -135,6 +165,7 @@ mod tests {
     fn registry_resolves_ideasketch_case_insensitively() {
         let definition = definition_for_path(Path::new("DRAWING.IS")).unwrap();
         assert_eq!(definition.type_id, "ideasketch");
+        assert!(definition.openable);
         assert_eq!(definition.kind, DocumentFormatKind::IdeaSketch);
     }
 

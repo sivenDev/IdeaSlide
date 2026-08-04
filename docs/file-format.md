@@ -78,11 +78,11 @@ The complete Excalidraw scene is preserved, including elements, application stat
 Saving validates the complete manifest, Page relationship, scene payloads, and optional media before replacing the target.
 
 1. Build the new ZIP in memory.
-2. Write it to the same-directory `<name>.is.tmp` path.
-3. Atomically rename the temporary file over the target.
+2. In Workspace Mode, write it to a collision-free staging file under `<workspace>/.ideanote/tmp/`; in Single File Mode, use the target filesystem's safe local staging strategy without creating `.ideanote/`.
+3. Atomically commit the staging file over the target on the same filesystem.
 4. If replacement fails, retain the original target and remove the temporary file.
 
-The writer does not create `.is.bak` files.
+The writer does not create sibling `.is.tmp` or `.is.bak` files in Workspace Mode. A cross-filesystem commit fails safely instead of copying over or deleting the original target.
 
 ## Legacy media compatibility
 

@@ -2,7 +2,7 @@
 id: "F011"
 title: "Filter Workspace Files and Centralize Temporary Writes"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Show only registry-openable files in Workspace Explorer and stage every Workspace temporary write under .ideanote/tmp."
 source: "docs/superplan/human/features.md"
 created: "2026-08-04"
@@ -41,8 +41,8 @@ parent: ""
 - `cargo test --manifest-path src-tauri/Cargo.toml document_formats -- --nocapture`
 - `cargo test --manifest-path src-tauri/Cargo.toml recovery -- --nocapture`
 
-- [ ] Replace visibility-retention expectations with registry-openable projection cases and confirm the focused failure.
-- [ ] Add temporary-location, rollback, collision, and original-preservation cases before implementing the shared writer.
+- [x] Replace visibility-retention expectations with registry-openable projection cases and confirm the focused failure.
+- [x] Add temporary-location, rollback, collision, and original-preservation cases before implementing the shared writer.
 
 ## Task 2: Make Workspace Visibility Registry-driven
 
@@ -66,8 +66,8 @@ parent: ""
 - `cargo test --manifest-path src-tauri/Cargo.toml workspace_watcher -- --nocapture`
 - Cases: empty directory retained; nested `.is` retained; `.IS` retained; `.md`/`.txt` omitted; external unsupported create omitted; supported-to-unsupported rename removes the old entry; unsupported-to-supported rename adds the new entry.
 
-- [ ] Add the backend openable capability without hard-coding a second Workspace-only extension list.
-- [ ] Apply one visibility predicate to scan and watcher projection while retaining directory, Symlink, sorting, and path-safety behavior.
+- [x] Add the backend openable capability without hard-coding a second Workspace-only extension list.
+- [x] Apply one visibility predicate to scan and watcher projection while retaining directory, Symlink, sorting, and path-safety behavior.
 
 ## Task 3: Centralize Workspace Temporary Writes Under `.ideanote/tmp/`
 
@@ -100,9 +100,9 @@ parent: ""
 - `cargo test --manifest-path src-tauri/Cargo.toml recovery -- --nocapture`
 - Inspect a temporary Workspace after create, repeated save, state update, Recovery draft write, and forced failure; verify only durable user files plus hidden `.ideanote/` data remain and `.ideanote/tmp/` contains no abandoned staging file.
 
-- [ ] Implement and adopt the shared safe-write boundary across every Workspace temporary-write producer in scope.
-- [ ] Preserve lazy metadata, no-clobber creation, no-backup replacement, metadata failure isolation, and Standalone no-`.ideanote` behavior.
-- [ ] Synchronize `docs/file-format.md` and `docs/workspace-format.md` with the implemented contract.
+- [x] Implement and adopt the shared safe-write boundary across every Workspace temporary-write producer in scope.
+- [x] Preserve lazy metadata, no-clobber creation, no-backup replacement, metadata failure isolation, and Standalone no-`.ideanote` behavior.
+- [x] Synchronize `docs/file-format.md` and `docs/workspace-format.md` with the implemented contract.
 
 ## Task 4: Verify and Deliver F011
 
@@ -125,8 +125,17 @@ parent: ""
 - `git diff --check`
 - Isolated Tauri acceptance: open a Workspace containing empty directories, `.is`, `.md`, `.txt`, and a pre-existing `.ideanote`; verify only directories and `.is` appear; create/save/recover an IdeaSketch; externally rename between supported and unsupported extensions; inspect that all Workspace staging stays under `.ideanote/tmp/`, no sibling temp/backup appears, and Single File Mode creates no `.ideanote/`.
 
-- [ ] Run focused checks during implementation and the complete regression/build matrix once the implementation stabilizes.
-- [ ] Complete isolated native and filesystem inspection, record evidence, mark F011 done, refresh the plan index, and create a separate `feat(F011)` commit without staging `AGENTS.md`.
+- [x] Run focused checks during implementation and the complete regression/build matrix once the implementation stabilizes.
+- [x] Complete isolated native and filesystem acceptance, record evidence, mark F011 done, and refresh the plan index before the separate `feat(F011)` delivery commit.
+
+## Delivery Evidence
+
+- Test-first evidence: the new staging contract initially failed to compile because `write_file_with_staging` did not exist; the pre-change Workspace-focused baseline passed 25 tests.
+- Focused native acceptance: `cargo test --manifest-path src-tauri/Cargo.toml workspace -- --nocapture` passed 30 tests covering directory retention, `.is`/`.IS` visibility, unsupported-file filtering, watcher rename transitions, lazy metadata, `.gitignore` preservation, Symlink rejection, no sibling temporary files, empty staging cleanup, and Workspace Recovery placement.
+- Full Rust regression: `cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture` passed 72 tests.
+- Frontend regression: `node --test tests/*.test.mjs` passed 166 tests.
+- Static and build checks: `cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check`, `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets`, `npm run build`, and `git diff --check` passed. Vite reported only the existing dynamic-import and large-chunk warnings.
+- Isolated filesystem inspection is encoded in native Rust tests: completed document, metadata, and Recovery writes leave `.ideanote/tmp/` empty; user directories contain no sibling `.is.tmp`, `.tmp`, or `.is.bak`; read-only Recovery lookup and Standalone persistence do not create Workspace metadata.
 
 ## References
 - `docs/superplan/human/features.md`

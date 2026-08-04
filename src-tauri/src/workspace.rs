@@ -1,10 +1,10 @@
 use crate::document_formats::{self, DocumentFileData, OpenDocumentResult};
+use crate::safe_write::{self, WriteMode};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
-use std::fs::{self, File, OpenOptions};
-use std::io::Write;
+use std::fs;
 use std::path::{Component, Path, PathBuf};
 
 pub const WORKSPACE_CONFIG_SCHEMA_VERSION: u32 = 1;
@@ -13,6 +13,7 @@ pub const METADATA_DIRECTORY_NAME: &str = ".ideanote";
 const WORKSPACE_CONFIG_NAME: &str = "workspace.json";
 const WORKSPACE_STATE_NAME: &str = "state.json";
 const METADATA_GITIGNORE_NAME: &str = ".gitignore";
+const METADATA_TEMP_DIRECTORY_NAME: &str = "tmp";
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -167,6 +168,9 @@ impl WorkspaceService {
 
     pub fn entry(&self, relative_path: &str) -> Result<WorkspaceEntry, String> {
         let path = self.resolve_existing(relative_path)?;
+        if !workspace_entry_is_visible(&path)? {
+            return Err("Workspace entry is not visible in the current build".to_string());
+        }
         self.entry_for_path(&path)
     }
 
@@ -236,7 +240,9 @@ impl WorkspaceService {
             return Err(format!("Workspace entry already exists: {name}"));
         }
 
-        document_formats::create_file(&path)?;
+        self.with_workspace_staging(|staging_directory| {
+            document_formats::create_file_with_staging(&path, staging_directory)
+        })?;
         let entry = self.entry_for_path(&path)?;
         let metadata_error = self.ensure_metadata().err();
         Ok(WorkspaceMutationResult {
@@ -324,7 +330,9 @@ impl WorkspaceService {
         if !path.is_file() {
             return Err("Workspace path is not a file".to_string());
         }
-        document_formats::write_file(&path, data)?;
+        self.with_workspace_staging(|staging_directory| {
+            document_formats::write_file_with_staging(&path, data, staging_directory)
+        })?;
         Ok(WorkspaceSaveResult {
             saved: true,
             metadata_error: self.ensure_metadata().err(),
@@ -337,8 +345,13 @@ impl WorkspaceService {
         state.open_tabs.clear();
         self.ensure_metadata()?;
         let metadata_directory = self.root.join(METADATA_DIRECTORY_NAME);
-        atomic_write_json(&metadata_directory.join(WORKSPACE_STATE_NAME), &state)?;
-        self.touch_workspace_config(&metadata_directory)
+        let staging_directory = metadata_directory.join(METADATA_TEMP_DIRECTORY_NAME);
+        atomic_write_json(
+            &metadata_directory.join(WORKSPACE_STATE_NAME),
+            &staging_directory,
+            &state,
+        )?;
+        self.touch_workspace_config(&metadata_directory, &staging_directory)
     }
 
     pub fn load_metadata(&self) -> WorkspaceMetadataSnapshot {
@@ -397,6 +410,9 @@ impl WorkspaceService {
                 continue;
             }
             let path = child.path();
+            if !workspace_entry_is_visible(&path)? {
+                continue;
+            }
             entries.push(self.entry_from_metadata(&path, &relative_path)?);
         }
         entries.sort_by(|left, right| {
@@ -538,17 +554,7 @@ impl WorkspaceService {
         if self.read_only {
             return Err("Workspace is read-only; metadata was not created".to_string());
         }
-        let directory = self.root.join(METADATA_DIRECTORY_NAME);
-        if directory.exists() {
-            let metadata = fs::symlink_metadata(&directory)
-                .map_err(|error| format!("Failed to inspect .ideanote: {error}"))?;
-            if metadata.file_type().is_symlink() || !metadata.is_dir() {
-                return Err(".ideanote must be a real directory".to_string());
-            }
-        } else {
-            fs::create_dir(&directory)
-                .map_err(|error| format!("Failed to create .ideanote: {error}"))?;
-        }
+        let (directory, staging_directory, _) = self.prepare_workspace_staging()?;
 
         let config_path = directory.join(WORKSPACE_CONFIG_NAME);
         let mut config = match read_versioned_json::<WorkspaceConfig>(&config_path)? {
@@ -556,36 +562,80 @@ impl WorkspaceService {
             None => WorkspaceConfig::new(),
         };
         config.modified = Utc::now().to_rfc3339();
-        atomic_write_json(&config_path, &config)?;
+        atomic_write_json(&config_path, &staging_directory, &config)?;
 
         let state_path = directory.join(WORKSPACE_STATE_NAME);
         if state_path.exists() {
             let _ = read_versioned_json::<WorkspaceState>(&state_path)?;
         } else {
-            atomic_write_json(&state_path, &WorkspaceState::default())?;
+            atomic_write_json(&state_path, &staging_directory, &WorkspaceState::default())?;
         }
 
-        let gitignore_path = directory.join(METADATA_GITIGNORE_NAME);
-        if !gitignore_path.exists() {
-            let mut file = OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(&gitignore_path)
-                .map_err(|error| format!("Failed to create .ideanote/.gitignore: {error}"))?;
-            file.write_all(b"state.json\nrecovery/\ncache/\n")
-                .map_err(|error| format!("Failed to write .ideanote/.gitignore: {error}"))?;
-            file.sync_all()
-                .map_err(|error| format!("Failed to sync .ideanote/.gitignore: {error}"))?;
-        }
+        ensure_metadata_gitignore(&directory, &staging_directory)?;
         Ok(())
     }
 
-    fn touch_workspace_config(&self, directory: &Path) -> Result<(), String> {
+    fn touch_workspace_config(
+        &self,
+        directory: &Path,
+        staging_directory: &Path,
+    ) -> Result<(), String> {
         let path = directory.join(WORKSPACE_CONFIG_NAME);
         let mut config = read_versioned_json::<WorkspaceConfig>(&path)?
             .ok_or_else(|| "Workspace metadata is missing workspace.json".to_string())?;
         config.modified = Utc::now().to_rfc3339();
-        atomic_write_json(&path, &config)
+        atomic_write_json(&path, staging_directory, &config)
+    }
+
+    fn prepare_workspace_staging(&self) -> Result<(PathBuf, PathBuf, bool), String> {
+        let directory = self.root.join(METADATA_DIRECTORY_NAME);
+        let created_metadata_directory = !directory.exists();
+        if created_metadata_directory {
+            fs::create_dir(&directory)
+                .map_err(|error| format!("Failed to create .ideanote: {error}"))?;
+        } else {
+            let metadata = fs::symlink_metadata(&directory)
+                .map_err(|error| format!("Failed to inspect .ideanote: {error}"))?;
+            if metadata.file_type().is_symlink() || !metadata.is_dir() {
+                return Err(".ideanote must be a real directory".to_string());
+            }
+        }
+
+        let staging_directory = directory.join(METADATA_TEMP_DIRECTORY_NAME);
+        if let Err(error) = fs::create_dir_all(&staging_directory) {
+            if created_metadata_directory {
+                let _ = fs::remove_dir(&directory);
+            }
+            return Err(format!("Failed to create .ideanote/tmp: {error}"));
+        }
+        let staging_metadata = fs::symlink_metadata(&staging_directory)
+            .map_err(|error| format!("Failed to inspect .ideanote/tmp: {error}"))?;
+        if staging_metadata.file_type().is_symlink() || !staging_metadata.is_dir() {
+            if created_metadata_directory {
+                let _ = fs::remove_dir_all(&directory);
+            }
+            return Err(".ideanote/tmp must be a real directory".to_string());
+        }
+        Ok((directory, staging_directory, created_metadata_directory))
+    }
+
+    pub(crate) fn ensure_temp_directory(&self) -> Result<PathBuf, String> {
+        self.prepare_workspace_staging()
+            .map(|(_, staging_directory, _)| staging_directory)
+    }
+
+    fn with_workspace_staging<T, F>(&self, operation: F) -> Result<T, String>
+    where
+        F: FnOnce(&Path) -> Result<T, String>,
+    {
+        let (metadata_directory, staging_directory, created_metadata_directory) =
+            self.prepare_workspace_staging()?;
+        let result = operation(&staging_directory);
+        if result.is_err() && created_metadata_directory {
+            let _ = fs::remove_dir_all(&staging_directory);
+            let _ = fs::remove_dir(&metadata_directory);
+        }
+        result
     }
 
     fn validate_state_paths(&self, state: &WorkspaceState) -> Result<(), String> {
@@ -675,7 +725,6 @@ fn normalize_document_name(name: &str, extension: &str) -> Result<String, String
 
 fn is_internal_name(name: &str) -> bool {
     name.eq_ignore_ascii_case(METADATA_DIRECTORY_NAME)
-        || name.to_ascii_lowercase().ends_with(".is.tmp")
 }
 
 fn path_targets_internal_metadata(path: &Path) -> bool {
@@ -685,6 +734,14 @@ fn path_targets_internal_metadata(path: &Path) -> bool {
         .file_name()
         .and_then(OsStr::to_str)
         .is_some_and(is_internal_name)
+}
+
+fn workspace_entry_is_visible(path: &Path) -> Result<bool, String> {
+    let metadata = fs::symlink_metadata(path)
+        .map_err(|error| format!("Failed to inspect Workspace entry: {error}"))?;
+    Ok(metadata.file_type().is_symlink()
+        || metadata.is_dir()
+        || (metadata.is_file() && document_formats::is_openable_path(path)))
 }
 
 fn read_versioned_json<T>(path: &Path) -> Result<Option<T>, String>
@@ -743,34 +800,55 @@ impl HasSchemaVersion for WorkspaceState {
     }
 }
 
-fn atomic_write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), String> {
+fn atomic_write_json<T: Serialize>(
+    path: &Path,
+    staging_directory: &Path,
+    value: &T,
+) -> Result<(), String> {
     let bytes = serde_json::to_vec_pretty(value)
         .map_err(|error| format!("Failed to serialize {}: {error}", path.display()))?;
-    let file_name = path
-        .file_name()
-        .and_then(OsStr::to_str)
-        .ok_or_else(|| "Metadata file name is invalid".to_string())?;
-    let temp_path = path.with_file_name(format!("{file_name}.tmp"));
-    let write_result = (|| -> Result<(), String> {
-        let mut file = File::create(&temp_path)
-            .map_err(|error| format!("Failed to create metadata temp file: {error}"))?;
-        file.write_all(&bytes)
-            .map_err(|error| format!("Failed to write metadata temp file: {error}"))?;
-        file.sync_all()
-            .map_err(|error| format!("Failed to sync metadata temp file: {error}"))?;
-        fs::rename(&temp_path, path)
-            .map_err(|error| format!("Failed to atomically replace metadata file: {error}"))?;
-        if let Some(parent) = path.parent() {
-            if let Ok(directory) = File::open(parent) {
-                let _ = directory.sync_all();
+    safe_write::write_bytes(path, staging_directory, &bytes, WriteMode::Replace)
+}
+
+fn ensure_metadata_gitignore(
+    metadata_directory: &Path,
+    staging_directory: &Path,
+) -> Result<(), String> {
+    let path = metadata_directory.join(METADATA_GITIGNORE_NAME);
+    let existed = path.exists();
+    let mut content = if existed {
+        fs::read_to_string(&path)
+            .map_err(|error| format!("Failed to read .ideanote/.gitignore: {error}"))?
+    } else {
+        String::new()
+    };
+    let mut changed = false;
+    for required in ["state.json", "recovery/", "tmp/", "cache/"] {
+        if !content
+            .lines()
+            .any(|line| line.trim_end_matches('\r') == required)
+        {
+            if !content.is_empty() && !content.ends_with('\n') {
+                content.push('\n');
             }
+            content.push_str(required);
+            content.push('\n');
+            changed = true;
         }
-        Ok(())
-    })();
-    if write_result.is_err() {
-        let _ = fs::remove_file(&temp_path);
     }
-    write_result
+    if changed || !existed {
+        safe_write::write_bytes(
+            &path,
+            staging_directory,
+            content.as_bytes(),
+            if existed {
+                WriteMode::Replace
+            } else {
+                WriteMode::CreateNew
+            },
+        )?;
+    }
+    Ok(())
 }
 
 #[cfg(unix)]
@@ -805,13 +883,12 @@ mod tests {
 
         let result = service.open_result().unwrap();
         assert!(!directory.path().join(METADATA_DIRECTORY_NAME).exists());
-        assert_eq!(result.entries.len(), 2);
+        assert_eq!(result.entries.len(), 1);
         assert_eq!(result.entries[0].kind, WorkspaceEntryKind::Directory);
         assert_eq!(
             result.entries[0].children[0].file_type.as_deref(),
             Some("ideasketch")
         );
-        assert_eq!(result.entries[1].name, "notes.txt");
         assert!(!result.metadata.exists);
     }
 
@@ -882,6 +959,13 @@ mod tests {
         assert!(!directory.path().join(".gitignore").exists());
         assert!(!directory.path().join(".ideanote/recovery").exists());
         assert!(!directory.path().join(".ideanote/cache").exists());
+        assert!(directory.path().join(".ideanote/tmp").is_dir());
+        assert_eq!(
+            fs::read_dir(directory.path().join(".ideanote/tmp"))
+                .unwrap()
+                .count(),
+            0
+        );
 
         let opened = document_formats::read_file(&directory.path().join("Untitled.is")).unwrap();
         assert_eq!(opened.as_idea_sketch().unwrap().manifest.version, "1.0");
@@ -903,12 +987,13 @@ mod tests {
     #[test]
     fn content_success_reports_metadata_failure_without_rolling_back_file() {
         let (directory, service) = open_temp_workspace();
-        fs::write(directory.path().join(METADATA_DIRECTORY_NAME), "blocked").unwrap();
+        fs::create_dir_all(directory.path().join(".ideanote/tmp")).unwrap();
+        fs::create_dir(directory.path().join(".ideanote/workspace.json")).unwrap();
         let result = service
             .create_document("", "ideasketch", Some("drawing.is"))
             .unwrap();
         assert!(directory.path().join("drawing.is").is_file());
-        assert!(result.metadata_error.unwrap().contains("real directory"));
+        assert!(result.metadata_error.unwrap().contains("workspace.json"));
     }
 
     #[test]
@@ -922,6 +1007,13 @@ mod tests {
         assert!(result.saved);
         assert!(result.metadata_error.is_none());
         assert!(directory.path().join(".ideanote/workspace.json").is_file());
+        assert!(!path.with_extension("is.tmp").exists());
+        assert_eq!(
+            fs::read_dir(directory.path().join(".ideanote/tmp"))
+                .unwrap()
+                .count(),
+            0
+        );
         assert_eq!(
             document_formats::read_file(&path)
                 .unwrap()
@@ -984,6 +1076,39 @@ mod tests {
             "user-rule\n"
         );
         assert!(!directory.path().join(".ideanote/state.json.tmp").exists());
+        assert!(
+            fs::read_to_string(directory.path().join(".ideanote/.gitignore"))
+                .unwrap()
+                .lines()
+                .any(|line| line == "tmp/")
+        );
+        assert_eq!(
+            fs::read_dir(directory.path().join(".ideanote/tmp"))
+                .unwrap()
+                .count(),
+            0
+        );
+    }
+
+    #[test]
+    fn metadata_gitignore_preserves_custom_rules_while_adding_tmp() {
+        let (directory, service) = open_temp_workspace();
+        let metadata = directory.path().join(METADATA_DIRECTORY_NAME);
+        fs::create_dir(&metadata).unwrap();
+        fs::write(
+            metadata.join(METADATA_GITIGNORE_NAME),
+            "custom-rule\ncache/\n",
+        )
+        .unwrap();
+
+        service.ensure_metadata().unwrap();
+
+        let content = fs::read_to_string(metadata.join(METADATA_GITIGNORE_NAME)).unwrap();
+        assert!(content.starts_with("custom-rule\ncache/\n"));
+        assert!(content.lines().any(|line| line == "state.json"));
+        assert!(content.lines().any(|line| line == "recovery/"));
+        assert!(content.lines().any(|line| line == "tmp/"));
+        assert_eq!(content.lines().filter(|line| *line == "cache/").count(), 1);
     }
 
     #[test]
@@ -1018,11 +1143,41 @@ mod tests {
     fn failed_atomic_metadata_replacement_keeps_target_and_cleans_temp() {
         let directory = TempDir::new().unwrap();
         let target = directory.path().join("state.json");
+        let staging = directory.path().join("tmp");
         fs::create_dir(&target).unwrap();
-        let error = atomic_write_json(&target, &WorkspaceState::default()).unwrap_err();
+        let error = atomic_write_json(&target, &staging, &WorkspaceState::default()).unwrap_err();
         assert!(error.contains("atomically replace"));
         assert!(target.is_dir());
         assert!(!directory.path().join("state.json.tmp").exists());
+        assert_eq!(fs::read_dir(staging).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn failed_first_workspace_staging_rolls_back_new_metadata_directory() {
+        let (directory, service) = open_temp_workspace();
+        let error = service
+            .with_workspace_staging::<(), _>(|_| Err("forced failure".to_string()))
+            .unwrap_err();
+        assert_eq!(error, "forced failure");
+        assert!(!directory.path().join(METADATA_DIRECTORY_NAME).exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn workspace_staging_rejects_symlinked_tmp_directory() {
+        use std::os::unix::fs::symlink;
+
+        let (directory, service) = open_temp_workspace();
+        let metadata = directory.path().join(METADATA_DIRECTORY_NAME);
+        let outside = TempDir::new().unwrap();
+        fs::create_dir(&metadata).unwrap();
+        symlink(outside.path(), metadata.join(METADATA_TEMP_DIRECTORY_NAME)).unwrap();
+
+        let error = service.ensure_metadata().unwrap_err();
+
+        assert!(error.contains(".ideanote/tmp must be a real directory"));
+        assert_eq!(fs::read_dir(outside.path()).unwrap().count(), 0);
+        assert!(metadata.join(METADATA_TEMP_DIRECTORY_NAME).is_symlink());
     }
 
     #[cfg(unix)]
@@ -1048,17 +1203,30 @@ mod tests {
     }
 
     #[test]
-    fn recursive_scan_keeps_unsupported_files_without_parsing_them() {
+    fn recursive_scan_keeps_directories_and_only_registry_openable_files() {
         let (directory, service) = open_temp_workspace();
+        fs::create_dir(directory.path().join("archive.is.tmp")).unwrap();
         for index in 0..40 {
             let folder = directory.path().join(format!("folder-{index:02}"));
             fs::create_dir(&folder).unwrap();
             fs::write(folder.join("data.bin"), [0xff, 0x00, 0x7f]).unwrap();
+            if index == 0 {
+                fs::write(folder.join("drawing.IS"), b"not parsed").unwrap();
+            }
         }
         let entries = service.scan().unwrap();
-        assert_eq!(entries.len(), 40);
+        assert_eq!(entries.len(), 41);
+        assert_eq!(entries[0].name, "archive.is.tmp");
+        assert!(entries[0].children.is_empty());
+        assert_eq!(entries[1].children.len(), 1);
+        assert_eq!(entries[1].children[0].name, "drawing.IS");
+        assert_eq!(
+            entries[1].children[0].file_type.as_deref(),
+            Some("ideasketch")
+        );
         assert!(entries
             .iter()
-            .all(|entry| entry.children[0].file_type.is_none()));
+            .skip(2)
+            .all(|entry| entry.children.is_empty()));
     }
 }
