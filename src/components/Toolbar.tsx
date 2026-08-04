@@ -8,7 +8,6 @@ import {
   FolderOpen,
   House,
   Save,
-  SaveAll,
 } from "lucide-react";
 import { SaveIndicator } from "./SaveIndicator";
 import { Separator } from "./ui/Separator";
@@ -34,7 +33,6 @@ interface ToolbarProps {
   onOpenWorkspace: () => void;
   onSave: () => void;
   onSaveAs: () => void;
-  onSaveAll: () => void;
   onGoHome: () => void;
 }
 
@@ -48,7 +46,6 @@ export function Toolbar({
   onOpenWorkspace,
   onSave,
   onSaveAs,
-  onSaveAll,
   onGoHome,
 }: ToolbarProps) {
   const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
@@ -101,17 +98,9 @@ export function Toolbar({
               </span>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-40">
-              <DropdownMenuItem onSelect={onSave}>
-                <Save {...menuIconProps} />
-                <span>Save</span>
-              </DropdownMenuItem>
               <DropdownMenuItem onSelect={onSaveAs}>
                 <FileOutput {...menuIconProps} />
                 <span>Save As…</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={onSaveAll}>
-                <SaveAll {...menuIconProps} />
-                <span>Save All</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -2,7 +2,7 @@
 id: "F010"
 title: "Clarify Save Menu and Workspace Explorer Actions"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Remove redundant title-bar save choices and replace ambiguous Workspace header glyphs with a compact, clearly labeled Lucide action system."
 source: "docs/superplan/human/features.md"
 created: "2026-08-04"
@@ -35,8 +35,8 @@ parent: ""
 **Verification:**
 - `node --test tests/editorChromeNavigation.test.mjs tests/workspaceExplorerWiring.test.mjs`
 
-- [ ] Add focused failing contracts for the simplified save dropdown and semantic Workspace actions.
-- [ ] Confirm failures identify the duplicate menu rows and font glyph controls without rejecting retained Save All safety behavior.
+- [x] Add focused failing contracts for the simplified save dropdown and semantic Workspace actions.
+- [x] Confirm failures identify the duplicate menu rows and font glyph controls without rejecting retained Save All safety behavior.
 
 ## Task 2: Implement the Compact Semantic Action System
 
@@ -57,9 +57,9 @@ parent: ""
 - Run the focused Task 1 suite.
 - Browser cases: Save dropdown shows only Save As; each Workspace action exposes the expected tooltip; file/folder creation and refresh still fire; Expand/Collapse update the tree; read-only mode removes creation but leaves refresh/tree actions.
 
-- [ ] Apply the smallest toolbar prop and menu cleanup without changing save coordination.
-- [ ] Replace every Workspace header text glyph and simplify whole-tree operations into the labeled menu.
-- [ ] Verify alignment, truncation, hover/focus hints, and callbacks at the 180px minimum panel width.
+- [x] Apply the smallest toolbar prop and menu cleanup without changing save coordination.
+- [x] Replace every Workspace header text glyph and simplify whole-tree operations into the labeled menu.
+- [x] Verify alignment, truncation, hover/focus hints, and callbacks at the 180px minimum panel width.
 
 ## Task 3: Verify and Deliver F010
 
@@ -79,8 +79,15 @@ parent: ""
 - `git diff --check`
 - Browser acceptance for title-bar save options and Workspace header actions/tooltips at normal and minimum sidebar widths.
 
-- [ ] Run focused checks during implementation and the complete frontend regression/build matrix once stable.
-- [ ] Record browser evidence, mark F010 done/complete, refresh the index, and create a separate `feat(F010)` commit excluding `AGENTS.md`.
+- [x] Run focused checks during implementation and the complete frontend regression/build matrix once stable.
+- [x] Record browser evidence, mark F010 done/complete, refresh the index, and create a separate `feat(F010)` commit excluding `AGENTS.md`.
+
+## Delivery Evidence
+- Test-first UI contract: `node --test tests/editorChromeNavigation.test.mjs tests/workspaceExplorerWiring.test.mjs` first failed in the two expected places because the save menu still exposed Save/Save All and the Workspace header still used text glyphs; the stabilized implementation passed all 8 focused tests.
+- Full frontend regression passed: `node --test tests/*.test.mjs` (166 passed).
+- Production frontend build passed: `npm run build`; only the existing Excalidraw mixed-import and large-chunk warnings remain.
+- `git diff --check` passed.
+- Browser acceptance rendered the real `Toolbar` and `WorkspaceExplorer` components with production CSS in a temporary ignored harness. The save-options menu contained only `Save As…`; the Workspace header exposed New File, New Folder, Refresh Workspace, and Workspace Tree Actions; New Folder displayed its shared tooltip; the tree menu exposed labeled Expand all and Collapse all commands and both updated the visible tree correctly. At the 180px minimum sidebar width, all four 28px action buttons fit within the panel (`lastRight=172`, `panelRight=180`) with no console errors. The temporary harness was removed after verification.
 
 ## References
 - `docs/superplan/human/features.md`

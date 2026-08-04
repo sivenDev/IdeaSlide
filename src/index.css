@@ -456,6 +456,12 @@ html, body, #root {
   transform: translateY(1px);
 }
 
+.idea-slide-panel-icon-button svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex: 0 0 0.875rem;
+}
+
 .idea-slide-panel-icon-button:focus-visible,
 .idea-slide-panel-add-button:focus-visible,
 .idea-slide-camera-present-button:focus-visible,

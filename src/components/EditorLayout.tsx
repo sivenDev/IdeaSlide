@@ -686,7 +686,6 @@ export function EditorLayout({
         onOpenWorkspace={() => void handleOpenWorkspace()}
         onSave={() => void handleSave()}
         onSaveAs={() => void handleSaveAs()}
-        onSaveAll={() => void handleSaveAll()}
         onGoHome={() => void handleGoHome()}
       />
       <div className="flex min-h-0 flex-1 overflow-hidden">

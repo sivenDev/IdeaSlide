@@ -87,7 +87,7 @@ Merge the IdeaSketch Page list into the existing right-side document navigator a
 
 ## F010: Clarify Save Menu and Workspace Explorer Actions
 
-- status: accepted
+- status: done
 - created: 2026-08-04
 
 Remove the duplicate Save and Save All entries from the title-bar save dropdown while retaining the primary Save button, Save As, and non-toolbar save coordination behavior. Replace the Workspace Explorer header's symbolic text controls with clear framework icons, consistent grouping, accessible labels, and tooltips for New File, New Folder, Refresh, Collapse All, and additional tree actions.
