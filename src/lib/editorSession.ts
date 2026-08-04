@@ -80,16 +80,16 @@ export function buildEditorDraftFromSlide(slide: Slide): EditorSlideDraft {
 }
 
 export function createDraftChangeSummary(
-  previousSlide: Slide,
+  previousDraftLike: Pick<EditorSlideDraft, "elements" | "appState" | "files">,
   nextDraftLike: Pick<EditorSlideDraft, "elements" | "appState" | "files">
 ): DraftChangeSummary {
   const previousAppState = normalizePersistedAppStateForComparison(
-    extractSaveTriggerAppState(previousSlide.appState)
+    extractSaveTriggerAppState(previousDraftLike.appState)
   );
   const nextAppState = normalizePersistedAppStateForComparison(
     extractSaveTriggerAppState(nextDraftLike.appState)
   );
-  const previousSceneFingerprint = buildSceneFingerprint(previousSlide.elements, previousSlide.files);
+  const previousSceneFingerprint = buildSceneFingerprint(previousDraftLike.elements, previousDraftLike.files);
   const nextSceneFingerprint = buildSceneFingerprint(nextDraftLike.elements, nextDraftLike.files);
 
   const contentChanged = previousSceneFingerprint !== nextSceneFingerprint;

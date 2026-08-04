@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `required` | 6 | 6 |
 | `feature` | 14 | 14 |
-| `bugfix` | 13 | 13 |
+| `bugfix` | 14 | 14 |
 
 ## Execution Order
 
@@ -68,3 +68,4 @@
 | `B011` | [Fix Untitled Save and Window Close Coordination](bugs/B011-fix-untitled-save-and-window-close.md) | `complete` | 2026-08-04 |
 | `B012` | [Save the Active Document Before Switching Files](bugs/B012-save-active-document-before-switching.md) | `complete` | 2026-08-04 |
 | `B013` | [Keep Workspace Selection on the Active File When Switching Is Blocked](bugs/B013-keep-workspace-selection-on-blocked-switch.md) | `complete` | 2026-08-04 |
+| `B014` | [Finish Workspace Auto-save and Stop Repeat Writes](bugs/B014-fix-workspace-autosave-completion-loop.md) | `complete` | 2026-08-05 |

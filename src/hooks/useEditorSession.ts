@@ -74,16 +74,17 @@ export function useEditorSession({
       files: Record<string, any>
     ) => {
       const previousSummary = changeSummaryRef.current;
+      const previousDraft = draftRef.current;
       const nextDraft = {
-        ...draftRef.current,
+        ...previousDraft,
         elements,
         appState,
         files,
       };
       const nextSummary = createDraftChangeSummary(baseSlideRef.current, nextDraft);
+      const persistedDraftChanged = createDraftChangeSummary(previousDraft, nextDraft).hasPersistedChange;
 
       draftRef.current = nextDraft;
-      editVersionRef.current += 1;
       changeSummaryRef.current = nextSummary;
       setHasPendingCommit((previousValue) =>
         previousValue === nextSummary.hasPersistedChange ? previousValue : nextSummary.hasPersistedChange
@@ -93,11 +94,14 @@ export function useEditorSession({
         onDirty();
       }
 
-      clearPreviewSyncTimeout();
-      previewSyncTimeoutRef.current = window.setTimeout(() => {
-        previewSyncTimeoutRef.current = null;
-        syncPreviewDraft();
-      }, PREVIEW_SYNC_DEBOUNCE_MS);
+      if (persistedDraftChanged) {
+        editVersionRef.current += 1;
+        clearPreviewSyncTimeout();
+        previewSyncTimeoutRef.current = window.setTimeout(() => {
+          previewSyncTimeoutRef.current = null;
+          syncPreviewDraft();
+        }, PREVIEW_SYNC_DEBOUNCE_MS);
+      }
     },
     [clearPreviewSyncTimeout, onDirty, syncPreviewDraft]
   );

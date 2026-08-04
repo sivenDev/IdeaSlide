@@ -138,3 +138,10 @@ When the active IdeaSketch file has unsaved edits, opening another Workspace fil
 - created: 2026-08-04
 
 When a dirty active Workspace file cannot be saved because of an external-change conflict, clicking another file correctly keeps the original editor active but the Explorer selection moves to the requested destination. This creates contradictory UI state. Expected: failed or cancelled switching keeps both the active editor and Explorer selection on the original file; successful switching updates both.
+
+## B014: Fix Workspace Auto-save Completion Loop
+
+- status: done
+- created: 2026-08-05
+
+In a Workspace IdeaSketch file, make a persisted edit such as adding a Page and wait longer than the auto-save debounce. The .is archive is updated on disk, but the toolbar remains at Unsaved changes, the recovery draft remains, and the same unchanged document is written repeatedly. Expected: once the saved snapshot remains current, auto-save marks the document Saved, clears recovery, and stops writing until another persisted edit occurs.

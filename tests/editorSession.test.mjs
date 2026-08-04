@@ -67,6 +67,48 @@ test('useEditorSession keeps live edits in refs and debounces preview sync befor
   assert.doesNotMatch(source, /setDraft\(\(previousDraft\) => \{/);
 });
 
+test('useEditorSession advances autosave versions only for persisted consecutive-draft changes', async () => {
+  const sourcePath = new URL('../src/hooks/useEditorSession.ts', import.meta.url);
+  const source = await fs.readFile(sourcePath, 'utf8');
+  const updateDraft = source.match(/const updateDraft = useCallback\([\s\S]*?\n  \);/)?.[0] ?? '';
+
+  assert.match(updateDraft, /const previousDraft = draftRef\.current;/);
+  assert.match(updateDraft, /const persistedDraftChanged = createDraftChangeSummary\(previousDraft, nextDraft\)\.hasPersistedChange;/);
+  assert.match(updateDraft, /if \(persistedDraftChanged\) \{[\s\S]*?editVersionRef\.current \+= 1;[\s\S]*?previewSyncTimeoutRef\.current = window\.setTimeout/);
+});
+
+test('consecutive draft comparison ignores persisted-equivalent noise but detects edits and reverts', async () => {
+  const { createDraftChangeSummary } = await loadModule();
+
+  assert.equal(typeof createDraftChangeSummary, 'function');
+
+  const saved = {
+    id: 'slide-1',
+    elements: [{ id: 'shape-1', version: 1 }],
+    appState: { viewBackgroundColor: '#ffffff', scrollX: 0, scrollY: 0, zoom: { value: 1 } },
+    files: {},
+  };
+  const equivalent = {
+    slideId: 'slide-1',
+    elements: saved.elements,
+    appState: {
+      ...saved.appState,
+      selectedElementIds: { 'shape-1': true },
+      scrollX: 120,
+      zoom: { value: 1.5 },
+    },
+    files: saved.files,
+  };
+  const edited = {
+    ...equivalent,
+    elements: [{ id: 'shape-1', version: 2 }],
+  };
+
+  assert.equal(createDraftChangeSummary(saved, equivalent).hasPersistedChange, false);
+  assert.equal(createDraftChangeSummary(equivalent, edited).hasPersistedChange, true);
+  assert.equal(createDraftChangeSummary(edited, equivalent).hasPersistedChange, true);
+});
+
 test('buildSlidesForPersistence applies the latest live draft snapshot to the current slide', async () => {
   const { buildSlidesForPersistence } = await loadModule();
 
