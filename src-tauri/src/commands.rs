@@ -160,8 +160,10 @@ pub fn save_workspace_document(
     data: DocumentFileData,
     watcher: tauri::State<'_, WorkspaceWatcherState>,
 ) -> Result<WorkspaceSaveResult, String> {
-    watcher.register_expected_write(PathBuf::from(&root).as_path(), &path);
-    WorkspaceService::open(PathBuf::from(root).as_path())?.save_document(&path, &data)
+    let root = PathBuf::from(root);
+    watcher.with_expected_write(&root, &path, || {
+        WorkspaceService::open(&root)?.save_document(&path, &data)
+    })
 }
 
 #[command]

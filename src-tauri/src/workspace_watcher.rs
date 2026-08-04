@@ -5,10 +5,11 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 use tauri::{AppHandle, Emitter};
 
-const EXPECTED_WRITE_TTL: Duration = Duration::from_secs(3);
+const ACTIVE_WRITE_TTL: Duration = Duration::from_secs(30);
+const COMPLETED_WRITE_TTL: Duration = Duration::from_secs(3);
 const COALESCE_WINDOW: Duration = Duration::from_millis(120);
 const AMBIGUOUS_RENAME_WINDOW: Duration = Duration::from_millis(400);
 
@@ -18,6 +19,25 @@ struct PendingRename {
     relative_path: String,
     seen_at: Instant,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct FileStamp {
+    length: u64,
+    modified: Option<SystemTime>,
+}
+
+#[derive(Debug, Clone)]
+enum ExpectedWrite {
+    Active {
+        started_at: Instant,
+    },
+    Completed {
+        completed_at: Instant,
+        stamp: FileStamp,
+    },
+}
+
+type ExpectedWrites = Arc<Mutex<HashMap<PathBuf, ExpectedWrite>>>;
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -34,25 +54,58 @@ pub struct WorkspaceChangeEvent {
 pub struct WorkspaceWatcherState {
     watcher: Mutex<Option<RecommendedWatcher>>,
     root: Mutex<Option<PathBuf>>,
-    expected: Arc<Mutex<HashMap<PathBuf, Instant>>>,
+    expected: ExpectedWrites,
     recent: Arc<Mutex<HashMap<String, Instant>>>,
     pending_rename: Arc<Mutex<Option<PendingRename>>>,
 }
 
 impl WorkspaceWatcherState {
-    pub fn register_expected_write(&self, root: &Path, relative_path: &str) {
+    fn begin_expected_write(&self, root: &Path, relative_path: &str) -> Option<PathBuf> {
         if let Ok(service) = WorkspaceService::open(root) {
-            let absolute = PathBuf::from(root).join(relative_path);
-            if let Ok(path) = absolute.canonicalize() {
-                self.expected.lock().unwrap().insert(path, Instant::now());
-            } else {
-                self.expected
-                    .lock()
-                    .unwrap()
-                    .insert(absolute, Instant::now());
-            }
-            let _ = service;
+            let absolute = service.root().join(relative_path);
+            let path = absolute.canonicalize().unwrap_or(absolute);
+            self.expected.lock().unwrap().insert(
+                path.clone(),
+                ExpectedWrite::Active {
+                    started_at: Instant::now(),
+                },
+            );
+            return Some(path);
         }
+        None
+    }
+
+    fn finish_expected_write(&self, path: Option<&Path>, succeeded: bool) {
+        let Some(path) = path else { return };
+        let mut expected = self.expected.lock().unwrap();
+        if succeeded {
+            if let Some(stamp) = file_stamp(path) {
+                expected.insert(
+                    path.to_path_buf(),
+                    ExpectedWrite::Completed {
+                        completed_at: Instant::now(),
+                        stamp,
+                    },
+                );
+                return;
+            }
+        }
+        expected.remove(path);
+    }
+
+    pub fn with_expected_write<T, F>(
+        &self,
+        root: &Path,
+        relative_path: &str,
+        write: F,
+    ) -> Result<T, String>
+    where
+        F: FnOnce() -> Result<T, String>,
+    {
+        let path = self.begin_expected_write(root, relative_path);
+        let result = write();
+        self.finish_expected_write(path.as_deref(), result.is_ok());
+        result
     }
 
     fn start(&self, app: AppHandle, root: PathBuf) -> Result<(), String> {
@@ -197,11 +250,40 @@ fn fs_symlink_metadata(path: &Path) -> Option<std::fs::Metadata> {
     std::fs::symlink_metadata(path).ok()
 }
 
-fn consume_expected(expected: &Arc<Mutex<HashMap<PathBuf, Instant>>>, path: &Path) -> bool {
+fn file_stamp(path: &Path) -> Option<FileStamp> {
+    let metadata = std::fs::metadata(path).ok()?;
+    if !metadata.is_file() {
+        return None;
+    }
+    Some(FileStamp {
+        length: metadata.len(),
+        modified: metadata.modified().ok(),
+    })
+}
+
+fn should_suppress_expected(expected: &ExpectedWrites, path: &Path) -> bool {
     let now = Instant::now();
     let mut entries = expected.lock().unwrap();
-    entries.retain(|_, created| now.duration_since(*created) <= EXPECTED_WRITE_TTL);
-    entries.remove(path).is_some()
+    entries.retain(|_, write| match write {
+        ExpectedWrite::Active { started_at } => now.duration_since(*started_at) <= ACTIVE_WRITE_TTL,
+        ExpectedWrite::Completed { completed_at, .. } => {
+            now.duration_since(*completed_at) <= COMPLETED_WRITE_TTL
+        }
+    });
+    let Some(write) = entries.get(path).cloned() else {
+        return false;
+    };
+    match write {
+        ExpectedWrite::Active { .. } => true,
+        ExpectedWrite::Completed { stamp, .. } => {
+            if file_stamp(path).as_ref() == Some(&stamp) {
+                true
+            } else {
+                entries.remove(path);
+                false
+            }
+        }
+    }
 }
 
 fn entry_for(root: &Path, relative: &str) -> Option<WorkspaceEntry> {
@@ -228,7 +310,7 @@ fn change(
 fn normalize_ambiguous_rename(
     root: &Path,
     event: &Event,
-    expected: &Arc<Mutex<HashMap<PathBuf, Instant>>>,
+    expected: &ExpectedWrites,
     pending: &Arc<Mutex<Option<PendingRename>>>,
 ) -> (Vec<WorkspaceChangeEvent>, Option<PendingRename>) {
     if !matches!(
@@ -248,10 +330,11 @@ fn normalize_ambiguous_rename(
             continue;
         }
 
+        if should_suppress_expected(expected, path) {
+            continue;
+        }
+
         if path.exists() {
-            if consume_expected(expected, path) {
-                continue;
-            }
             let previous = pending.lock().unwrap().take();
             if let Some(previous) = previous {
                 if previous.seen_at.elapsed() <= AMBIGUOUS_RENAME_WINDOW {
@@ -309,10 +392,10 @@ fn normalize_ambiguous_rename(
     (changes, pending_removal)
 }
 
-pub fn normalize_event(
+fn normalize_event(
     root: &Path,
     event: &Event,
-    expected: &Arc<Mutex<HashMap<PathBuf, Instant>>>,
+    expected: &ExpectedWrites,
 ) -> Vec<WorkspaceChangeEvent> {
     if event.paths.iter().any(|path| path == root) && matches!(event.kind, EventKind::Remove(_)) {
         return vec![change("rootMissing", None, None, None, None)];
@@ -322,6 +405,13 @@ pub fn normalize_event(
         EventKind::Modify(ModifyKind::Name(RenameMode::Both))
     ) && event.paths.len() >= 2
     {
+        if event
+            .paths
+            .iter()
+            .any(|path| should_suppress_expected(expected, path))
+        {
+            return Vec::new();
+        }
         let old = relative_path(root, &event.paths[0]);
         let new = relative_path(root, &event.paths[1]);
         if let (Some(old_path), Some(new_path)) = (old, new) {
@@ -348,7 +438,7 @@ pub fn normalize_event(
             let relative = relative_path(root, path)?;
             if ignored_relative(&relative)
                 || crosses_symlink(root, path)
-                || consume_expected(expected, path)
+                || should_suppress_expected(expected, path)
             {
                 return None;
             }
@@ -395,6 +485,15 @@ mod tests {
     use super::*;
     use notify::event::{CreateKind, RemoveKind};
     use tempfile::TempDir;
+
+    fn active_expected(path: PathBuf) -> ExpectedWrites {
+        Arc::new(Mutex::new(HashMap::from([(
+            path,
+            ExpectedWrite::Active {
+                started_at: Instant::now(),
+            },
+        )])))
+    }
 
     #[test]
     fn normalizes_create_remove_and_rename_without_internal_paths() {
@@ -461,17 +560,211 @@ mod tests {
     }
 
     #[test]
-    fn consumes_exact_expected_write_once() {
+    fn expected_write_suppresses_the_full_event_burst() {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("saved.is");
         std::fs::write(&path, b"x").unwrap();
-        let expected = Arc::new(Mutex::new(HashMap::from([(path.clone(), Instant::now())])));
+        let expected = active_expected(path.clone());
         let modify = Event::new(EventKind::Modify(ModifyKind::Data(
             notify::event::DataChange::Any,
         )))
         .add_path(path);
         assert!(normalize_event(dir.path(), &modify, &expected).is_empty());
-        assert_eq!(normalize_event(dir.path(), &modify, &expected).len(), 1);
+        assert!(normalize_event(dir.path(), &modify, &expected).is_empty());
+    }
+
+    #[test]
+    fn expected_write_suppresses_ambiguous_remove_before_replacement_create() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("saved.is");
+        std::fs::write(&path, b"before").unwrap();
+        let expected = active_expected(path.clone());
+        let pending = Arc::new(Mutex::new(None));
+
+        std::fs::remove_file(&path).unwrap();
+        let remove =
+            Event::new(EventKind::Modify(ModifyKind::Name(RenameMode::Any))).add_path(path);
+        let (changes, ticket) =
+            normalize_ambiguous_rename(dir.path(), &remove, &expected, &pending);
+
+        assert!(changes.is_empty());
+        assert!(ticket.is_none());
+        assert!(pending.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn completed_write_suppresses_matching_events_until_the_file_changes() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path().canonicalize().unwrap();
+        let path = root.join("saved.is");
+        std::fs::write(&path, b"before").unwrap();
+        let state = WorkspaceWatcherState::default();
+
+        state
+            .with_expected_write(&root, "saved.is", || {
+                std::fs::write(&path, b"saved").map_err(|error| error.to_string())
+            })
+            .unwrap();
+
+        let modify = Event::new(EventKind::Modify(ModifyKind::Data(
+            notify::event::DataChange::Any,
+        )))
+        .add_path(path.clone());
+        assert!(normalize_event(&root, &modify, &state.expected).is_empty());
+
+        std::fs::write(&path, b"external-change").unwrap();
+        let changes = normalize_event(&root, &modify, &state.expected);
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes[0].kind, "modify");
+        assert!(state.expected.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn failed_write_and_other_paths_remain_observable() {
+        let dir = TempDir::new().unwrap();
+        let saved_path = dir.path().join("saved.is");
+        let other_path = dir.path().join("other.is");
+        std::fs::write(&saved_path, b"saved").unwrap();
+        std::fs::write(&other_path, b"other").unwrap();
+        let state = WorkspaceWatcherState::default();
+
+        let result = state.with_expected_write(dir.path(), "saved.is", || {
+            Err::<(), String>("save failed".to_string())
+        });
+        assert!(result.is_err());
+        assert!(state.expected.lock().unwrap().is_empty());
+
+        let other_modify = Event::new(EventKind::Modify(ModifyKind::Any)).add_path(other_path);
+        assert_eq!(
+            normalize_event(dir.path(), &other_modify, &active_expected(saved_path)).len(),
+            1
+        );
+    }
+
+    #[test]
+    fn completed_write_expiry_and_external_delete_clear_suppression() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("saved.is");
+        std::fs::write(&path, b"saved").unwrap();
+        let expired = Arc::new(Mutex::new(HashMap::from([(
+            path.clone(),
+            ExpectedWrite::Completed {
+                completed_at: Instant::now()
+                    .checked_sub(COMPLETED_WRITE_TTL + Duration::from_millis(1))
+                    .unwrap(),
+                stamp: file_stamp(&path).unwrap(),
+            },
+        )])));
+        let modify = Event::new(EventKind::Modify(ModifyKind::Any)).add_path(path.clone());
+        assert_eq!(normalize_event(dir.path(), &modify, &expired).len(), 1);
+        assert!(expired.lock().unwrap().is_empty());
+
+        let completed = Arc::new(Mutex::new(HashMap::from([(
+            path.clone(),
+            ExpectedWrite::Completed {
+                completed_at: Instant::now(),
+                stamp: file_stamp(&path).unwrap(),
+            },
+        )])));
+        std::fs::remove_file(&path).unwrap();
+        let remove = Event::new(EventKind::Remove(RemoveKind::File)).add_path(path);
+        let changes = normalize_event(dir.path(), &remove, &completed);
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes[0].kind, "remove");
+        assert!(completed.lock().unwrap().is_empty());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn native_atomic_replace_burst_is_suppressed_without_hiding_another_file() {
+        use crate::document_formats::OpenDocumentResult;
+        use std::sync::mpsc;
+
+        let dir = TempDir::new().unwrap();
+        let root = dir.path().canonicalize().unwrap();
+        let saved_path = root.join("saved.is");
+        let other_path = root.join("other.is");
+        let service = WorkspaceService::open(&root).unwrap();
+        service
+            .create_document("", "ideasketch", Some("saved.is"))
+            .unwrap();
+        service
+            .create_document("", "ideasketch", Some("other.is"))
+            .unwrap();
+        let document = match service.open_document("saved.is").unwrap() {
+            OpenDocumentResult::Editable { document } => document,
+            OpenDocumentResult::LegacyProtected { .. } => panic!("new document was protected"),
+        };
+
+        let (sender, receiver) = mpsc::channel();
+        let mut watcher = notify::recommended_watcher(move |result| {
+            let _ = sender.send(result);
+        })
+        .unwrap();
+        watcher.watch(&root, RecursiveMode::Recursive).unwrap();
+
+        let state = WorkspaceWatcherState::default();
+        state
+            .with_expected_write(&root, "saved.is", || {
+                service.save_document("saved.is", &document).map(|_| ())
+            })
+            .unwrap();
+
+        let pending = Arc::new(Mutex::new(None));
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let mut saw_saved_path_event = false;
+        let mut projected = Vec::new();
+        while let Some(remaining) = deadline.checked_duration_since(Instant::now()) {
+            match receiver.recv_timeout(remaining.min(Duration::from_millis(100))) {
+                Ok(Ok(event)) => {
+                    saw_saved_path_event |= event.paths.iter().any(|path| path == &saved_path);
+                    let (mut changes, ticket) =
+                        normalize_ambiguous_rename(&root, &event, &state.expected, &pending);
+                    assert!(ticket.is_none());
+                    if !matches!(
+                        event.kind,
+                        EventKind::Modify(ModifyKind::Name(RenameMode::Any))
+                    ) {
+                        changes.extend(normalize_event(&root, &event, &state.expected));
+                    }
+                    projected.extend(changes);
+                }
+                Ok(Err(error)) => panic!("native watcher failed: {error}"),
+                Err(mpsc::RecvTimeoutError::Timeout) => continue,
+                Err(mpsc::RecvTimeoutError::Disconnected) => break,
+            }
+        }
+        assert!(saw_saved_path_event);
+        assert!(projected.is_empty());
+
+        std::fs::write(&other_path, b"external-change").unwrap();
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let mut projected_other = false;
+        while let Some(remaining) = deadline.checked_duration_since(Instant::now()) {
+            match receiver.recv_timeout(remaining.min(Duration::from_millis(100))) {
+                Ok(Ok(event)) => {
+                    let (mut changes, _) =
+                        normalize_ambiguous_rename(&root, &event, &state.expected, &pending);
+                    if !matches!(
+                        event.kind,
+                        EventKind::Modify(ModifyKind::Name(RenameMode::Any))
+                    ) {
+                        changes.extend(normalize_event(&root, &event, &state.expected));
+                    }
+                    if changes
+                        .iter()
+                        .any(|change| change.path.as_deref() == Some("other.is"))
+                    {
+                        projected_other = true;
+                        break;
+                    }
+                }
+                Ok(Err(error)) => panic!("native watcher failed: {error}"),
+                Err(mpsc::RecvTimeoutError::Timeout) => continue,
+                Err(mpsc::RecvTimeoutError::Disconnected) => break,
+            }
+        }
+        assert!(projected_other);
     }
 
     #[test]

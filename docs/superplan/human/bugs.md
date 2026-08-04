@@ -99,7 +99,7 @@ In the .is editor, zooming or panning the Excalidraw canvas without changing doc
 
 ## B008: Workspace autosave self-write events cause false conflicts
 
-- status: proposed
+- status: done
 - created: 2026-08-04
 
-Workspace autosave can emit multiple filesystem watcher events for one application-owned write while self-write suppression consumes only one event. A newly created or normally edited .is file can therefore enter File conflict even before any viewport interaction. Expected: all watcher events belonging to the completed application save operation are suppressed without hiding genuine external changes.
+In a Workspace containing two `.is` files, saving the active file reliably enters `File conflict`; the notice says the file disappeared and then reappeared while unsaved edits existed. Workspace autosave can emit multiple filesystem watcher events for one application-owned atomic replacement while self-write suppression consumes only one event. Expected: every event belonging to the completed application save operation is suppressed as one operation, while genuine external changes remain visible.

@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `required` | 6 | 6 |
 | `feature` | 11 | 11 |
-| `bugfix` | 7 | 7 |
+| `bugfix` | 8 | 8 |
 
 ## Execution Order
 
@@ -59,3 +59,4 @@
 | `B005` | [Move Navigator into the Excalidraw Main Menu](bugs/B005-integrate-navigator-into-excalidraw-toolbar.md) | `complete` | 2026-08-04 |
 | `B006` | [Synchronize Page Canvas and Draft Identity](bugs/B006-synchronize-page-canvas-draft-identity.md) | `complete` | 2026-08-04 |
 | `B007` | [Keep Viewport Changes from Triggering Document Saves](bugs/B007-prevent-false-conflicts-after-autosave.md) | `complete` | 2026-08-04 |
+| `B008` | [Suppress Complete Workspace Self-Write Event Bursts](bugs/B008-suppress-workspace-self-write-event-bursts.md) | `complete` | 2026-08-04 |
