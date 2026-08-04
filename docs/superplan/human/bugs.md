@@ -82,3 +82,10 @@
 - created: 2026-08-04
 
 The right-side Navigator toggle and Camera action are rendered in a separate top-right UI island next to the Excalidraw toolbar. Expected: remove that detached island, expose Navigator through Excalidraw's customizable left Main Menu, and keep Add camera only in the Cameras list header. The right divider remains a direct panel toggle.
+
+## B006: Keep Page canvas and draft identity synchronized
+
+- status: accepted
+- created: 2026-08-04
+
+After editing a newly created Page, switching Pages can leave Excalidraw showing the previous Page. Further edits can copy the stale scene into the selected Page, so subsequent saves persist cross-Page content. Expected: Page switching remounts Excalidraw only when the matching draft is ready, and edits/saves remain isolated to their owning Page.
