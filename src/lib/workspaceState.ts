@@ -5,8 +5,9 @@ import type {
   WorkspaceSession,
 } from "../types.ts";
 
-export const WORKSPACE_STATE_SCHEMA_VERSION = 2;
+export const WORKSPACE_STATE_SCHEMA_VERSION = 3;
 const LEGACY_WORKSPACE_STATE_SCHEMA_VERSION = 1;
+const SINGLE_ACTIVE_WORKSPACE_STATE_SCHEMA_VERSION = 2;
 
 export function flattenWorkspaceEntries(entries: WorkspaceEntry[]): WorkspaceEntry[] {
   const flattened: WorkspaceEntry[] = [];
@@ -52,13 +53,14 @@ export function restoreWorkspaceDocuments(workspace: WorkspaceSession): {
   const persisted = workspace.metadata.state;
   if (!persisted || ![
     LEGACY_WORKSPACE_STATE_SCHEMA_VERSION,
+    SINGLE_ACTIVE_WORKSPACE_STATE_SCHEMA_VERSION,
     WORKSPACE_STATE_SCHEMA_VERSION,
   ].includes(persisted.schemaVersion)) {
     return { documents: [], skippedPaths: [] };
   }
   const entries = new Map(flattenWorkspaceEntries(workspace.entries).map((entry) => [entry.path, entry]));
   const skippedPaths: string[] = [];
-  const candidates = persisted.schemaVersion === WORKSPACE_STATE_SCHEMA_VERSION
+  const candidates = persisted.schemaVersion !== LEGACY_WORKSPACE_STATE_SCHEMA_VERSION
     ? persisted.activePath ? [persisted.activePath] : []
     : [persisted.activePath, ...(persisted.openTabs ?? [])]
         .filter((path): path is string => Boolean(path))
@@ -100,9 +102,10 @@ export function createWorkspaceStateSnapshot(state: ApplicationState) {
     schemaVersion: WORKSPACE_STATE_SCHEMA_VERSION,
     activePath: active?.filePath ?? null,
     expandedPaths: state.workspace?.expandedPaths ?? [],
+    entryOrder: state.workspace?.entryOrder ?? [],
   };
 }
 
 export function mayPersistWorkspaceState(workspace: WorkspaceSession | undefined): boolean {
-  return Boolean(workspace?.metadata.exists && !workspace.readOnly);
+  return Boolean(workspace && !workspace.readOnly && (workspace.metadata.exists || (workspace.entryOrder?.length ?? 0) > 0));
 }

@@ -7,7 +7,7 @@
 | Type | Plans | Complete |
 | --- | --- | --- |
 | `required` | 6 | 6 |
-| `feature` | 11 | 11 |
+| `feature` | 12 | 12 |
 | `bugfix` | 8 | 8 |
 
 ## Execution Order
@@ -47,6 +47,7 @@
 | `F009` | [Unify Pages and Cameras in a Tabbed IdeaSketch Navigator](features/F009-tabbed-ideasketch-navigator.md) | `complete` | 2026-08-04 |
 | `F010` | [Clarify Save Menu and Workspace Explorer Actions](features/F010-clarify-save-and-workspace-actions.md) | `complete` | 2026-08-04 |
 | `F011` | [Filter Workspace Files and Centralize Temporary Writes](features/F011-filter-workspace-files-and-centralize-temp-writes.md) | `complete` | 2026-08-04 |
+| `F012` | [Drag-sort Workspace Entries, Pages, and Cameras](features/F012-drag-sort-workspace-pages-and-cameras.md) | `complete` | 2026-08-04 |
 
 ### Bugfix Plans
 

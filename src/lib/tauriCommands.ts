@@ -22,6 +22,7 @@ import {
 } from "./ideaSketchDocument.ts";
 import { getFileTypeDefinitionByPath } from "./fileTypeRegistry.ts";
 import { getFileTypeDefinition } from "./fileTypeRegistry.ts";
+import { applyWorkspaceEntryOrder, flattenWorkspaceEntryOrder } from "./workspaceOrdering.ts";
 
 const createdTimestampByPath = new Map<string, string>();
 
@@ -259,8 +260,12 @@ export async function chooseWorkspaceDirectory(): Promise<string> {
 export async function openWorkspace(root?: string): Promise<WorkspaceSession> {
   const selectedRoot = root ?? await chooseWorkspaceDirectory();
   const result = await invoke<BackendWorkspaceOpenResult>("open_workspace", { root: selectedRoot });
+  const persistedOrder = result.metadata.state?.entryOrder ?? [];
+  const entries = applyWorkspaceEntryOrder(result.entries, persistedOrder);
   return {
     ...result,
+    entries,
+    entryOrder: persistedOrder.length > 0 ? flattenWorkspaceEntryOrder(entries) : [],
     expandedPaths: result.metadata.state?.expandedPaths ?? [],
   };
 }
@@ -372,7 +377,7 @@ export async function chooseStandaloneSavePath(defaultName = "Untitled.is"): Pro
 
 export async function saveWorkspaceState(
   root: string,
-  state: { schemaVersion: number; activePath?: string | null; expandedPaths: string[] },
+  state: { schemaVersion: number; activePath?: string | null; expandedPaths: string[]; entryOrder: string[] },
 ): Promise<void> {
   await invoke("save_workspace_state", { root, state });
 }

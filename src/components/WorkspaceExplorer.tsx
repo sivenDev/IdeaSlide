@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type DragEvent } from "react";
 import { ask } from "@tauri-apps/plugin-dialog";
 import {
   ChevronsDown,
@@ -11,6 +11,7 @@ import {
 import type { DocumentStatus, WorkspaceEntry } from "../types";
 import { getCreatableFileTypeDefinitions } from "../lib/fileTypeRegistry";
 import { projectVisibleWorkspaceRows } from "../lib/workspaceState";
+import { WORKSPACE_DRAG_MIME, type WorkspaceDropRequest } from "../lib/workspaceOrdering";
 import { WorkspaceResourceRow } from "./WorkspaceResourceRow";
 import {
   DropdownMenu,
@@ -33,7 +34,7 @@ interface WorkspaceExplorerProps {
   onCreateFolder: (parentPath: string) => Promise<WorkspaceEntry>;
   onCreateDocument: (parentPath: string, fileType: string) => Promise<WorkspaceEntry>;
   onRename: (path: string, name: string) => Promise<void>;
-  onMove: (path: string, destinationParentPath: string) => Promise<void>;
+  onMove: (request: WorkspaceDropRequest) => Promise<void>;
   onTrash: (path: string) => Promise<void>;
   onRefresh: () => Promise<void>;
   onExpandedPathsChange: (paths: string[]) => void;
@@ -73,6 +74,7 @@ export function WorkspaceExplorer({
   onExpandedPathsChange,
 }: WorkspaceExplorerProps) {
   const [renamePath, setRenamePath] = useState<string>();
+  const [rootDropActive, setRootDropActive] = useState(false);
   const expanded = useMemo(() => new Set(expandedPaths), [expandedPaths]);
   const visibleRows = useMemo(() => projectVisibleWorkspaceRows(entries, expanded), [entries, expanded]);
   const creatableTypes = useMemo(() => getCreatableFileTypeDefinitions(), []);
@@ -151,7 +153,7 @@ export function WorkspaceExplorer({
           });
           if (confirmed) await onTrash(entry.path);
         })()}
-        onMove={(sourcePath, destinationParentPath) => void onMove(sourcePath, destinationParentPath)}
+        onMove={(request) => void onMove(request)}
       />
     </div>
   ));
@@ -225,6 +227,26 @@ export function WorkspaceExplorer({
         <div role="tree" className="idea-slide-side-panel__scroll min-h-0 flex-1 overflow-y-auto py-2">
           {entries.length > 0 ? renderEntries() : (
             <div className="px-4 py-8 text-center text-xs leading-5 text-gray-400">This Workspace is empty.</div>
+          )}
+          {!readOnly && (
+            <div
+              className={`idea-slide-resource-root-drop ${rootDropActive ? "is-active" : ""}`}
+              aria-label="Move to Workspace root"
+              onDragOver={(event: DragEvent<HTMLDivElement>) => {
+                if (event.dataTransfer.types.includes(WORKSPACE_DRAG_MIME)) {
+                  event.preventDefault();
+                  setRootDropActive(true);
+                }
+              }}
+              onDragLeave={() => setRootDropActive(false)}
+              onDrop={(event: DragEvent<HTMLDivElement>) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const sourcePath = event.dataTransfer.getData(WORKSPACE_DRAG_MIME);
+                if (sourcePath) void onMove({ sourcePath, position: "inside" });
+                setRootDropActive(false);
+              }}
+            />
           )}
         </div>
       </aside>

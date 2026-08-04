@@ -98,3 +98,10 @@ Remove the duplicate Save and Save All entries from the title-bar save dropdown 
 - created: 2026-08-04
 
 Update Workspace Explorer so it preserves navigable directories but exposes only file types currently registered as openable (currently .is), while hiding unsupported files and the entire .ideanote subtree. Route Workspace-mode user-file, metadata, and internal temporary writes through <workspace>/.ideanote/tmp/ so sibling .is.tmp or .is.bak files are never created. Preserve original files on failed replacement, ignore .ideanote watcher events, and keep Single File Mode free of workspace metadata by using its existing app-local or platform-safe temporary strategy.
+
+## F012: Drag-sort Workspace Entries, Pages, and Cameras
+
+- status: done
+- created: 2026-08-04
+
+Workspace Explorer entries can be dragged into another folder or inserted before/after a sibling, with custom sibling order persisted in Workspace metadata. In the .is editor, Pages and Cameras can be drag-sorted; Page order and Camera order persist through the existing document save/autosave path. Drag mutation is disabled for read-only content and must preserve existing open-document path remapping and filesystem safety.

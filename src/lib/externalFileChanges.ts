@@ -1,4 +1,5 @@
 import type { DocumentSession, WorkspaceChangeEvent, WorkspaceEntry } from "../types.ts";
+import { applyWorkspaceEntryOrder } from "./workspaceOrdering.ts";
 
 export type ExternalDocumentDecision =
   | { kind: "none" }
@@ -127,16 +128,21 @@ function insertEntry(entries: WorkspaceEntry[], entry: WorkspaceEntry): Workspac
     : { ...item, children: insertEntry(item.children, entry) });
 }
 
-export function applyWorkspaceTreeEvent(entries: WorkspaceEntry[], event: WorkspaceChangeEvent): WorkspaceEntry[] {
+export function applyWorkspaceTreeEvent(
+  entries: WorkspaceEntry[],
+  event: WorkspaceChangeEvent,
+  entryOrder: readonly string[] = [],
+): WorkspaceEntry[] {
+  let next = entries;
   if (event.kind === "rootMissing" || event.kind === "rootStatus") return entries;
-  if (event.kind === "remove" && event.path) return removePath(entries, event.path);
+  if (event.kind === "remove" && event.path) next = removePath(entries, event.path);
   if (event.kind === "rename" && event.oldPath) {
     const removed = removePath(entries, event.oldPath);
-    return event.entry ? insertEntry(removed, event.entry) : removed;
+    next = event.entry ? insertEntry(removed, event.entry) : removed;
   }
   if ((event.kind === "create" || event.kind === "modify") && event.path) {
     const removed = removePath(entries, event.path);
-    return event.entry ? insertEntry(removed, event.entry) : removed;
+    next = event.entry ? insertEntry(removed, event.entry) : removed;
   }
-  return entries;
+  return entryOrder.length > 0 ? applyWorkspaceEntryOrder(next, entryOrder) : next;
 }

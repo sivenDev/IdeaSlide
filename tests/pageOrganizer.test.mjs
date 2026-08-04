@@ -10,6 +10,10 @@ test('Pages organizer is compact, thumbnail-free, and supports the complete v1 P
   assert.match(source, /onRename/);
   assert.match(source, /draggable=/);
   assert.match(source, /onReorder/);
+  assert.match(source, /PAGE_DRAG_MIME/);
+  assert.match(source, /resolveListDropIndex/);
+  assert.match(source, /is-drop-/);
+  assert.match(source, /data-drag-ignore/);
   assert.match(source, /disabled=\{pages\.length === 1\}/);
   assert.match(source, /onSelect/);
   assert.doesNotMatch(source, /aria-expanded/);

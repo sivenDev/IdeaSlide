@@ -70,14 +70,24 @@ If metadata creation fails, the successfully written user file is retained. A fa
 
 ```json
 {
-  "schemaVersion": 1,
-  "openTabs": ["drawing.is", "notes/readme.md"],
+  "schemaVersion": 3,
   "activePath": "drawing.is",
-  "expandedPaths": ["notes"]
+  "expandedPaths": ["notes"],
+  "entryOrder": [
+    "drawing.is",
+    "notes",
+    "notes/research.is"
+  ]
 }
 ```
 
-All paths are root-relative and pass the same traversal/internal-path validation as filesystem commands. Document contents are never stored here.
+All paths are root-relative and pass the same traversal/internal-path validation as filesystem commands. Document contents are never stored here. `entryOrder` is an optional depth-first sequence used only to order siblings in Workspace Explorer; the real filesystem hierarchy remains authoritative. Explicitly ordered siblings appear first, while new or externally discovered entries retain the deterministic directory/name scan order after them until the user places them.
+
+State schema compatibility:
+
+- v1 `openTabs` plus `activePath` is accepted only to restore one compatible active file.
+- v2 `activePath` plus Explorer expansion is accepted without rewriting metadata during browse-only open.
+- v3 adds optional `entryOrder`; reordering is an explicit persistent-setting change and may lazily create `.ideanote/` in a writable Workspace.
 
 ### `.ideanote/.gitignore`
 

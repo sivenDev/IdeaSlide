@@ -11,6 +11,11 @@ import {
   Trash2,
 } from "lucide-react";
 import type { DocumentStatus, WorkspaceEntry } from "../types";
+import {
+  WORKSPACE_DRAG_MIME,
+  type WorkspaceDropPosition,
+  type WorkspaceDropRequest,
+} from "../lib/workspaceOrdering";
 import { Input } from "./ui/Input";
 
 const entryIconProps = { "aria-hidden": true, size: 15, strokeWidth: 1.8 } as const;
@@ -34,7 +39,7 @@ interface WorkspaceResourceRowProps {
   onToggleExpanded: () => void;
   onRename: (name: string) => void;
   onTrash: () => void;
-  onMove: (sourcePath: string, destinationParentPath: string) => void;
+  onMove: (request: WorkspaceDropRequest) => void;
 }
 
 function documentStatusLabel(status: DocumentStatus | undefined, dirty: boolean): string {
@@ -92,6 +97,7 @@ export function WorkspaceResourceRow({
   const canMutate = !readOnly && !entry.readOnly && entry.kind !== "symlink" && !isMissingEntry;
   const [isRenaming, setIsRenaming] = useState(false);
   const [draftName, setDraftName] = useState(entry.name);
+  const [dropPosition, setDropPosition] = useState<WorkspaceDropPosition>();
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => setDraftName(entry.name), [entry.name]);
@@ -125,14 +131,27 @@ export function WorkspaceResourceRow({
     }
   };
 
-  const destinationParentPath = entry.kind === "directory"
-    ? entry.path
-    : entry.path.includes("/") ? entry.path.slice(0, entry.path.lastIndexOf("/")) : "";
-
   const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    const sourcePath = event.dataTransfer.getData("application/x-ideanote-path");
-    if (sourcePath && sourcePath !== entry.path) onMove(sourcePath, destinationParentPath);
+    event.stopPropagation();
+    const sourcePath = event.dataTransfer.getData(WORKSPACE_DRAG_MIME);
+    if (sourcePath && sourcePath !== entry.path && dropPosition) {
+      onMove({ sourcePath, targetPath: entry.path, position: dropPosition });
+    }
+    setDropPosition(undefined);
+  };
+
+  const updateDropPosition = (event: DragEvent<HTMLDivElement>) => {
+    if (readOnly || isMissingEntry || entry.kind === "symlink") return;
+    if (!event.dataTransfer.types.includes(WORKSPACE_DRAG_MIME)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const ratio = bounds.height > 0 ? (event.clientY - bounds.top) / bounds.height : 0.5;
+    const position = entry.kind === "directory" && ratio >= 0.28 && ratio <= 0.72
+      ? "inside"
+      : ratio < 0.5 ? "before" : "after";
+    setDropPosition(position);
   };
 
   return (
@@ -143,7 +162,7 @@ export function WorkspaceResourceRow({
       aria-expanded={entry.kind === "directory" ? isExpanded : undefined}
       tabIndex={0}
       draggable={canMutate}
-      className={`idea-slide-resource-row group ${isSelected ? "is-selected" : ""} ${isDocumentActive ? "is-active" : ""}`}
+      className={`idea-slide-resource-row group ${isSelected ? "is-selected" : ""} ${isDocumentActive ? "is-active" : ""} ${dropPosition ? `is-drop-${dropPosition}` : ""}`}
       style={{ paddingLeft: 7 + depth * 15 }}
       onClick={() => {
         onSelect();
@@ -152,11 +171,19 @@ export function WorkspaceResourceRow({
       onDoubleClick={() => entry.kind === "directory" && onToggleExpanded()}
       onKeyDown={handleKeyDown}
       onDragStart={(event) => {
+        const target = event.target as HTMLElement;
+        if (target.closest("button,input")) {
+          event.preventDefault();
+          return;
+        }
         event.dataTransfer.effectAllowed = "move";
-        event.dataTransfer.setData("application/x-ideanote-path", entry.path);
+        event.dataTransfer.setData(WORKSPACE_DRAG_MIME, entry.path);
+        event.dataTransfer.setData("text/plain", entry.path);
       }}
-      onDragOver={(event) => {
-        if (entry.kind !== "symlink") event.preventDefault();
+      onDragEnd={() => setDropPosition(undefined)}
+      onDragOver={updateDropPosition}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropPosition(undefined);
       }}
       onDrop={handleDrop}
     >

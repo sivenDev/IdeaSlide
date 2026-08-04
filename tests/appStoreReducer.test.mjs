@@ -79,13 +79,37 @@ test('Workspace path remap updates open descendants without changing document id
   let state = {
     ...createInitialAppState(),
     mode: 'workspace',
-    workspace: { root: '/workspace', name: 'workspace', readOnly: false, entries: [], metadata: { exists: true, diagnostics: [] }, expandedPaths: [] },
+    workspace: { root: '/workspace', name: 'workspace', readOnly: false, entries: [], entryOrder: ['old', 'old/drawing.is'], metadata: { exists: true, diagnostics: [] }, expandedPaths: ['old'] },
     documents: [document('one', 'old/drawing.is')],
     activeSessionId: 'one',
   };
   state = appStoreReducer(state, { type: 'REMAP_WORKSPACE_PATH', fromPath: 'old', toPath: 'renamed' });
   assert.equal(state.documents[0].filePath, 'renamed/drawing.is');
   assert.equal(state.documents[0].id, 'one');
+  assert.deepEqual(state.workspace.entryOrder, ['renamed', 'renamed/drawing.is']);
+  assert.deepEqual(state.workspace.expandedPaths, ['renamed']);
+});
+
+test('Workspace drop action updates tree order without dirtying documents', () => {
+  const entries = [
+    { path: 'a.is', name: 'a.is', kind: 'file', fileType: 'ideasketch', readOnly: false, children: [] },
+    { path: 'b.is', name: 'b.is', kind: 'file', fileType: 'ideasketch', readOnly: false, children: [] },
+  ];
+  const session = { ...document('one', 'a.is'), status: 'editable', revision: 4 };
+  const state = appStoreReducer({
+    ...createInitialAppState(),
+    mode: 'workspace',
+    workspace: { root: '/workspace', name: 'workspace', readOnly: false, entries, entryOrder: [], metadata: { exists: false, diagnostics: [] }, expandedPaths: [] },
+    documents: [session],
+    activeSessionId: session.id,
+  }, {
+    type: 'MOVE_WORKSPACE_ENTRY',
+    request: { sourcePath: 'a.is', targetPath: 'b.is', position: 'after' },
+  });
+  assert.deepEqual(state.workspace.entries.map((item) => item.path), ['b.is', 'a.is']);
+  assert.deepEqual(state.workspace.entryOrder, ['b.is', 'a.is']);
+  assert.equal(state.documents[0].revision, 4);
+  assert.equal(state.documents[0].isDirty, false);
 });
 
 test('protected sessions cannot be dirtied through model updates', () => {

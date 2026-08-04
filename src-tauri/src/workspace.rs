@@ -2,13 +2,13 @@ use crate::document_formats::{self, DocumentFileData, OpenDocumentResult};
 use crate::safe_write::{self, WriteMode};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsStr;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
 pub const WORKSPACE_CONFIG_SCHEMA_VERSION: u32 = 1;
-pub const WORKSPACE_STATE_SCHEMA_VERSION: u32 = 2;
+pub const WORKSPACE_STATE_SCHEMA_VERSION: u32 = 3;
 pub const METADATA_DIRECTORY_NAME: &str = ".ideanote";
 const WORKSPACE_CONFIG_NAME: &str = "workspace.json";
 const WORKSPACE_STATE_NAME: &str = "state.json";
@@ -69,6 +69,8 @@ pub struct WorkspaceState {
     pub active_path: Option<String>,
     #[serde(default)]
     pub expanded_paths: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub entry_order: Vec<String>,
 }
 
 impl Default for WorkspaceState {
@@ -78,6 +80,7 @@ impl Default for WorkspaceState {
             open_tabs: Vec::new(),
             active_path: None,
             expanded_paths: Vec::new(),
+            entry_order: Vec::new(),
         }
     }
 }
@@ -383,7 +386,10 @@ impl WorkspaceService {
             Err(error) => snapshot.diagnostics.push(error),
         }
         match read_versioned_json::<WorkspaceState>(&directory.join(WORKSPACE_STATE_NAME)) {
-            Ok(Some(state)) => snapshot.state = Some(state),
+            Ok(Some(state)) => match self.validate_state_paths(&state) {
+                Ok(()) => snapshot.state = Some(state),
+                Err(error) => snapshot.diagnostics.push(error),
+            },
             Ok(None) => {}
             Err(error) => snapshot.diagnostics.push(error),
         }
@@ -645,6 +651,13 @@ impl WorkspaceService {
         for path in &state.expanded_paths {
             let _ = normalize_relative_path(path, false)?;
         }
+        let mut unique_order_paths = BTreeSet::new();
+        for path in &state.entry_order {
+            let normalized = normalize_relative_path(path, false)?;
+            if !unique_order_paths.insert(normalized) {
+                return Err("Workspace entryOrder cannot contain duplicate paths".to_string());
+            }
+        }
         Ok(())
     }
 }
@@ -792,11 +805,11 @@ impl HasSchemaVersion for WorkspaceState {
     }
 
     fn supports_schema_version(version: u32) -> bool {
-        matches!(version, 1 | WORKSPACE_STATE_SCHEMA_VERSION)
+        matches!(version, 1 | 2 | WORKSPACE_STATE_SCHEMA_VERSION)
     }
 
     fn expected_schema_versions() -> &'static str {
-        "1 or 2"
+        "1, 2, or 3"
     }
 }
 
@@ -1060,6 +1073,7 @@ mod tests {
                 open_tabs: vec!["drawing.is".to_string()],
                 active_path: Some("drawing.is".to_string()),
                 expanded_paths: vec!["folder".to_string()],
+                entry_order: vec!["drawing.is".to_string(), "folder".to_string()],
             })
             .unwrap();
 
@@ -1069,6 +1083,7 @@ mod tests {
         .unwrap();
         assert_eq!(state.schema_version, WORKSPACE_STATE_SCHEMA_VERSION);
         assert!(state.open_tabs.is_empty());
+        assert_eq!(state.entry_order, vec!["drawing.is", "folder"]);
         let serialized = fs::read_to_string(directory.path().join(".ideanote/state.json")).unwrap();
         assert!(!serialized.contains("openTabs"));
         assert_eq!(
@@ -1129,6 +1144,7 @@ mod tests {
         assert_eq!(state.schema_version, 1);
         assert_eq!(state.open_tabs, vec!["old.is", "active.is"]);
         assert_eq!(state.active_path.as_deref(), Some("active.is"));
+        assert!(state.entry_order.is_empty());
         assert_eq!(
             serde_json::to_value(&state).unwrap()["openTabs"],
             serde_json::json!(["old.is", "active.is"]),
@@ -1136,6 +1152,63 @@ mod tests {
         assert_eq!(
             fs::read_to_string(metadata.join(WORKSPACE_STATE_NAME)).unwrap(),
             legacy
+        );
+    }
+
+    #[test]
+    fn legacy_v2_workspace_state_loads_without_rewriting_metadata() {
+        let (directory, service) = open_temp_workspace();
+        let metadata = directory.path().join(METADATA_DIRECTORY_NAME);
+        fs::create_dir(&metadata).unwrap();
+        let legacy = r#"{
+  "schemaVersion": 2,
+  "activePath": "active.is",
+  "expandedPaths": ["folder"]
+}"#;
+        fs::write(metadata.join(WORKSPACE_STATE_NAME), legacy).unwrap();
+
+        let snapshot = service.load_metadata();
+        let state = snapshot.state.unwrap();
+        assert_eq!(state.schema_version, 2);
+        assert_eq!(state.active_path.as_deref(), Some("active.is"));
+        assert!(state.entry_order.is_empty());
+        assert_eq!(
+            fs::read_to_string(metadata.join(WORKSPACE_STATE_NAME)).unwrap(),
+            legacy
+        );
+    }
+
+    #[test]
+    fn workspace_state_rejects_duplicate_entry_order_paths() {
+        let (_directory, service) = open_temp_workspace();
+        let error = service
+            .save_state(WorkspaceState {
+                entry_order: vec!["drawing.is".to_string(), "drawing.is".to_string()],
+                ..WorkspaceState::default()
+            })
+            .unwrap_err();
+        assert!(error.contains("duplicate"));
+    }
+
+    #[test]
+    fn invalid_v3_entry_order_is_preserved_and_ignored() {
+        let (directory, service) = open_temp_workspace();
+        let metadata = directory.path().join(METADATA_DIRECTORY_NAME);
+        fs::create_dir(&metadata).unwrap();
+        let invalid = r#"{
+  "schemaVersion": 3,
+  "activePath": null,
+  "expandedPaths": [],
+  "entryOrder": ["../outside.is"]
+}"#;
+        fs::write(metadata.join(WORKSPACE_STATE_NAME), invalid).unwrap();
+
+        let snapshot = service.load_metadata();
+        assert!(snapshot.state.is_none());
+        assert!(!snapshot.diagnostics.is_empty());
+        assert_eq!(
+            fs::read_to_string(metadata.join(WORKSPACE_STATE_NAME)).unwrap(),
+            invalid
         );
     }
 

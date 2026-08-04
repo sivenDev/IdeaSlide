@@ -139,6 +139,7 @@ export interface WorkspaceMetadataSnapshot {
     openTabs?: string[];
     activePath?: string | null;
     expandedPaths: string[];
+    entryOrder?: string[];
   } | null;
   diagnostics: string[];
 }
@@ -148,6 +149,7 @@ export interface WorkspaceSession {
   name: string;
   readOnly: boolean;
   entries: WorkspaceEntry[];
+  entryOrder?: string[];
   metadata: WorkspaceMetadataSnapshot;
   selectedPath?: string;
   expandedPaths: string[];

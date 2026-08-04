@@ -20,6 +20,12 @@ test('camera sidebar is a text-only vertical list', async () => {
   assert.doesNotMatch(source, />\s*Add\s*</);
   assert.match(source, /Camera \{camera\.order\}/);
   assert.match(source, /overflow-y-auto/);
+  assert.match(source, /draggable=\{!readOnly\}/);
+  assert.match(source, /CAMERA_DRAG_MIME/);
+  assert.match(source, /resolveListDropIndex/);
+  assert.match(source, /moveItemToIndex/);
+  assert.match(source, /is-drop-/);
+  assert.match(source, /data-drag-ignore/);
   assert.doesNotMatch(source, /CameraThumbnail/);
   assert.doesNotMatch(source, /thumbnails/);
   assert.doesNotMatch(source, /SVGSVGElement/);

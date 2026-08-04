@@ -14,6 +14,8 @@ test('Workspace Explorer is driven by real relative paths and backend filesystem
   assert.match(source, /onRefresh/);
   assert.match(source, /onRename/);
   assert.match(source, /onMove/);
+  assert.match(source, /WorkspaceDropRequest/);
+  assert.match(source, /Move to Workspace root/);
   assert.match(source, /onTrash/);
   assert.match(source, /documentIndicators/);
   assert.match(source, /indicatorByPath/);
@@ -55,7 +57,11 @@ test('Workspace rows keep Symlinks non-recursive and unsupported files safe', as
   assert.doesNotMatch(source, /[⌄›▾▸◇↗·✎×]/);
   assert.match(source, /entry\.kind === "symlink"/);
   assert.match(source, /Unsupported/);
-  assert.match(source, /application\/x-ideanote-path/);
+  assert.match(source, /WORKSPACE_DRAG_MIME/);
+  assert.match(source, /"before"/);
+  assert.match(source, /"inside"/);
+  assert.match(source, /"after"/);
+  assert.match(source, /is-drop-/);
   assert.match(source, /F2/);
   assert.match(source, /ArrowRight/);
   assert.match(source, /Move .* to Trash/);

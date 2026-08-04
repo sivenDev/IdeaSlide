@@ -76,3 +76,13 @@ test('incremental tree events insert, replace, rename, and remove without rescan
   const removed = applyWorkspaceTreeEvent(renamed, { kind: 'remove', path: 'folder/b.is' });
   assert.deepEqual(removed[0].children.map((item) => item.path), ['folder/c.is']);
 });
+
+test('incremental tree events retain custom sibling order and append new entries', () => {
+  const initial = [{ ...entry('folder', 'directory'), children: [entry('folder/b.is'), entry('folder/a.is')] }];
+  const created = applyWorkspaceTreeEvent(
+    initial,
+    { kind: 'create', path: 'folder/c.is', entry: entry('folder/c.is') },
+    ['folder', 'folder/b.is', 'folder/a.is'],
+  );
+  assert.deepEqual(created[0].children.map((item) => item.path), ['folder/b.is', 'folder/a.is', 'folder/c.is']);
+});

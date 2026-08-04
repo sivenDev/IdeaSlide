@@ -16,6 +16,13 @@ import {
   classifyInspectedDocument,
   type InspectedFileState,
 } from "./externalFileChanges.ts";
+import {
+  applyWorkspaceEntryOrder,
+  flattenWorkspaceEntryOrder,
+  projectWorkspaceEntryDrop,
+  remapWorkspaceEntryOrder,
+  type WorkspaceDropRequest,
+} from "./workspaceOrdering.ts";
 
 const IN_MEMORY_EDITABLE_STATUSES: DocumentStatus[] = [
   "editable",
@@ -39,12 +46,13 @@ export type AppStoreAction =
   | { type: "SET_DOCUMENT_EDITOR_STATE"; sessionId: string; editorState: DocumentEditorState }
   | { type: "UPDATE_DOCUMENT_PATH"; sessionId: string; filePath: string; displayName?: string; mode?: "workspace" | "standalone" }
   | { type: "CLOSE_DOCUMENT"; sessionId: string }
-  | { type: "SET_WORKSPACE_ENTRIES"; entries: WorkspaceEntry[] }
+  | { type: "SET_WORKSPACE_ENTRIES"; entries: WorkspaceEntry[]; entryOrder?: string[] }
   | { type: "APPLY_WORKSPACE_CHANGE"; event: WorkspaceChangeEvent }
   | { type: "APPLY_DOCUMENT_INSPECTION"; sessionId: string; inspection: InspectedFileState }
   | { type: "MARK_WORKSPACE_METADATA_EXISTS" }
   | { type: "SELECT_WORKSPACE_PATH"; path?: string }
   | { type: "SET_EXPANDED_PATHS"; paths: string[] }
+  | { type: "MOVE_WORKSPACE_ENTRY"; request: WorkspaceDropRequest }
   | { type: "REMAP_WORKSPACE_PATH"; fromPath: string; toPath: string }
   | { type: "START_PRESENTATION"; sessionId: string; pageId: string; page: IdeaSketchPage; mode: "preview" | "fullscreen" }
   | { type: "EXIT_PRESENTATION" };
@@ -303,8 +311,21 @@ export function appStoreReducer(
           : state.activeSessionId,
       };
     }
-    case "SET_WORKSPACE_ENTRIES":
-      return state.workspace ? { ...state, workspace: { ...state.workspace, entries: action.entries } } : state;
+    case "SET_WORKSPACE_ENTRIES": {
+      if (!state.workspace) return state;
+      const currentOrder = action.entryOrder ?? state.workspace.entryOrder ?? [];
+      const entries = currentOrder.length > 0
+        ? applyWorkspaceEntryOrder(action.entries, currentOrder)
+        : action.entries;
+      return {
+        ...state,
+        workspace: {
+          ...state.workspace,
+          entries,
+          entryOrder: currentOrder.length > 0 ? flattenWorkspaceEntryOrder(entries) : [],
+        },
+      };
+    }
     case "APPLY_WORKSPACE_CHANGE": {
       if (!state.workspace) return state;
       const workspace = state.workspace;
@@ -346,6 +367,13 @@ export function appStoreReducer(
             return document;
         }
       });
+      const currentOrder = workspace.entryOrder ?? [];
+      const eventOrder = action.event.kind === "rename" && action.event.oldPath && action.event.newPath
+        ? remapWorkspaceEntryOrder(currentOrder, action.event.oldPath, action.event.newPath)
+        : currentOrder;
+      const nextEntries = retainsRemovedEntry
+        ? workspace.entries
+        : applyWorkspaceTreeEvent(workspace.entries, action.event, eventOrder);
       return {
         ...state,
         workspace: {
@@ -357,9 +385,12 @@ export function appStoreReducer(
           message: action.event.kind === "rootMissing"
             ? "The Workspace folder is no longer available. Relocate it to continue working."
             : workspace.message,
-          entries: retainsRemovedEntry
-            ? workspace.entries
-            : applyWorkspaceTreeEvent(workspace.entries, action.event),
+          entries: nextEntries,
+          entryOrder: retainsRemovedEntry
+            ? currentOrder
+            : eventOrder.length > 0
+              ? flattenWorkspaceEntryOrder(nextEntries)
+              : [],
         },
         documents,
       };
@@ -403,6 +434,19 @@ export function appStoreReducer(
       return state.workspace ? { ...state, workspace: { ...state.workspace, selectedPath: action.path } } : state;
     case "SET_EXPANDED_PATHS":
       return state.workspace ? { ...state, workspace: { ...state.workspace, expandedPaths: action.paths } } : state;
+    case "MOVE_WORKSPACE_ENTRY": {
+      if (!state.workspace || state.workspace.readOnly) return state;
+      const projection = projectWorkspaceEntryDrop(state.workspace.entries, action.request);
+      if (!projection.changed) return state;
+      return {
+        ...state,
+        workspace: {
+          ...state.workspace,
+          entries: projection.entries,
+          entryOrder: projection.entryOrder,
+        },
+      };
+    }
     case "REMAP_WORKSPACE_PATH": {
       const fromPath = normalizeDocumentPath(action.fromPath);
       const toPath = normalizeDocumentPath(action.toPath);
@@ -411,6 +455,12 @@ export function appStoreReducer(
         : path.startsWith(`${fromPath}/`) ? `${toPath}${path.slice(fromPath.length)}` : path;
       return {
         ...state,
+        workspace: state.workspace ? {
+          ...state.workspace,
+          selectedPath: state.workspace.selectedPath ? remap(state.workspace.selectedPath) : undefined,
+          expandedPaths: state.workspace.expandedPaths.map(remap),
+          entryOrder: remapWorkspaceEntryOrder(state.workspace.entryOrder ?? [], fromPath, toPath),
+        } : state.workspace,
         documents: state.documents.map((document) => document.mode === "workspace" && remap(document.filePath) !== document.filePath
           ? prepareDocumentSession({
               ...document,
