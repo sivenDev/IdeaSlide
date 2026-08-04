@@ -23,7 +23,11 @@ import {
 import type { DocumentStatus, WorkspaceEntry } from "../types";
 import { getCreatableFileTypeDefinitions } from "../lib/fileTypeRegistry";
 import { projectVisibleWorkspaceRows } from "../lib/workspaceState";
-import type { WorkspaceDropRequest, WorkspaceDropTarget } from "../lib/workspaceOrdering";
+import {
+  workspaceParentPath,
+  type WorkspaceDropRequest,
+  type WorkspaceDropTarget,
+} from "../lib/workspaceOrdering";
 import { WorkspaceResourceRow } from "./WorkspaceResourceRow";
 import {
   DropdownMenu,
@@ -83,8 +87,21 @@ function WorkspaceRootDropTarget() {
 }
 
 const workspaceCollisionDetection: CollisionDetection = (args) => {
-  const pointerCollisions = pointerWithin(args);
-  return pointerCollisions.length > 0 ? pointerCollisions : closestCenter(args);
+  const sourcePath = args.active.data.current?.sourcePath;
+  if (typeof sourcePath !== "string") return [];
+  const currentParentPath = workspaceParentPath(sourcePath);
+  const droppableContainers = args.droppableContainers.filter((container) => {
+    const target = container.data.current as WorkspaceDropTarget | undefined;
+    const targetPath = target?.targetPath ?? "";
+    return target?.position === "inside"
+      && targetPath !== currentParentPath
+      && targetPath !== sourcePath
+      && !targetPath.startsWith(`${sourcePath}/`);
+  });
+  const narrowedArgs = { ...args, droppableContainers };
+  return args.pointerCoordinates
+    ? pointerWithin(narrowedArgs)
+    : closestCenter(narrowedArgs);
 };
 
 export function WorkspaceExplorer({
@@ -194,7 +211,8 @@ export function WorkspaceExplorer({
   const handleDragEnd = (event: DragEndEvent) => {
     const sourcePath = event.active.data.current?.sourcePath;
     const target = event.over?.data.current as WorkspaceDropTarget | undefined;
-    if (typeof sourcePath !== "string" || !target?.position) return;
+    if (typeof sourcePath !== "string" || target?.position !== "inside") return;
+    if (workspaceParentPath(sourcePath) === (target.targetPath ?? "")) return;
     void onMove({ sourcePath, targetPath: target.targetPath, position: target.position });
   };
 

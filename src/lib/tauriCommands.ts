@@ -22,7 +22,6 @@ import {
 } from "./ideaSketchDocument.ts";
 import { getFileTypeDefinitionByPath } from "./fileTypeRegistry.ts";
 import { getFileTypeDefinition } from "./fileTypeRegistry.ts";
-import { applyWorkspaceEntryOrder, flattenWorkspaceEntryOrder } from "./workspaceOrdering.ts";
 
 const createdTimestampByPath = new Map<string, string>();
 
@@ -260,12 +259,15 @@ export async function chooseWorkspaceDirectory(): Promise<string> {
 export async function openWorkspace(root?: string): Promise<WorkspaceSession> {
   const selectedRoot = root ?? await chooseWorkspaceDirectory();
   const result = await invoke<BackendWorkspaceOpenResult>("open_workspace", { root: selectedRoot });
-  const persistedOrder = result.metadata.state?.entryOrder ?? [];
-  const entries = applyWorkspaceEntryOrder(result.entries, persistedOrder);
+  return createWorkspaceSessionFromOpenResult(result);
+}
+
+export function createWorkspaceSessionFromOpenResult(
+  result: BackendWorkspaceOpenResult,
+): WorkspaceSession {
   return {
     ...result,
-    entries,
-    entryOrder: persistedOrder.length > 0 ? flattenWorkspaceEntryOrder(entries) : [],
+    entryOrder: [],
     expandedPaths: result.metadata.state?.expandedPaths ?? [],
   };
 }

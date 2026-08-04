@@ -1,4 +1,5 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import {
   ChevronDown,
@@ -90,8 +91,10 @@ export function WorkspaceResourceRow({
 }: WorkspaceResourceRowProps) {
   const isMissingEntry = documentStatus === "missing" || documentStatus === "root-missing";
   const canMutate = !readOnly && !entry.readOnly && entry.kind !== "symlink" && !isMissingEntry;
-  const canAcceptDrop = !readOnly && !isMissingEntry && entry.kind !== "symlink";
-  const hasInsideDrop = canAcceptDrop && entry.kind === "directory" && !entry.readOnly;
+  const hasInsideDrop = !readOnly
+    && !isMissingEntry
+    && entry.kind === "directory"
+    && !entry.readOnly;
   const [isRenaming, setIsRenaming] = useState(false);
   const [draftName, setDraftName] = useState(entry.name);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -100,26 +103,13 @@ export function WorkspaceResourceRow({
     data: { sourcePath: entry.path },
     disabled: !canMutate || isRenaming,
   });
-  const beforeDrop = useDroppable({
-    id: `workspace-drop-before:${entry.path}`,
-    data: { targetPath: entry.path, position: "before" },
-    disabled: !canAcceptDrop,
-  });
   const insideDrop = useDroppable({
     id: `workspace-drop-inside:${entry.path}`,
     data: { targetPath: entry.path, position: "inside" },
     disabled: !hasInsideDrop,
   });
-  const afterDrop = useDroppable({
-    id: `workspace-drop-after:${entry.path}`,
-    data: { targetPath: entry.path, position: "after" },
-    disabled: !canAcceptDrop,
-  });
-  const dropPosition = beforeDrop.isOver
-    ? "before"
-    : insideDrop.isOver ? "inside" : afterDrop.isOver ? "after" : undefined;
   const dragStyle: CSSProperties = draggable.transform ? {
-    transform: `translate3d(${draggable.transform.x}px, ${draggable.transform.y}px, 0) scaleX(${draggable.transform.scaleX}) scaleY(${draggable.transform.scaleY})`,
+    transform: CSS.Translate.toString(draggable.transform),
     zIndex: draggable.isDragging ? 5 : undefined,
     opacity: draggable.isDragging ? 0.72 : undefined,
   } : {};
@@ -163,7 +153,7 @@ export function WorkspaceResourceRow({
       aria-current={isDocumentActive ? "page" : undefined}
       aria-expanded={entry.kind === "directory" ? isExpanded : undefined}
       tabIndex={0}
-      className={`idea-slide-resource-row group ${isSelected ? "is-selected" : ""} ${isDocumentActive ? "is-active" : ""} ${hasInsideDrop ? "has-inside-drop" : ""} ${dropPosition ? `is-drop-${dropPosition}` : ""}`}
+      className={`idea-slide-resource-row group ${isSelected ? "is-selected" : ""} ${isDocumentActive ? "is-active" : ""} ${insideDrop.isOver ? "is-drop-inside" : ""}`}
       style={{ paddingLeft: 7 + depth * 15, ...dragStyle }}
       onClick={() => {
         onSelect();
@@ -172,11 +162,9 @@ export function WorkspaceResourceRow({
       onDoubleClick={() => entry.kind === "directory" && onToggleExpanded()}
       onKeyDown={handleKeyDown}
     >
-      <span ref={beforeDrop.setNodeRef} className="idea-slide-resource-drop-zone is-before" aria-hidden="true" />
       {hasInsideDrop && (
         <span ref={insideDrop.setNodeRef} className="idea-slide-resource-drop-zone is-inside" aria-hidden="true" />
       )}
-      <span ref={afterDrop.setNodeRef} className="idea-slide-resource-drop-zone is-after" aria-hidden="true" />
       {canMutate && !isRenaming && (
         <button
           ref={draggable.setActivatorNodeRef}

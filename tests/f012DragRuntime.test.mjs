@@ -5,9 +5,9 @@ import { webkit } from 'playwright';
 import { createServer } from 'vite';
 
 const workspaceEntries = [
+  { path: 'folder', name: 'folder', kind: 'directory', readOnly: false, children: [] },
   { path: 'a.is', name: 'a.is', kind: 'file', readOnly: false, fileType: 'ideasketch', children: [] },
   { path: 'b.is', name: 'b.is', kind: 'file', readOnly: false, fileType: 'ideasketch', children: [] },
-  { path: 'folder', name: 'folder', kind: 'directory', readOnly: false, children: [] },
 ];
 
 async function installTauriMock(page) {
@@ -38,6 +38,13 @@ async function installTauriMock(page) {
         : `${toPath}${entry.path.slice(fromPath.length)}`;
       entry.children.forEach((child) => remapEntry(child, fromPath, toPath));
     };
+    const sortEntries = (items) => items
+      .map((entry) => ({ ...entry, children: sortEntries(entry.children) }))
+      .sort((left, right) => {
+        if (left.kind === 'directory' && right.kind !== 'directory') return -1;
+        if (left.kind !== 'directory' && right.kind === 'directory') return 1;
+        return left.name.localeCompare(right.name);
+      });
     window.__b009Invokes = [];
     window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} };
     window.__TAURI_INTERNALS__ = {
@@ -70,11 +77,11 @@ async function installTauriMock(page) {
             root: '/mock-workspace',
             name: 'mock-workspace',
             readOnly: false,
-            entries: structuredClone(currentEntries),
+            entries: structuredClone(sortEntries(currentEntries)),
             metadata: { exists: false, workspace: null, state: null, diagnostics: [] },
           };
         }
-        if (cmd === 'refresh_workspace') return structuredClone(currentEntries);
+        if (cmd === 'refresh_workspace') return structuredClone(sortEntries(currentEntries));
         if (cmd === 'move_workspace_entry') {
           const entry = detachEntry(currentEntries, args.path);
           if (!entry) throw new Error(`Missing mock entry: ${args.path}`);
@@ -107,10 +114,49 @@ async function dragRow(page, sourceName, targetIndex, targetRatio) {
   await dragBetweenBoxes(page, source, target, targetRatio);
 }
 
+async function dragRowAndAssertStableHeight(page, sourceName, targetIndex, targetRatio) {
+  const rows = page.getByRole('treeitem');
+  const row = rows.filter({ hasText: sourceName }).first();
+  const before = await row.boundingBox();
+  const source = await page.getByRole('button', { name: `Drag ${sourceName}` }).boundingBox();
+  const target = await rows.nth(targetIndex).boundingBox();
+  assert.ok(before);
+  assert.ok(source);
+  assert.ok(target);
+  await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(
+    target.x + target.width / 2,
+    target.y + target.height * targetRatio,
+    { steps: 16 },
+  );
+  const during = await row.boundingBox();
+  assert.ok(during);
+  assert.ok(Math.abs(during.height - before.height) <= 1, `dragged row height changed from ${before.height} to ${during.height}`);
+  await page.mouse.up();
+}
+
 async function dragToRoot(page, sourceName) {
   const source = await page.getByRole('button', { name: `Drag ${sourceName}` }).boundingBox();
   const target = await page.locator('[aria-label="Move to Workspace root"]').boundingBox();
   await dragBetweenBoxes(page, source, target, 0.5);
+}
+
+async function dragToRootAndAssertStableHeight(page, sourceName) {
+  const row = page.getByRole('treeitem').filter({ hasText: sourceName }).first();
+  const before = await row.boundingBox();
+  const source = await page.getByRole('button', { name: `Drag ${sourceName}` }).boundingBox();
+  const target = await page.locator('[aria-label="Move to Workspace root"]').boundingBox();
+  assert.ok(before);
+  assert.ok(source);
+  assert.ok(target);
+  await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 16 });
+  const during = await row.boundingBox();
+  assert.ok(during);
+  assert.ok(Math.abs(during.height - before.height) <= 1, `dragged row height changed from ${before.height} to ${during.height}`);
+  await page.mouse.up();
 }
 
 async function dragBetweenBoxes(page, source, target, targetRatio) {
@@ -159,26 +205,23 @@ test('Workspace drag completes in WebKit after React drop feedback updates', asy
 
     const rows = page.getByRole('treeitem');
     await rows.first().waitFor();
-    assert.deepEqual(await rows.allTextContents(), ['a.is', 'b.is', 'folder']);
-
-    await dragRow(page, 'a.is', 1, 0.8);
-    await waitForRowOrder(rows, ['b.is', 'a.is', 'folder']);
-
-    await dragRow(page, 'a.is', 0, 0.2);
-    await waitForRowOrder(rows, ['a.is', 'b.is', 'folder']);
+    assert.deepEqual(await rows.allTextContents(), ['folder', 'a.is', 'b.is']);
 
     await dragRow(page, 'a.is', 2, 0.5);
-    await waitForRowOrder(rows, ['b.is', 'folder']);
-    await page.getByRole('button', { name: 'Expand Folder' }).click();
-    await waitForRowOrder(rows, ['b.is', 'folder', 'a.is']);
+    await waitForRowOrder(rows, ['folder', 'a.is', 'b.is']);
 
-    await dragToRoot(page, 'a.is');
-    await waitForRowOrder(rows, ['b.is', 'folder', 'a.is']);
+    await dragRowAndAssertStableHeight(page, 'a.is', 0, 0.5);
+    await waitForRowOrder(rows, ['folder', 'b.is']);
+    await page.getByRole('button', { name: 'Expand Folder' }).click();
+    await waitForRowOrder(rows, ['folder', 'a.is', 'b.is']);
+
+    await dragToRootAndAssertStableHeight(page, 'a.is');
+    await waitForRowOrder(rows, ['folder', 'a.is', 'b.is']);
 
     const refreshCalls = await page.evaluate(() =>
       window.__b009Invokes.filter(({ cmd }) => cmd === 'refresh_workspace').length,
     );
-    assert.equal(refreshCalls, 4);
+    assert.equal(refreshCalls, 2);
     const moveCalls = await page.evaluate(() =>
       window.__b009Invokes
         .filter(({ cmd }) => cmd === 'move_workspace_entry')

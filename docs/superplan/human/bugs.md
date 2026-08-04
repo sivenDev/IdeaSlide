@@ -110,3 +110,10 @@ In a Workspace containing two `.is` files, saving the active file reliably enter
 - created: 2026-08-04
 
 In the shipped F012 Workspace, Page, and Camera drag interactions, WebKit emits a dragleave with relatedTarget null immediately before drop. Each row clears its React drop-target state during that dragleave, so Workspace drops are discarded entirely and Page/Camera drops can fall back to the wrong placement or become no-ops. Preserve the active target through the actual drop/end boundary, derive placement reliably at drop time, and add a real WebKit behavior regression covering upward/downward reorder and Workspace movement.
+
+## B010: Limit Workspace dragging to cross-directory moves
+
+- status: done
+- created: 2026-08-04
+
+Dragging a Workspace file over the before, after, or inside drop zones visually compresses and distorts the entire row. Simplify Workspace behavior to standard file-explorer semantics: files and folders may move only into a different directory or back to the Workspace root, while same-directory manual ordering is removed and siblings use deterministic folder-first/name ordering. Preserve the row's normal dimensions throughout pointer dragging. Page and Camera drag sorting remain unchanged.

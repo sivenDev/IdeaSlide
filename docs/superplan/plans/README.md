@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `required` | 6 | 6 |
 | `feature` | 12 | 12 |
-| `bugfix` | 9 | 9 |
+| `bugfix` | 10 | 10 |
 
 ## Execution Order
 
@@ -62,3 +62,4 @@
 | `B007` | [Keep Viewport Changes from Triggering Document Saves](bugs/B007-prevent-false-conflicts-after-autosave.md) | `complete` | 2026-08-04 |
 | `B008` | [Suppress Complete Workspace Self-Write Event Bursts](bugs/B008-suppress-workspace-self-write-event-bursts.md) | `complete` | 2026-08-04 |
 | `B009` | [Make F012 Drag Reliable with dnd-kit](bugs/B009-keep-f012-drag-targets-active-through-drop.md) | `complete` | 2026-08-04 |
+| `B010` | [Limit Workspace Dragging to Cross-Directory Moves](bugs/B010-limit-workspace-drag-to-cross-directory-moves.md) | `complete` | 2026-08-04 |

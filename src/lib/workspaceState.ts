@@ -102,10 +102,10 @@ export function createWorkspaceStateSnapshot(state: ApplicationState) {
     schemaVersion: WORKSPACE_STATE_SCHEMA_VERSION,
     activePath: active?.filePath ?? null,
     expandedPaths: state.workspace?.expandedPaths ?? [],
-    entryOrder: state.workspace?.entryOrder ?? [],
+    entryOrder: [],
   };
 }
 
 export function mayPersistWorkspaceState(workspace: WorkspaceSession | undefined): boolean {
-  return Boolean(workspace && !workspace.readOnly && (workspace.metadata.exists || (workspace.entryOrder?.length ?? 0) > 0));
+  return Boolean(workspace && !workspace.readOnly && workspace.metadata.exists);
 }

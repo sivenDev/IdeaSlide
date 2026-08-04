@@ -90,7 +90,7 @@ test('Workspace path remap updates open descendants without changing document id
   assert.deepEqual(state.workspace.expandedPaths, ['renamed']);
 });
 
-test('Workspace drop action updates tree order without dirtying documents', () => {
+test('Workspace same-parent drop action is inert and does not dirty documents', () => {
   const entries = [
     { path: 'a.is', name: 'a.is', kind: 'file', fileType: 'ideasketch', readOnly: false, children: [] },
     { path: 'b.is', name: 'b.is', kind: 'file', fileType: 'ideasketch', readOnly: false, children: [] },
@@ -106,8 +106,8 @@ test('Workspace drop action updates tree order without dirtying documents', () =
     type: 'MOVE_WORKSPACE_ENTRY',
     request: { sourcePath: 'a.is', targetPath: 'b.is', position: 'after' },
   });
-  assert.deepEqual(state.workspace.entries.map((item) => item.path), ['b.is', 'a.is']);
-  assert.deepEqual(state.workspace.entryOrder, ['b.is', 'a.is']);
+  assert.deepEqual(state.workspace.entries.map((item) => item.path), ['a.is', 'b.is']);
+  assert.deepEqual(state.workspace.entryOrder, []);
   assert.equal(state.documents[0].revision, 4);
   assert.equal(state.documents[0].isDirty, false);
 });

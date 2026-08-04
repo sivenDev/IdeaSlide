@@ -184,10 +184,10 @@ export function EditorLayout({
     return () => window.clearTimeout(timer);
   }, [state.activeSessionId, state.documents, state.workspace]);
 
-  const refreshTree = useCallback(async (entryOrder?: string[]) => {
+  const refreshTree = useCallback(async () => {
     if (!state.workspace) return;
     const entries = await refreshWorkspace(state.workspace.root);
-    dispatch({ type: "SET_WORKSPACE_ENTRIES", entries, entryOrder });
+    dispatch({ type: "SET_WORKSPACE_ENTRIES", entries, entryOrder: [] });
   }, [dispatch, state.workspace]);
 
   const flushActiveDocumentSnapshot = useCallback(() => {
@@ -253,23 +253,20 @@ export function EditorLayout({
     const projection = projectWorkspaceEntryDrop(state.workspace.entries, request);
     if (!projection.changed) return;
     try {
-      const changesParent = workspaceParentPath(request.sourcePath) !== projection.destinationParentPath;
-      if (changesParent) {
-        const moved = await moveWorkspaceEntry(
-          state.workspace.root,
-          request.sourcePath,
-          projection.destinationParentPath,
-        );
-        if (moved.path !== projection.movedPath) {
-          throw new Error("Workspace move returned an unexpected destination");
-        }
+      if (workspaceParentPath(request.sourcePath) === projection.destinationParentPath) return;
+      const moved = await moveWorkspaceEntry(
+        state.workspace.root,
+        request.sourcePath,
+        projection.destinationParentPath,
+      );
+      if (moved.path !== projection.movedPath) {
+        throw new Error("Workspace move returned an unexpected destination");
       }
-      dispatch({ type: "MOVE_WORKSPACE_ENTRY", request });
       if (request.sourcePath !== projection.movedPath) {
         dispatch({ type: "REMAP_WORKSPACE_PATH", fromPath: request.sourcePath, toPath: projection.movedPath });
       }
       dispatch({ type: "SELECT_WORKSPACE_PATH", path: projection.movedPath });
-      await refreshTree(projection.entryOrder);
+      await refreshTree();
     } catch (cause) {
       await message(`Failed to move Workspace entry: ${cause instanceof Error ? cause.message : String(cause)}`, {
         title: "Workspace Move Error",

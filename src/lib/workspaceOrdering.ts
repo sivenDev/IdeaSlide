@@ -165,14 +165,16 @@ export function projectWorkspaceEntryDrop(
   if (!source || request.targetPath === request.sourcePath) return unchanged();
   if (source.readOnly || source.kind === "symlink") return unchanged();
   if (request.targetPath && pathWithin(request.targetPath, request.sourcePath)) return unchanged();
+  if (request.position !== "inside") return unchanged();
+
+  const destinationParentPath = request.targetPath ?? "";
+  if (workspaceParentPath(request.sourcePath) === destinationParentPath) {
+    return unchanged(destinationParentPath);
+  }
 
   const target = request.targetPath ? findEntry(entries, request.targetPath) : undefined;
   if (request.targetPath && !target) return unchanged();
-  if (request.position === "inside" && target && (target.kind !== "directory" || target.readOnly)) return unchanged();
-
-  const destinationParentPath = request.position === "inside"
-    ? request.targetPath ?? ""
-    : workspaceParentPath(request.targetPath ?? "");
+  if (target && (target.kind !== "directory" || target.readOnly)) return unchanged();
   const taken = takeEntry(entries, request.sourcePath);
   if (!taken.entry) return unchanged(destinationParentPath);
   const siblings = childrenForParent(taken.entries, destinationParentPath);
@@ -183,14 +185,8 @@ export function projectWorkspaceEntryDrop(
     : workspaceBasename(request.sourcePath);
   if (siblings.some((entry) => entry.path === movedPath)) return unchanged(destinationParentPath);
 
-  let insertIndex = siblings.length;
-  if (request.position !== "inside" && request.targetPath) {
-    const targetIndex = siblings.findIndex((entry) => entry.path === request.targetPath);
-    if (targetIndex < 0) return unchanged(destinationParentPath);
-    insertIndex = targetIndex + (request.position === "after" ? 1 : 0);
-  }
   const movedEntry = remapEntryPaths(taken.entry, request.sourcePath, movedPath);
-  const projected = insertIntoParent(taken.entries, destinationParentPath, movedEntry, insertIndex);
+  const projected = insertIntoParent(taken.entries, destinationParentPath, movedEntry, siblings.length);
   if (!projected) return unchanged(destinationParentPath);
   const before = flattenWorkspaceEntryOrder(entries);
   const after = flattenWorkspaceEntryOrder(projected);

@@ -101,3 +101,25 @@ test('v2 data is classified as protected legacy content and never flattened', as
     contents: [],
   }), (error) => error?.kind === 'legacy-protected' && error?.version === '2.0');
 });
+
+test('Workspace open ignores legacy custom order and keeps deterministic scan order', async () => {
+  const { createWorkspaceSessionFromOpenResult } = await loadModule();
+  assert.equal(typeof createWorkspaceSessionFromOpenResult, 'function');
+  const entries = [
+    { path: 'folder', name: 'folder', kind: 'directory', readOnly: false, children: [] },
+    { path: 'a.is', name: 'a.is', kind: 'file', readOnly: false, fileType: 'ideasketch', children: [] },
+  ];
+  const session = createWorkspaceSessionFromOpenResult({
+    root: '/workspace',
+    name: 'workspace',
+    readOnly: false,
+    entries,
+    metadata: {
+      exists: true,
+      diagnostics: [],
+      state: { schemaVersion: 3, expandedPaths: [], entryOrder: ['a.is', 'folder'] },
+    },
+  });
+  assert.equal(session.entries, entries);
+  assert.deepEqual(session.entryOrder, []);
+});

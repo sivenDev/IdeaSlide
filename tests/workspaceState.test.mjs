@@ -76,7 +76,7 @@ test('state persistence is disabled until metadata already exists', () => {
   const reordered = workspace(null);
   reordered.metadata.exists = false;
   reordered.entryOrder = ['drawing.is'];
-  assert.equal(mayPersistWorkspaceState(reordered), true);
+  assert.equal(mayPersistWorkspaceState(reordered), false);
 });
 
 test('snapshot stores only the active Workspace path and Explorer state', () => {
@@ -94,6 +94,19 @@ test('snapshot stores only the active Workspace path and Explorer state', () => 
   assert.equal(result.schemaVersion, 3);
   assert.equal('openTabs' in result, false);
   assert.equal(result.activePath, 'drawing.is');
+  assert.deepEqual(result.entryOrder, []);
+});
+
+test('snapshot clears legacy custom order even when the session still carries it', () => {
+  const legacyWorkspace = workspace(null);
+  legacyWorkspace.entryOrder = ['readme.md', 'drawing.is'];
+  const result = createWorkspaceStateSnapshot({
+    mode: 'workspace',
+    workspace: legacyWorkspace,
+    documents: [],
+    presentationMode: 'none',
+    editorRefreshToken: 0,
+  });
   assert.deepEqual(result.entryOrder, []);
 });
 
@@ -136,6 +149,19 @@ test('Workspace drop projection reorders siblings and remaps moved subtrees', ()
   assert.equal(moved.movedPath, 'b/drawing.is');
   assert.deepEqual(flattenWorkspaceEntryOrder(moved.entries), ['a', 'b', 'b/drawing.is']);
   assert.deepEqual(remapWorkspaceEntryOrder(['a', 'a/drawing.is'], 'a', 'renamed'), ['renamed', 'renamed/drawing.is']);
+});
+
+test('Workspace drop projection rejects same-parent ordering intents', () => {
+  const entries = [
+    { path: 'a.is', name: 'a.is', kind: 'file', readOnly: false, fileType: 'ideasketch', children: [] },
+    { path: 'b.is', name: 'b.is', kind: 'file', readOnly: false, fileType: 'ideasketch', children: [] },
+  ];
+  assert.equal(projectWorkspaceEntryDrop(entries, {
+    sourcePath: 'a.is', targetPath: 'b.is', position: 'after',
+  }).changed, false);
+  assert.equal(projectWorkspaceEntryDrop(entries, {
+    sourcePath: 'a.is', position: 'inside',
+  }).changed, false);
 });
 
 test('Workspace drop projection rejects collisions and descendant targets', () => {

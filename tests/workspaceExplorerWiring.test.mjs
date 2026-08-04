@@ -19,6 +19,7 @@ test('Workspace Explorer is driven by real relative paths and backend filesystem
   assert.match(source, /useDroppable/);
   assert.match(source, /pointerWithin/);
   assert.match(source, /handleDragEnd/);
+  assert.match(source, /workspaceParentPath/);
   assert.match(source, /Move to Workspace root/);
   assert.match(source, /onTrash/);
   assert.match(source, /documentIndicators/);
@@ -66,10 +67,14 @@ test('Workspace rows keep Symlinks non-recursive and unsupported files safe', as
   assert.match(source, /<GripVertical /);
   assert.match(source, /setActivatorNodeRef/);
   assert.match(source, /aria-label=\{`Drag \$\{entry\.name\}`\}/);
-  assert.match(source, /"before"/);
   assert.match(source, /"inside"/);
-  assert.match(source, /"after"/);
-  assert.match(source, /is-drop-/);
+  assert.doesNotMatch(source, /workspace-drop-before/);
+  assert.doesNotMatch(source, /workspace-drop-after/);
+  assert.doesNotMatch(source, /position: "before"/);
+  assert.doesNotMatch(source, /position: "after"/);
+  assert.match(source, /CSS\.Translate\.toString\(draggable\.transform\)/);
+  assert.doesNotMatch(source, /scaleX\(/);
+  assert.doesNotMatch(source, /scaleY\(/);
   assert.match(source, /F2/);
   assert.match(source, /ArrowRight/);
   assert.match(source, /Move .* to Trash/);

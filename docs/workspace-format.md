@@ -73,21 +73,17 @@ If metadata creation fails, the successfully written user file is retained. A fa
   "schemaVersion": 3,
   "activePath": "drawing.is",
   "expandedPaths": ["notes"],
-  "entryOrder": [
-    "drawing.is",
-    "notes",
-    "notes/research.is"
-  ]
+  "entryOrder": []
 }
 ```
 
-All paths are root-relative and pass the same traversal/internal-path validation as filesystem commands. Document contents are never stored here. `entryOrder` is an optional depth-first sequence used only to order siblings in Workspace Explorer; the real filesystem hierarchy remains authoritative. Explicitly ordered siblings appear first, while new or externally discovered entries retain the deterministic directory/name scan order after them until the user places them.
+All paths are root-relative and pass the same traversal/internal-path validation as filesystem commands. Document contents are never stored here. `entryOrder` is retained as a schema-v3 compatibility field, but current clients ignore legacy custom order and write an empty array. Workspace Explorer uses the backend scan order: directories first, then case-insensitive name order.
 
 State schema compatibility:
 
 - v1 `openTabs` plus `activePath` is accepted only to restore one compatible active file.
 - v2 `activePath` plus Explorer expansion is accepted without rewriting metadata during browse-only open.
-- v3 adds optional `entryOrder`; reordering is an explicit persistent-setting change and may lazily create `.ideanote/` in a writable Workspace.
+- v3 adds optional `entryOrder`; current clients read the field safely, do not apply it, and clear it on the next normal state persistence.
 
 ### `.ideanote/.gitignore`
 
