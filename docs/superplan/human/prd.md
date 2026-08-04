@@ -1,9 +1,9 @@
 # IdeaNote Product Requirements Document
 
 - status: accepted
-- document_version: 0.8
+- document_version: 0.9
 - created: 2026-08-03
-- last_updated: 2026-08-03
+- last_updated: 2026-08-04
 - product: IdeaNote
 - predecessor: IdeaSlide
 - implementation_authorized: true
@@ -48,6 +48,8 @@ IdeaNote 同时支持：
 13. 当前阶段不实现 AI Agent。
 14. 当前阶段不实现 Workspace 导入导出。
 15. AI Agent 和 Workspace 导入导出在各核心编辑器完成后再开发。
+16. Workspace Explorer 始终显示可导航的真实目录，但文件只显示当前 File Type Registry 明确支持打开的类型；当前阶段即只显示 `.is`。
+17. Workspace Mode 产生的临时写入文件和其他应用内部临时产物统一放在 Workspace Root 的 `.ideanote/` 子目录中，不在用户文件旁生成 `.is.tmp` 等临时文件。
 
 ## 3. 产品目标
 
@@ -172,7 +174,9 @@ Workspace Mode 与 Single File Mode 不能维护两套编辑器和格式实现�
 - Delete，并提供明确确认。
 - Refresh。
 - 监听外部文件创建、修改、移动和删除。
-- 隐藏 `.ideanote/` 和应用内部临时文件。
+- 保留真实目录层级，包括暂时没有受支持文件的空目录。
+- 文件只显示当前 File Type Registry 中 `openable` 的受支持类型；当前阶段只显示 `.is`。
+- 隐藏 `.ideanote/`、不受支持的文件和应用内部临时文件。
 
 新建流程：
 
@@ -203,8 +207,10 @@ New Folder
 - Workspace Explorer 中的路径是相对 Workspace Root 的真实路径。
 - 文件改名或移动后，对应 Document Session 必须更新路径和标题。
 - 同一个真实文件只能存在一个 Document Session。
-- 不支持的文件仍然显示在树中，但不能被错误解析或修改。
-- 不支持的文件可以显示 Unsupported File 页面，并提供 Reveal in Finder 或 Open Externally。
+- 真实目录始终可以显示和导航，即使目录中没有当前支持的文件。
+- 不支持的文件不显示在 Workspace Explorer 中，也不能被扫描流程错误解析、修改或删除。
+- 新文件类型注册为 `openable` 后，其扩展名自动进入 Explorer 可见文件白名单，不为每一种类型单独实现树过滤逻辑。
+- 用户通过 Workspace Explorer 之外的显式入口尝试打开不支持的文件时，显示 Unsupported File 提示，并提供安全的下一步操作；该文件不会因此出现在 Workspace Explorer 中。
 - Symlink 的遍历策略必须明确，不能无限递归或越过授权边界。
 
 ## 7. `.ideanote/` 元数据目录
@@ -235,6 +241,7 @@ New Folder
 ├── workspace.json
 ├── state.json
 ├── recovery/
+├── tmp/
 ├── cache/
 └── .gitignore
 ```
@@ -244,10 +251,13 @@ New Folder
 - `workspace.json`：Workspace ID、Schema Version 和 Workspace 级设置。
 - `state.json`：最后活动文件、Explorer 展开状态和面板状态。
 - `recovery/`：未保存内容的恢复数据。
+- `tmp/`：Workspace Mode 中用户文件保存、元数据原子替换及其他应用内部操作产生的短期临时文件。
 - `cache/`：可重新生成的索引、预览和临时数据。
-- `.gitignore`：在 `.ideanote/` 内忽略易变的 `state.json`、`recovery/` 和 `cache/`；不得自动修改用户根目录的 `.gitignore`。
+- `.gitignore`：在 `.ideanote/` 内忽略易变的 `state.json`、`recovery/`、`tmp/` 和 `cache/`；不得自动修改用户根目录的 `.gitignore`。
 
 具体字段在技术设计阶段确定，但所有文件必须包含可识别的 Schema Version。
+
+`tmp/` 中的文件必须使用无冲突的内部名称，并记录或编码最终目标的 Workspace 相对路径。成功替换、失败回滚和应用启动清理都不得把临时文件暴露到 Workspace Explorer；清理无法确认归属的临时文件时应保守处理，避免删除仍可能用于恢复的数据。
 
 ### 7.3 保存优先级与失败行为
 
@@ -264,6 +274,8 @@ New Folder
 - 应单独提示 Workspace state could not be saved。
 - `.ideanote/` 失败不能回滚或删除已成功保存的用户文件。
 - `.ideanote/` 写入必须使用临时文件或等价原子替换。
+- Workspace Mode 的用户文件和元数据写入所需临时文件统一创建在 `.ideanote/tmp/`，不得在目标文件旁生成 `.is.tmp`、`.tmp` 或类似应用内部文件。
+- 从 `.ideanote/tmp/` 提交到目标路径时必须保持原文件失败安全；如果平台或文件系统不能提供安全替换，则保留原文件、报告保存失败并清理可确认无用的临时产物。
 - 损坏的元数据不能阻止用户浏览真实目录和打开文件。
 - 无法解析元数据时，应保留原文件、使用安全默认状态，并显示诊断提示。
 
@@ -399,6 +411,7 @@ interface FileTypeDefinition {
 注册表服务于：
 
 - Workspace Explorer 的 New File 菜单。
+- Workspace Explorer 的可见文件类型白名单。
 - Open File 格式过滤。
 - 文件图标。
 - Editor Host 路由。
@@ -464,7 +477,8 @@ Manifest：
 - Present 只播放当前 Page 中按顺序排列的 Cameras。
 - Workspace Mode 与 Single File Mode 使用同一个 Reader、Writer 和 Editor。
 - Writer 只写 `version: "1.0"`。
-- 保存使用同目录临时文件和原子替换，不额外生成 `.is.bak` 备份文件。
+- Workspace Mode 保存先在 `<workspace>/.ideanote/tmp/` 生成临时归档，再安全替换目标 `.is`；不在目标文件旁生成 `.is.tmp`，也不额外生成 `.is.bak` 备份文件。
+- Single File Mode 不创建 `.ideanote/`；其保存临时数据使用应用本地临时存储或平台安全替换机制，并在失败时保留原文件。
 - `.is v2` 必须被识别为不受当前 Editor 支持的 Legacy Workspace，不能按 v1 覆盖。
 
 ## 12. 未来文件类型
@@ -543,7 +557,8 @@ IdeaSketch (.is)
 ### 15.1 文件保存
 
 - 用户文件使用对应 File Type Serializer 保存。
-- 写入使用临时文件和同目录原子替换。
+- Workspace Mode 的写入临时文件统一存放在 Workspace Root 的 `.ideanote/tmp/`，提交阶段使用平台支持的安全替换机制，失败时保留原文件。
+- Single File Mode 不创建 `.ideanote/`，临时写入由应用本地临时存储或平台安全替换机制管理。
 - 保存失败保留 Dirty 状态。
 - 一个文件保存失败不能阻止其他文件保存。
 - Save All 应汇总每个文件的结果。
@@ -558,7 +573,7 @@ IdeaSketch (.is)
 
 ### 15.3 外部修改
 
-- 文件监听必须忽略应用自己的原子替换事件，避免保存循环。
+- 文件监听必须完全忽略 `.ideanote/` 内部事件，并识别应用自己的最终替换事件，避免保存循环。
 - 外部内容变化时，未 Dirty 的 Document Session 可以提示 Reload。
 - 外部内容变化且 Document Session Dirty 时，不得静默合并或覆盖。
 - 文件被删除时保留内存内容，并提供 Save As 或 Close。
@@ -567,6 +582,7 @@ IdeaSketch (.is)
 ## 16. 性能与可靠性
 
 - 打开 Workspace 时只扫描必要的目录元数据，不解析全部文件内容。
+- 目录扫描保留真实目录节点，但只向 Explorer 投影 File Type Registry 当前支持的文件；不受支持文件不进入前端树模型。
 - 文件内容只在成为当前文件时按需加载。
 - 恢复 Workspace 时最多加载最后活动文件，不得批量解析历史文件。
 - 干净的非活动 Session 应允许释放其重型编辑器模型；受保护的 Dirty、冲突或 Recovery Session 继续保留。
@@ -587,7 +603,7 @@ IdeaSketch (.is)
 - 左侧 Explorer 可以折叠。
 - 当前阶段不显示右侧 Agent 空占位。
 - 未来 Agent Panel 应可折叠、可调整宽度，并与现有布局共存。
-- Unsupported File 页面必须说明当前不支持编辑，并提供安全的下一步操作。
+- 从显式打开入口触发的 Unsupported File 页面必须说明当前不支持编辑，并提供安全的下一步操作；Workspace Explorer 本身不列出不支持的文件。
 
 ## 18. 当前阶段 MVP 范围
 
@@ -609,7 +625,7 @@ IdeaSketch (.is)
 14. Excalidraw Editor。
 15. Pages、Cameras 和 Present 现有能力适配。
 16. Save、Save As、Save All 和 Recovery。
-17. Unsupported File 回退。
+17. 受支持文件白名单过滤，以及显式打开入口的 Unsupported File 回退。
 
 ### 18.2 不包含
 
@@ -642,7 +658,9 @@ IdeaSketch (.is)
 - 同一个真实路径不会出现重复 Document Session。
 - 文件切换前会提交当前编辑器草稿；Dirty、冲突和 Recovery Session 不会被静默丢弃。
 - 已存在 `.ideanote/` 时，重新打开 Workspace 可以恢复最后活动文件；旧版 Tab 状态不会恢复为标签栏。
-- 不支持的文件不会被修改或丢弃。
+- Workspace Explorer 保留目录层级，但只显示当前支持的文件类型；当前阶段不显示 `.md`、`.it`、`.iwf` 或其他不支持文件。
+- 被过滤的不支持文件不会被解析、修改或删除。
+- `.ideanote/` 和其中的 `tmp/`、`recovery/`、`cache/` 永不出现在 Workspace Explorer 中。
 
 ### Dual mode, single core
 
@@ -655,6 +673,7 @@ IdeaSketch (.is)
 ### IdeaSketch
 
 - Writer 输出 `version: "1.0"`、`slides[]` 和 `slides/{id}.json`。
+- Workspace Mode 保存时，临时归档只出现在 `.ideanote/tmp/`，目标文件目录中不出现 `.is.tmp` 或 `.is.bak`。
 - Page 名称和顺序保存后重新打开保持不变。
 - Excalidraw Elements、Files 和必要 AppState 保持不变。
 - Camera 顺序保持不变。
@@ -666,7 +685,7 @@ IdeaSketch (.is)
 - 当前构建不显示无功能的 Agent Panel。
 - 当前构建不提供 Workspace Import/Export。
 - New File 菜单当前只有 IdeaSketch 和 Folder。
-- `.md`、`.it`、`.iwf` 可以作为不支持文件安全显示，但不宣称可编辑。
+- `.md`、`.it`、`.iwf` 在对应编辑器注册为可打开之前不显示在 Workspace Explorer 中；从其他入口显式打开时安全拒绝，且不宣称可编辑。
 
 ## 20. 推荐开发阶段
 
@@ -681,7 +700,9 @@ IdeaSketch (.is)
 
 - Open Workspace。
 - Workspace Explorer。
+- 基于 File Type Registry 的 Explorer 文件可见性白名单。
 - `.ideanote/` 延迟生成。
+- Workspace 临时写入集中到 `.ideanote/tmp/`。
 - Single Active Editor。
 - File Type Registry 和 Editor Host。
 - File Watcher 和 Session Restore。
@@ -759,17 +780,19 @@ IdeaSketch (.is)
 
 1. 用户可见产品名称改为 `IdeaNote`；当前 MVP 不迁移仓库名、Cargo/npm package name、Bundle ID 或用户数据目录，避免把产品重构与安装迁移混在一起。
 2. `.ideanote/workspace.json` 使用 `schemaVersion: 1`，保存稳定的 `workspaceId`、创建/更新时间和 Workspace 级设置；新的 `.ideanote/state.json` 使用 `schemaVersion: 2`，保存相对路径形式的最后活动文件和 Explorer 状态。读取器继续兼容旧 `schemaVersion: 1` 的 `openTabs`/`activePath`，但只恢复一个活动文件，且仅打开 Workspace 不触发元数据重写。
-3. 第一版使用单个 `state.json`，并由 `.ideanote/.gitignore` 忽略 `state.json`、`recovery/` 和 `cache/`；不修改 Workspace 根目录的 `.gitignore`。
+3. 第一版使用单个 `state.json`，并由 `.ideanote/.gitignore` 忽略 `state.json`、`recovery/`、`tmp/` 和 `cache/`；不修改 Workspace 根目录的 `.gitignore`。
 4. Workspace Mode 同时提供显式 Save 和防抖自动保存；Single File Mode 默认只显式保存，并使用 Recovery Draft 防止意外丢失。
 5. 新建 IdeaSketch 默认名为 `Untitled.is`，冲突时使用递增后缀，并立即进入内联重命名。
 6. 单击受支持文件即使其成为唯一前台文件；目录单击只选择，展开/收起由目录箭头和键盘操作负责。
 7. 只挂载当前活动 Editor；干净的非活动 Session 可以释放，Dirty、冲突、丢失和 Recovery Session 保留必要模型与状态。当前阶段不增加文件前进/后退历史、快速打开、最近关闭文件或其他 Tab 替代导航。
 8. 默认不跟随 Symlink；Symlink 作为不可递归的特殊条目显示，不能借此越过 Workspace Root。
 9. Delete 默认移动到系统 Trash；不能安全移动到 Trash 时不执行永久删除，并显示错误。
-10. `.is` 覆盖不生成 `.is.bak`；只使用同目录临时文件和原子替换，失败时保留原文件并清理临时文件。
+10. `.is` 覆盖不生成 `.is.bak`；Workspace Mode 只使用 `.ideanote/tmp/` 中的临时文件并安全替换目标文件，失败时保留原文件并清理可确认无用的临时文件。Single File Mode 使用应用本地临时存储或平台安全替换机制，且不创建 `.ideanote/`。
 11. `.is v2` 自动迁移延后到 Workspace Import/Export 阶段；当前版本只识别、说明并阻止覆盖。
 12. Markdown、IdeaTable 和 IdeaWorkflow 在各自启动前分别编写和批准详细 PRD；本阶段只保留注册表和 Editor Host 扩展边界。
 13. 文件类型扩展采用前后端对称模块化：IdeaSketch 前端模块与 Rust 后端格式模块只通过稳定注册表和通用命令边界接入。
+14. Workspace Explorer 始终显示真实目录节点，但文件只显示 File Type Registry 中当前 `openable` 的类型；当前阶段只有 `.is`。不支持文件不进入前端树模型，显式打开时走安全的 Unsupported File 回退。
+15. Workspace Mode 的用户文件、Workspace 元数据及其他应用内部操作所需临时文件统一位于 `<workspace>/.ideanote/tmp/`；目标文件旁不得出现 `.is.tmp` 等应用临时文件。Single File Mode 不创建 `.ideanote/`，使用应用本地临时存储或平台安全替换机制。
 
 ## 23. 开发启动门槛
 
