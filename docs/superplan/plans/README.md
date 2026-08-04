@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `required` | 6 | 6 |
 | `feature` | 11 | 11 |
-| `bugfix` | 6 | 6 |
+| `bugfix` | 7 | 7 |
 
 ## Execution Order
 
@@ -58,3 +58,4 @@
 | `B004` | [Stabilize Editor Session Canvas Input](bugs/B004-stabilize-editor-session-slide.md) | `complete` | 2026-07-22 |
 | `B005` | [Move Navigator into the Excalidraw Main Menu](bugs/B005-integrate-navigator-into-excalidraw-toolbar.md) | `complete` | 2026-08-04 |
 | `B006` | [Synchronize Page Canvas and Draft Identity](bugs/B006-synchronize-page-canvas-draft-identity.md) | `complete` | 2026-08-04 |
+| `B007` | [Keep Viewport Changes from Triggering Document Saves](bugs/B007-prevent-false-conflicts-after-autosave.md) | `complete` | 2026-08-04 |

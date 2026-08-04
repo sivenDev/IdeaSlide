@@ -31,3 +31,8 @@ test('Workspace-only autosave and Page-scoped Cameras remain inside IdeaSketch',
   assert.doesNotMatch(source, /ideanote-ideasketch-editor__chrome/);
   assert.doesNotMatch(source, /Show Pages\. Current Page/);
 });
+
+test('Page selection records editor state without persisting a model mutation', () => {
+  assert.match(source, /if \(next\.activePageId !== previous\.activePageId\) \{[\s\S]*?onEditorStateChange\(document\.id, next\.activePageId\);/);
+  assert.match(source, /const selectPage = useCallback\(\(pageId: string\) => \{[\s\S]*?flushDraft\(\);[\s\S]*?applyAction\(\{ type: "SELECT_PAGE", pageId \}, false\);/);
+});

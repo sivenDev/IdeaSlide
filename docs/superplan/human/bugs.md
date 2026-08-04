@@ -89,3 +89,17 @@ The right-side Navigator toggle and Camera action are rendered in a separate top
 - created: 2026-08-04
 
 After editing a newly created Page, switching Pages can leave Excalidraw showing the previous Page. Further edits can copy the stale scene into the selected Page, so subsequent saves persist cross-Page content. Expected: Page switching remounts Excalidraw only when the matching draft is ready, and edits/saves remain isolated to their owning Page.
+
+## B007: Viewport changes incorrectly trigger document saving
+
+- status: done
+- created: 2026-08-04
+
+In the .is editor, zooming or panning the Excalidraw canvas without changing document content marks the document dirty, triggers Workspace autosave, and can surface a file-conflict banner. Expected: viewport-only changes do not trigger document saving. Page selection should still be recorded as best-effort editor/session state without forcing a document save.
+
+## B008: Workspace autosave self-write events cause false conflicts
+
+- status: proposed
+- created: 2026-08-04
+
+Workspace autosave can emit multiple filesystem watcher events for one application-owned write while self-write suppression consumes only one event. A newly created or normally edited .is file can therefore enter File conflict even before any viewport interaction. Expected: all watcher events belonging to the completed application save operation are suppressed without hiding genuine external changes.

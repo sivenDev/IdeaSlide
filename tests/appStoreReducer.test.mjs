@@ -113,6 +113,31 @@ test('conflict and missing sessions remain editable in memory for Save As recove
   }
 });
 
+test('recording the selected Page does not dirty or revise the document model', () => {
+  const model = { type: 'ideasketch', formatVersion: '1.0', created: '', modified: '', pages: [] };
+  const session = {
+    ...document('page-state', 'drawing.is'),
+    status: 'editable',
+    model,
+    revision: 4,
+  };
+  const state = appStoreReducer({
+    ...createInitialAppState(),
+    mode: 'workspace',
+    documents: [session],
+    activeSessionId: session.id,
+  }, {
+    type: 'SET_DOCUMENT_EDITOR_STATE',
+    sessionId: session.id,
+    editorState: { activePageId: 'page-2' },
+  });
+
+  assert.deepEqual(state.documents[0].editorState, { activePageId: 'page-2' });
+  assert.equal(state.documents[0].model, model);
+  assert.equal(state.documents[0].isDirty, false);
+  assert.equal(state.documents[0].revision, 4);
+});
+
 test('Workspace watcher transitions clean, dirty, deleted, renamed, and missing-root sessions safely', () => {
   const workspaceEntry = {
     path: 'folder', name: 'folder', kind: 'directory', readOnly: false, children: [

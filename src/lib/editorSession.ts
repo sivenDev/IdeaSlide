@@ -9,6 +9,10 @@ const PERSISTED_APP_STATE_KEYS = [
   "scrollY",
   "zoom",
 ] as const;
+const SAVE_TRIGGER_APP_STATE_KEYS = [
+  "viewBackgroundColor",
+  "gridSize",
+] as const;
 const DEFAULT_VIEW_BACKGROUND_COLOR = "#ffffff";
 
 export interface EditorSlideDraft {
@@ -29,20 +33,31 @@ export interface DraftChangeSummary {
   hasPersistedChange: boolean;
 }
 
-export function extractPersistedAppState(appState: Partial<any> | undefined) {
+function extractAppStateKeys(
+  appState: Partial<any> | undefined,
+  keys: readonly string[],
+) {
   const persisted: Partial<any> = {};
 
   if (!appState) {
     return persisted;
   }
 
-  for (const key of PERSISTED_APP_STATE_KEYS) {
+  for (const key of keys) {
     if (appState[key] !== undefined) {
       persisted[key] = appState[key];
     }
   }
 
   return persisted;
+}
+
+export function extractPersistedAppState(appState: Partial<any> | undefined) {
+  return extractAppStateKeys(appState, PERSISTED_APP_STATE_KEYS);
+}
+
+function extractSaveTriggerAppState(appState: Partial<any> | undefined) {
+  return extractAppStateKeys(appState, SAVE_TRIGGER_APP_STATE_KEYS);
 }
 
 function normalizePersistedAppStateForComparison(appState: Partial<any>) {
@@ -69,10 +84,10 @@ export function createDraftChangeSummary(
   nextDraftLike: Pick<EditorSlideDraft, "elements" | "appState" | "files">
 ): DraftChangeSummary {
   const previousAppState = normalizePersistedAppStateForComparison(
-    extractPersistedAppState(previousSlide.appState)
+    extractSaveTriggerAppState(previousSlide.appState)
   );
   const nextAppState = normalizePersistedAppStateForComparison(
-    extractPersistedAppState(nextDraftLike.appState)
+    extractSaveTriggerAppState(nextDraftLike.appState)
   );
   const previousSceneFingerprint = buildSceneFingerprint(previousSlide.elements, previousSlide.files);
   const nextSceneFingerprint = buildSceneFingerprint(nextDraftLike.elements, nextDraftLike.files);

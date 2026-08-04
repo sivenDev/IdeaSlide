@@ -123,16 +123,22 @@ test('buildSlideCommitPayload returns null when only selection state changed', a
   assert.equal(buildSlideCommitPayload(slide, draft), null);
 });
 
-test('buildSlideCommitPayload persists the zero-Camera Page viewport', async () => {
-  const { buildEditorDraftFromSlide, buildSlideCommitPayload } = await loadModule();
+test('viewport-only changes do not mark the Page dirty or create a commit', async () => {
+  const { buildEditorDraftFromSlide, buildSlideCommitPayload, createDraftChangeSummary } = await loadModule();
 
   assert.equal(typeof buildEditorDraftFromSlide, 'function');
   assert.equal(typeof buildSlideCommitPayload, 'function');
+  assert.equal(typeof createDraftChangeSummary, 'function');
 
   const slide = {
     id: 'slide-1',
     elements: [{ id: 'camera-1', version: 1 }],
-    appState: {},
+    appState: {
+      viewBackgroundColor: '#ffffff',
+      scrollX: 0,
+      scrollY: 0,
+      zoom: { value: 1 },
+    },
     files: {},
   };
 
@@ -142,16 +148,46 @@ test('buildSlideCommitPayload persists the zero-Camera Page viewport', async () 
     selectedElementIds: { 'camera-1': true },
     scrollX: 40,
     scrollY: 80,
+    zoom: { value: 1.5 },
+  };
+
+  assert.deepEqual(createDraftChangeSummary(slide, draft), {
+    contentChanged: false,
+    appStateChanged: false,
+    hasPersistedChange: false,
+  });
+  assert.equal(buildSlideCommitPayload(slide, draft), null);
+});
+
+test('meaningful appState changes still create a commit', async () => {
+  const { buildEditorDraftFromSlide, buildSlideCommitPayload } = await loadModule();
+
+  const slide = {
+    id: 'slide-1',
+    elements: [],
+    appState: { viewBackgroundColor: '#ffffff', gridSize: null },
+    files: {},
+  };
+  const draft = buildEditorDraftFromSlide(slide);
+  draft.appState = {
+    ...draft.appState,
+    viewBackgroundColor: '#f5f5f5',
+    gridSize: 16,
+    scrollX: 40,
+    scrollY: 80,
+    zoom: { value: 1.5 },
   };
 
   assert.deepEqual(buildSlideCommitPayload(slide, draft), {
     slide: {
       id: 'slide-1',
-      elements: [{ id: 'camera-1', version: 1 }],
+      elements: [],
       appState: {
-        viewBackgroundColor: '#ffffff',
+        viewBackgroundColor: '#f5f5f5',
+        gridSize: 16,
         scrollX: 40,
         scrollY: 80,
+        zoom: { value: 1.5 },
       },
       files: {},
     },
@@ -177,13 +213,21 @@ test('buildSlideCommitPayload returns persisted slide data when scene content ch
   draft.appState = {
     viewBackgroundColor: '#f5f5f5',
     selectedElementIds: { 'text-1': true },
+    scrollX: 120,
+    scrollY: 80,
+    zoom: { value: 1.25 },
   };
 
   assert.deepEqual(buildSlideCommitPayload(slide, draft), {
     slide: {
       id: 'slide-1',
       elements: [{ id: 'text-1', version: 2 }],
-      appState: { viewBackgroundColor: '#f5f5f5' },
+      appState: {
+        viewBackgroundColor: '#f5f5f5',
+        scrollX: 120,
+        scrollY: 80,
+        zoom: { value: 1.25 },
+      },
       files: {},
     },
     contentChanged: true,
