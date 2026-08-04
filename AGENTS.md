@@ -7,9 +7,9 @@
 4. For work routed through Superplan, the approved plan, delivery-loop risk profile, and artifact-aware verification matrix are the project-level authority for persisted artifacts, testing, verification, delegation, and task-level traceability. Reuse unaffected evidence instead of rerunning unchanged checks.
 <!-- managed-by: superplan:end -->
 
-# IdeaSlide
+# IdeaNote
 
-Tauri v2 desktop slide editor using React 19, TypeScript, Tailwind CSS v4, and Excalidraw. Its native `.is` format is a zip archive containing `manifest.json` and per-slide JSON files.
+Product scope, architecture decisions, and acceptance criteria are defined in `docs/superplan/human/prd.md`. Do not duplicate or contradict them here; implementation follows approved plans in `docs/superplan/plans/`.
 
 ## Commands
 
@@ -19,34 +19,24 @@ npm run dev                          # Frontend only
 npm run build                        # TypeScript check + production build
 cd src-tauri && cargo build          # Rust build
 cd src-tauri && cargo test           # Rust tests
-cd src-tauri && cargo test -- --nocapture
 ```
 
-## Architecture
-
-- Frontend: `src/`; backend: `src-tauri/src/`.
-- IPC wrappers and `.is` conversion: `src/lib/tauriCommands.ts`; command registration: `src-tauri/src/lib.rs`.
-- Slide state: React Context + `useReducer` in `src/hooks/useSlideStore.tsx`.
-- File format: `src-tauri/src/file_format.rs`; saves are atomic and create `.is.bak` backups.
-- Main UI: `App.tsx` → `EditorLayout.tsx` → `SlideCanvas.tsx`; presentation UI lives in `PresentationMode.tsx`.
-
-## Development Rules
+## Rules
 
 - Prefer established, actively maintained open-source libraries for controls and UI primitives. Build custom controls only when no suitable library meets the requirement.
+- Preserve the PRD principles: real files are the source of truth, Workspace and Single File modes share one core, metadata is lazy, and editors remain registry-driven.
+- Keep shared commands and infrastructure format-agnostic; isolate editor-specific parsing, validation, reading, and writing.
+- Keep file operations local-first and safe: atomic writes, recovery where applicable, and no silent overwrite of external changes.
 - Use Tauri v2 APIs. Add required permissions to `src-tauri/capabilities/default.json`; missing permissions may fail silently.
 - Keep TypeScript strict and free of unused locals/parameters.
 - Keep all user-facing text in English.
-- Global document scrolling is disabled in `src/index.css`; add scrolling to explicit inner containers. Keep the `EditorLayout` preview wrapper `overflow-hidden`.
 
-### Excalidraw
+## Known Pitfalls
 
 - Load Excalidraw CSS from `public/excalidraw.css` via `index.html`, not a JS import.
-- Initialize `appState.collaborators` with `new Map()`.
-- Keep `SlideCanvas` `onChange` stable and skip its first call after mount.
-- Use `key={slideId}` when switching slides. In view mode, disable changes and enable Excalidraw view/zen modes.
+- Initialize `appState.collaborators` with `new Map()`; keep `SlideCanvas.onChange` stable and skip its first call after mount.
 - Handle presentation keyboard events in capture phase so Excalidraw cannot consume them first.
-- Keep Tailwind canvas/SVG overrides in `src/index.css`.
-
+- Global scrolling is disabled in `src/index.css`; scroll inside explicit containers and keep the editor preview wrapper `overflow-hidden`.
 
 <claude-mem-context>
 # Memory Context
