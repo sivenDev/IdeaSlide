@@ -88,6 +88,9 @@ test('Workspace rows keep Symlinks non-recursive and unsupported files safe', as
   assert.doesNotMatch(source, /scaleX\(/);
   assert.doesNotMatch(source, /scaleY\(/);
   assert.match(source, /F2/);
+  assert.match(source, /getWorkspaceRenameSelectionEnd/);
+  assert.match(source, /setSelectionRange\(0, getWorkspaceRenameSelectionEnd\(entry\.name, entry\.kind\)\)/);
+  assert.doesNotMatch(source, /inputRef\.current\?\.select\(\)/);
   assert.match(source, /ArrowRight/);
   assert.match(source, /Move .* to Trash/);
   assert.match(source, /isDocumentActive/);

@@ -12,6 +12,7 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
+import { getWorkspaceRenameSelectionEnd } from "../lib/workspaceRename";
 import type { DocumentStatus, WorkspaceEntry } from "../types";
 import { Input } from "./ui/Input";
 
@@ -120,8 +121,12 @@ export function WorkspaceResourceRow({
     onRenameStarted?.();
   }, [canMutate, onRenameStarted, startRenaming]);
   useEffect(() => {
-    if (isRenaming) inputRef.current?.select();
-  }, [isRenaming]);
+    if (!isRenaming) return;
+    const input = inputRef.current;
+    if (!input) return;
+    input.focus();
+    input.setSelectionRange(0, getWorkspaceRenameSelectionEnd(entry.name, entry.kind));
+  }, [entry.kind, entry.name, isRenaming]);
 
   const commitRename = () => {
     const name = draftName.trim();

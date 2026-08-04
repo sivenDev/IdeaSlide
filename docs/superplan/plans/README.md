@@ -7,7 +7,7 @@
 | Type | Plans | Complete |
 | --- | --- | --- |
 | `required` | 6 | 6 |
-| `feature` | 14 | 14 |
+| `feature` | 15 | 15 |
 | `bugfix` | 14 | 14 |
 
 ## Execution Order
@@ -50,6 +50,7 @@
 | `F012` | [Drag-sort Workspace Entries, Pages, and Cameras](features/F012-drag-sort-workspace-pages-and-cameras.md) | `complete` | 2026-08-04 |
 | `F013` | [Compact Workspace and Navigator Layout](features/F013-compact-workspace-and-navigator-layout.md) | `complete` | 2026-08-04 |
 | `F014` | [Simplify File and Navigator Controls](features/F014-simplify-file-and-navigator-controls.md) | `complete` | 2026-08-04 |
+| `F015` | [Select the Workspace Filename Stem During Rename](features/F015-select-workspace-filename-stem.md) | `complete` | 2026-08-05 |
 
 ### Bugfix Plans
 

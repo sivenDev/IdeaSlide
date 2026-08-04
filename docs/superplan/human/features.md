@@ -119,3 +119,10 @@ Remove the persistent Workspace drag-handle column and allow dragging from the r
 - created: 2026-08-04
 
 Remove the New File action from the top editor toolbar while keeping file creation available from the Launch Screen and Workspace root. Fix the Open dropdown so its tooltip does not overlap the open menu and both Open Workspace… and Open File… stay on one line with aligned icons. Remove the custom Navigator item from the Excalidraw main menu and its redundant SlideCanvas state props; make the right-side navigator toggle the single in-editor open/close control and give it the shared Hide navigator / Show navigator tooltip. Preserve Save/Save As, Workspace collapse/resize, Page/Camera sorting, and Camera creation behavior.
+
+## F015: Select the filename stem during Workspace rename
+
+- status: done
+- created: 2026-08-05
+
+When inline rename starts in the Workspace directory tree, match VS Code by initially selecting only a file's name before its final extension. Keep the extension visible and editable when the user deliberately changes the selection. Select the full name for directories, extensionless files, and leading-dot files. Apply the behavior consistently to F2, the Rename row action, and automatic rename after creating an entry.
