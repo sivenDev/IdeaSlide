@@ -5,11 +5,18 @@ import { readFile } from 'node:fs/promises';
 const source = await readFile(new URL('../src/components/IdeaSketchEditor.tsx', import.meta.url), 'utf8');
 
 test('IdeaSketch editor binds Excalidraw drafts to document and Page identity', () => {
+  const canvas = source.match(/<SlideCanvas[\s\S]*?\/>/)?.[0] ?? '';
+
   assert.match(source, /documentSessionId: document\.id/);
   assert.match(source, /page: activePage/);
   assert.match(source, /sessionId !== document\.id/);
   assert.match(source, /payload\.slide\.id !== pageId/);
   assert.match(source, /onRegisterSnapshot/);
+  assert.match(canvas, /slideId=\{draft\.slideId\}/);
+  assert.match(canvas, /elements=\{draft\.elements\}/);
+  assert.match(canvas, /appState=\{draft\.appState\}/);
+  assert.match(canvas, /files=\{draft\.files\}/);
+  assert.doesNotMatch(canvas, /slideId=\{activePage\.id\}/);
 });
 
 test('Workspace-only autosave and Page-scoped Cameras remain inside IdeaSketch', () => {

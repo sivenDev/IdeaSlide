@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Draft | Complete |
-| --- | --- | --- | --- |
-| `required` | 6 | 0 | 6 |
-| `feature` | 9 | 0 | 9 |
-| `bugfix` | 6 | 1 | 5 |
+| Type | Plans | Complete |
+| --- | --- | --- |
+| `required` | 6 | 6 |
+| `feature` | 9 | 9 |
+| `bugfix` | 6 | 6 |
 
 ## Execution Order
 
@@ -55,4 +55,4 @@
 | `B003` | [Fix Release Package Manager Selection](bugs/B003-fix-release-package-manager-selection.md) | `complete` | 2026-07-22 |
 | `B004` | [Stabilize Editor Session Canvas Input](bugs/B004-stabilize-editor-session-slide.md) | `complete` | 2026-07-22 |
 | `B005` | [Move Navigator into the Excalidraw Main Menu](bugs/B005-integrate-navigator-into-excalidraw-toolbar.md) | `complete` | 2026-08-04 |
-| `B006` | [Synchronize Page Canvas and Draft Identity](bugs/B006-synchronize-page-canvas-draft-identity.md) | `draft` | 2026-08-04 |
+| `B006` | [Synchronize Page Canvas and Draft Identity](bugs/B006-synchronize-page-canvas-draft-identity.md) | `complete` | 2026-08-04 |

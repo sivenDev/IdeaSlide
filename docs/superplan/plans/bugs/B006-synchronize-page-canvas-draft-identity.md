@@ -2,7 +2,7 @@
 id: "B006"
 title: "Synchronize Page Canvas and Draft Identity"
 type: "bugfix"
-status: "draft"
+status: "complete"
 summary: "Prevent Excalidraw from mounting a stale Page scene under a newly selected Page identity and contaminating subsequent saves."
 source: "docs/superplan/human/bugs.md"
 created: "2026-08-04"
@@ -34,8 +34,8 @@ parent: ""
 **Verification:**
 - `node --test tests/ideaSketchEditor.test.mjs`
 
-- [ ] Add the focused Canvas/draft identity regression.
-- [ ] Confirm it fails against the current mixed `activePage.id` and `draft` wiring.
+- [x] Add the focused Canvas/draft identity regression.
+- [x] Confirm it fails against the current mixed `activePage.id` and `draft` wiring.
 
 ## Task 2: Remount Excalidraw from One Complete Page Draft
 
@@ -51,8 +51,8 @@ parent: ""
 - Run the focused Task 1 test.
 - Browser cases: Page 2 Camera disappears when switching to blank Page 1; Page 1 reports zero Cameras and has no stale Canvas badge; adding one Page 1 Camera results in exactly one Camera; switching back restores only Page 2's original Camera.
 
-- [ ] Apply the smallest identity-boundary fix without changing session or persistence policy.
-- [ ] Verify Page selection, Camera scoping, and save snapshot isolation.
+- [x] Apply the smallest identity-boundary fix without changing session or persistence policy.
+- [x] Verify Page selection, Camera scoping, and save snapshot isolation.
 
 ## Task 3: Verify and Deliver B006
 
@@ -73,8 +73,16 @@ parent: ""
 - `git diff --check`
 - Browser acceptance: reproduce the two-Page Camera scenario, verify Canvas/list identity in both directions, edit both Pages independently, and inspect console errors.
 
-- [ ] Run focused checks during implementation and the complete regression/build matrix once stable.
-- [ ] Record browser evidence, mark B006 done/complete, refresh the index, and create a separate `fix(B006)` commit excluding `AGENTS.md`.
+- [x] Run focused checks during implementation and the complete regression/build matrix once stable.
+- [x] Record browser evidence, mark B006 done/complete, refresh the index, and create a separate `fix(B006)` commit excluding `AGENTS.md`.
+
+## Delivery Evidence
+- The focused Canvas/draft identity regression first failed against `slideId={activePage.id}`, then passed after binding the Canvas identity to `draft.slideId`: `node --test tests/ideaSketchEditor.test.mjs` (2 passed).
+- Full frontend regression passed: `node --test tests/*.test.mjs` (166 passed).
+- Production frontend build passed: `npm run build`; only the existing Excalidraw mixed-import and bundle-size warnings remain.
+- Native regression passed: `cargo test` (64 passed).
+- `git diff --check` passed.
+- Browser acceptance passed on the local Vite frontend: switching from Page 2 with one Camera to blank Page 1 reported `Cameras 0` and removed the Canvas Camera badge overlay; adding one Camera to Page 1 produced exactly `Cameras 1`; switching back restored Page 2's original single Camera at its independent position, and returning to Page 1 restored its own single Camera; no console errors were reported.
 
 ## References
 - `docs/superplan/human/bugs.md`

@@ -201,7 +201,7 @@ export function IdeaSketchEditor({
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <main className="relative min-w-0 flex-1 overflow-hidden">
           <SlideCanvas
-            slideId={activePage.id}
+            slideId={draft.slideId}
             elements={draft.elements}
             appState={draft.appState}
             files={draft.files}
