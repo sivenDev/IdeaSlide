@@ -117,3 +117,10 @@ In the shipped F012 Workspace, Page, and Camera drag interactions, WebKit emits 
 - created: 2026-08-04
 
 Dragging a Workspace file over the before, after, or inside drop zones visually compresses and distorts the entire row. Simplify Workspace behavior to standard file-explorer semantics: files and folders may move only into a different directory or back to the Workspace root, while same-directory manual ordering is removed and siblings use deterministic folder-first/name ordering. Preserve the row's normal dimensions throughout pointer dragging. Page and Camera drag sorting remain unchanged.
+
+## B011: Handle Unsaved Untitled Files on Home and Window Close
+
+- status: done
+- created: 2026-08-04
+
+When an untitled IdeaSketch document has unsaved changes, clicking Home prompts to save but then reports “Some files could not be saved: Untitled.is”. Clicking the native window close button provides no visible prompt or feedback. Saving should route an untitled document through Save As, then continue Home/close only after a successful save; cancelling or failing the save should keep the editor/window open with clear feedback.

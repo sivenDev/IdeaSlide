@@ -42,7 +42,7 @@ import {
 } from "../lib/panelSizing";
 import { classifyRecoveryDraft, createRecoveryDraft, recoveryScopeForDocument, type RecoveryDraft } from "../lib/recovery";
 import { classifyInspectedDocument } from "../lib/externalFileChanges";
-import { saveAllDocuments } from "../lib/saveCoordinator";
+import { saveAllDocuments, saveDocumentsForExit } from "../lib/saveCoordinator";
 import { isProtectedDocumentSession } from "../lib/appStoreReducer";
 import {
   projectWorkspaceEntryDrop,
@@ -458,6 +458,18 @@ export function EditorLayout({
     return failed.length === 0;
   }, [saveDocument, state.documents]);
 
+  const handleExitSave = useCallback(async () => {
+    const result = await saveDocumentsForExit(state.documents, saveDocument);
+    const failed = result.results.filter((item) => !item.saved);
+    if (result.kind === "batch" && failed.length > 0) {
+      await message(`Some files could not be saved:\n${failed.map((item) => item.name).join("\n")}`, {
+        title: "Save All",
+        kind: "warning",
+      });
+    }
+    return result.saved;
+  }, [saveDocument, state.documents]);
+
   const requestClose = useCallback(async (sessionId: string): Promise<boolean> => {
     const document = state.documents.find((item) => item.id === sessionId);
     if (!document) return true;
@@ -486,7 +498,7 @@ export function EditorLayout({
       `Save changes to ${dirtyDocuments.length === 1 ? `“${dirtyDocuments[0].displayName || "Untitled.is"}”` : `${dirtyDocuments.length} files`} before leaving?`,
       { title: "Unsaved Changes", kind: "warning", okLabel: dirtyDocuments.length === 1 ? "Save" : "Save All", cancelLabel: "More Options" },
     );
-    if (shouldSave) return handleSaveAll();
+    if (shouldSave) return handleExitSave();
     const discard = await ask(
       dirtyDocuments.length === 1 ? "Discard the unsaved changes?" : `Discard unsaved changes in ${dirtyDocuments.length} files?`,
       { title: "Unsaved Changes", kind: "warning", okLabel: "Discard", cancelLabel: "Cancel" },
@@ -494,7 +506,7 @@ export function EditorLayout({
     if (!discard) return false;
     await Promise.all(dirtyDocuments.map(clearRecoveryForDocument));
     return true;
-  }, [clearRecoveryForDocument, handleSaveAll, state.documents]);
+  }, [clearRecoveryForDocument, handleExitSave, state.documents]);
   const confirmSessionExitRef = useRef(confirmSessionExit);
   confirmSessionExitRef.current = confirmSessionExit;
 
@@ -627,20 +639,34 @@ export function EditorLayout({
   useEffect(() => {
     if (!("__TAURI_INTERNALS__" in window)) return;
     let disposed = false;
-    const unlisten = getCurrentWindow().onCloseRequested((event) => {
-      event.preventDefault();
-      if (closeInProgress.current) return;
+    const unlisten = getCurrentWindow().onCloseRequested(async (event) => {
+      if (closeInProgress.current) {
+        event.preventDefault();
+        return;
+      }
       closeInProgress.current = true;
-      confirmSessionExit()
-        .then(async (confirmed) => {
-          if (disposed) return;
-          if (confirmed) await exitApplication();
-          else closeInProgress.current = false;
-        })
-        .catch((error) => {
-          closeInProgress.current = false;
-          console.error("Failed to coordinate application close:", error);
-        });
+      let shouldExit = false;
+      try {
+        const confirmed = await confirmSessionExit();
+        if (disposed) {
+          event.preventDefault();
+          return;
+        }
+        if (!confirmed) {
+          event.preventDefault();
+          return;
+        }
+        await exitApplication();
+        shouldExit = true;
+      } catch (error) {
+        event.preventDefault();
+        await message(`Failed to close application: ${error instanceof Error ? error.message : String(error)}`, {
+          title: "Close Error",
+          kind: "error",
+        }).catch((messageError) => console.error("Failed to show close error:", messageError));
+      } finally {
+        if (!shouldExit) closeInProgress.current = false;
+      }
     });
     return () => {
       disposed = true;
