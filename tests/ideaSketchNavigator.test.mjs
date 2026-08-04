@@ -22,10 +22,11 @@ test('IdeaSketch navigator switches between fixed Pages and Cameras tabs', async
   assert.doesNotMatch(source, /thumbnail/i);
 });
 
-test('IdeaSketch editor owns one hidden-by-default navigator without a duplicate Page shortcut', async () => {
+test('IdeaSketch editor owns one open-by-default compact navigator without a duplicate Page shortcut', async () => {
   const source = await readSource('src/components/IdeaSketchEditor.tsx');
 
-  assert.match(source, /const \[showNavigator, setShowNavigator\] = useState\(false\)/);
+  assert.match(source, /const NAVIGATOR_PANEL_WIDTH = 220/);
+  assert.match(source, /const \[showNavigator, setShowNavigator\] = useState\(true\)/);
   assert.match(source, /const \[navigatorTab, setNavigatorTab\].*"pages"/);
   assert.match(source, /openNavigator\("cameras"\)/);
   assert.match(source, /toggleNavigator/);

@@ -109,7 +109,7 @@ async function installTauriMock(page) {
 
 async function dragRow(page, sourceName, targetIndex, targetRatio) {
   const rows = page.getByRole('treeitem');
-  const source = await page.getByRole('button', { name: `Drag ${sourceName}` }).boundingBox();
+  const source = await page.getByRole('button', { name: `Open ${sourceName}` }).boundingBox();
   const target = await rows.nth(targetIndex).boundingBox();
   await dragBetweenBoxes(page, source, target, targetRatio);
 }
@@ -118,7 +118,7 @@ async function dragRowAndAssertStableHeight(page, sourceName, targetIndex, targe
   const rows = page.getByRole('treeitem');
   const row = rows.filter({ hasText: sourceName }).first();
   const before = await row.boundingBox();
-  const source = await page.getByRole('button', { name: `Drag ${sourceName}` }).boundingBox();
+  const source = await page.getByRole('button', { name: `Open ${sourceName}` }).boundingBox();
   const target = await rows.nth(targetIndex).boundingBox();
   assert.ok(before);
   assert.ok(source);
@@ -137,22 +137,25 @@ async function dragRowAndAssertStableHeight(page, sourceName, targetIndex, targe
 }
 
 async function dragToRoot(page, sourceName) {
-  const source = await page.getByRole('button', { name: `Drag ${sourceName}` }).boundingBox();
-  const target = await page.locator('[aria-label="Move to Workspace root"]').boundingBox();
+  const source = await page.getByRole('button', { name: `Open ${sourceName}` }).boundingBox();
+  const target = await page.locator('[data-workspace-root="true"]').boundingBox();
   await dragBetweenBoxes(page, source, target, 0.5);
 }
 
 async function dragToRootAndAssertStableHeight(page, sourceName) {
   const row = page.getByRole('treeitem').filter({ hasText: sourceName }).first();
   const before = await row.boundingBox();
-  const source = await page.getByRole('button', { name: `Drag ${sourceName}` }).boundingBox();
-  const target = await page.locator('[aria-label="Move to Workspace root"]').boundingBox();
+  const source = await page.getByRole('button', { name: `Open ${sourceName}` }).boundingBox();
+  const target = await page.locator('[data-workspace-root="true"]').boundingBox();
   assert.ok(before);
   assert.ok(source);
   assert.ok(target);
   await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
   await page.mouse.down();
   await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 16 });
+  await assert.doesNotReject(async () => {
+    await page.locator('[data-workspace-root="true"].is-drop-inside').waitFor({ timeout: 1_000 });
+  }, 'Workspace root did not become the active drop target');
   const during = await row.boundingBox();
   assert.ok(during);
   assert.ok(Math.abs(during.height - before.height) <= 1, `dragged row height changed from ${before.height} to ${during.height}`);
@@ -205,18 +208,20 @@ test('Workspace drag completes in WebKit after React drop feedback updates', asy
 
     const rows = page.getByRole('treeitem');
     await rows.first().waitFor();
-    assert.deepEqual(await rows.allTextContents(), ['folder', 'a.is', 'b.is']);
+    assert.deepEqual(await rows.allTextContents(), ['mock-workspace', 'folder', 'a.is', 'b.is']);
+    await page.getByRole('button', { name: 'Select folder' }).click();
+    assert.match(await rows.nth(1).getAttribute('class'), /is-selected/);
 
-    await dragRow(page, 'a.is', 2, 0.5);
-    await waitForRowOrder(rows, ['folder', 'a.is', 'b.is']);
+    await dragRow(page, 'a.is', 3, 0.5);
+    await waitForRowOrder(rows, ['mock-workspace', 'folder', 'a.is', 'b.is']);
 
-    await dragRowAndAssertStableHeight(page, 'a.is', 0, 0.5);
-    await waitForRowOrder(rows, ['folder', 'b.is']);
+    await dragRowAndAssertStableHeight(page, 'a.is', 1, 0.5);
+    await waitForRowOrder(rows, ['mock-workspace', 'folder', 'b.is']);
     await page.getByRole('button', { name: 'Expand Folder' }).click();
-    await waitForRowOrder(rows, ['folder', 'a.is', 'b.is']);
+    await waitForRowOrder(rows, ['mock-workspace', 'folder', 'a.is', 'b.is']);
 
     await dragToRootAndAssertStableHeight(page, 'a.is');
-    await waitForRowOrder(rows, ['folder', 'a.is', 'b.is']);
+    await waitForRowOrder(rows, ['mock-workspace', 'folder', 'a.is', 'b.is']);
 
     const refreshCalls = await page.evaluate(() =>
       window.__b009Invokes.filter(({ cmd }) => cmd === 'refresh_workspace').length,
@@ -228,6 +233,10 @@ test('Workspace drag completes in WebKit after React drop feedback updates', asy
         .map(({ args }) => args.destinationParentPath),
     );
     assert.deepEqual(moveCalls, ['folder', '']);
+    const openCalls = await page.evaluate(() =>
+      window.__b009Invokes.filter(({ cmd }) => cmd === 'open_workspace_document').length,
+    );
+    assert.equal(openCalls, 0);
   } finally {
     await browser?.close();
     await server.close();

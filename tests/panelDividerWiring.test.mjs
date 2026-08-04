@@ -14,6 +14,7 @@ test('side panel divider exposes vertical left and right collapse markers', asyn
 test('divider supports optional pointer resizing without requiring it for the fixed Cameras side', async () => {
   const divider = await readFile(new URL('../src/components/ResizableDivider.tsx', import.meta.url), 'utf8');
   const editor = await readFile(new URL('../src/components/EditorLayout.tsx', import.meta.url), 'utf8');
+  const ideaSketchEditor = await readFile(new URL('../src/components/IdeaSketchEditor.tsx', import.meta.url), 'utf8');
 
   assert.match(divider, /onResize\?:/);
   assert.match(divider, /setPointerCapture/);
@@ -32,6 +33,9 @@ test('divider supports optional pointer resizing without requiring it for the fi
   assert.match(editor, /clampWorkspacePanelWidth/);
   assert.match(editor, /side="left"[\s\S]*onResize=/);
   assert.doesNotMatch(editor, /side="right"[\s\S]*onResize=/);
+  assert.match(ideaSketchEditor, /const NAVIGATOR_PANEL_WIDTH = 220/);
+  assert.match(ideaSketchEditor, /<ResizableDivider side="right" isVisible=\{showNavigator\} onToggle=\{toggleNavigator\} \/>/);
+  assert.doesNotMatch(ideaSketchEditor, /side="right"[\s\S]*onResize=/);
 });
 
 test('Workspace Explorer is visible by default in Workspace mode and remains collapsible', async () => {

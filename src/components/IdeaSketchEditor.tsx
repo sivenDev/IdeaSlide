@@ -16,7 +16,7 @@ import {
   IdeaSketchNavigator,
   type IdeaSketchNavigatorTab,
 } from "./IdeaSketchNavigator";
-const NAVIGATOR_PANEL_WIDTH = 244;
+const NAVIGATOR_PANEL_WIDTH = 220;
 
 interface IdeaSketchEditorProps {
   document: DocumentSession<IdeaSketchDocument>;
@@ -51,7 +51,7 @@ export function IdeaSketchEditor({
   );
   const editorStateRef = useRef(editorState);
   const emittedModelRef = useRef<IdeaSketchDocument | undefined>(undefined);
-  const [showNavigator, setShowNavigator] = useState(false);
+  const [showNavigator, setShowNavigator] = useState(true);
   const [navigatorTab, setNavigatorTab] = useState<IdeaSketchNavigatorTab>("pages");
   const [cameraDrawingRequestToken, setCameraDrawingRequestToken] = useState(0);
   const [selectedCameraId, setSelectedCameraId] = useState<string>();

@@ -105,3 +105,10 @@ Update Workspace Explorer so it preserves navigable directories but exposes only
 - created: 2026-08-04
 
 Workspace Explorer entries can be dragged into another folder or inserted before/after a sibling, with custom sibling order persisted in Workspace metadata. In the .is editor, Pages and Cameras can be drag-sorted; Page order and Camera order persist through the existing document save/autosave path. Drag mutation is disabled for read-only content and must preserve existing open-document path remapping and filesystem safety.
+
+## F013: Compact Workspace and Navigator Layout
+
+- status: done
+- created: 2026-08-04
+
+Remove the persistent Workspace drag-handle column and allow dragging from the row content without interfering with selection, opening, rename, or row actions. Present the Workspace name as the directory-tree root, similar to VS Code, and use that root as the drop destination for moves back to the Workspace root. Reduce the default widths of the left Workspace tree and the IdeaSketch Page/Camera navigator, and open the right navigator by default. Keep the Workspace resizable, keep both panels collapsible, and preserve Page/Camera drag sorting.

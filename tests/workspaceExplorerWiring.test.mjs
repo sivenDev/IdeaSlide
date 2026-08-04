@@ -20,7 +20,12 @@ test('Workspace Explorer is driven by real relative paths and backend filesystem
   assert.match(source, /pointerWithin/);
   assert.match(source, /handleDragEnd/);
   assert.match(source, /workspaceParentPath/);
-  assert.match(source, /Move to Workspace root/);
+  assert.match(source, /data-workspace-root="true"/);
+  assert.match(source, /role="treeitem"/);
+  assert.match(source, /aria-level=\{1\}/);
+  assert.match(source, /depth=\{depth \+ 1\}/);
+  assert.match(source, /idea-slide-workspace-root-row/);
+  assert.doesNotMatch(source, /idea-slide-side-panel__header/);
   assert.match(source, /onTrash/);
   assert.match(source, /documentIndicators/);
   assert.match(source, /indicatorByPath/);
@@ -64,9 +69,11 @@ test('Workspace rows keep Symlinks non-recursive and unsupported files safe', as
   assert.match(source, /Unsupported/);
   assert.match(source, /useDraggable/);
   assert.match(source, /useDroppable/);
-  assert.match(source, /<GripVertical /);
+  assert.doesNotMatch(source, /GripVertical/);
+  assert.doesNotMatch(source, /idea-slide-drag-handle/);
+  assert.match(source, /idea-slide-resource-main/);
   assert.match(source, /setActivatorNodeRef/);
-  assert.match(source, /aria-label=\{`Drag \$\{entry\.name\}`\}/);
+  assert.match(source, /aria-label=\{`\$\{entry\.kind === "directory" \? "Select" : "Open"\} \$\{entry\.name\}`\}/);
   assert.match(source, /"inside"/);
   assert.doesNotMatch(source, /workspace-drop-before/);
   assert.doesNotMatch(source, /workspace-drop-after/);

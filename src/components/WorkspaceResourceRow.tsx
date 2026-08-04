@@ -9,7 +9,6 @@ import {
   FilePenLine,
   Folder,
   FolderOpen,
-  GripVertical,
   Pencil,
   Trash2,
 } from "lucide-react";
@@ -132,6 +131,7 @@ export function WorkspaceResourceRow({
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
     if (event.key === "F2" && canMutate) {
       event.preventDefault();
       setIsRenaming(true);
@@ -152,31 +152,14 @@ export function WorkspaceResourceRow({
       aria-selected={isSelected}
       aria-current={isDocumentActive ? "page" : undefined}
       aria-expanded={entry.kind === "directory" ? isExpanded : undefined}
+      aria-level={depth + 1}
       tabIndex={0}
       className={`idea-slide-resource-row group ${isSelected ? "is-selected" : ""} ${isDocumentActive ? "is-active" : ""} ${insideDrop.isOver ? "is-drop-inside" : ""}`}
       style={{ paddingLeft: 7 + depth * 15, ...dragStyle }}
-      onClick={() => {
-        onSelect();
-        if (entry.kind === "file") onOpen();
-      }}
-      onDoubleClick={() => entry.kind === "directory" && onToggleExpanded()}
       onKeyDown={handleKeyDown}
     >
       {hasInsideDrop && (
         <span ref={insideDrop.setNodeRef} className="idea-slide-resource-drop-zone is-inside" aria-hidden="true" />
-      )}
-      {canMutate && !isRenaming && (
-        <button
-          ref={draggable.setActivatorNodeRef}
-          type="button"
-          aria-label={`Drag ${entry.name}`}
-          className="idea-slide-drag-handle"
-          {...draggable.attributes}
-          {...draggable.listeners}
-          onClick={(event) => event.stopPropagation()}
-        >
-          <GripVertical aria-hidden="true" />
-        </button>
       )}
       <button
         type="button"
@@ -191,44 +174,67 @@ export function WorkspaceResourceRow({
           ? <ChevronDown {...chevronIconProps} />
           : <ChevronRight {...chevronIconProps} />}
       </button>
-      <span className={`idea-slide-resource-icon ${
-        entry.kind === "directory"
-          ? "is-folder"
-          : entry.kind === "symlink"
-            ? "is-symlink"
-            : entry.fileType === "ideasketch"
-              ? "is-ideasketch"
-              : ""
-      }`}>
-        <EntryIcon entry={entry} expanded={isExpanded} />
-      </span>
       {isRenaming ? (
-        <Input
-          ref={inputRef}
-          value={draftName}
-          onChange={(event) => setDraftName(event.target.value)}
-          onBlur={commitRename}
-          onClick={(event) => event.stopPropagation()}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") commitRename();
-            if (event.key === "Escape") {
-              setDraftName(entry.name);
-              setIsRenaming(false);
-            }
-            event.stopPropagation();
-          }}
-        />
+        <div className="idea-slide-resource-main is-renaming">
+          <span className={`idea-slide-resource-icon ${entry.kind === "directory" ? "is-folder" : ""}`}>
+            <EntryIcon entry={entry} expanded={isExpanded} />
+          </span>
+          <Input
+            ref={inputRef}
+            value={draftName}
+            onChange={(event) => setDraftName(event.target.value)}
+            onBlur={commitRename}
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") commitRename();
+              if (event.key === "Escape") {
+                setDraftName(entry.name);
+                setIsRenaming(false);
+              }
+              event.stopPropagation();
+            }}
+          />
+        </div>
       ) : (
-        <span className="idea-slide-resource-name min-w-0 flex-1 truncate">{entry.name}</span>
-      )}
-      {entry.kind === "symlink" && <span className="text-[9px] uppercase text-gray-400">Link</span>}
-      {!entry.fileType && entry.kind === "file" && <span className="text-[9px] uppercase text-gray-400">Unsupported</span>}
-      {isDocumentProtected && (
-        <span
-          className={`idea-slide-resource-status ${documentStatusClassName(documentStatus, isDocumentDirty)}`}
-          title={documentStatusLabel(documentStatus, isDocumentDirty)}
-          aria-label={documentStatusLabel(documentStatus, isDocumentDirty)}
-        />
+        <button
+          ref={draggable.setActivatorNodeRef}
+          type="button"
+          aria-label={`${entry.kind === "directory" ? "Select" : "Open"} ${entry.name}`}
+          className={`idea-slide-resource-main ${canMutate ? "is-draggable" : ""}`}
+          {...draggable.attributes}
+          {...draggable.listeners}
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelect();
+            if (entry.kind === "file") onOpen();
+          }}
+          onDoubleClick={(event) => {
+            event.stopPropagation();
+            if (entry.kind === "directory") onToggleExpanded();
+          }}
+        >
+          <span className={`idea-slide-resource-icon ${
+            entry.kind === "directory"
+              ? "is-folder"
+              : entry.kind === "symlink"
+                ? "is-symlink"
+                : entry.fileType === "ideasketch"
+                  ? "is-ideasketch"
+                  : ""
+          }`}>
+            <EntryIcon entry={entry} expanded={isExpanded} />
+          </span>
+          <span className="idea-slide-resource-name min-w-0 flex-1 truncate">{entry.name}</span>
+          {entry.kind === "symlink" && <span className="text-[9px] uppercase text-gray-400">Link</span>}
+          {!entry.fileType && entry.kind === "file" && <span className="text-[9px] uppercase text-gray-400">Unsupported</span>}
+          {isDocumentProtected && (
+            <span
+              className={`idea-slide-resource-status ${documentStatusClassName(documentStatus, isDocumentDirty)}`}
+              title={documentStatusLabel(documentStatus, isDocumentDirty)}
+              aria-label={documentStatusLabel(documentStatus, isDocumentDirty)}
+            />
+          )}
+        </button>
       )}
       {canMutate && !isRenaming && (
         <div className="hidden items-center gap-0.5 group-hover:flex group-focus-within:flex">
