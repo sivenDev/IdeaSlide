@@ -1,6 +1,5 @@
 import { Excalidraw, MainMenu } from "@excalidraw/excalidraw";
-import { PanelRight } from "lucide-react";
-import { memo, useRef, useEffect, useMemo, useState, useCallback } from "react";
+import { memo, useRef, useEffect, useState, useCallback } from "react";
 import { getNextCameraOrder } from "../lib/cameraUtils";
 import {
   buildCameraBadgeSignature,
@@ -65,8 +64,6 @@ interface SlideCanvasProps {
   viewMode?: boolean;
   onApiReady?: (api: any) => void;
   editorRefreshToken: number;
-  isNavigatorOpen?: boolean;
-  onToggleNavigator?: () => void;
   cameraDrawingRequestToken?: number;
 }
 
@@ -89,8 +86,6 @@ function SlideCanvasInner({
   viewMode,
   onApiReady,
   editorRefreshToken,
-  isNavigatorOpen = false,
-  onToggleNavigator,
   cameraDrawingRequestToken = 0,
 }: SlideCanvasProps) {
   // Use a ref to always have the latest onChange without causing re-renders
@@ -427,29 +422,14 @@ function SlideCanvasInner({
     });
   }, [isDrawingCamera]);
 
-  const mainMenu = useMemo(
-    () => (
-      <MainMenu>
-        {onToggleNavigator && (
-          <>
-            <MainMenu.Item
-              icon={<PanelRight aria-hidden="true" />}
-              selected={isNavigatorOpen}
-              onSelect={onToggleNavigator}
-            >
-              Navigator
-            </MainMenu.Item>
-            <MainMenu.Separator />
-          </>
-        )}
-        <MainMenu.DefaultItems.SaveAsImage />
-        <MainMenu.DefaultItems.ToggleTheme />
-        <MainMenu.DefaultItems.ChangeCanvasBackground />
-        <MainMenu.DefaultItems.ClearCanvas />
-        <MainMenu.DefaultItems.Help />
-      </MainMenu>
-    ),
-    [isNavigatorOpen, onToggleNavigator],
+  const mainMenu = (
+    <MainMenu>
+      <MainMenu.DefaultItems.SaveAsImage />
+      <MainMenu.DefaultItems.ToggleTheme />
+      <MainMenu.DefaultItems.ChangeCanvasBackground />
+      <MainMenu.DefaultItems.ClearCanvas />
+      <MainMenu.DefaultItems.Help />
+    </MainMenu>
   );
 
   return (

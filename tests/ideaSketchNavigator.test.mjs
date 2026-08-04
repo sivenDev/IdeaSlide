@@ -33,7 +33,8 @@ test('IdeaSketch editor owns one open-by-default compact navigator without a dup
   assert.match(source, /<IdeaSketchNavigator/);
   assert.match(source, /activeTab=\{navigatorTab\}/);
   assert.match(source, /isVisible=\{showNavigator\}/);
-  assert.match(source, /onToggleNavigator=/);
+  assert.doesNotMatch(source, /onToggleNavigator=/);
+  assert.match(source, /<ResizableDivider side="right" isVisible=\{showNavigator\} onToggle=\{toggleNavigator\} \/>/);
   assert.match(source, /onAddCamera=/);
   assert.doesNotMatch(source, /const \[showCameras, setShowCameras\]/);
   assert.doesNotMatch(source, /<CameraList/);

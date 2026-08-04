@@ -7,7 +7,7 @@
 | Type | Plans | Complete |
 | --- | --- | --- |
 | `required` | 6 | 6 |
-| `feature` | 13 | 13 |
+| `feature` | 14 | 14 |
 | `bugfix` | 10 | 10 |
 
 ## Execution Order
@@ -49,6 +49,7 @@
 | `F011` | [Filter Workspace Files and Centralize Temporary Writes](features/F011-filter-workspace-files-and-centralize-temp-writes.md) | `complete` | 2026-08-04 |
 | `F012` | [Drag-sort Workspace Entries, Pages, and Cameras](features/F012-drag-sort-workspace-pages-and-cameras.md) | `complete` | 2026-08-04 |
 | `F013` | [Compact Workspace and Navigator Layout](features/F013-compact-workspace-and-navigator-layout.md) | `complete` | 2026-08-04 |
+| `F014` | [Simplify File and Navigator Controls](features/F014-simplify-file-and-navigator-controls.md) | `complete` | 2026-08-04 |
 
 ### Bugfix Plans
 

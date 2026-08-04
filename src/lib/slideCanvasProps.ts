@@ -7,8 +7,6 @@ interface SlideCanvasComparableProps {
   viewMode?: boolean;
   onApiReady?: unknown;
   editorRefreshToken?: number;
-  isNavigatorOpen?: boolean;
-  onToggleNavigator?: unknown;
   cameraDrawingRequestToken?: number;
 }
 
@@ -25,8 +23,6 @@ export function areSlideCanvasPropsEqual(
     previousProps.viewMode === nextProps.viewMode &&
     previousProps.onApiReady === nextProps.onApiReady &&
     previousProps.editorRefreshToken === nextProps.editorRefreshToken &&
-    previousProps.isNavigatorOpen === nextProps.isNavigatorOpen &&
-    previousProps.onToggleNavigator === nextProps.onToggleNavigator &&
     previousProps.cameraDrawingRequestToken === nextProps.cameraDrawingRequestToken
   );
 }

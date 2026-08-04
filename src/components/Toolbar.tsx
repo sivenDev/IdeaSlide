@@ -4,11 +4,11 @@ import {
   FileInput,
   FileOutput,
   FilePenLine,
-  FilePlus2,
   FolderOpen,
   House,
   Save,
 } from "lucide-react";
+import { useState } from "react";
 import { SaveIndicator } from "./SaveIndicator";
 import { Separator } from "./ui/Separator";
 import { ToolbarAction } from "./ui/ToolbarAction";
@@ -28,7 +28,6 @@ interface ToolbarProps {
   fileType?: string;
   isDirty: boolean;
   isSaving: boolean;
-  onNewFile: () => void;
   onOpenFile: () => void;
   onOpenWorkspace: () => void;
   onSave: () => void;
@@ -41,7 +40,6 @@ export function Toolbar({
   fileType,
   isDirty,
   isSaving,
-  onNewFile,
   onOpenFile,
   onOpenWorkspace,
   onSave,
@@ -49,6 +47,7 @@ export function Toolbar({
   onGoHome,
 }: ToolbarProps) {
   const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
+  const [openMenuOpen, setOpenMenuOpen] = useState(false);
   return (
     <TooltipProvider>
       <div
@@ -64,23 +63,20 @@ export function Toolbar({
             <House {...toolbarIconProps} />
           </ToolbarAction>
           <Separator orientation="vertical" className="idea-slide-window-toolbar__separator" />
-          <ToolbarAction tooltip="New File" aria-label="New File" onClick={onNewFile}>
-            <FilePlus2 {...toolbarIconProps} />
-          </ToolbarAction>
-          <DropdownMenu>
+          <DropdownMenu open={openMenuOpen} onOpenChange={setOpenMenuOpen}>
             <DropdownMenuTrigger asChild>
               <span>
-                <ToolbarAction tooltip="Open" aria-label="Open">
+                <ToolbarAction tooltip={openMenuOpen ? undefined : "Open"} aria-label="Open">
                   <FolderOpen {...toolbarIconProps} />
                 </ToolbarAction>
               </span>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-44">
-              <DropdownMenuItem onSelect={onOpenWorkspace}>
+            <DropdownMenuContent align="start" className="w-52">
+              <DropdownMenuItem onSelect={onOpenWorkspace} className="whitespace-nowrap">
                 <FolderOpen {...menuIconProps} />
                 <span>Open Workspace…</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={onOpenFile}>
+              <DropdownMenuItem onSelect={onOpenFile} className="whitespace-nowrap">
                 <FileInput {...menuIconProps} />
                 <span>Open File…</span>
               </DropdownMenuItem>

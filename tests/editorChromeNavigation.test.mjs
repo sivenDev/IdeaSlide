@@ -52,10 +52,13 @@ test('system file-open requests are coordinated by EditorLayout before replacing
 
 test('Toolbar keeps generic file commands and centered IdeaNote document title', async () => {
   const source = await readSource('src/components/Toolbar.tsx');
+  const editor = await readSource('src/components/EditorLayout.tsx');
+  const launch = await readSource('src/components/LaunchScreen.tsx');
+  const workspace = await readSource('src/components/WorkspaceExplorer.tsx');
   const saveOptions = source.match(/<DropdownMenu>[\s\S]*?tooltip="More Save options"[\s\S]*?<\/DropdownMenu>/)?.[0] ?? '';
   assert.match(source, /from "lucide-react"/);
   assert.match(source, /<House /);
-  assert.match(source, /<FilePlus2 /);
+  assert.doesNotMatch(source, /\bFilePlus2\b/);
   assert.match(source, /<FolderOpen /);
   assert.match(source, /<Save /);
   assert.match(source, /<ChevronDown /);
@@ -64,7 +67,13 @@ test('Toolbar keeps generic file commands and centered IdeaNote document title',
   assert.doesNotMatch(source, /\bSaveAll\b/);
   assert.match(source, /<FilePenLine /);
   assert.doesNotMatch(source, /[⌂＋▱⌑⌄]/);
-  assert.match(source, /aria-label="New File"/);
+  assert.doesNotMatch(source, /aria-label="New File"/);
+  assert.doesNotMatch(source, /\bonNewFile\b/);
+  assert.doesNotMatch(editor, /\bhandleNewFile\b/);
+  assert.doesNotMatch(editor, /onNewFile=/);
+  assert.match(launch, /onClick=\{\(\) => void run\(onNewFile\)\}/);
+  assert.match(launch, />New File</);
+  assert.match(workspace, /tooltip="New File" aria-label="New File"/);
   assert.match(source, /Open Workspace/);
   assert.match(source, /Open File/);
   assert.match(source, /aria-label="Save"/);

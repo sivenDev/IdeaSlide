@@ -209,8 +209,6 @@ export function IdeaSketchEditor({
             onApiReady={handleApiReady}
             viewMode={readOnly}
             editorRefreshToken={editorRefreshToken}
-            isNavigatorOpen={showNavigator}
-            onToggleNavigator={toggleNavigator}
             cameraDrawingRequestToken={cameraDrawingRequestToken}
           />
         </main>

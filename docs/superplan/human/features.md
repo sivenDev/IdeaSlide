@@ -112,3 +112,10 @@ Workspace Explorer entries can be dragged into another folder or inserted before
 - created: 2026-08-04
 
 Remove the persistent Workspace drag-handle column and allow dragging from the row content without interfering with selection, opening, rename, or row actions. Present the Workspace name as the directory-tree root, similar to VS Code, and use that root as the drop destination for moves back to the Workspace root. Reduce the default widths of the left Workspace tree and the IdeaSketch Page/Camera navigator, and open the right navigator by default. Keep the Workspace resizable, keep both panels collapsible, and preserve Page/Camera drag sorting.
+
+## F014: Simplify File and Navigator Controls
+
+- status: done
+- created: 2026-08-04
+
+Remove the New File action from the top editor toolbar while keeping file creation available from the Launch Screen and Workspace root. Fix the Open dropdown so its tooltip does not overlap the open menu and both Open Workspace… and Open File… stay on one line with aligned icons. Remove the custom Navigator item from the Excalidraw main menu and its redundant SlideCanvas state props; make the right-side navigator toggle the single in-editor open/close control and give it the shared Hide navigator / Show navigator tooltip. Preserve Save/Save As, Workspace collapse/resize, Page/Camera sorting, and Camera creation behavior.

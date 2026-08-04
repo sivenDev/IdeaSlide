@@ -9,6 +9,10 @@ test('side panel divider exposes vertical left and right collapse markers', asyn
   assert.match(source, /Hide navigator|Show navigator/);
   assert.match(source, /idea-slide-resize-rail/);
   assert.match(source, /idea-slide-resize-rail__toggle/);
+  assert.match(source, /TooltipProvider/);
+  assert.match(source, /TooltipTrigger asChild/);
+  assert.match(source, /TooltipContent/);
+  assert.doesNotMatch(source, /title=/);
 });
 
 test('divider supports optional pointer resizing without requiring it for the fixed Cameras side', async () => {

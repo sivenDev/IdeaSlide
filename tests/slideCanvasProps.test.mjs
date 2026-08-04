@@ -150,14 +150,13 @@ test('areSlideCanvasPropsEqual forces rerender when editor refresh token changes
   );
 });
 
-test('areSlideCanvasPropsEqual tracks Navigator menu state and Camera drawing requests', async () => {
+test('areSlideCanvasPropsEqual tracks Camera drawing requests without Navigator menu state', async () => {
   const { areSlideCanvasPropsEqual } = await loadModule();
   const elements = [];
   const appState = {};
   const files = {};
   const onChange = () => {};
   const onApiReady = () => {};
-  const onToggleNavigator = () => {};
   const base = {
     slideId: 'slide-1',
     elements,
@@ -166,20 +165,18 @@ test('areSlideCanvasPropsEqual tracks Navigator menu state and Camera drawing re
     onChange,
     onApiReady,
     viewMode: false,
-    isNavigatorOpen: false,
-    onToggleNavigator,
     cameraDrawingRequestToken: 1,
   };
 
-  assert.equal(areSlideCanvasPropsEqual(base, { ...base, isNavigatorOpen: true }), false);
-  assert.equal(areSlideCanvasPropsEqual(base, { ...base, onToggleNavigator: () => {} }), false);
   assert.equal(areSlideCanvasPropsEqual(base, { ...base, cameraDrawingRequestToken: 2 }), false);
 });
 
-test('SlideCanvas comparable props do not retain the obsolete Canvas Add camera callback', async () => {
+test('SlideCanvas comparable props omit obsolete Canvas action and Navigator callbacks', async () => {
   const source = await import('node:fs/promises').then(({ readFile }) =>
     readFile(new URL('../src/lib/slideCanvasProps.ts', import.meta.url), 'utf8'),
   );
 
   assert.doesNotMatch(source, /onAddCamera/);
+  assert.doesNotMatch(source, /isNavigatorOpen/);
+  assert.doesNotMatch(source, /onToggleNavigator/);
 });

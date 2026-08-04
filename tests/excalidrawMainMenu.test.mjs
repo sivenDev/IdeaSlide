@@ -4,15 +4,16 @@ import { readFile } from 'node:fs/promises';
 
 const readSource = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('SlideCanvas exposes Navigator through Excalidraw MainMenu', async () => {
+test('SlideCanvas keeps Excalidraw MainMenu free of a duplicate Navigator control', async () => {
   const source = await readSource('src/components/SlideCanvas.tsx');
 
-  assert.match(source, /<MainMenu\.Item/);
-  assert.match(source, /icon=\{<PanelRight[^>]*\/>\}/);
-  assert.match(source, /selected=\{isNavigatorOpen\}/);
-  assert.match(source, /onSelect=\{onToggleNavigator\}/);
-  assert.match(source, />\s*Navigator\s*<\/MainMenu\.Item>/);
-  assert.match(source, /<MainMenu\.Separator\s*\/>/);
+  assert.doesNotMatch(source, /\bPanelRight\b/);
+  assert.doesNotMatch(source, /<MainMenu\.Item/);
+  assert.doesNotMatch(source, /isNavigatorOpen/);
+  assert.doesNotMatch(source, /onToggleNavigator/);
+  assert.doesNotMatch(source, />\s*Navigator\s*</);
+  assert.doesNotMatch(source, /<MainMenu\.Separator\s*\/>/);
+  assert.match(source, /<MainMenu\.DefaultItems\.SaveAsImage \/>/);
 });
 
 test('SlideCanvas does not render a detached control island or Camera creation action', async () => {
@@ -32,7 +33,9 @@ test('IdeaSketchEditor keeps Camera creation in the navigator only', async () =>
   const navigator = source.match(/<IdeaSketchNavigator\s[\s\S]*?\/>/)?.[0] ?? '';
 
   assert.doesNotMatch(slideCanvas, /onAddCamera=/);
-  assert.match(slideCanvas, /onToggleNavigator=\{toggleNavigator\}/);
+  assert.doesNotMatch(slideCanvas, /isNavigatorOpen=/);
+  assert.doesNotMatch(slideCanvas, /onToggleNavigator=/);
   assert.match(slideCanvas, /cameraDrawingRequestToken=\{cameraDrawingRequestToken\}/);
+  assert.match(source, /<ResizableDivider side="right" isVisible=\{showNavigator\} onToggle=\{toggleNavigator\} \/>/);
   assert.match(navigator, /onAddCamera=\{readOnly \? undefined : handleAddCamera\}/);
 });

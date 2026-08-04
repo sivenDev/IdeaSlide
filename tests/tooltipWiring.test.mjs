@@ -32,9 +32,25 @@ test('Toolbar wires icon actions through the shared Tooltip primitives instead o
   assert.match(source, /<ToolbarAction/);
   assert.match(source, /from "\.\/ui\/Tooltip"/);
   assert.match(source, /TooltipProvider/);
-  assert.match(source, /tooltip="New File" aria-label="New File"/);
-  assert.match(source, /tooltip="Open" aria-label="Open"/);
+  assert.doesNotMatch(source, /tooltip="New File" aria-label="New File"/);
+  assert.match(source, /const \[openMenuOpen, setOpenMenuOpen\] = useState\(false\)/);
+  assert.match(source, /<DropdownMenu open=\{openMenuOpen\} onOpenChange=\{setOpenMenuOpen\}>/);
+  assert.match(source, /tooltip=\{openMenuOpen \? undefined : "Open"\} aria-label="Open"/);
+  assert.match(source, /<DropdownMenuContent align="start" className="w-52">/);
+  assert.equal((source.match(/className="whitespace-nowrap"/g) ?? []).length, 2);
   assert.doesNotMatch(source, /title="/);
+});
+
+test('ResizableDivider uses the shared Tooltip for dynamic panel guidance', async () => {
+  const source = await readSource('src/components/ResizableDivider.tsx');
+
+  assert.match(source, /from "\.\/ui\/Tooltip"/);
+  assert.match(source, /TooltipProvider/);
+  assert.match(source, /TooltipTrigger asChild/);
+  assert.match(source, /<TooltipContent[^>]*>\{tooltipLabel\}<\/TooltipContent>/);
+  assert.match(source, /isVisible \? "Hide navigator" : "Show navigator"/);
+  assert.match(source, /aria-label=\{tooltipLabel\}/);
+  assert.doesNotMatch(source, /title=/);
 });
 
 test('Toolbar does not expose presentation actions', async () => {

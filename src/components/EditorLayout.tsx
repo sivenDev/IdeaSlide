@@ -3,7 +3,6 @@ import { ask, message } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAppStore } from "../hooks/useAppStore";
-import { getFileTypeDefinition } from "../lib/fileTypeRegistry";
 import {
   addRecentFile,
   chooseAndOpenStandaloneDocument,
@@ -32,7 +31,6 @@ import {
 } from "../lib/tauriCommands";
 import {
   createWorkspaceStateSnapshot,
-  findWorkspaceEntry,
   mayPersistWorkspaceState,
   restoreWorkspaceDocuments,
 } from "../lib/workspaceState";
@@ -500,27 +498,6 @@ export function EditorLayout({
   const confirmSessionExitRef = useRef(confirmSessionExit);
   confirmSessionExitRef.current = confirmSessionExit;
 
-  const handleNewFile = useCallback(async () => {
-    if (state.workspace) {
-      const selected = state.workspace.selectedPath
-        ? findWorkspaceEntry(state.workspace.entries, state.workspace.selectedPath)
-        : undefined;
-      const parentPath = selected?.kind === "directory" ? selected.path : selected?.path.includes("/") ? selected.path.slice(0, selected.path.lastIndexOf("/")) : "";
-      await handleCreateDocument(parentPath, "ideasketch");
-      return;
-    }
-    if (!await confirmSessionExit()) return;
-    const definition = getFileTypeDefinition("ideasketch");
-    if (!definition) return;
-    dispatch({
-      type: "OPEN_DOCUMENT",
-      document: {
-        id: crypto.randomUUID(), mode: "standalone", filePath: "", displayName: "Untitled.is",
-        fileType: definition.type, status: "editable", model: await definition.createEmpty(), isDirty: true, revision: 1,
-      },
-    });
-  }, [confirmSessionExit, dispatch, handleCreateDocument, state.workspace]);
-
   const handleOpenFile = useCallback(async () => {
     if (!await confirmSessionExit()) return;
     const { path, document } = await chooseAndOpenStandaloneDocument();
@@ -705,7 +682,6 @@ export function EditorLayout({
         fileType={activeDocument?.fileType}
         isDirty={dirty}
         isSaving={isSaving}
-        onNewFile={() => void handleNewFile()}
         onOpenFile={() => void handleOpenFile()}
         onOpenWorkspace={() => void handleOpenWorkspace()}
         onSave={() => void handleSave()}
