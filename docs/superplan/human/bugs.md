@@ -131,3 +131,10 @@ When an untitled IdeaSketch document has unsaved changes, clicking Home prompts 
 - created: 2026-08-04
 
 When the active IdeaSketch file has unsaved edits, opening another Workspace file or creating a new file must automatically save that active file first. Continue the switch/create only after the direct save succeeds; a cancelled Save As or save failure must keep the current file active and must not create the requested file. Remove Save All semantics from shortcuts, navigation, and exit coordination; any legacy multiple-dirty session must be resolved one file at a time rather than through a bulk Save All operation.
+
+## B013: Keep Workspace Selection on the Active File When Switching Is Blocked
+
+- status: done
+- created: 2026-08-04
+
+When a dirty active Workspace file cannot be saved because of an external-change conflict, clicking another file correctly keeps the original editor active but the Explorer selection moves to the requested destination. This creates contradictory UI state. Expected: failed or cancelled switching keeps both the active editor and Explorer selection on the original file; successful switching updates both.

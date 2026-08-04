@@ -205,8 +205,7 @@ export function WorkspaceResourceRow({
           {...draggable.listeners}
           onClick={(event) => {
             event.stopPropagation();
-            onSelect();
-            if (entry.kind === "file") onOpen();
+            entry.kind === "directory" ? onSelect() : onOpen();
           }}
           onDoubleClick={(event) => {
             event.stopPropagation();

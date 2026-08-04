@@ -56,6 +56,7 @@ test('Workspace Explorer is driven by real relative paths and backend filesystem
 
 test('Workspace rows keep Symlinks non-recursive and unsupported files safe', async () => {
   const source = await readSource('src/components/WorkspaceResourceRow.tsx');
+  const mainRowClick = source.match(/className=\{`idea-slide-resource-main[\s\S]*?onClick=\{\(event\) => \{[\s\S]*?\}\}\s*onDoubleClick=/)?.[0] ?? '';
   assert.match(source, /from "lucide-react"/);
   assert.match(source, /<ChevronRight /);
   assert.match(source, /<ChevronDown /);
@@ -76,6 +77,8 @@ test('Workspace rows keep Symlinks non-recursive and unsupported files safe', as
   assert.match(source, /idea-slide-resource-main/);
   assert.match(source, /setActivatorNodeRef/);
   assert.match(source, /aria-label=\{`\$\{entry\.kind === "directory" \? "Select" : "Open"\} \$\{entry\.name\}`\}/);
+  assert.match(mainRowClick, /entry\.kind === "directory" \? onSelect\(\) : onOpen\(\)/);
+  assert.doesNotMatch(mainRowClick, /onSelect\(\);\s*if \(entry\.kind === "file"\) onOpen\(\)/);
   assert.match(source, /"inside"/);
   assert.doesNotMatch(source, /workspace-drop-before/);
   assert.doesNotMatch(source, /workspace-drop-after/);

@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `required` | 6 | 6 |
 | `feature` | 14 | 14 |
-| `bugfix` | 12 | 12 |
+| `bugfix` | 13 | 13 |
 
 ## Execution Order
 
@@ -67,3 +67,4 @@
 | `B010` | [Limit Workspace Dragging to Cross-Directory Moves](bugs/B010-limit-workspace-drag-to-cross-directory-moves.md) | `complete` | 2026-08-04 |
 | `B011` | [Fix Untitled Save and Window Close Coordination](bugs/B011-fix-untitled-save-and-window-close.md) | `complete` | 2026-08-04 |
 | `B012` | [Save the Active Document Before Switching Files](bugs/B012-save-active-document-before-switching.md) | `complete` | 2026-08-04 |
+| `B013` | [Keep Workspace Selection on the Active File When Switching Is Blocked](bugs/B013-keep-workspace-selection-on-blocked-switch.md) | `complete` | 2026-08-04 |

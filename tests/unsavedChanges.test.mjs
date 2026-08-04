@@ -67,8 +67,10 @@ test('Workspace switching and creation are save-gated with no Save All path', as
   assert.match(editor, /const openEntry = useCallback\(async/);
   assert.match(editor, /if \(!await prepareActiveDocumentTransition\(\)\) return/);
   assert.match(editor, /if \(!await prepareActiveDocumentTransition\(\)\) return undefined/);
-  assert.match(openEntry, /activeDocument\.filePath === entry\.path/);
-  assert.ok(openEntry.indexOf('prepareActiveDocumentTransition()') < openEntry.indexOf('activateWorkspaceEntry(entry)'));
+  assert.match(openEntry, /activeDocument\.filePath === entry\.path\) \{[\s\S]*?SELECT_WORKSPACE_PATH[\s\S]*?return;[\s\S]*?\}/);
+  const gatedOpen = openEntry.slice(openEntry.indexOf('if (!await prepareActiveDocumentTransition())'));
+  assert.ok(gatedOpen.indexOf('prepareActiveDocumentTransition()') < gatedOpen.indexOf('SELECT_WORKSPACE_PATH'));
+  assert.ok(gatedOpen.indexOf('SELECT_WORKSPACE_PATH') < gatedOpen.indexOf('activateWorkspaceEntry(entry)'));
   assert.ok(createDocument.indexOf('prepareActiveDocumentTransition()') < createDocument.indexOf('createWorkspaceDocument('));
   assert.doesNotMatch(editor, /Save All/);
   assert.doesNotMatch(editor, /handleSaveAll/);

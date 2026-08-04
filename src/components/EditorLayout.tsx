@@ -446,10 +446,14 @@ export function EditorLayout({
 
   const openEntry = useCallback(async (entry: WorkspaceEntry) => {
     if (!state.workspace || entry.kind !== "file") return;
-    if (activeDocument?.mode === "workspace" && activeDocument.filePath === entry.path) return;
+    if (activeDocument?.mode === "workspace" && activeDocument.filePath === entry.path) {
+      dispatch({ type: "SELECT_WORKSPACE_PATH", path: entry.path });
+      return;
+    }
     if (!await prepareActiveDocumentTransition()) return;
+    dispatch({ type: "SELECT_WORKSPACE_PATH", path: entry.path });
     activateWorkspaceEntry(entry);
-  }, [activateWorkspaceEntry, activeDocument, prepareActiveDocumentTransition, state.workspace]);
+  }, [activateWorkspaceEntry, activeDocument, dispatch, prepareActiveDocumentTransition, state.workspace]);
 
   const handleCreateDocument = useCallback(async (parentPath: string, fileType: string): Promise<WorkspaceEntry | undefined> => {
     if (!state.workspace) throw new Error("No Workspace is open");
