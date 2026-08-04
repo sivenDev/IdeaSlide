@@ -1,12 +1,14 @@
 import type { WorkspaceEntry } from "../types.ts";
 
 export type WorkspaceDropPosition = "before" | "inside" | "after";
-export const WORKSPACE_DRAG_MIME = "application/x-ideanote-path";
 
-export interface WorkspaceDropRequest {
-  sourcePath: string;
+export interface WorkspaceDropTarget {
   targetPath?: string;
   position: WorkspaceDropPosition;
+}
+
+export interface WorkspaceDropRequest extends WorkspaceDropTarget {
+  sourcePath: string;
 }
 
 export interface WorkspaceDropProjection {

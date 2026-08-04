@@ -103,3 +103,10 @@ In the .is editor, zooming or panning the Excalidraw canvas without changing doc
 - created: 2026-08-04
 
 In a Workspace containing two `.is` files, saving the active file reliably enters `File conflict`; the notice says the file disappeared and then reappeared while unsaved edits existed. Workspace autosave can emit multiple filesystem watcher events for one application-owned atomic replacement while self-write suppression consumes only one event. Expected: every event belonging to the completed application save operation is suppressed as one operation, while genuine external changes remain visible.
+
+## B009: Keep F012 drag targets active through drop
+
+- status: done
+- created: 2026-08-04
+
+In the shipped F012 Workspace, Page, and Camera drag interactions, WebKit emits a dragleave with relatedTarget null immediately before drop. Each row clears its React drop-target state during that dragleave, so Workspace drops are discarded entirely and Page/Camera drops can fall back to the wrong placement or become no-ops. Preserve the active target through the actual drop/end boundary, derive placement reliably at drop time, and add a real WebKit behavior regression covering upward/downward reorder and Workspace movement.

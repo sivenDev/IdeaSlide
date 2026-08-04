@@ -20,17 +20,26 @@ test('camera sidebar is a text-only vertical list', async () => {
   assert.doesNotMatch(source, />\s*Add\s*</);
   assert.match(source, /Camera \{camera\.order\}/);
   assert.match(source, /overflow-y-auto/);
-  assert.match(source, /draggable=\{!readOnly\}/);
-  assert.match(source, /CAMERA_DRAG_MIME/);
-  assert.match(source, /resolveListDropIndex/);
-  assert.match(source, /moveItemToIndex/);
-  assert.match(source, /is-drop-/);
-  assert.match(source, /data-drag-ignore/);
+  assert.match(source, /<DndContext/);
+  assert.match(source, /<SortableContext/);
+  assert.match(source, /useSortable/);
+  assert.match(source, /verticalListSortingStrategy/);
+  assert.match(source, /sortableKeyboardCoordinates/);
+  assert.match(source, /arrayMove/);
+  assert.match(source, /setActivatorNodeRef/);
+  assert.match(source, /<GripVertical /);
+  assert.match(source, /aria-label=\{"Drag camera " \+ camera\.order\}/);
   assert.doesNotMatch(source, /CameraThumbnail/);
   assert.doesNotMatch(source, /thumbnails/);
   assert.doesNotMatch(source, /SVGSVGElement/);
   assert.doesNotMatch(source, /uppercase/);
   assert.doesNotMatch(source, /amber-/);
+  assert.doesNotMatch(source, /CAMERA_DRAG_MIME/);
+  assert.doesNotMatch(source, /draggable=/);
+  assert.doesNotMatch(source, /dataTransfer/);
+  assert.doesNotMatch(source, /data-drag-ignore/);
+  assert.doesNotMatch(source, /resolveListDropIndex/);
+  assert.doesNotMatch(source, /moveItemToIndex/);
 });
 
 test('camera sidebar header owns the single Camera creation action', async () => {

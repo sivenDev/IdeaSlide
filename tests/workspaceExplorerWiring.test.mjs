@@ -15,6 +15,10 @@ test('Workspace Explorer is driven by real relative paths and backend filesystem
   assert.match(source, /onRename/);
   assert.match(source, /onMove/);
   assert.match(source, /WorkspaceDropRequest/);
+  assert.match(source, /<DndContext/);
+  assert.match(source, /useDroppable/);
+  assert.match(source, /pointerWithin/);
+  assert.match(source, /handleDragEnd/);
   assert.match(source, /Move to Workspace root/);
   assert.match(source, /onTrash/);
   assert.match(source, /documentIndicators/);
@@ -57,7 +61,11 @@ test('Workspace rows keep Symlinks non-recursive and unsupported files safe', as
   assert.doesNotMatch(source, /[⌄›▾▸◇↗·✎×]/);
   assert.match(source, /entry\.kind === "symlink"/);
   assert.match(source, /Unsupported/);
-  assert.match(source, /WORKSPACE_DRAG_MIME/);
+  assert.match(source, /useDraggable/);
+  assert.match(source, /useDroppable/);
+  assert.match(source, /<GripVertical /);
+  assert.match(source, /setActivatorNodeRef/);
+  assert.match(source, /aria-label=\{`Drag \$\{entry\.name\}`\}/);
   assert.match(source, /"before"/);
   assert.match(source, /"inside"/);
   assert.match(source, /"after"/);
@@ -71,6 +79,10 @@ test('Workspace rows keep Symlinks non-recursive and unsupported files safe', as
   assert.match(source, /documentStatusClassName/);
   assert.match(source, /\["conflict", "error", "invalid", "missing", "root-missing"\]/);
   assert.match(source, /documentStatus === "missing" \|\| documentStatus === "root-missing"/);
+  assert.doesNotMatch(source, /WORKSPACE_DRAG_MIME/);
+  assert.doesNotMatch(source, /draggable=/);
+  assert.doesNotMatch(source, /dataTransfer/);
+  assert.doesNotMatch(source, /onDrag(?:Start|Over|Leave|End|Drop)/);
 });
 
 test('Editor shell preserves bounded resize and shows Explorer only for Workspace sessions', async () => {

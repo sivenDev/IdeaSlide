@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -7,15 +8,11 @@ import {
   FilePenLine,
   Folder,
   FolderOpen,
+  GripVertical,
   Pencil,
   Trash2,
 } from "lucide-react";
 import type { DocumentStatus, WorkspaceEntry } from "../types";
-import {
-  WORKSPACE_DRAG_MIME,
-  type WorkspaceDropPosition,
-  type WorkspaceDropRequest,
-} from "../lib/workspaceOrdering";
 import { Input } from "./ui/Input";
 
 const entryIconProps = { "aria-hidden": true, size: 15, strokeWidth: 1.8 } as const;
@@ -39,7 +36,6 @@ interface WorkspaceResourceRowProps {
   onToggleExpanded: () => void;
   onRename: (name: string) => void;
   onTrash: () => void;
-  onMove: (request: WorkspaceDropRequest) => void;
 }
 
 function documentStatusLabel(status: DocumentStatus | undefined, dirty: boolean): string {
@@ -91,14 +87,42 @@ export function WorkspaceResourceRow({
   onToggleExpanded,
   onRename,
   onTrash,
-  onMove,
 }: WorkspaceResourceRowProps) {
   const isMissingEntry = documentStatus === "missing" || documentStatus === "root-missing";
   const canMutate = !readOnly && !entry.readOnly && entry.kind !== "symlink" && !isMissingEntry;
+  const canAcceptDrop = !readOnly && !isMissingEntry && entry.kind !== "symlink";
+  const hasInsideDrop = canAcceptDrop && entry.kind === "directory" && !entry.readOnly;
   const [isRenaming, setIsRenaming] = useState(false);
   const [draftName, setDraftName] = useState(entry.name);
-  const [dropPosition, setDropPosition] = useState<WorkspaceDropPosition>();
   const inputRef = useRef<HTMLInputElement>(null);
+  const draggable = useDraggable({
+    id: `workspace-entry:${entry.path}`,
+    data: { sourcePath: entry.path },
+    disabled: !canMutate || isRenaming,
+  });
+  const beforeDrop = useDroppable({
+    id: `workspace-drop-before:${entry.path}`,
+    data: { targetPath: entry.path, position: "before" },
+    disabled: !canAcceptDrop,
+  });
+  const insideDrop = useDroppable({
+    id: `workspace-drop-inside:${entry.path}`,
+    data: { targetPath: entry.path, position: "inside" },
+    disabled: !hasInsideDrop,
+  });
+  const afterDrop = useDroppable({
+    id: `workspace-drop-after:${entry.path}`,
+    data: { targetPath: entry.path, position: "after" },
+    disabled: !canAcceptDrop,
+  });
+  const dropPosition = beforeDrop.isOver
+    ? "before"
+    : insideDrop.isOver ? "inside" : afterDrop.isOver ? "after" : undefined;
+  const dragStyle: CSSProperties = draggable.transform ? {
+    transform: `translate3d(${draggable.transform.x}px, ${draggable.transform.y}px, 0) scaleX(${draggable.transform.scaleX}) scaleY(${draggable.transform.scaleY})`,
+    zIndex: draggable.isDragging ? 5 : undefined,
+    opacity: draggable.isDragging ? 0.72 : undefined,
+  } : {};
 
   useEffect(() => setDraftName(entry.name), [entry.name]);
   useEffect(() => {
@@ -131,62 +155,41 @@ export function WorkspaceResourceRow({
     }
   };
 
-  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const sourcePath = event.dataTransfer.getData(WORKSPACE_DRAG_MIME);
-    if (sourcePath && sourcePath !== entry.path && dropPosition) {
-      onMove({ sourcePath, targetPath: entry.path, position: dropPosition });
-    }
-    setDropPosition(undefined);
-  };
-
-  const updateDropPosition = (event: DragEvent<HTMLDivElement>) => {
-    if (readOnly || isMissingEntry || entry.kind === "symlink") return;
-    if (!event.dataTransfer.types.includes(WORKSPACE_DRAG_MIME)) return;
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const ratio = bounds.height > 0 ? (event.clientY - bounds.top) / bounds.height : 0.5;
-    const position = entry.kind === "directory" && ratio >= 0.28 && ratio <= 0.72
-      ? "inside"
-      : ratio < 0.5 ? "before" : "after";
-    setDropPosition(position);
-  };
-
   return (
     <div
+      ref={draggable.setNodeRef}
       role="treeitem"
       aria-selected={isSelected}
       aria-current={isDocumentActive ? "page" : undefined}
       aria-expanded={entry.kind === "directory" ? isExpanded : undefined}
       tabIndex={0}
-      draggable={canMutate}
-      className={`idea-slide-resource-row group ${isSelected ? "is-selected" : ""} ${isDocumentActive ? "is-active" : ""} ${dropPosition ? `is-drop-${dropPosition}` : ""}`}
-      style={{ paddingLeft: 7 + depth * 15 }}
+      className={`idea-slide-resource-row group ${isSelected ? "is-selected" : ""} ${isDocumentActive ? "is-active" : ""} ${hasInsideDrop ? "has-inside-drop" : ""} ${dropPosition ? `is-drop-${dropPosition}` : ""}`}
+      style={{ paddingLeft: 7 + depth * 15, ...dragStyle }}
       onClick={() => {
         onSelect();
         if (entry.kind === "file") onOpen();
       }}
       onDoubleClick={() => entry.kind === "directory" && onToggleExpanded()}
       onKeyDown={handleKeyDown}
-      onDragStart={(event) => {
-        const target = event.target as HTMLElement;
-        if (target.closest("button,input")) {
-          event.preventDefault();
-          return;
-        }
-        event.dataTransfer.effectAllowed = "move";
-        event.dataTransfer.setData(WORKSPACE_DRAG_MIME, entry.path);
-        event.dataTransfer.setData("text/plain", entry.path);
-      }}
-      onDragEnd={() => setDropPosition(undefined)}
-      onDragOver={updateDropPosition}
-      onDragLeave={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropPosition(undefined);
-      }}
-      onDrop={handleDrop}
     >
+      <span ref={beforeDrop.setNodeRef} className="idea-slide-resource-drop-zone is-before" aria-hidden="true" />
+      {hasInsideDrop && (
+        <span ref={insideDrop.setNodeRef} className="idea-slide-resource-drop-zone is-inside" aria-hidden="true" />
+      )}
+      <span ref={afterDrop.setNodeRef} className="idea-slide-resource-drop-zone is-after" aria-hidden="true" />
+      {canMutate && !isRenaming && (
+        <button
+          ref={draggable.setActivatorNodeRef}
+          type="button"
+          aria-label={`Drag ${entry.name}`}
+          className="idea-slide-drag-handle"
+          {...draggable.attributes}
+          {...draggable.listeners}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <GripVertical aria-hidden="true" />
+        </button>
+      )}
       <button
         type="button"
         aria-label={isExpanded ? "Collapse Folder" : "Expand Folder"}

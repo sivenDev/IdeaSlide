@@ -9,7 +9,6 @@ import {
   moveItemByOffset,
   reorderCameras,
 } from '../src/lib/cameraUtils.ts';
-import { moveItemToIndex, resolveListDropIndex } from '../src/lib/listReorder.ts';
 
 function makeElement(overrides = {}) {
   return {
@@ -147,19 +146,6 @@ test('moveItemByOffset leaves the list unchanged when the move would go out of b
     moveItemByOffset(['camera-a', 'camera-b', 'camera-c'], 2, 1),
     ['camera-a', 'camera-b', 'camera-c'],
   );
-});
-
-test('drop index accounts for removal when dragging forward or backward', () => {
-  assert.equal(resolveListDropIndex(4, 0, 2, 'before'), 1);
-  assert.equal(resolveListDropIndex(4, 0, 2, 'after'), 2);
-  assert.equal(resolveListDropIndex(4, 3, 1, 'before'), 1);
-  assert.equal(resolveListDropIndex(4, 3, 1, 'after'), 2);
-});
-
-test('moveItemToIndex performs absolute drag placement and preserves no-op identity', () => {
-  const items = ['a', 'b', 'c'];
-  assert.deepEqual(moveItemToIndex(items, 0, 2), ['b', 'c', 'a']);
-  assert.equal(moveItemToIndex(items, 1, 1), items);
 });
 
 test('reorderCameras persists sequential Camera order without changing non-camera elements', () => {
