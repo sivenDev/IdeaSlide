@@ -91,3 +91,10 @@ Merge the IdeaSketch Page list into the existing right-side document navigator a
 - created: 2026-08-04
 
 Remove the duplicate Save and Save All entries from the title-bar save dropdown while retaining the primary Save button, Save As, and non-toolbar save coordination behavior. Replace the Workspace Explorer header's symbolic text controls with clear framework icons, consistent grouping, accessible labels, and tooltips for New File, New Folder, Refresh, Collapse All, and additional tree actions.
+
+## F011: Filter Workspace Files and Centralize Temporary Writes
+
+- status: accepted
+- created: 2026-08-04
+
+Update Workspace Explorer so it preserves navigable directories but exposes only file types currently registered as openable (currently .is), while hiding unsupported files and the entire .ideanote subtree. Route Workspace-mode user-file, metadata, and internal temporary writes through <workspace>/.ideanote/tmp/ so sibling .is.tmp or .is.bak files are never created. Preserve original files on failed replacement, ignore .ideanote watcher events, and keep Single File Mode free of workspace metadata by using its existing app-local or platform-safe temporary strategy.
