@@ -49,7 +49,7 @@ interface WorkspaceExplorerProps {
   onSelect: (path: string) => void;
   onOpen: (entry: WorkspaceEntry) => void;
   onCreateFolder: (parentPath: string) => Promise<WorkspaceEntry>;
-  onCreateDocument: (parentPath: string, fileType: string) => Promise<WorkspaceEntry>;
+  onCreateDocument: (parentPath: string, fileType: string) => Promise<WorkspaceEntry | undefined>;
   onRename: (path: string, name: string) => Promise<void>;
   onMove: (request: WorkspaceDropRequest) => Promise<void>;
   onTrash: (path: string) => Promise<void>;
@@ -190,6 +190,7 @@ export function WorkspaceExplorer({
   };
   const createDocument = async (fileType: string) => {
     const entry = await onCreateDocument(createParentPath, fileType);
+    if (!entry) return;
     setRenamePath(entry.path);
     if (createParentPath) setExpanded(new Set(expanded).add(createParentPath));
   };

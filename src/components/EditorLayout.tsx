@@ -42,7 +42,11 @@ import {
 } from "../lib/panelSizing";
 import { classifyRecoveryDraft, createRecoveryDraft, recoveryScopeForDocument, type RecoveryDraft } from "../lib/recovery";
 import { classifyInspectedDocument } from "../lib/externalFileChanges";
-import { saveAllDocuments, saveDocumentsForExit } from "../lib/saveCoordinator";
+import {
+  resolveDirtyDocumentsSequentially,
+  saveDirtyDocumentBeforeTransition,
+  type UnsavedDocumentResolution,
+} from "../lib/unsavedChanges";
 import { isProtectedDocumentSession } from "../lib/appStoreReducer";
 import {
   projectWorkspaceEntryDrop,
@@ -193,9 +197,8 @@ export function EditorLayout({
     documentSnapshotProviders.current.get(activeDocument.id)?.();
   }, [activeDocument]);
 
-  const openEntry = useCallback((entry: WorkspaceEntry) => {
+  const activateWorkspaceEntry = useCallback((entry: WorkspaceEntry) => {
     if (!state.workspace || entry.kind !== "file") return;
-    flushActiveDocumentSnapshot();
     dispatch({
       type: "OPEN_DOCUMENT",
       document: {
@@ -212,7 +215,7 @@ export function EditorLayout({
         revision: 0,
       },
     });
-  }, [dispatch, flushActiveDocumentSnapshot, state.workspace]);
+  }, [dispatch, state.workspace]);
 
   const handleCreateFolder = useCallback(async (parentPath: string) => {
     if (!state.workspace) throw new Error("No Workspace is open");
@@ -221,22 +224,6 @@ export function EditorLayout({
     dispatch({ type: "SELECT_WORKSPACE_PATH", path: result.value.path });
     return result.value;
   }, [dispatch, refreshTree, state.workspace]);
-
-  const handleCreateDocument = useCallback(async (parentPath: string, fileType: string) => {
-    if (!state.workspace) throw new Error("No Workspace is open");
-    const result = await createWorkspaceDocument(state.workspace.root, parentPath, fileType);
-    if (!result.metadataError) dispatch({ type: "MARK_WORKSPACE_METADATA_EXISTS" });
-    await refreshTree();
-    dispatch({ type: "SELECT_WORKSPACE_PATH", path: result.value.path });
-    openEntry(result.value);
-    if (result.metadataError) {
-      await message(`The file was created, but Workspace state could not be saved: ${result.metadataError}`, {
-        title: "Workspace State Warning",
-        kind: "warning",
-      });
-    }
-    return result.value;
-  }, [dispatch, openEntry, refreshTree, state.workspace]);
 
   const handleRename = useCallback(async (path: string, newName: string) => {
     if (!state.workspace) return;
@@ -451,24 +438,35 @@ export function EditorLayout({
 
   const handleSave = useCallback(() => activeDocument ? saveDocument(activeDocument) : Promise.resolve(false), [activeDocument, saveDocument]);
   const handleSaveAs = useCallback(() => activeDocument ? saveDocument(activeDocument, true) : Promise.resolve(false), [activeDocument, saveDocument]);
-  const handleSaveAll = useCallback(async () => {
-    const results = await saveAllDocuments(state.documents, saveDocument);
-    const failed = results.filter((result) => !result.saved);
-    if (failed.length > 0) await message(`Some files could not be saved:\n${failed.map((result) => result.name).join("\n")}`, { title: "Save All", kind: "warning" });
-    return failed.length === 0;
-  }, [saveDocument, state.documents]);
 
-  const handleExitSave = useCallback(async () => {
-    const result = await saveDocumentsForExit(state.documents, saveDocument);
-    const failed = result.results.filter((item) => !item.saved);
-    if (result.kind === "batch" && failed.length > 0) {
-      await message(`Some files could not be saved:\n${failed.map((item) => item.name).join("\n")}`, {
-        title: "Save All",
+  const prepareActiveDocumentTransition = useCallback(async (): Promise<boolean> => {
+    flushActiveDocumentSnapshot();
+    return saveDirtyDocumentBeforeTransition(activeDocument, saveDocument);
+  }, [activeDocument, flushActiveDocumentSnapshot, saveDocument]);
+
+  const openEntry = useCallback(async (entry: WorkspaceEntry) => {
+    if (!state.workspace || entry.kind !== "file") return;
+    if (activeDocument?.mode === "workspace" && activeDocument.filePath === entry.path) return;
+    if (!await prepareActiveDocumentTransition()) return;
+    activateWorkspaceEntry(entry);
+  }, [activateWorkspaceEntry, activeDocument, prepareActiveDocumentTransition, state.workspace]);
+
+  const handleCreateDocument = useCallback(async (parentPath: string, fileType: string): Promise<WorkspaceEntry | undefined> => {
+    if (!state.workspace) throw new Error("No Workspace is open");
+    if (!await prepareActiveDocumentTransition()) return undefined;
+    const result = await createWorkspaceDocument(state.workspace.root, parentPath, fileType);
+    if (!result.metadataError) dispatch({ type: "MARK_WORKSPACE_METADATA_EXISTS" });
+    await refreshTree();
+    dispatch({ type: "SELECT_WORKSPACE_PATH", path: result.value.path });
+    activateWorkspaceEntry(result.value);
+    if (result.metadataError) {
+      await message(`The file was created, but Workspace state could not be saved: ${result.metadataError}`, {
+        title: "Workspace State Warning",
         kind: "warning",
       });
     }
-    return result.saved;
-  }, [saveDocument, state.documents]);
+    return result.value;
+  }, [activateWorkspaceEntry, dispatch, prepareActiveDocumentTransition, refreshTree, state.workspace]);
 
   const requestClose = useCallback(async (sessionId: string): Promise<boolean> => {
     const document = state.documents.find((item) => item.id === sessionId);
@@ -492,21 +490,24 @@ export function EditorLayout({
   }, [clearRecoveryForDocument, dispatch, saveDocument, state.documents]);
 
   const confirmSessionExit = useCallback(async (): Promise<boolean> => {
-    const dirtyDocuments = state.documents.filter((document) => document.isDirty);
-    if (dirtyDocuments.length === 0) return true;
-    const shouldSave = await ask(
-      `Save changes to ${dirtyDocuments.length === 1 ? `“${dirtyDocuments[0].displayName || "Untitled.is"}”` : `${dirtyDocuments.length} files`} before leaving?`,
-      { title: "Unsaved Changes", kind: "warning", okLabel: dirtyDocuments.length === 1 ? "Save" : "Save All", cancelLabel: "More Options" },
+    const result = await resolveDirtyDocumentsSequentially(
+      state.documents,
+      state.activeSessionId,
+      async (document): Promise<UnsavedDocumentResolution> => {
+        const shouldSave = await ask(`Save changes to “${document.displayName || "Untitled.is"}” before leaving?`, {
+          title: "Unsaved Changes", kind: "warning", okLabel: "Save", cancelLabel: "More Options",
+        });
+        if (shouldSave) return await saveDocument(document) ? "saved" : "cancelled";
+        const discard = await ask("Discard the unsaved changes?", {
+          title: "Unsaved Changes", kind: "warning", okLabel: "Discard", cancelLabel: "Cancel",
+        });
+        return discard ? "discarded" : "cancelled";
+      },
     );
-    if (shouldSave) return handleExitSave();
-    const discard = await ask(
-      dirtyDocuments.length === 1 ? "Discard the unsaved changes?" : `Discard unsaved changes in ${dirtyDocuments.length} files?`,
-      { title: "Unsaved Changes", kind: "warning", okLabel: "Discard", cancelLabel: "Cancel" },
-    );
-    if (!discard) return false;
-    await Promise.all(dirtyDocuments.map(clearRecoveryForDocument));
+    if (!result.proceed) return false;
+    await Promise.all(result.discarded.map(clearRecoveryForDocument));
     return true;
-  }, [clearRecoveryForDocument, handleExitSave, state.documents]);
+  }, [clearRecoveryForDocument, saveDocument, state.activeSessionId, state.documents]);
   const confirmSessionExitRef = useRef(confirmSessionExit);
   confirmSessionExitRef.current = confirmSessionExit;
 
@@ -679,13 +680,12 @@ export function EditorLayout({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!(isMac ? event.metaKey : event.ctrlKey) || event.key.toLowerCase() !== "s") return;
       event.preventDefault();
-      if (event.altKey) void handleSaveAll();
-      else if (event.shiftKey) void handleSaveAs();
+      if (event.shiftKey) void handleSaveAs();
       else void handleSave();
     };
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [handleSave, handleSaveAll, handleSaveAs]);
+  }, [handleSave, handleSaveAs]);
 
   const activeFullPath = activeDocument?.mode === "workspace" && state.workspace
     ? joinWorkspacePath(state.workspace.root, activeDocument.filePath)

@@ -22,11 +22,12 @@ test('EditorLayout gives the center to one editor and uses Explorer as the file 
   assert.doesNotMatch(source, /Agent/);
 });
 
-test('EditorLayout captures Save, Save As, and Save All shortcuts before an editor can consume them', async () => {
+test('EditorLayout captures Save and Save As shortcuts before an editor can consume them', async () => {
   const source = await readSource('src/components/EditorLayout.tsx');
   assert.match(source, /event\.key\.toLowerCase\(\) !== "s"/);
-  assert.match(source, /event\.altKey/);
   assert.match(source, /event\.shiftKey/);
+  assert.doesNotMatch(source, /event\.altKey/);
+  assert.doesNotMatch(source, /handleSaveAll/);
   assert.match(source, /window\.addEventListener\("keydown", handleKeyDown, true\)/);
 });
 

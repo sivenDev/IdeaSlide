@@ -11,6 +11,8 @@ test('Workspace Explorer is driven by real relative paths and backend filesystem
   assert.match(source, /getCreatableFileTypeDefinitions/);
   assert.match(source, /onCreateFolder/);
   assert.match(source, /onCreateDocument/);
+  assert.match(source, /Promise<WorkspaceEntry \| undefined>/);
+  assert.match(source, /if \(!entry\) return/);
   assert.match(source, /onRefresh/);
   assert.match(source, /onRename/);
   assert.match(source, /onMove/);

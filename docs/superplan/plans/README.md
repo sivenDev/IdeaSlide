@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `required` | 6 | 6 |
 | `feature` | 14 | 14 |
-| `bugfix` | 11 | 11 |
+| `bugfix` | 12 | 12 |
 
 ## Execution Order
 
@@ -66,3 +66,4 @@
 | `B009` | [Make F012 Drag Reliable with dnd-kit](bugs/B009-keep-f012-drag-targets-active-through-drop.md) | `complete` | 2026-08-04 |
 | `B010` | [Limit Workspace Dragging to Cross-Directory Moves](bugs/B010-limit-workspace-drag-to-cross-directory-moves.md) | `complete` | 2026-08-04 |
 | `B011` | [Fix Untitled Save and Window Close Coordination](bugs/B011-fix-untitled-save-and-window-close.md) | `complete` | 2026-08-04 |
+| `B012` | [Save the Active Document Before Switching Files](bugs/B012-save-active-document-before-switching.md) | `complete` | 2026-08-04 |

@@ -124,3 +124,10 @@ Dragging a Workspace file over the before, after, or inside drop zones visually 
 - created: 2026-08-04
 
 When an untitled IdeaSketch document has unsaved changes, clicking Home prompts to save but then reports “Some files could not be saved: Untitled.is”. Clicking the native window close button provides no visible prompt or feedback. Saving should route an untitled document through Save As, then continue Home/close only after a successful save; cancelling or failing the save should keep the editor/window open with clear feedback.
+
+## B012: Save the Active Dirty Document Before Switching Files
+
+- status: done
+- created: 2026-08-04
+
+When the active IdeaSketch file has unsaved edits, opening another Workspace file or creating a new file must automatically save that active file first. Continue the switch/create only after the direct save succeeds; a cancelled Save As or save failure must keep the current file active and must not create the requested file. Remove Save All semantics from shortcuts, navigation, and exit coordination; any legacy multiple-dirty session must be resolved one file at a time rather than through a bulk Save All operation.
