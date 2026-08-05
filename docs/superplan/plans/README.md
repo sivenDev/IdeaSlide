@@ -7,7 +7,7 @@
 | Type | Plans | Complete |
 | --- | --- | --- |
 | `required` | 6 | 6 |
-| `feature` | 19 | 19 |
+| `feature` | 20 | 20 |
 | `bugfix` | 15 | 15 |
 
 ## Execution Order
@@ -55,6 +55,7 @@
 | `F017` | [Convert Excalidraw Selection to Clean Diagram Style](features/F017-convert-excalidraw-selection-to-clean-diagram-style.md) | `complete` | 2026-08-05 |
 | `F018` | [Optimize Conversion for Formal Presentation Style](features/F018-optimize-conversion-for-formal-presentation-style.md) | `complete` | 2026-08-05 |
 | `F019` | [Add Page List View Mode Switching](features/F019-add-page-list-view-mode-switch.md) | `complete` | 2026-08-05 |
+| `F020` | [Raise the Minimum Window Height](features/F020-raise-minimum-window-height.md) | `complete` | 2026-08-05 |
 
 ### Bugfix Plans
 

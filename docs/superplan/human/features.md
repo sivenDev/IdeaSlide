@@ -154,3 +154,10 @@ Strengthen the existing Excalidraw selection conversion so converted supported e
 - created: 2026-08-05
 
 Add a view mode switch to the Pages list with thumbnail and name modes. Preserve the current name-list presentation as the default mode. Thumbnail mode must keep Page selection and existing Page management behaviors available.
+
+## F020: Raise minimum window height
+
+- status: done
+- created: 2026-08-05
+
+Set the main application window minimum height to 850 px so users cannot resize it below that height, and keep its default width at 1200 px.
