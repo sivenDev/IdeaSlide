@@ -2,7 +2,7 @@
 id: "F017"
 title: "Convert Excalidraw Selection to Clean Diagram Style"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Convert an editable Excalidraw selection into a deterministic clean diagram style on the current Page or a new Page."
 source: "docs/superplan/human/features.md"
 created: "2026-08-05"
@@ -38,8 +38,8 @@ parent: ""
 - `node --test tests/excalidrawStyleConversion.test.mjs`
 - Cases: rectangle/ellipse/diamond/text/line/arrow normalization; mixed colors and opacity; bound text; grouped elements; internal and cross-selection arrows; image file projection; freehand retention; deleted elements; Camera-only and embedded/magic selections; deterministic summary and no source mutation.
 
-- [ ] Add focused failing conversion contracts for style, relationship, classification, and file behavior.
-- [ ] Implement the smallest pure conversion boundary using supported Excalidraw element APIs.
+- [x] Add focused failing conversion contracts for style, relationship, classification, and file behavior.
+- [x] Implement the smallest pure conversion boundary using supported Excalidraw element APIs.
 
 ## Task 2: Add the Contextual Conversion Action
 
@@ -64,8 +64,8 @@ parent: ""
 - `node --test tests/canvasSelectionActions.test.mjs tests/excalidrawMainMenu.test.mjs tests/slideCanvasProps.test.mjs tests/tooltipWiring.test.mjs tests/cameraBadgeWiring.test.mjs`
 - Interaction cases: selection appears/disappears; Camera-only and read-only states; menu keyboard navigation and dismissal; target callback fires once; native drawing toolbar, Main Menu defaults, Camera badges, pointer coordinates, and image export remain intact.
 
-- [ ] Replace the obsolete blanket no-custom-UI regression with a contextual-only conversion contract.
-- [ ] Implement the selection-aware action through Excalidraw's public UI boundary and existing Radix controls.
+- [x] Replace the obsolete blanket no-custom-UI regression with a contextual-only conversion contract.
+- [x] Implement the selection-aware action through Excalidraw's public UI boundary and existing Radix controls.
 
 ## Task 3: Apply Conversion through the Page Draft Boundary
 
@@ -87,8 +87,8 @@ parent: ""
 - `node --test tests/ideaSketchEditor.test.mjs tests/editorSession.test.mjs tests/ideaSketchReducer.test.mjs tests/ideaSketchDocument.test.mjs tests/excalidrawStyleConversion.test.mjs tests/canvasSelectionActions.test.mjs`
 - Cases: current conversion and Undo; new Page is selected and source unchanged; pending source edit is committed first; new Page title/order; mixed selection summary; relevant images reopen; subsequent edits stay Page-local; Workspace autosave reaches Saved once; Standalone remains explicit-save; read-only and stale API/Page requests are ignored.
 
-- [ ] Wire both targets through `IdeaSketchEditor` without bypassing the canonical draft and reducer boundaries.
-- [ ] Lock Page identity, dirty/autosave, recovery, and serialization regressions around the new mutation paths.
+- [x] Wire both targets through `IdeaSketchEditor` without bypassing the canonical draft and reducer boundaries.
+- [x] Lock Page identity, dirty/autosave, recovery, and serialization regressions around the new mutation paths.
 
 ## Task 4: Verify and Deliver F017
 
@@ -110,8 +110,16 @@ parent: ""
 - `git diff --check`
 - Browser/Tauri acceptance: exercise supported, retained, skipped, and Camera selections; convert to the current Page and Undo; convert to a new Page and compare with the source; save/reopen in Workspace and Standalone modes; verify image files, Page identity, autosave settlement, recovery cleanup, Navigator/Camera/Present continuity, responsive control placement, keyboard access, and absence of console errors.
 
-- [ ] Run focused checks while implementing and the complete regression/build/native matrix once behavior stabilizes.
-- [ ] Inspect representative saved `.is` archives, complete F017, refresh progress, and create the separate `feat(F017)` commit.
+**Evidence:**
+- Focused conversion, selection-action, Page-boundary, persistence, and regression suites: 43 passed.
+- Full frontend regression: 200 passed; Rust regression: 85 passed.
+- `npm run build` passed with only the existing Excalidraw import-overlap and large-chunk warnings; `git diff --check` passed.
+- Browser acceptance verified contextual visibility, Current Page conversion and one-step Undo, New Page source preservation and destination title/selection, Camera-only and presentation-mode absence, 1024×768 placement, and a clean post-fix console.
+- A representative `.is v1` serialization/reopen smoke check preserved two Page titles, source roughness `2`, and destination roughness `0` with solid stroke/fill treatment.
+- Excalidraw `restoreElements` refreshes converted text dimensions and repairs bindings after Helvetica normalization; deterministic pure tests cover identity, grouping, internal/external bindings, retained images/freehand policy, skipped Camera/unsupported policy, and file projection.
+
+- [x] Run focused checks while implementing and the complete regression/build/native matrix once behavior stabilizes.
+- [x] Inspect representative saved `.is` archives, complete F017, refresh progress, and create the separate `feat(F017)` commit.
 
 ## References
 - `docs/superplan/human/features.md`

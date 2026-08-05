@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Draft | Complete |
-| --- | --- | --- | --- |
-| `required` | 6 | 0 | 6 |
-| `feature` | 17 | 1 | 16 |
-| `bugfix` | 14 | 0 | 14 |
+| Type | Plans | Complete |
+| --- | --- | --- |
+| `required` | 6 | 6 |
+| `feature` | 17 | 17 |
+| `bugfix` | 14 | 14 |
 
 ## Execution Order
 
@@ -52,7 +52,7 @@
 | `F014` | [Simplify File and Navigator Controls](features/F014-simplify-file-and-navigator-controls.md) | `complete` | 2026-08-04 |
 | `F015` | [Select the Workspace Filename Stem During Rename](features/F015-select-workspace-filename-stem.md) | `complete` | 2026-08-05 |
 | `F016` | [Refine Launch Actions and Add Recent Workspaces](features/F016-refine-launch-actions-and-add-recent-workspaces.md) | `complete` | 2026-08-05 |
-| `F017` | [Convert Excalidraw Selection to Clean Diagram Style](features/F017-convert-excalidraw-selection-to-clean-diagram-style.md) | `draft` | 2026-08-05 |
+| `F017` | [Convert Excalidraw Selection to Clean Diagram Style](features/F017-convert-excalidraw-selection-to-clean-diagram-style.md) | `complete` | 2026-08-05 |
 
 ### Bugfix Plans
 

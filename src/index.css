@@ -1075,6 +1075,31 @@ html, body, #root {
   display: none !important;
 }
 
+.idea-slide-canvas-selection-actions {
+  display: flex;
+  align-items: center;
+  pointer-events: auto;
+}
+
+.idea-slide-canvas-selection-actions__trigger {
+  height: 2rem;
+  border-color: #d6d3f2;
+  color: #5753ba;
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 2px 8px rgb(48 45 112 / 12%);
+  white-space: nowrap;
+}
+
+.idea-slide-canvas-selection-actions__trigger:hover {
+  border-color: #b9b6eb;
+  color: #4e4aa9;
+  background: #f4f3ff;
+}
+
+.idea-slide-canvas-selection-actions__trigger:focus-visible {
+  --tw-ring-color: rgb(105 101 219 / 45%);
+}
+
 /* Presentation mode animations */
 @keyframes fadeIn {
   from { opacity: 0; }

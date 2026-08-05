@@ -10,6 +10,11 @@ import {
   enterCameraDrawingMode,
 } from "../lib/cameraDrawing";
 import { areSlideCanvasPropsEqual } from "../lib/slideCanvasProps";
+import {
+  getStyleConversionAvailability,
+  type StyleConversionTarget,
+} from "../lib/excalidrawStyleConversion";
+import { CanvasSelectionActions } from "./CanvasSelectionActions";
 
 function getScenePointerFromEvent(api: any, event: PointerEvent) {
   const appState = api.getAppState();
@@ -62,7 +67,8 @@ interface SlideCanvasProps {
   files: Record<string, any>;
   onChange: (elements: readonly any[], appState: Partial<any>, files: Record<string, any>) => void;
   viewMode?: boolean;
-  onApiReady?: (api: any) => void;
+  onApiReady?: (api: any, slideId: string) => void;
+  onConvertSelection?: (target: StyleConversionTarget) => void;
   editorRefreshToken: number;
   cameraDrawingRequestToken?: number;
 }
@@ -85,6 +91,7 @@ function SlideCanvasInner({
   onChange,
   viewMode,
   onApiReady,
+  onConvertSelection,
   editorRefreshToken,
   cameraDrawingRequestToken = 0,
 }: SlideCanvasProps) {
@@ -104,6 +111,9 @@ function SlideCanvasInner({
   const cameraBadgeSignatureRef = useRef(
     buildCameraBadgeSignature(elements, appState, getBadgeContainerRect()),
   );
+  const [canConvertSelection, setCanConvertSelection] = useState(() =>
+    getStyleConversionAvailability(elements, appState.selectedElementIds, Boolean(viewMode)),
+  );
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
@@ -120,10 +130,26 @@ function SlideCanvasInner({
     setCameraBadges(getCameraBadges(nextElements, nextAppState, containerRect));
   }, [getBadgeContainerRect]);
   const syncCameraBadgesRef = useRef(syncCameraBadges);
+  const syncStyleConversionAvailability = useCallback((
+    nextElements: readonly any[],
+    nextAppState: Partial<any>,
+  ) => {
+    const nextAvailability = getStyleConversionAvailability(
+      nextElements,
+      nextAppState.selectedElementIds,
+      Boolean(viewMode),
+    );
+    setCanConvertSelection((current) => current === nextAvailability ? current : nextAvailability);
+  }, [viewMode]);
+  const syncStyleConversionAvailabilityRef = useRef(syncStyleConversionAvailability);
 
   useEffect(() => {
     syncCameraBadgesRef.current = syncCameraBadges;
   }, [syncCameraBadges]);
+
+  useEffect(() => {
+    syncStyleConversionAvailabilityRef.current = syncStyleConversionAvailability;
+  }, [syncStyleConversionAvailability]);
 
   const isInitialLoad = useRef(true);
 
@@ -137,6 +163,7 @@ function SlideCanvasInner({
     const nextSignature = buildCameraBadgeSignature(elements, appState, containerRect);
     cameraBadgeSignatureRef.current = nextSignature;
     setCameraBadges(getCameraBadges(elements, appState, containerRect));
+    syncStyleConversionAvailabilityRef.current(elements, appState);
   }, [slideId, elements, appState, getBadgeContainerRect]);
 
   // Stable callback that never changes identity
@@ -165,9 +192,10 @@ function SlideCanvasInner({
   const handleApiReady = useCallback((api: any) => {
     excalidrawApiRef.current = api;
     syncCameraBadgesRef.current(api.getSceneElements(), api.getAppState());
+    syncStyleConversionAvailabilityRef.current(api.getSceneElements(), api.getAppState());
     setApiReadyVersion((value) => value + 1);
-    onApiReady?.(api);
-  }, [onApiReady]);
+    onApiReady?.(api, slideId);
+  }, [onApiReady, slideId]);
 
   useEffect(() => {
     const api = excalidrawApiRef.current;
@@ -180,6 +208,7 @@ function SlideCanvasInner({
     const unsubscribeChange = api.onChange(
       (nextElements: readonly any[], nextAppState: Partial<any>) => {
         syncCameraBadgesRef.current(nextElements, nextAppState);
+        syncStyleConversionAvailabilityRef.current(nextElements, nextAppState);
       },
     );
     const unsubscribeScroll = api.onScrollChange(() => {
@@ -455,6 +484,9 @@ function SlideCanvasInner({
         UIOptions={{
           canvasActions: excalidrawCanvasActions,
         }}
+        renderTopRightUI={!viewMode && canConvertSelection && onConvertSelection
+          ? () => <CanvasSelectionActions onConvert={onConvertSelection} />
+          : undefined}
       >
         {!viewMode && mainMenu}
       </Excalidraw>

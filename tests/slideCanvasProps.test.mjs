@@ -179,4 +179,25 @@ test('SlideCanvas comparable props omit obsolete Canvas action and Navigator cal
   assert.doesNotMatch(source, /onAddCamera/);
   assert.doesNotMatch(source, /isNavigatorOpen/);
   assert.doesNotMatch(source, /onToggleNavigator/);
+  assert.match(source, /onConvertSelection/);
+});
+
+test('areSlideCanvasPropsEqual tracks the conversion callback', async () => {
+  const { areSlideCanvasPropsEqual } = await loadModule();
+  const base = {
+    slideId: 'slide-1',
+    elements: [],
+    appState: {},
+    files: {},
+    onChange: () => {},
+    onApiReady: () => {},
+    onConvertSelection: () => {},
+    viewMode: false,
+  };
+
+  assert.equal(areSlideCanvasPropsEqual(base, { ...base }), true);
+  assert.equal(
+    areSlideCanvasPropsEqual(base, { ...base, onConvertSelection: () => {} }),
+    false,
+  );
 });

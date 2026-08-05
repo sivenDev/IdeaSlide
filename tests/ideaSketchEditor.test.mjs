@@ -37,3 +37,20 @@ test('Page selection records editor state without persisting a model mutation', 
   assert.match(source, /if \(next\.activePageId !== previous\.activePageId\) \{[\s\S]*?onEditorStateChange\(document\.id, next\.activePageId\);/);
   assert.match(source, /const selectPage = useCallback\(\(pageId: string\) => \{[\s\S]*?flushDraft\(\);[\s\S]*?applyAction\(\{ type: "SELECT_PAGE", pageId \}, false\);/);
 });
+
+test('selection conversion stays inside the active Page draft boundary', () => {
+  const canvas = source.match(/<SlideCanvas[\s\S]*?\/>/)?.[0] ?? '';
+
+  assert.match(source, /handleConvertSelection/);
+  assert.match(source, /CaptureUpdateAction\.IMMEDIATELY/);
+  assert.match(source, /restoreElements/);
+  assert.match(source, /refreshDimensions: true/);
+  assert.match(source, /repairBindings: true/);
+  assert.match(source, /requestAnimationFrame/);
+  assert.match(source, /buildCurrentPageStyleConversion/);
+  assert.match(source, /buildNewPageStyleConversion/);
+  assert.match(source, /flushDraft\(\)/);
+  assert.match(source, /type: "ADD_PAGE"/);
+  assert.match(source, /Clean style/);
+  assert.match(canvas, /onConvertSelection=\{handleConvertSelection\}/);
+});

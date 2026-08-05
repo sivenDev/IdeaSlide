@@ -1,3 +1,4 @@
+import { CaptureUpdateAction, restoreElements } from "@excalidraw/excalidraw";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DocumentModel, DocumentSession, IdeaSketchDocument, IdeaSketchPage } from "../types";
 import { useEditorSession } from "../hooks/useEditorSession";
@@ -10,6 +11,12 @@ import {
   type IdeaSketchEditorState,
 } from "../lib/ideaSketchReducer";
 import { extractCameras, reorderCameras, type Camera } from "../lib/cameraUtils";
+import {
+  buildCurrentPageStyleConversion,
+  buildNewPageStyleConversion,
+  formatStyleConversionSummary,
+  type StyleConversionTarget,
+} from "../lib/excalidrawStyleConversion";
 import { SlideCanvas } from "./SlideCanvas";
 import { ResizableDivider } from "./ResizableDivider";
 import {
@@ -30,6 +37,23 @@ interface IdeaSketchEditorProps {
   onAutoSaveComplete: (sessionId: string) => void;
   onWriteRecovery: (sessionId: string, model: IdeaSketchDocument) => Promise<void>;
   onStartPresentation: (sessionId: string, page: IdeaSketchPage, mode: "preview" | "fullscreen") => void;
+}
+
+function refreshConvertedTextDimensions(
+  elements: readonly any[],
+  convertedElementIds: Record<string, boolean>,
+) {
+  const restoredElements = restoreElements(elements as any[], null, {
+    refreshDimensions: true,
+    repairBindings: true,
+  });
+  const restoredById = new Map(restoredElements.map((element) => [element.id, element]));
+
+  return elements.map((element) => (
+    element.type === "text" && convertedElementIds[element.id]
+      ? restoredById.get(element.id) ?? element
+      : element
+  ));
 }
 
 export function IdeaSketchEditor({
@@ -56,6 +80,12 @@ export function IdeaSketchEditor({
   const [cameraDrawingRequestToken, setCameraDrawingRequestToken] = useState(0);
   const [selectedCameraId, setSelectedCameraId] = useState<string>();
   const excalidrawApiRef = useRef<any>(null);
+  const excalidrawSlideIdRef = useRef<string | undefined>(undefined);
+  const pendingConversionFeedbackRef = useRef<{
+    pageId: string;
+    message: string;
+    selectedElementIds: Record<string, boolean>;
+  } | undefined>(undefined);
 
   useEffect(() => {
     if (!document.model || document.model === emittedModelRef.current) return;
@@ -183,9 +213,88 @@ export function IdeaSketchEditor({
     const page = model.pages.find((candidate) => candidate.id === editorStateRef.current.activePageId);
     if (page) onStartPresentation(document.id, page, mode);
   }, [document.id, flushAndGetDocument, onStartPresentation]);
-  const handleApiReady = useCallback((api: any) => {
+  const handleApiReady = useCallback((api: any, slideId: string) => {
     excalidrawApiRef.current = api;
+    excalidrawSlideIdRef.current = slideId;
+    const pendingFeedback = pendingConversionFeedbackRef.current;
+    if (!pendingFeedback || pendingFeedback.pageId !== slideId) return;
+
+    pendingConversionFeedbackRef.current = undefined;
+    window.requestAnimationFrame(() => {
+      if (excalidrawApiRef.current !== api || excalidrawSlideIdRef.current !== slideId) return;
+      api.setActiveTool({ type: "selection" });
+      const selectedElements = api.getSceneElements().filter(
+        (element: any) => pendingFeedback.selectedElementIds[element.id],
+      );
+      if (selectedElements.length > 0) {
+        api.scrollToContent(selectedElements, { fitToContent: true, animate: true, duration: 300 });
+      }
+      api.setToast({ message: pendingFeedback.message, duration: 4200 });
+    });
   }, []);
+  const handleConvertSelection = useCallback((target: StyleConversionTarget) => {
+    const api = excalidrawApiRef.current;
+    const mountedPageId = excalidrawSlideIdRef.current;
+    if (
+      !api ||
+      readOnly ||
+      !mountedPageId ||
+      mountedPageId !== editorStateRef.current.activePageId
+    ) {
+      return;
+    }
+
+    const sceneElements = api.getSceneElements();
+    const sceneAppState = api.getAppState();
+    const selectedElementIds = sceneAppState.selectedElementIds as Record<string, boolean> | undefined;
+
+    if (target === "current-page") {
+      const result = buildCurrentPageStyleConversion(sceneElements, selectedElementIds);
+      if (result.summary.converted === 0) return;
+      api.updateScene({
+        elements: refreshConvertedTextDimensions(
+          result.elements,
+          result.convertedElementIds,
+        ),
+        appState: { selectedElementIds: result.selectedElementIds },
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      });
+      api.setToast({ message: formatStyleConversionSummary(result.summary), duration: 4200 });
+      return;
+    }
+
+    const result = buildNewPageStyleConversion(
+      sceneElements,
+      selectedElementIds,
+      api.getFiles(),
+    );
+    if (result.summary.converted === 0 || result.elements.length === 0) return;
+
+    flushDraft();
+    const sourcePage = editorStateRef.current.document.pages.find((page) => page.id === mountedPageId);
+    if (!sourcePage) return;
+    const pageIndex = editorStateRef.current.document.pages.length;
+    const newPageBase = createEmptyIdeaSketchPage(pageIndex);
+    const newPage: IdeaSketchPage = {
+      ...newPageBase,
+      title: `${newPageBase.title} – Clean style`,
+      elements: refreshConvertedTextDimensions(
+        result.elements,
+        result.convertedElementIds,
+      ),
+      appState: {
+        ...sourcePage.appState,
+        selectedElementIds: result.selectedElementIds,
+      },
+      files: result.files,
+    };
+    pendingConversionFeedbackRef.current = {
+      pageId: newPage.id,
+      message: formatStyleConversionSummary(result.summary),
+      selectedElementIds: result.selectedElementIds,
+    };
+    applyAction({ type: "ADD_PAGE", page: newPage });
+  }, [applyAction, flushDraft, readOnly]);
   const openNavigator = useCallback((tab: IdeaSketchNavigatorTab) => {
     setNavigatorTab(tab);
     setShowNavigator(true);
@@ -207,6 +316,7 @@ export function IdeaSketchEditor({
             files={draft.files}
             onChange={updateDraft}
             onApiReady={handleApiReady}
+            onConvertSelection={handleConvertSelection}
             viewMode={readOnly}
             editorRefreshToken={editorRefreshToken}
             cameraDrawingRequestToken={cameraDrawingRequestToken}

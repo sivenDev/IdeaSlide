@@ -16,13 +16,15 @@ test('SlideCanvas keeps Excalidraw MainMenu free of a duplicate Navigator contro
   assert.match(source, /<MainMenu\.DefaultItems\.SaveAsImage \/>/);
 });
 
-test('SlideCanvas does not render a detached control island or Camera creation action', async () => {
+test('SlideCanvas reserves public top-right UI for contextual selection conversion only', async () => {
   const source = await readSource('src/components/SlideCanvas.tsx');
 
   assert.doesNotMatch(source, /CanvasPresentationControls/);
-  assert.doesNotMatch(source, /renderTopRightUI/);
+  assert.match(source, /renderTopRightUI/);
+  assert.match(source, /CanvasSelectionActions/);
   assert.doesNotMatch(source, /onAddCamera/);
   assert.doesNotMatch(source, />\s*Add camera\s*</);
+  assert.doesNotMatch(source, />\s*Navigator\s*</);
   assert.match(source, /cameraDrawingRequestToken/);
   assert.match(source, /lastCameraDrawingRequestTokenRef/);
 });
