@@ -46,6 +46,5 @@ Thumbs.db
 .claude/worktrees/
 
 # Disposable local prototypes and experiments
-.temp/
 .playwright-mcp
 .vscode
