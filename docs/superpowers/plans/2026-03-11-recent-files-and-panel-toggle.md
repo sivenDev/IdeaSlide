@@ -120,7 +120,7 @@ In `handleSaveAs`, after successful save:
 async function handleSaveAs() {
   try {
     const filePath = await save({
-      filters: [{ name: "IdeaSlide", extensions: ["is"] }],
+      filters: [{ name: "IdeaNote", extensions: ["is"] }],
       defaultPath: fileName || "Untitled.is",
     });
 

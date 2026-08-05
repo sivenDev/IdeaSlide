@@ -1,4 +1,4 @@
-# IdeaSlide Excalidraw 图片插入与 `.is` 媒体存储设计
+# IdeaNote Excalidraw 图片插入与 `.is` 媒体存储设计
 
 **日期**: 2026-03-13
 **状态**: 已批准（待实现）

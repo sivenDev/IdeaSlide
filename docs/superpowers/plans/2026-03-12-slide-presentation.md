@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add slide presentation mode to IdeaSlide with preview and fullscreen modes, keyboard navigation, and thumbnail navigator.
+**Goal:** Add slide presentation mode to IdeaNote with preview and fullscreen modes, keyboard navigation, and thumbnail navigator.
 
 **Architecture:** Extend existing React component tree with a `PresentationMode` component at the same level as `EditorLayout` in `App.tsx`. Reuse existing `SlideCanvas` with a new `viewMode` prop for Excalidraw read-only rendering. Use Tauri v2 built-in fullscreen API (no custom Rust commands needed).
 

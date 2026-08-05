@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What Is This
 
-IdeaSlide is a Tauri v2 desktop application for creating slide presentations using Excalidraw as the drawing canvas. The native file format is `.is` (a zip archive containing a JSON manifest and individual slide JSON files).
+IdeaNote is a Tauri v2 desktop application for creating slide presentations using Excalidraw as the drawing canvas. The native file format is `.is` (a zip archive containing a JSON manifest and individual slide JSON files).
 
 ## Commands
 

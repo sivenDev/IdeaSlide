@@ -1,8 +1,8 @@
-# ideaSlide MVP Implementation Plan
+# IdeaNote MVP Implementation Plan
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the MVP of ideaSlide — a Tauri v2 desktop app with Excalidraw-based slide editing, .is file format support, and auto-save.
+**Goal:** Build the MVP of IdeaNote — a Tauri v2 desktop app with Excalidraw-based slide editing, .is file format support, and auto-save.
 
 **Architecture:** Tauri v2 Rust backend handles file I/O (.is zip files), React frontend handles UI rendering and Excalidraw integration. Frontend and backend communicate via Tauri commands (file ops) and events (save status). State managed with React Context + useReducer.
 
@@ -1039,7 +1039,7 @@ export function LaunchScreen() {
   async function handleBrowse() {
     const selected = await open({
       multiple: false,
-      filters: [{ name: "ideaSlide", extensions: ["is"] }],
+      filters: [{ name: "IdeaNote", extensions: ["is"] }],
     });
     if (selected) {
       await handleOpen(selected as string);
@@ -1050,7 +1050,7 @@ export function LaunchScreen() {
     try {
       const filePath = await save({
         defaultPath: "Untitled.is",
-        filters: [{ name: "ideaSlide", extensions: ["is"] }],
+        filters: [{ name: "IdeaNote", extensions: ["is"] }],
       });
       if (filePath) {
         const data = await createFile(filePath);
@@ -1078,7 +1078,7 @@ export function LaunchScreen() {
 
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-gray-50">
-      <h1 className="text-3xl font-bold mb-8 text-gray-800">ideaSlide</h1>
+      <h1 className="text-3xl font-bold mb-8 text-gray-800">IdeaNote</h1>
 
       {error && (
         <div className="mb-4 px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm">
@@ -1199,7 +1199,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
 npm run tauri dev
 ```
 
-Expected: Tauri window opens, showing "ideaSlide" title with New and Open buttons. No recent files shown (first launch).
+Expected: Tauri window opens, showing "IdeaNote" title with New and Open buttons. No recent files shown (first launch).
 
 - [ ] **Step 6: Commit**
 
@@ -1739,7 +1739,7 @@ npm run tauri dev
 ```
 
 Expected:
-1. Launch screen appears with "ideaSlide" title and New/Open buttons
+1. Launch screen appears with "IdeaNote" title and New/Open buttons
 2. Click "New" → select a directory → editor opens with one blank slide
 3. Draw something on the canvas with Excalidraw tools
 4. "Saving..." indicator appears after ~2.5s, then shows "Saved"
@@ -1785,7 +1785,7 @@ Remove any other default styles.
 
 In `src-tauri/tauri.conf.json`, update the window settings:
 
-Set `"title"` to `"ideaSlide"`, `"width"` to `1200`, `"height"` to `800`, and `"minWidth"` to `800`, `"minHeight"` to `600`.
+Set `"title"` to `"IdeaNote"`, `"width"` to `1200`, `"height"` to `800`, and `"minWidth"` to `800`, `"minHeight"` to `600`.
 
 - [ ] **Step 4: Full integration test**
 
@@ -1794,7 +1794,7 @@ npm run tauri dev
 ```
 
 Test the complete flow:
-1. Launch screen shows correctly with "ideaSlide" title
+1. Launch screen shows correctly with "IdeaNote" title
 2. Create a new presentation → editor opens
 3. Draw on canvas → auto-save triggers
 4. Add slides, delete slides, navigate between slides
@@ -1806,7 +1806,7 @@ Test the complete flow:
 
 ```bash
 git add src/index.css src/App.tsx src/main.tsx src-tauri/tauri.conf.json
-git commit -m "feat: complete ideaSlide MVP with editor, auto-save, and file management"
+git commit -m "feat: complete IdeaNote MVP with editor, auto-save, and file management"
 ```
 
 ---

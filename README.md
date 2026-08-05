@@ -1,4 +1,4 @@
-# IdeaSlide
+# IdeaNote
 
 A desktop presentation editor powered by [Excalidraw](https://excalidraw.com/) — sketch your slides with a freehand canvas.
 

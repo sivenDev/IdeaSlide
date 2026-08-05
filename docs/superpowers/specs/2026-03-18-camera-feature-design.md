@@ -6,7 +6,7 @@
 
 ## Overview
 
-Add a "camera" feature to IdeaSlide that enables Prezi-style presentation navigation. Cameras are rectangular viewport markers on the Excalidraw canvas that define presentation view regions. During presentation mode, the viewport smoothly transitions (pan + zoom) between cameras in sequence.
+Add a "camera" feature to IdeaNote that enables Prezi-style presentation navigation. Cameras are rectangular viewport markers on the Excalidraw canvas that define presentation view regions. During presentation mode, the viewport smoothly transitions (pan + zoom) between cameras in sequence.
 
 ## Core Concept
 

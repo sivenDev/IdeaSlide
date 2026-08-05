@@ -1,18 +1,18 @@
-# IdeaSlide MCP Server 设计文档
+# IdeaNote MCP Server 设计文档
 
 ## 概述
 
-为 IdeaSlide 添加 MCP (Model Context Protocol) Server 功能，使外部 AI 客户端（Claude Code、Cursor 等）能够通过标准 MCP 协议创建、编辑 IdeaSlide 演示文稿。
+为 IdeaNote 添加 MCP (Model Context Protocol) Server 功能，使外部 AI 客户端（Claude Code、Cursor 等）能够通过标准 MCP 协议创建、编辑 IdeaNote 演示文稿。
 
 目标 MCP 协议版本：2024-11-05。Server 仅广播 `tools` capability，不提供 `resources` 或 `prompts`。
 
 ## 设计决策
 
 ### 角色定位
-IdeaSlide 作为 MCP Server，暴露工具给外部 AI 客户端调用。
+IdeaNote 作为 MCP Server，暴露工具给外部 AI 客户端调用。
 
 ### 运行模式
-仅 Tauri 嵌入模式。MCP Server 运行在 IdeaSlide 应用进程内，通过 stdio transport 与 AI 客户端通信。应用通过 `--mcp` 启动参数进入 MCP 服务模式。
+仅 Tauri 嵌入模式。MCP Server 运行在 IdeaNote 应用进程内，通过 stdio transport 与 AI 客户端通信。应用通过 `--mcp` 启动参数进入 MCP 服务模式。
 
 `--mcp` 模式下，Tauri 仍创建一个隐藏的 webview 窗口（`visible: false`），用于加载 React 应用和 Excalidraw 渲染引擎。前端通过 `mcp-renderer-ready` 事件通知后端渲染器就绪，preview tools 在收到就绪信号前返回 `RenderNotReady` 错误。
 
@@ -45,7 +45,7 @@ AI Client (Claude Code 等)
     │ MCP Protocol (stdio / JSON-RPC)
     ▼
 ┌──────────────────────────────────────────┐
-│            IdeaSlide (Tauri)              │
+│             IdeaNote (Tauri)              │
 │                                          │
 │  ┌────────────────────────────────────┐  │
 │  │    rmcp ServerHandler              │  │

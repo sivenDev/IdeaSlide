@@ -1,4 +1,4 @@
-# IdeaSlide
+# IdeaNote
 
 基于 [Excalidraw](https://excalidraw.com/) 的桌面幻灯片编辑器 — 用手绘画布来做演示文稿。
 

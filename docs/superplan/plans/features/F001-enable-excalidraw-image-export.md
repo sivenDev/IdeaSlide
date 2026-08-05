@@ -13,18 +13,18 @@ parent: ""
 
 # Enable Excalidraw Image Export Plan
 
-**Goal:** Let users export the current canvas as an image from the top-left Excalidraw menu while IdeaSlide remains the sole owner of presentation-file persistence.
+**Goal:** Let users export the current canvas as an image from the top-left Excalidraw menu while IdeaNote remains the sole owner of presentation-file persistence.
 **Scope:** Keep Excalidraw's native `SaveAsImage` item and dialog in the editor canvas menu, bridge its generated PNG/SVG blob downloads to Tauri's save dialog and `write_file_bytes` command, and preserve the regression contract that native `.excalidraw` scene save paths remain disabled.
-**Non-Goals:** This plan does not replace Excalidraw's image renderer or export settings UI, change PNG/SVG content or filenames, expose Excalidraw's scene export/load actions, alter IdeaSlide `.is` saving or autosave, or add image export to read-only presentation mode.
+**Non-Goals:** This plan does not replace Excalidraw's image renderer or export settings UI, change PNG/SVG content or filenames, expose Excalidraw's scene export/load actions, alter IdeaNote `.is` saving or autosave, or add image export to read-only presentation mode.
 **Architecture:** `SlideCanvas` continues to own menu visibility, while a Tauri-only startup bridge handles the detached blob-download anchors created by Excalidraw's bundled `browser-fs-access` fallback. The bridge intercepts only `.png` and `.svg` blob downloads, opens the native Tauri save dialog, writes the resolved bytes through the existing `write_file_bytes` IPC command, and delegates every other anchor click unchanged. The separate native-scene controls (`saveToActiveFile`, `saveFileToDisk`, and `export.saveFileToDisk`) remain disabled so F001 does not regress B001.
-**Baseline:** Task 1 exposes the image export dialog successfully, but user verification shows that clicking PNG or SVG produces no file. The dialog's editable filename proves `browser-fs-access` selected its legacy path because the macOS Tauri webview lacks `showSaveFilePicker`; that path creates a detached `<a download>` with a blob URL, which WKWebView does not persist. IdeaSlide already registers a generic `write_file_bytes` Tauri command but has no frontend bridge using it for Excalidraw downloads.
+**Baseline:** Task 1 exposes the image export dialog successfully, but user verification shows that clicking PNG or SVG produces no file. The dialog's editable filename proves `browser-fs-access` selected its legacy path because the macOS Tauri webview lacks `showSaveFilePicker`; that path creates a detached `<a download>` with a blob URL, which WKWebView does not persist. IdeaNote already registers a generic `write_file_bytes` Tauri command but has no frontend bridge using it for Excalidraw downloads.
 **Observed Failure:** Open the canvas menu, choose image export, and click PNG or SVG. The button renders and receives the click, but no save dialog or output file appears.
-**Root Cause:** Excalidraw's image export calls `browser-fs-access.fileSave`. In this WKWebView it falls back to a programmatic detached anchor download, while IdeaSlide does not intercept that browser-only download mechanism or route the blob through Tauri file I/O.
+**Root Cause:** Excalidraw's image export calls `browser-fs-access.fileSave`. In this WKWebView it falls back to a programmatic detached anchor download, while IdeaNote does not intercept that browser-only download mechanism or route the blob through Tauri file I/O.
 **Exit Criteria:** In editor mode, the top-left canvas menu opens Excalidraw's standard image export dialog; PNG and SVG each open a native save dialog and write a non-empty file at the selected path; canceling the dialog writes nothing; normal browser anchor behavior and presentation mode remain unchanged; native `.excalidraw` save paths stay disabled; focused regressions, the full source-level test suite, and the production build pass.
 
 ## Task 1: Expose Image Export Without Reopening Scene Save
 
-**Outcome:** Users can open Excalidraw's image export dialog from the canvas menu, while IdeaSlide continues to exclusively handle presentation-file saves.
+**Outcome:** Users can open Excalidraw's image export dialog from the canvas menu, while IdeaNote continues to exclusively handle presentation-file saves.
 **Files:**
 - Modify: `src/components/SlideCanvas.tsx`
 - Test: `tests/cameraBadgeWiring.test.mjs`
@@ -48,7 +48,7 @@ parent: ""
 
 ## Task 2: Persist Excalidraw Blob Downloads Through Tauri
 
-**Outcome:** PNG and SVG buttons in Excalidraw's native export dialog save real files through IdeaSlide's native file boundary instead of relying on unsupported WKWebView downloads.
+**Outcome:** PNG and SVG buttons in Excalidraw's native export dialog save real files through IdeaNote's native file boundary instead of relying on unsupported WKWebView downloads.
 **Files:**
 - Create: `src/lib/tauriBlobDownload.ts`
 - Modify: `src/main.tsx`

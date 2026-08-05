@@ -1,4 +1,4 @@
-# Excalidraw MCP vs IdeaSlide MCP 实现对比
+# Excalidraw MCP vs IdeaNote MCP 实现对比
 
 ## 架构差异
 
@@ -10,7 +10,7 @@
 - **存储**: 可选的 checkpoint store（内存或 Upstash Redis）
 - **部署**: 支持本地和远程（Vercel）部署
 
-### IdeaSlide MCP
+### IdeaNote MCP
 **定位**: 演示文稿文件管理工具
 - **技术栈**: Rust + Tauri v2 + React + Excalidraw
 - **运行方式**: Tauri 原生应用，支持 headless 和 visible 模式
@@ -20,7 +20,7 @@
 
 ## 功能对比
 
-| 功能 | Excalidraw MCP | IdeaSlide MCP |
+| 功能 | Excalidraw MCP | IdeaNote MCP |
 |------|----------------|---------------|
 | **核心用途** | 单个图表的实时绘制 | 多幻灯片演示文稿管理 |
 | **工具数量** | 5 个工具 | 11 个工具 |
@@ -58,7 +58,7 @@
    - 仅从 UI 调用
    - 用于恢复编辑
 
-### IdeaSlide MCP 工具
+### IdeaNote MCP 工具
 
 1. **create_presentation** - 创建新 .is 文件
 2. **open_presentation** - 打开现有演示文稿
@@ -89,7 +89,7 @@ registerAppTool(server, "create_view", {
 }, handler);
 ```
 
-**IdeaSlide MCP**:
+**IdeaNote MCP**:
 ```rust
 // 使用 rmcp (Rust MCP 库)
 use rmcp::{tool, tool_handler, ServerHandler};
@@ -126,7 +126,7 @@ return {
 };
 ```
 
-**IdeaSlide MCP**:
+**IdeaNote MCP**:
 - **Tauri 窗口**: 原生桌面窗口
 - **事件驱动**: Rust 后端 ↔ React 前端通信
 - **Headless 渲染**: 隐藏的 webview 用于 PNG 生成
@@ -154,7 +154,7 @@ interface CheckpointStore {
 }
 ```
 
-**IdeaSlide MCP**:
+**IdeaNote MCP**:
 - **.is 文件格式**: Zip 归档
 - **原子写入**: 先写 .tmp，再重命名
 - **自动备份**: 覆盖前创建 .bak
@@ -175,13 +175,13 @@ thumbnails/            // 预留
 - **SVG 输出**: Excalidraw 原生 SVG
 - **动画效果**: CSS 动画 + morphdom 增量更新
 
-**IdeaSlide MCP**:
+**IdeaNote MCP**:
 - **Excalidraw exportToBlob**: 使用官方导出 API
 - **PNG 输出**: 位图格式
 - **Base64 或文件**: 灵活的输出方式
 
 ```typescript
-// IdeaSlide 前端渲染
+// IdeaNote 前端渲染
 const blob = await exportToBlob({
   elements: content.elements,
   appState: content.appState,
@@ -201,7 +201,7 @@ const pngBytes = Array.from(new Uint8Array(arrayBuffer));
 - **无状态** - 不依赖本地文件系统
 - **单图表** - 专注于单个图表的质量
 
-### IdeaSlide MCP
+### IdeaNote MCP
 **目标**: 让 AI 能够管理完整的演示文稿
 - 强调**文件管理** - CRUD 操作 .is 文件
 - 强调**多页面** - 幻灯片的增删改查和排序
@@ -218,7 +218,7 @@ const pngBytes = Array.from(new Uint8Array(arrayBuffer));
 - ✅ 在对话中逐步构建复杂图表
 - ✅ 需要流畅的视觉体验
 
-### IdeaSlide MCP 适合:
+### IdeaNote MCP 适合:
 - ✅ 创建完整的演示文稿（多张幻灯片）
 - ✅ 需要本地文件存储和版本控制
 - ✅ 需要批量生成幻灯片
@@ -235,7 +235,7 @@ const pngBytes = Array.from(new Uint8Array(arrayBuffer));
 4. **详细的文档** - read_me 工具内置完整的使用指南
 5. **远程部署** - 支持 Vercel 部署，无需本地安装
 
-### IdeaSlide MCP
+### IdeaNote MCP
 1. **Rust + Tauri** - 高性能原生应用
 2. **双模式运行** - headless 和 visible 模式
 3. **事件驱动架构** - Rust 后端与 React 前端解耦
@@ -244,14 +244,14 @@ const pngBytes = Array.from(new Uint8Array(arrayBuffer));
 
 ## 可以互相借鉴的地方
 
-### IdeaSlide 可以学习 Excalidraw MCP:
+### IdeaNote 可以学习 Excalidraw MCP:
 1. **流式渲染** - 在可视化窗口中逐元素绘制
 2. **详细的文档工具** - 添加 get_help 工具返回使用指南
 3. **相机控制** - 支持视口动画和缩放
 4. **导出分享** - 支持上传到云端分享
 5. **MCP Apps** - 考虑支持交互式 UI（如果 Tauri 支持）
 
-### Excalidraw MCP 可以学习 IdeaSlide:
+### Excalidraw MCP 可以学习 IdeaNote:
 1. **多页面支持** - 支持多图表管理
 2. **文件持久化** - 保存到本地文件系统
 3. **批量操作** - 批量渲染、批量导出
@@ -263,10 +263,10 @@ const pngBytes = Array.from(new Uint8Array(arrayBuffer));
 两个实现各有特色，服务于不同的使用场景：
 
 - **Excalidraw MCP** 是一个**实时交互式绘图工具**，强调单图表的质量和用户体验
-- **IdeaSlide MCP** 是一个**演示文稿管理系统**，强调多幻灯片的组织和文件管理
+- **IdeaNote MCP** 是一个**演示文稿管理系统**，强调多幻灯片的组织和文件管理
 
 如果要选择：
 - 需要快速画图、实时迭代 → **Excalidraw MCP**
-- 需要创建演示文稿、管理多页面 → **IdeaSlide MCP**
+- 需要创建演示文稿、管理多页面 → **IdeaNote MCP**
 
 两者可以共存，甚至可以互补使用！

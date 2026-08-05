@@ -34,7 +34,7 @@
 - status: done
 - created: 2026-07-22
 
-Treat each `.is` file as an IdeaSlide workspace rather than a traditional slide deck. Replace the slide-centric organizer with a three-pane editor: a hierarchical Workspace explorer on the left, the selected resource editor in the center, and a compact Cameras list on the right. The first resource types are folders and Excalidraw canvases, while the resource model, persisted type identifier, content reference, selection boundary, and unsupported-type fallback must allow more file types to be added later without redesigning the tree. Users can create folders and canvases, select and inline-rename them, reorder or move them through the hierarchy, and safely delete them. Cameras belong to the selected canvas. Both side panels collapse independently from divider markers. Do not render slide or camera thumbnails in this delivery. Make the existing manifest `version` field an enforced `.is` format version: F002 writes `2.0`, explicitly migrates supported `1.0` workspaces, rejects invalid or unsupported versions before reading payloads, and reserves major increments for breaking changes. Legacy flat-slide `.is` files open as root-level canvases in their original order; the workspace tree, active canvas identity, canvas content, and camera order survive save and reopen. Non-canvas editors, arbitrary linked local files, tabs, thumbnail generation, camera naming, and a presentation-mode redesign are out of scope.
+Treat each `.is` file as an IdeaNote workspace rather than a traditional slide deck. Replace the slide-centric organizer with a three-pane editor: a hierarchical Workspace explorer on the left, the selected resource editor in the center, and a compact Cameras list on the right. The first resource types are folders and Excalidraw canvases, while the resource model, persisted type identifier, content reference, selection boundary, and unsupported-type fallback must allow more file types to be added later without redesigning the tree. Users can create folders and canvases, select and inline-rename them, reorder or move them through the hierarchy, and safely delete them. Cameras belong to the selected canvas. Both side panels collapse independently from divider markers. Do not render slide or camera thumbnails in this delivery. Make the existing manifest `version` field an enforced `.is` format version: F002 writes `2.0`, explicitly migrates supported `1.0` workspaces, rejects invalid or unsupported versions before reading payloads, and reserves major increments for breaking changes. Legacy flat-slide `.is` files open as root-level canvases in their original order; the workspace tree, active canvas identity, canvas content, and camera order survive save and reopen. Non-canvas editors, arbitrary linked local files, tabs, thumbnail generation, camera naming, and a presentation-mode redesign are out of scope.
 
 ## F003: Move camera presentation controls into the Canvas and resize the Workspace sidebar
 
@@ -161,3 +161,10 @@ Add a view mode switch to the Pages list with thumbnail and name modes. Preserve
 - created: 2026-08-05
 
 Set the main application window minimum height to 850 px so users cannot resize it below that height, and keep its default width at 1200 px.
+
+## F021: Update documentation to IdeaNote branding
+
+- status: done
+- created: 2026-08-06
+
+Update documentation that describes the current product so it consistently uses the IdeaNote product name. Preserve explicit predecessor references and exact technical or historical identifiers such as repository paths, package names, bundle identifiers, URLs, code symbols, legacy application paths, and recorded evidence.

@@ -1,8 +1,8 @@
-# IdeaSlide MCP Server Implementation Plan
+# IdeaNote MCP Server Implementation Plan
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add an MCP Server to IdeaSlide so AI clients can create, edit, and preview presentations via the Model Context Protocol.
+**Goal:** Add an MCP Server to IdeaNote so AI clients can create, edit, and preview presentations via the Model Context Protocol.
 
 **Architecture:** Rust MCP server embedded in the Tauri app using `rmcp` crate. 11 tools (3 file, 6 slide, 2 preview) with stateless read-modify-write model. Preview renders via hidden webview + Excalidraw `exportToBlob()`. All tools defined with `#[tool]` macro, business logic in separate handler modules.
 
@@ -1672,7 +1672,7 @@ git commit -m "feat(mcp): complete MCP server integration with 11 tools"
 
 **Files:** None (manual testing)
 
-- [ ] **Step 1: Configure Claude Code to use IdeaSlide MCP server**
+- [ ] **Step 1: Configure Claude Code to use IdeaNote MCP server**
 
 Add to Claude Code's MCP server config:
 

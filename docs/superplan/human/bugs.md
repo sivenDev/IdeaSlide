@@ -30,10 +30,10 @@
 - created: 2026-07-01
 
 复现步骤：
-1. 在 IdeaSlide 编辑画布中触发 Excalidraw 原生保存入口，例如 `Cmd+Shift+S`。
+1. 在 IdeaNote 编辑画布中触发 Excalidraw 原生保存入口，例如 `Cmd+Shift+S`。
 2. 检查系统 Downloads 目录。
 
-期望：所有保存触发都只走 IdeaSlide 的 `.is` 保存流程。／ 实际：Excalidraw 原生保存会下载 `Untitled-*.excalidraw` 文件到 Downloads。
+期望：所有保存触发都只走 IdeaNote 的 `.is` 保存流程。／ 实际：Excalidraw 原生保存会下载 `Untitled-*.excalidraw` 文件到 Downloads。
 
 ## B002: Presentation exit leaves canvas visually corrupted until zoom
 
@@ -70,7 +70,7 @@
 - created: 2026-07-22
 
 复现步骤：
-1. 启动 IdeaSlide 并打开工作区进入编辑器。
+1. 启动 IdeaNote 并打开工作区进入编辑器。
 2. 编辑器立即进入 ErrorBoundary。
 
 期望：三栏编辑器正常显示并可操作。
