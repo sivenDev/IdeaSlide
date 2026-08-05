@@ -133,3 +133,10 @@ When inline rename starts in the Workspace directory tree, match VS Code by init
 - created: 2026-08-05
 
 Replace the Open Workspace and Open File character glyphs on the IdeaNote Home screen with clear Lucide icons consistent with the rest of the application. Add a Recent Workspaces section alongside Recent Files, persist successfully opened directory workspaces in global user configuration, reopen a workspace from its recent row, allow removing stale or unwanted workspace entries, filter paths that no longer exist, and preserve backward compatibility with existing recent-file configuration.
+
+## F017: Convert selected Excalidraw elements to draw.io
+
+- status: proposed
+- created: 2026-08-05
+
+Add an IdeaSketch editor action for selected Excalidraw elements. After conversion, let the user choose whether the result is generated on the current Page or on a newly created Page. The requirement review must confirm whether “draw.io” means a draw.io-like visual style that remains editable as Excalidraw elements, or an actual draw.io/mxGraph document; it must also define whether current-Page conversion replaces or duplicates the source, the supported element types, handling of bindings/groups/images/freehand content, and behavior for unsupported elements.
