@@ -47,3 +47,5 @@ Thumbs.db
 
 # Disposable local prototypes and experiments
 .temp/
+.playwright-mcp
+.vscode
