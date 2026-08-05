@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Complete |
-| --- | --- | --- |
-| `required` | 6 | 6 |
-| `feature` | 17 | 17 |
-| `bugfix` | 14 | 14 |
+| Type | Plans | Draft | Complete |
+| --- | --- | --- | --- |
+| `required` | 6 | 0 | 6 |
+| `feature` | 18 | 1 | 17 |
+| `bugfix` | 14 | 0 | 14 |
 
 ## Execution Order
 
@@ -53,6 +53,7 @@
 | `F015` | [Select the Workspace Filename Stem During Rename](features/F015-select-workspace-filename-stem.md) | `complete` | 2026-08-05 |
 | `F016` | [Refine Launch Actions and Add Recent Workspaces](features/F016-refine-launch-actions-and-add-recent-workspaces.md) | `complete` | 2026-08-05 |
 | `F017` | [Convert Excalidraw Selection to Clean Diagram Style](features/F017-convert-excalidraw-selection-to-clean-diagram-style.md) | `complete` | 2026-08-05 |
+| `F018` | [Optimize Conversion for Formal Presentation Style](features/F018-optimize-conversion-for-formal-presentation-style.md) | `draft` | 2026-08-05 |
 
 ### Bugfix Plans
 
