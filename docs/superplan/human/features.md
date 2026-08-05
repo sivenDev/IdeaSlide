@@ -147,3 +147,10 @@ Add an IdeaSketch editor action that converts selected Excalidraw elements to a 
 - created: 2026-08-05
 
 Strengthen the existing Excalidraw selection conversion so converted supported elements have no hand-drawn appearance and look precise, consistent, and suitable for formal presentations. Use a deterministic formal-style policy for geometry, strokes, fills, opacity, corners, arrows, and typography; clearly classify content such as freehand drawing that cannot be made formal without redrawing. Preserve editable Excalidraw output and the existing Current Page/New Page workflow rather than generating draw.io files.
+
+## F019: Add Page list view mode switch
+
+- status: done
+- created: 2026-08-05
+
+Add a view mode switch to the Pages list with thumbnail and name modes. Preserve the current name-list presentation as the default mode. Thumbnail mode must keep Page selection and existing Page management behaviors available.

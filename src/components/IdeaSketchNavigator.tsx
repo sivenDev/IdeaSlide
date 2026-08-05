@@ -1,5 +1,6 @@
 import type { IdeaSketchPage } from "../types";
 import type { Camera } from "../lib/cameraUtils";
+import type { EditorSlideDraft } from "../lib/editorSession";
 import { CameraList } from "./CameraList";
 import { PageOrganizer } from "./PageOrganizer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/Tabs";
@@ -10,6 +11,7 @@ interface IdeaSketchNavigatorProps {
   activeTab: IdeaSketchNavigatorTab;
   pages: IdeaSketchPage[];
   activePageId: string;
+  activePageDraft: EditorSlideDraft;
   cameras: Camera[];
   activeCameraId?: string;
   readOnly?: boolean;
@@ -31,6 +33,7 @@ export function IdeaSketchNavigator({
   activeTab,
   pages,
   activePageId,
+  activePageDraft,
   cameras,
   activeCameraId,
   readOnly = false,
@@ -70,6 +73,7 @@ export function IdeaSketchNavigator({
           <PageOrganizer
             pages={pages}
             activePageId={activePageId}
+            activeDraft={activePageDraft}
             readOnly={readOnly}
             onSelect={onPageSelect}
             onAdd={onPageAdd}

@@ -19,7 +19,7 @@ test('IdeaSketch navigator switches between fixed Pages and Cameras tabs', async
   assert.match(source, /pages\.length/);
   assert.match(source, /cameras\.length/);
   assert.doesNotMatch(source, /Collapsible/);
-  assert.doesNotMatch(source, /thumbnail/i);
+  assert.match(source, /activePageDraft/);
 });
 
 test('IdeaSketch editor owns one open-by-default compact navigator without a duplicate Page shortcut', async () => {

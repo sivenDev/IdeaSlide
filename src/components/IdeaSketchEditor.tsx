@@ -330,6 +330,7 @@ export function IdeaSketchEditor({
               onTabChange={setNavigatorTab}
               pages={editorState.document.pages}
               activePageId={editorState.activePageId}
+              activePageDraft={draft}
               cameras={cameras}
               activeCameraId={activeCameraId}
               readOnly={readOnly}

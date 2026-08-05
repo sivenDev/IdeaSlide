@@ -7,7 +7,7 @@
 | Type | Plans | Complete |
 | --- | --- | --- |
 | `required` | 6 | 6 |
-| `feature` | 18 | 18 |
+| `feature` | 19 | 19 |
 | `bugfix` | 14 | 14 |
 
 ## Execution Order
@@ -54,6 +54,7 @@
 | `F016` | [Refine Launch Actions and Add Recent Workspaces](features/F016-refine-launch-actions-and-add-recent-workspaces.md) | `complete` | 2026-08-05 |
 | `F017` | [Convert Excalidraw Selection to Clean Diagram Style](features/F017-convert-excalidraw-selection-to-clean-diagram-style.md) | `complete` | 2026-08-05 |
 | `F018` | [Optimize Conversion for Formal Presentation Style](features/F018-optimize-conversion-for-formal-presentation-style.md) | `complete` | 2026-08-05 |
+| `F019` | [Add Page List View Mode Switching](features/F019-add-page-list-view-mode-switch.md) | `complete` | 2026-08-05 |
 
 ### Bugfix Plans
 

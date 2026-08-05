@@ -10,8 +10,28 @@ const workspaceEntries = [
   { path: 'b.is', name: 'b.is', kind: 'file', readOnly: false, fileType: 'ideasketch', children: [] },
 ];
 
+function createIdeaSketchMockDocument(pageCount = 40) {
+  const pages = Array.from({ length: pageCount }, (_, index) => ({
+    id: `page-${index + 1}`,
+    title: `Page ${index + 1}`,
+  }));
+  return {
+    manifest: {
+      version: '1.0',
+      created: '2026-08-05T00:00:00.000Z',
+      modified: '2026-08-05T00:00:00.000Z',
+      slides: pages,
+    },
+    slides: pages.map(({ id }) => ({
+      id,
+      content: { elements: [], appState: { viewBackgroundColor: '#ffffff' }, files: {} },
+    })),
+    media: [],
+  };
+}
+
 async function installTauriMock(page) {
-  await page.addInitScript(({ entries }) => {
+  await page.addInitScript(({ entries, ideaSketchDocument }) => {
     const callbacks = new Map();
     let callbackId = 1;
     let currentEntries = structuredClone(entries);
@@ -82,6 +102,15 @@ async function installTauriMock(page) {
           };
         }
         if (cmd === 'refresh_workspace') return structuredClone(sortEntries(currentEntries));
+        if (cmd === 'open_workspace_document') {
+          return {
+            status: 'editable',
+            document: { type: 'ideasketch', data: structuredClone(ideaSketchDocument) },
+          };
+        }
+        if (cmd === 'inspect_file') {
+          return { exists: true, modified: '2026-08-05T00:00:00.000Z', readOnly: false, size: 1024 };
+        }
         if (cmd === 'move_workspace_entry') {
           const entry = detachEntry(currentEntries, args.path);
           if (!entry) throw new Error(`Missing mock entry: ${args.path}`);
@@ -104,7 +133,7 @@ async function installTauriMock(page) {
         return null;
       },
     };
-  }, { entries: workspaceEntries });
+  }, { entries: workspaceEntries, ideaSketchDocument: createIdeaSketchMockDocument() });
 }
 
 async function dragRow(page, sourceName, targetIndex, targetRatio) {
@@ -237,6 +266,57 @@ test('Workspace drag completes in WebKit after React drop feedback updates', asy
       window.__b009Invokes.filter(({ cmd }) => cmd === 'open_workspace_document').length,
     );
     assert.equal(openCalls, 0);
+  } finally {
+    await browser?.close();
+    await server.close();
+  }
+});
+
+test('virtualized Page cards remain sortable in WebKit thumbnail mode', async (context) => {
+  if (!existsSync(webkit.executablePath())) {
+    context.skip('Playwright WebKit is not installed');
+    return;
+  }
+
+  const server = await createServer({
+    logLevel: 'silent',
+    server: { host: '127.0.0.1', port: 0, strictPort: false },
+  });
+  let browser;
+  try {
+    await server.listen();
+    const address = server.httpServer?.address();
+    assert.ok(address && typeof address === 'object');
+    browser = await webkit.launch({ headless: true });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await installTauriMock(page);
+    await page.goto(`http://127.0.0.1:${address.port}/`, { waitUntil: 'networkidle' });
+    await page.getByRole('button', { name: 'Open Workspace' }).click();
+    await page.getByRole('button', { name: 'Open a.is' }).click();
+
+    const nameView = page.getByRole('button', { name: 'Name view' });
+    await nameView.waitFor();
+    assert.equal(await nameView.getAttribute('aria-pressed'), 'true');
+    await page.getByRole('button', { name: 'Thumbnail view' }).click();
+    await page.getByText('Empty Page').first().waitFor();
+
+    const mountedCards = page.locator('[data-page-id]');
+    assert.ok(await mountedCards.count() < 40);
+
+    const source = await page.getByRole('button', { name: 'Drag Page 5' }).boundingBox();
+    const target = await page.locator('[data-page-id="page-4"]').boundingBox();
+    await dragBetweenBoxes(page, source, target, 0.5);
+
+    const pageFiveIndex = page.locator('[data-page-id="page-5"] .ideanote-page-organizer__index');
+    const deadline = Date.now() + 2_000;
+    while (Date.now() < deadline && await pageFiveIndex.textContent() !== '4') {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    assert.equal(await pageFiveIndex.textContent(), '4');
+    assert.equal(
+      await page.locator('[data-page-id="page-4"] .ideanote-page-organizer__index').textContent(),
+      '5',
+    );
   } finally {
     await browser?.close();
     await server.close();

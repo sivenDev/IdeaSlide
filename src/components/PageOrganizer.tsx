@@ -13,10 +13,14 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
-import { useState, type CSSProperties } from "react";
-import type { IdeaSketchPage } from "../types";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { GripVertical, Image, List, Pencil, Plus, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { usePageThumbnails, type PageThumbnailView } from "../hooks/usePageThumbnails";
 import { cn } from "../lib/cn";
+import type { EditorSlideDraft } from "../lib/editorSession";
+import { buildPageThumbnailDemands } from "../lib/pageThumbnailScheduler";
+import type { IdeaSketchPage } from "../types";
 import {
   Tooltip,
   TooltipContent,
@@ -24,9 +28,15 @@ import {
   TooltipTrigger,
 } from "./ui/Tooltip";
 
+export type PageViewMode = "name" | "thumbnail";
+
+const NAME_ITEM_SIZE = 36;
+const THUMBNAIL_ITEM_SIZE = 160;
+
 interface PageOrganizerProps {
   pages: IdeaSketchPage[];
   activePageId: string;
+  activeDraft: EditorSlideDraft;
   readOnly?: boolean;
   onSelect: (pageId: string) => void;
   onAdd: () => void;
@@ -43,12 +53,41 @@ interface SortablePageRowProps {
   editingTitle: string;
   pagesCount: number;
   readOnly: boolean;
+  viewMode: PageViewMode;
+  thumbnail?: PageThumbnailView;
   onSelect: () => void;
   onEditingTitleChange: (title: string) => void;
   onCommitRename: () => void;
   onCancelRename: () => void;
   onStartRename: () => void;
   onDelete: () => void;
+}
+
+function PageThumbnailPreview({ page, thumbnail }: {
+  page: IdeaSketchPage;
+  thumbnail?: PageThumbnailView;
+}) {
+  if (thumbnail?.status === "ready" && thumbnail.url) {
+    return (
+      <img
+        src={thumbnail.url}
+        alt=""
+        loading="lazy"
+        decoding="async"
+      />
+    );
+  }
+  if (thumbnail?.status === "error") {
+    return <span className="ideanote-page-organizer__preview-state">Preview unavailable</span>;
+  }
+  if (thumbnail?.status === "empty") {
+    return <span className="ideanote-page-organizer__preview-state">Empty Page</span>;
+  }
+  return (
+    <span className="ideanote-page-organizer__preview-state is-loading" aria-label={`Loading preview for ${page.title}`}>
+      Generating preview
+    </span>
+  );
 }
 
 function SortablePageRow({
@@ -59,6 +98,8 @@ function SortablePageRow({
   editingTitle,
   pagesCount,
   readOnly,
+  viewMode,
+  thumbnail,
   onSelect,
   onEditingTitleChange,
   onCommitRename,
@@ -76,15 +117,32 @@ function SortablePageRow({
     opacity: sortable.isDragging ? 0.72 : undefined,
   };
 
+  const renameInput = (
+    <input
+      autoFocus
+      value={editingTitle}
+      aria-label={"Rename " + page.title}
+      onChange={(event) => onEditingTitleChange(event.target.value)}
+      onClick={(event) => event.stopPropagation()}
+      onBlur={onCommitRename}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") onCommitRename();
+        if (event.key === "Escape") onCancelRename();
+      }}
+    />
+  );
+
   return (
     <div
       ref={sortable.setNodeRef}
       style={style}
       className={cn(
         "ideanote-page-organizer__row",
+        viewMode === "thumbnail" && "is-thumbnail",
         active && "is-active",
         sortable.isDragging && "is-dragging",
       )}
+      data-page-id={page.id}
     >
       {!readOnly && !editing && (
         <button
@@ -98,21 +156,30 @@ function SortablePageRow({
           <GripVertical aria-hidden="true" />
         </button>
       )}
-      {editing ? (
+
+      {viewMode === "thumbnail" ? (
+        <>
+          <button
+            type="button"
+            className="ideanote-page-organizer__preview"
+            aria-label={"Select " + page.title}
+            onClick={onSelect}
+          >
+            <PageThumbnailPreview page={page} thumbnail={thumbnail} />
+          </button>
+          <div className="ideanote-page-organizer__caption">
+            <span className="ideanote-page-organizer__index">{index + 1}</span>
+            {editing ? renameInput : (
+              <button type="button" className="ideanote-page-organizer__title" onClick={onSelect}>
+                <span className="truncate">{page.title}</span>
+              </button>
+            )}
+          </div>
+        </>
+      ) : editing ? (
         <div className="ideanote-page-organizer__select">
           <span className="ideanote-page-organizer__index">{index + 1}</span>
-          <input
-            autoFocus
-            value={editingTitle}
-            aria-label={"Rename " + page.title}
-            onChange={(event) => onEditingTitleChange(event.target.value)}
-            onClick={(event) => event.stopPropagation()}
-            onBlur={onCommitRename}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") onCommitRename();
-              if (event.key === "Escape") onCancelRename();
-            }}
-          />
+          {renameInput}
         </div>
       ) : (
         <button type="button" className="ideanote-page-organizer__select" onClick={onSelect}>
@@ -120,6 +187,7 @@ function SortablePageRow({
           <span className="truncate">{page.title}</span>
         </button>
       )}
+
       {!readOnly && !editing && (
         <div className="ideanote-page-organizer__actions">
           <button type="button" aria-label={"Rename " + page.title} onClick={onStartRename}>
@@ -142,6 +210,7 @@ function SortablePageRow({
 export function PageOrganizer({
   pages,
   activePageId,
+  activeDraft,
   readOnly = false,
   onSelect,
   onAdd,
@@ -149,12 +218,64 @@ export function PageOrganizer({
   onReorder,
   onDelete,
 }: PageOrganizerProps) {
+  const [viewMode, setViewMode] = useState<PageViewMode>("name");
   const [editingPageId, setEditingPageId] = useState<string>();
   const [editingTitle, setEditingTitle] = useState("");
+  const [draggingPageId, setDraggingPageId] = useState<string>();
+  const [pointerActive, setPointerActive] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const pageIds = useMemo(() => pages.map((page) => page.id), [pages]);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
+  const virtualizer = useVirtualizer({
+    count: pages.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => viewMode === "name" ? NAME_ITEM_SIZE : THUMBNAIL_ITEM_SIZE,
+    getItemKey: (index) => pageIds[index] ?? index,
+    overscan: 4,
+  });
+  const virtualItems = virtualizer.getVirtualItems();
+  const virtualIndexKey = virtualItems.map((item) => item.index).join(",");
+  const visibleStartIndex = virtualizer.range?.startIndex ?? virtualItems[0]?.index ?? 0;
+  const visibleEndIndex = virtualizer.range?.endIndex
+    ?? virtualItems[virtualItems.length - 1]?.index
+    ?? -1;
+  const demands = useMemo(() => viewMode === "thumbnail"
+    ? buildPageThumbnailDemands(
+      pageIds,
+      virtualItems.map((item) => item.index),
+      { startIndex: visibleStartIndex, endIndex: visibleEndIndex },
+      activePageId,
+    )
+    : [], [activePageId, pageIds, viewMode, virtualIndexKey, visibleEndIndex, visibleStartIndex]);
+  const thumbnailPaused = Boolean(editingPageId || draggingPageId || pointerActive);
+  const thumbnails = usePageThumbnails({
+    pages,
+    activePageId,
+    activeDraft,
+    demands,
+    enabled: viewMode === "thumbnail",
+    paused: thumbnailPaused,
+  });
+
+  useEffect(() => {
+    virtualizer.measure();
+    const activeIndex = pageIds.indexOf(activePageId);
+    if (activeIndex >= 0) virtualizer.scrollToIndex(activeIndex, { align: "auto" });
+  }, [activePageId, pageIds, viewMode, virtualizer]);
+
+  useEffect(() => {
+    if (!pointerActive) return;
+    const releasePointer = () => setPointerActive(false);
+    window.addEventListener("pointerup", releasePointer, { once: true });
+    window.addEventListener("pointercancel", releasePointer, { once: true });
+    return () => {
+      window.removeEventListener("pointerup", releasePointer);
+      window.removeEventListener("pointercancel", releasePointer);
+    };
+  }, [pointerActive]);
 
   const commitRename = () => {
     if (editingPageId && editingTitle.trim()) onRename(editingPageId, editingTitle);
@@ -162,6 +283,7 @@ export function PageOrganizer({
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
+    setDraggingPageId(undefined);
     if (readOnly || !event.over || event.active.id === event.over.id) return;
     const fromIndex = pages.findIndex((page) => page.id === event.active.id);
     const toIndex = pages.findIndex((page) => page.id === event.over?.id);
@@ -169,10 +291,48 @@ export function PageOrganizer({
   };
 
   return (
-    <section className="ideanote-page-organizer" aria-label="Pages">
+    <section
+      className="ideanote-page-organizer"
+      aria-label="Pages"
+      data-thumbnail-demand-count={demands.length}
+      data-thumbnail-paused={thumbnailPaused ? "true" : "false"}
+      onPointerDownCapture={() => setPointerActive(true)}
+      onPointerUpCapture={() => setPointerActive(false)}
+      onPointerCancelCapture={() => setPointerActive(false)}
+    >
       <div className="idea-slide-navigator-toolbar">
-        <span className="idea-slide-navigator-toolbar__context">Current document</span>
+        <span className="idea-slide-navigator-toolbar__context">View</span>
         <TooltipProvider>
+          <div className="ideanote-page-organizer__view-switch" role="group" aria-label="Page view">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Name view"
+                  aria-pressed={viewMode === "name"}
+                  className={cn(viewMode === "name" && "is-active")}
+                  onClick={() => setViewMode("name")}
+                >
+                  <List aria-hidden="true" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Name view</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Thumbnail view"
+                  aria-pressed={viewMode === "thumbnail"}
+                  className={cn(viewMode === "thumbnail" && "is-active")}
+                  onClick={() => setViewMode("thumbnail")}
+                >
+                  <Image aria-hidden="true" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Thumbnail view</TooltipContent>
+            </Tooltip>
+          </div>
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -189,30 +349,58 @@ export function PageOrganizer({
           </Tooltip>
         </TooltipProvider>
       </div>
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={pages.map((page) => page.id)} strategy={verticalListSortingStrategy}>
-          <div className="ideanote-page-organizer__list idea-slide-side-panel__scroll">
-            {pages.map((page, index) => (
-              <SortablePageRow
-                key={page.id}
-                page={page}
-                index={index}
-                active={page.id === activePageId}
-                editing={page.id === editingPageId}
-                editingTitle={editingTitle}
-                pagesCount={pages.length}
-                readOnly={readOnly}
-                onSelect={() => onSelect(page.id)}
-                onEditingTitleChange={setEditingTitle}
-                onCommitRename={commitRename}
-                onCancelRename={() => setEditingPageId(undefined)}
-                onStartRename={() => {
-                  setEditingPageId(page.id);
-                  setEditingTitle(page.title);
-                }}
-                onDelete={() => onDelete(page.id)}
-              />
-            ))}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={(event) => setDraggingPageId(String(event.active.id))}
+        onDragCancel={() => setDraggingPageId(undefined)}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={pageIds} strategy={verticalListSortingStrategy}>
+          <div ref={scrollRef} className="ideanote-page-organizer__list idea-slide-side-panel__scroll">
+            <div
+              className="ideanote-page-organizer__virtual-canvas"
+              style={{ height: virtualizer.getTotalSize() }}
+            >
+              {virtualItems.map((virtualItem) => {
+                const page = pages[virtualItem.index];
+                if (!page) return null;
+                return (
+                  <div
+                    key={page.id}
+                    className={cn(
+                      "ideanote-page-organizer__virtual-item",
+                      viewMode === "thumbnail" && "is-thumbnail",
+                    )}
+                    style={{
+                      height: virtualItem.size,
+                      transform: `translateY(${virtualItem.start}px)`,
+                    }}
+                  >
+                    <SortablePageRow
+                      page={page}
+                      index={virtualItem.index}
+                      active={page.id === activePageId}
+                      editing={page.id === editingPageId}
+                      editingTitle={editingTitle}
+                      pagesCount={pages.length}
+                      readOnly={readOnly}
+                      viewMode={viewMode}
+                      thumbnail={thumbnails.get(page.id)}
+                      onSelect={() => onSelect(page.id)}
+                      onEditingTitleChange={setEditingTitle}
+                      onCommitRename={commitRename}
+                      onCancelRename={() => setEditingPageId(undefined)}
+                      onStartRename={() => {
+                        setEditingPageId(page.id);
+                        setEditingTitle(page.title);
+                      }}
+                      onDelete={() => onDelete(page.id)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </SortableContext>
       </DndContext>

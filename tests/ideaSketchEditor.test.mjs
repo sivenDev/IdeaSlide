@@ -28,7 +28,7 @@ test('Workspace-only autosave and Page-scoped Cameras remain inside IdeaSketch',
   assert.match(source, /const \[showNavigator, setShowNavigator\] = useState\(true\)/);
   assert.match(source, /navigatorTab/);
   assert.match(source, /model\.pages\.find/);
-  assert.doesNotMatch(source, /PageThumbnail/);
+  assert.match(source, /activePageDraft=\{draft\}/);
   assert.doesNotMatch(source, /ideanote-ideasketch-editor__chrome/);
   assert.doesNotMatch(source, /Show Pages\. Current Page/);
 });

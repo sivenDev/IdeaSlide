@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const source = await readFile(new URL('../src/components/PageOrganizer.tsx', import.meta.url), 'utf8');
 
-test('Pages organizer is compact, thumbnail-free, and supports the complete v1 Page lifecycle', () => {
+test('Pages organizer supports both views and the complete v1 Page lifecycle', () => {
   assert.match(source, /aria-label="Pages"/);
   assert.match(source, /aria-label="Add Page"/);
   assert.match(source, /onRename/);
@@ -21,7 +21,9 @@ test('Pages organizer is compact, thumbnail-free, and supports the complete v1 P
   assert.match(source, /onSelect/);
   assert.doesNotMatch(source, /aria-expanded/);
   assert.doesNotMatch(source, /__popover/);
-  assert.doesNotMatch(source, /thumbnail/i);
+  assert.match(source, /thumbnail/i);
+  assert.match(source, /useVirtualizer/);
+  assert.match(source, /verticalListSortingStrategy/);
   assert.doesNotMatch(source, /PAGE_DRAG_MIME/);
   assert.doesNotMatch(source, /draggable=/);
   assert.doesNotMatch(source, /dataTransfer/);
