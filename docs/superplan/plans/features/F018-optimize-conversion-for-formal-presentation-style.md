@@ -2,7 +2,7 @@
 id: "F018"
 title: "Optimize Conversion for Formal Presentation Style"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Make converted Excalidraw selections precise, sharp, and visually consistent for formal presentations."
 source: "docs/superplan/human/features.md"
 created: "2026-08-05"
@@ -37,8 +37,8 @@ parent: ""
 - `node --test tests/excalidrawStyleConversion.test.mjs`
 - Cases: rounded rectangle and diamond; ellipse; dashed/rounded line and arrow; semi-transparent text; already-formal selection; mixed image/freehand/Camera/unsupported selection; Current Page preservation; New Page omission; colors, geometry, grouping, bindings, and source immutability.
 
-- [ ] Replace the loose clean-style expectations with an exact formal-presentation contract.
-- [ ] Implement one shared formal policy and strict freehand classification without changing relationship or file behavior.
+- [x] Replace the loose clean-style expectations with an exact formal-presentation contract.
+- [x] Implement one shared formal policy and strict freehand classification without changing relationship or file behavior.
 
 ## Task 2: Preserve the Existing Editor Workflow and Explain Skips Clearly
 
@@ -57,8 +57,8 @@ parent: ""
 - `node --test tests/excalidrawStyleConversion.test.mjs tests/ideaSketchEditor.test.mjs tests/canvasSelectionActions.test.mjs tests/excalidrawMainMenu.test.mjs tests/slideCanvasProps.test.mjs`
 - Browser cases: convert a deliberately rough rounded diagram on Current Page and Undo; create a New Page from mixed shapes, text, image, and freehand; compare source/destination; verify freehand reporting, sharp corners, consistent stroke/opacity, text layout, and no console errors.
 
-- [ ] Update summary and editor contracts to match the stricter classification.
-- [ ] Verify both targets visually against a formal-presentation reference selection.
+- [x] Update summary and editor contracts to match the stricter classification.
+- [x] Verify both targets visually against a formal-presentation reference selection.
 
 ## Task 3: Verify and Deliver F018
 
@@ -81,8 +81,15 @@ parent: ""
 - Browser acceptance at normal and 1024×768 editor widths, including Current Page Undo, New Page isolation, mixed freehand reporting, presentation preview, and console logs.
 - `git diff --check`
 
-- [ ] Complete the focused and full verification matrix with no new warnings or regressions.
-- [ ] Mark F018 complete, refresh Superplan progress, and create a separate `feat(F018)` commit.
+**Evidence:**
+- Focused conversion and editor workflow suites passed 21/21; the complete frontend regression passed 200/200 and the Rust regression passed 85/85.
+- `npm run build` passed with only the existing Excalidraw import-overlap and large-chunk warnings.
+- Browser acceptance verified Current Page formalization and one-step Undo, New Page source isolation, omission of selected freehand content, exact Architect/Sharp/Solid/Bold/100% controls, visible `Convert style` placement at 1024×768, and formal output in presentation Preview. A fresh application tab reported no console errors.
+- A representative `.is v1` serialization/reopen smoke check preserved source roughness and roundness, kept source freehand, and reopened the destination with roughness `0`, solid fill/stroke, 2 px stroke, 100% opacity, null roundness, and no freehand element.
+- `git diff --check` passed, and converted colors, geometry, ordering, grouping, links, bindings, image files, Page identity, and source immutability remain covered by deterministic tests and the unchanged F017 workflow boundary.
+
+- [x] Complete the focused and full verification matrix with no new warnings or regressions.
+- [x] Mark F018 complete, refresh Superplan progress, and create a separate `feat(F018)` commit.
 
 ## References
 - `docs/superplan/human/features.md`

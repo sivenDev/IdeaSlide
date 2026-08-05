@@ -82,10 +82,14 @@ test('current Page conversion normalizes selected basic elements without mutatin
   assert.equal(result.elements[0].roughness, 0);
   assert.equal(result.elements[0].strokeStyle, 'solid');
   assert.equal(result.elements[0].fillStyle, 'solid');
+  assert.equal(result.elements[0].strokeWidth, 2);
+  assert.equal(result.elements[0].opacity, 100);
+  assert.equal(result.elements[0].roundness, null);
   assert.equal(result.elements[0].id, 'shape');
   assert.equal(result.elements[0].version, 2);
   assert.deepEqual(result.elements[0].boundElements, original[0].boundElements);
   assert.equal(result.elements[1].fontFamily, 2);
+  assert.equal(result.elements[1].opacity, 100);
   assert.equal(result.elements[1].containerId, 'shape');
   assert.deepEqual(result.convertedElementIds, { shape: true, label: true });
   assert.deepEqual(result.elements[2], original[2]);
@@ -142,6 +146,11 @@ test('new Page conversion remaps internal identities, detaches outside bindings,
   assert.notEqual(copiedShape.id, 'shape');
   assert.notEqual(copiedText.id, 'label');
   assert.equal(copiedText.containerId, copiedShape.id);
+  assert.equal(copiedShape.roundness, null);
+  assert.equal(copiedShape.opacity, 100);
+  assert.equal(copiedArrow.roundness, null);
+  assert.equal(copiedArrow.strokeWidth, 2);
+  assert.equal(copiedArrow.opacity, 100);
   assert.equal(copiedArrow.startBinding.elementId, copiedShape.id);
   assert.equal(copiedArrow.endBinding, null);
   assert.equal(copiedShape.groupIds[0], copiedText.groupIds[0]);
@@ -162,17 +171,29 @@ test('conversion availability requires a writable selection with at least one st
     roughness: 0,
     strokeStyle: 'solid',
     fillStyle: 'solid',
+    strokeWidth: 2,
+    opacity: 100,
+    roundness: null,
+  });
+  const rounded = element('rounded', 'rectangle', {
+    roughness: 0,
+    strokeStyle: 'solid',
+    fillStyle: 'solid',
+    strokeWidth: 2,
+    opacity: 100,
+    roundness: { type: 3 },
   });
   const camera = element('camera', 'rectangle', { customData: { type: 'camera', order: 1 } });
 
   assert.equal(getStyleConversionAvailability([rough], { rough: true }), true);
   assert.equal(getStyleConversionAvailability([clean], { clean: true }), false);
+  assert.equal(getStyleConversionAvailability([rounded], { rounded: true }), true);
   assert.equal(getStyleConversionAvailability([camera], { camera: true }), false);
   assert.equal(getStyleConversionAvailability([rough], {}), false);
   assert.equal(getStyleConversionAvailability([rough], { rough: true }, true), false);
 });
 
-test('mixed selections convert every supported geometry, retain freehand, and omit skipped or deleted copies', () => {
+test('mixed selections formalize supported geometry, retain images, and skip freehand or unsupported copies', () => {
   const scene = [
     element('ellipse', 'ellipse', { strokeColor: '#1971c2', opacity: 55 }),
     element('line', 'line', { points: [[0, 0], [80, 20]], backgroundColor: 'transparent' }),
@@ -185,13 +206,19 @@ test('mixed selections convert every supported geometry, retain freehand, and om
   const selected = Object.fromEntries(scene.map((item) => [item.id, true]));
 
   const current = buildCurrentPageStyleConversion(scene, selected, deterministic);
-  assert.deepEqual(current.summary, { converted: 2, retained: 2, skipped: 2 });
+  assert.deepEqual(current.summary, { converted: 2, retained: 1, skipped: 3 });
   assert.equal(current.elements[0].roughness, 0);
   assert.equal(current.elements[0].fillStyle, 'solid');
   assert.equal(current.elements[0].strokeColor, '#1971c2');
-  assert.equal(current.elements[0].opacity, 55);
+  assert.equal(current.elements[0].opacity, 100);
+  assert.equal(current.elements[0].strokeWidth, 2);
+  assert.equal(current.elements[0].roundness, null);
   assert.equal(current.elements[1].roughness, 0);
   assert.equal(current.elements[1].strokeStyle, 'solid');
+  assert.equal(current.elements[1].fillStyle, 'solid');
+  assert.equal(current.elements[1].strokeWidth, 2);
+  assert.equal(current.elements[1].opacity, 100);
+  assert.equal(current.elements[1].roundness, null);
   assert.equal(current.elements[2], scene[2]);
   assert.equal(current.elements[3], scene[3]);
   assert.equal(current.elements[4], scene[4]);
@@ -204,14 +231,14 @@ test('mixed selections convert every supported geometry, retain freehand, and om
     { 'file-1': { id: 'file-1', dataURL: 'data:image/png;base64,AA==' } },
     deterministic,
   );
-  assert.deepEqual(copied.summary, { converted: 2, retained: 2, skipped: 2 });
-  assert.deepEqual(copied.elements.map((item) => item.type), ['ellipse', 'line', 'freedraw', 'image']);
+  assert.deepEqual(copied.summary, { converted: 2, retained: 1, skipped: 3 });
+  assert.deepEqual(copied.elements.map((item) => item.type), ['ellipse', 'line', 'image']);
   assert.deepEqual(Object.keys(copied.files), ['file-1']);
 });
 
 test('conversion summary is concise and stable', () => {
   assert.equal(
     formatStyleConversionSummary({ converted: 3, retained: 1, skipped: 2 }),
-    'Converted 3 elements. Kept 1 unchanged. Skipped 2 unsupported elements.',
+    'Converted 3 elements. Kept 1 unchanged. Skipped 2 elements that could not be formalized.',
   );
 });

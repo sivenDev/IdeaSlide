@@ -143,7 +143,7 @@ Add an IdeaSketch editor action that converts selected Excalidraw elements to a 
 
 ## F018: Optimize conversion for formal presentation style
 
-- status: accepted
+- status: done
 - created: 2026-08-05
 
 Strengthen the existing Excalidraw selection conversion so converted supported elements have no hand-drawn appearance and look precise, consistent, and suitable for formal presentations. Use a deterministic formal-style policy for geometry, strokes, fills, opacity, corners, arrows, and typography; clearly classify content such as freehand drawing that cannot be made formal without redrawing. Preserve editable Excalidraw output and the existing Current Page/New Page workflow rather than generating draw.io files.

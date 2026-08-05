@@ -24,8 +24,10 @@ export interface NewPageStyleConversionResult extends StyleConversionResult {
 }
 
 const CONVERTIBLE_TYPES = new Set(["rectangle", "ellipse", "diamond", "text", "line", "arrow"]);
-const RETAINED_TYPES = new Set(["image", "freedraw"]);
+const RETAINED_TYPES = new Set(["image"]);
 const HELVETICA_FONT_FAMILY = 2;
+const FORMAL_STROKE_WIDTH = 2;
+const FORMAL_OPACITY = 100;
 
 function defaultRuntime(): StyleConversionRuntime {
   return {
@@ -97,17 +99,35 @@ function collectSelectionClosure(
   return closure;
 }
 
-function getCleanStyleUpdates(element: any) {
+function getFormalStyleUpdates(element: any) {
   switch (element?.type) {
     case "rectangle":
     case "ellipse":
     case "diamond":
-      return { roughness: 0, strokeStyle: "solid", fillStyle: "solid" };
+      return {
+        roughness: 0,
+        strokeStyle: "solid",
+        fillStyle: "solid",
+        strokeWidth: FORMAL_STROKE_WIDTH,
+        opacity: FORMAL_OPACITY,
+        roundness: null,
+      };
     case "line":
     case "arrow":
-      return { roughness: 0, strokeStyle: "solid" };
+      return {
+        roughness: 0,
+        strokeStyle: "solid",
+        fillStyle: "solid",
+        strokeWidth: FORMAL_STROKE_WIDTH,
+        opacity: FORMAL_OPACITY,
+        roundness: null,
+      };
     case "text":
-      return { roughness: 0, fontFamily: HELVETICA_FONT_FAMILY };
+      return {
+        roughness: 0,
+        fontFamily: HELVETICA_FONT_FAMILY,
+        opacity: FORMAL_OPACITY,
+      };
     default:
       return {};
   }
@@ -115,7 +135,7 @@ function getCleanStyleUpdates(element: any) {
 
 function hasStyleDelta(element: any) {
   if (!CONVERTIBLE_TYPES.has(element?.type) || isCameraElement(element)) return false;
-  return Object.entries(getCleanStyleUpdates(element)).some(([key, value]) => element[key] !== value);
+  return Object.entries(getFormalStyleUpdates(element)).some(([key, value]) => element[key] !== value);
 }
 
 function getClassification(element: any) {
@@ -185,7 +205,7 @@ export function buildCurrentPageStyleConversion(
   return {
     elements: elements.map((element) => {
       if (!closure.has(element.id) || !hasStyleDelta(element)) return element;
-      return versionElement(element, getCleanStyleUpdates(element), runtime);
+      return versionElement(element, getFormalStyleUpdates(element), runtime);
     }),
     selectedElementIds: { ...(selectedElementIds ?? {}) },
     convertedElementIds: Object.fromEntries(
@@ -220,7 +240,7 @@ export function buildNewPageStyleConversion(
 
   const nextElements = included.map((element) => {
     const copied = structuredClone(element);
-    const updates = CONVERTIBLE_TYPES.has(element.type) ? getCleanStyleUpdates(element) : {};
+    const updates = CONVERTIBLE_TYPES.has(element.type) ? getFormalStyleUpdates(element) : {};
     const next = {
       ...copied,
       ...updates,
@@ -272,6 +292,6 @@ export function formatStyleConversionSummary(summary: StyleConversionSummary) {
   return [
     `Converted ${summary.converted} ${elementLabel(summary.converted)}.`,
     `Kept ${summary.retained} unchanged.`,
-    `Skipped ${summary.skipped} unsupported ${elementLabel(summary.skipped)}.`,
+    `Skipped ${summary.skipped} ${elementLabel(summary.skipped)} that could not be formalized.`,
   ].join(" ");
 }
