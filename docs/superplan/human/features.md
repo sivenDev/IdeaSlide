@@ -136,7 +136,7 @@ Replace the Open Workspace and Open File character glyphs on the IdeaNote Home s
 
 ## F017: Convert selected Excalidraw elements to draw.io
 
-- status: proposed
+- status: accepted
 - created: 2026-08-05
 
-Add an IdeaSketch editor action for selected Excalidraw elements. After conversion, let the user choose whether the result is generated on the current Page or on a newly created Page. The requirement review must confirm whether “draw.io” means a draw.io-like visual style that remains editable as Excalidraw elements, or an actual draw.io/mxGraph document; it must also define whether current-Page conversion replaces or duplicates the source, the supported element types, handling of bindings/groups/images/freehand content, and behavior for unsupported elements.
+Add an IdeaSketch editor action that converts selected Excalidraw elements to a deterministic, clean draw.io-like visual style while keeping the result as editable Excalidraw elements inside the existing `.is` format. The action is available only for an editable non-empty selection and offers two targets: replace the selected elements in place on the current Page with Undo support, or create and switch to a new Page containing a converted copy while leaving the source Page unchanged; New Page is the safer default. Preserve geometry, colors, z-order, grouping, text and internal bindings where supported; normalize sketch roughness, line/fill treatment, and typography. Fully support basic shapes, text, lines, and arrows; retain images and freehand content unchanged with a conversion summary; exclude Camera and unsupported embedded/magic elements without data loss. Do not generate draw.io/mxGraph XML, add a draw.io editor, use AI redrawing, or change the `.is` Page content type.
