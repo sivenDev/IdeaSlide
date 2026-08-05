@@ -7,7 +7,7 @@
 | Type | Plans | Complete |
 | --- | --- | --- |
 | `required` | 6 | 6 |
-| `feature` | 15 | 15 |
+| `feature` | 16 | 16 |
 | `bugfix` | 14 | 14 |
 
 ## Execution Order
@@ -51,6 +51,7 @@
 | `F013` | [Compact Workspace and Navigator Layout](features/F013-compact-workspace-and-navigator-layout.md) | `complete` | 2026-08-04 |
 | `F014` | [Simplify File and Navigator Controls](features/F014-simplify-file-and-navigator-controls.md) | `complete` | 2026-08-04 |
 | `F015` | [Select the Workspace Filename Stem During Rename](features/F015-select-workspace-filename-stem.md) | `complete` | 2026-08-05 |
+| `F016` | [Refine Launch Actions and Add Recent Workspaces](features/F016-refine-launch-actions-and-add-recent-workspaces.md) | `complete` | 2026-08-05 |
 
 ### Bugfix Plans
 

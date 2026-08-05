@@ -1,14 +1,30 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { getRecentFiles, removeRecentFile } from "../lib/tauriCommands";
-import type { RecentFile } from "../types";
+import { FileInput, FolderOpen, X } from "lucide-react";
+import {
+  getRecentFiles,
+  getRecentWorkspaces,
+  removeRecentFile,
+  removeRecentWorkspace,
+} from "../lib/tauriCommands";
+import type { RecentFile, RecentWorkspace } from "../types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/Tabs";
+
+type RecentTab = "workspaces" | "files";
 
 interface LaunchScreenProps {
   onNewFile: () => Promise<void> | void;
   onOpenWorkspace: () => Promise<void> | void;
   onOpenFile: () => Promise<void> | void;
-  onOpenRecent: (path: string) => Promise<void> | void;
+  onOpenRecentWorkspace: (path: string) => Promise<void> | void;
+  onOpenRecentFile: (path: string) => Promise<void> | void;
 }
+
+const launchActionIconProps = {
+  "aria-hidden": true,
+  size: 18,
+  strokeWidth: 1.8,
+} as const;
 
 function formatRelativeTime(isoString: string): string {
   const timestamp = new Date(isoString).getTime();
@@ -21,14 +37,35 @@ function formatRelativeTime(isoString: string): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-export function LaunchScreen({ onNewFile, onOpenWorkspace, onOpenFile, onOpenRecent }: LaunchScreenProps) {
+export function LaunchScreen({
+  onNewFile,
+  onOpenWorkspace,
+  onOpenFile,
+  onOpenRecentWorkspace,
+  onOpenRecentFile,
+}: LaunchScreenProps) {
+  const [recentWorkspaces, setRecentWorkspaces] = useState<RecentWorkspace[]>([]);
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
+  const [activeRecentTab, setActiveRecentTab] = useState<RecentTab>("files");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
 
   useEffect(() => {
-    getRecentFiles().then(setRecentFiles).finally(() => setLoading(false));
+    let active = true;
+    Promise.all([getRecentWorkspaces(), getRecentFiles()])
+      .then(([workspaces, files]) => {
+        if (!active) return;
+        setRecentWorkspaces(workspaces);
+        setRecentFiles(files);
+        if (files.length === 0 && workspaces.length > 0) setActiveRecentTab("workspaces");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const run = async (action: () => Promise<void> | void) => {
@@ -65,10 +102,10 @@ export function LaunchScreen({ onNewFile, onOpenWorkspace, onOpenFile, onOpenRec
               <span className="text-lg">＋</span><span>New File</span>
             </button>
             <button type="button" onClick={() => void run(onOpenWorkspace)} className="flex items-center gap-3 rounded-xl border border-white/15 bg-white/[0.09] px-5 py-3 text-left text-sm font-medium transition hover:bg-white/15">
-              <span className="text-base">▱</span><span>Open Workspace</span>
+              <FolderOpen {...launchActionIconProps} /><span>Open Workspace</span>
             </button>
             <button type="button" onClick={() => void run(onOpenFile)} className="flex items-center gap-3 rounded-xl border border-white/15 bg-white/[0.06] px-5 py-3 text-left text-sm font-medium transition hover:bg-white/12">
-              <span className="text-base">◇</span><span>Open File</span>
+              <FileInput {...launchActionIconProps} /><span>Open File</span>
             </button>
           </div>
         </div>
@@ -76,31 +113,82 @@ export function LaunchScreen({ onNewFile, onOpenWorkspace, onOpenFile, onOpenRec
       </section>
 
       <section className={`flex min-w-0 flex-1 flex-col bg-white px-10 pb-8 ${isMac ? "pt-16" : "pt-12"}`} data-no-drag>
-        <div className="flex items-end justify-between border-b border-gray-100 pb-4">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-900">Recent Files</h2>
-            <p className="mt-1 text-xs text-gray-400">Standalone IdeaSketch documents</p>
+        <Tabs
+          value={activeRecentTab}
+          onValueChange={(value) => setActiveRecentTab(value as RecentTab)}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <div className="border-b border-gray-100">
+            <TabsList className="gap-6" aria-label="Recent items">
+              <TabsTrigger
+                value="files"
+                className="-mb-px gap-2 rounded-none border-x-0 border-t-0 border-b-2 border-transparent bg-transparent px-0 pb-3 pt-0 shadow-none hover:bg-transparent data-[state=active]:border-[#665fd8] data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+              >
+                <span>Recent Files</span>
+                <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-400">{recentFiles.length}</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="workspaces"
+                className="-mb-px gap-2 rounded-none border-x-0 border-t-0 border-b-2 border-transparent bg-transparent px-0 pb-3 pt-0 shadow-none hover:bg-transparent data-[state=active]:border-[#665fd8] data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+              >
+                <span>Recent Workspaces</span>
+                <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-400">{recentWorkspaces.length}</span>
+              </TabsTrigger>
+            </TabsList>
           </div>
-        </div>
-        <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
-          {loading ? <div className="py-8 text-sm text-gray-400">Loading…</div> : recentFiles.length === 0 ? (
-            <div className="py-12 text-center text-sm text-gray-400">No recent files yet.</div>
-          ) : recentFiles.map((file) => (
-            <div key={file.path} className="group flex items-center gap-3 rounded-lg px-3 py-3 hover:bg-gray-50">
-              <button type="button" className="min-w-0 flex-1 text-left" onClick={() => void run(() => onOpenRecent(file.path))}>
-                <div className="truncate text-sm font-medium text-gray-800">{file.name}</div>
-                <div className="mt-1 truncate text-xs text-gray-400">{file.path}</div>
-              </button>
-              <span className="text-[11px] text-gray-400">{formatRelativeTime(file.opened_at)}</span>
-              <button
-                type="button"
-                aria-label={`Remove ${file.name} from recent files`}
-                className="invisible flex h-6 w-6 items-center justify-center rounded-full text-gray-400 hover:bg-red-50 hover:text-red-600 group-hover:visible"
-                onClick={() => void removeRecentFile(file.path).then(() => setRecentFiles((files) => files.filter((item) => item.path !== file.path)))}
-              >×</button>
-            </div>
-          ))}
-        </div>
+
+          <TabsContent value="files" className="mt-0 min-h-0 flex-1 overflow-y-auto pt-3">
+            {loading ? <div className="py-8 text-sm text-gray-400">Loading…</div> : recentFiles.length === 0 ? (
+              <div className="py-16 text-center text-sm text-gray-400">No recent files yet.</div>
+            ) : recentFiles.map((file) => (
+              <div key={file.path} className="group flex items-center gap-3 rounded-lg px-3 py-3 hover:bg-gray-50 focus-within:bg-gray-50">
+                <button type="button" className="min-w-0 flex-1 text-left" onClick={() => void run(() => onOpenRecentFile(file.path))}>
+                  <div className="truncate text-sm font-medium text-gray-800">{file.name}</div>
+                  <div className="mt-1 truncate text-xs text-gray-400">{file.path}</div>
+                </button>
+                <span className="shrink-0 text-[11px] text-gray-400">{formatRelativeTime(file.opened_at)}</span>
+                <button
+                  type="button"
+                  aria-label={`Remove ${file.name} from recent files`}
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-gray-400 opacity-0 transition hover:bg-red-50 hover:text-red-600 focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100"
+                  onClick={() => void run(async () => {
+                    await removeRecentFile(file.path);
+                    const remaining = recentFiles.filter((item) => item.path !== file.path);
+                    setRecentFiles(remaining);
+                    if (remaining.length === 0 && recentWorkspaces.length > 0) setActiveRecentTab("workspaces");
+                  })}
+                >
+                  <X aria-hidden="true" size={14} strokeWidth={1.8} />
+                </button>
+              </div>
+            ))}
+          </TabsContent>
+
+          <TabsContent value="workspaces" className="mt-0 min-h-0 flex-1 overflow-y-auto pt-3">
+            {loading ? <div className="py-8 text-sm text-gray-400">Loading…</div> : recentWorkspaces.length === 0 ? (
+              <div className="py-16 text-center text-sm text-gray-400">No recent Workspaces yet.</div>
+            ) : recentWorkspaces.map((workspace) => (
+              <div key={workspace.path} className="group flex items-center gap-3 rounded-lg px-3 py-3 hover:bg-gray-50 focus-within:bg-gray-50">
+                <button type="button" className="min-w-0 flex-1 text-left" onClick={() => void run(() => onOpenRecentWorkspace(workspace.path))}>
+                  <div className="truncate text-sm font-medium text-gray-800">{workspace.name}</div>
+                  <div className="mt-1 truncate text-xs text-gray-400">{workspace.path}</div>
+                </button>
+                <span className="shrink-0 text-[11px] text-gray-400">{formatRelativeTime(workspace.opened_at)}</span>
+                <button
+                  type="button"
+                  aria-label={`Remove ${workspace.name} from recent Workspaces`}
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-gray-400 opacity-0 transition hover:bg-red-50 hover:text-red-600 focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100"
+                  onClick={() => void run(async () => {
+                    await removeRecentWorkspace(workspace.path);
+                    setRecentWorkspaces((items) => items.filter((item) => item.path !== workspace.path));
+                  })}
+                >
+                  <X aria-hidden="true" size={14} strokeWidth={1.8} />
+                </button>
+              </div>
+            ))}
+          </TabsContent>
+        </Tabs>
       </section>
     </div>
   );

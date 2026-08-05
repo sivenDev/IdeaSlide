@@ -111,8 +111,8 @@ function AppContent() {
     });
   }, [dispatch]);
 
-  const handleOpenWorkspace = useCallback(async () => {
-    const workspace = await openWorkspace();
+  const handleOpenWorkspace = useCallback(async (root?: string) => {
+    const workspace = await openWorkspace(root);
     const restored = restoreWorkspaceDocuments(workspace);
     dispatch({
       type: "OPEN_WORKSPACE",
@@ -212,7 +212,8 @@ function AppContent() {
         onNewFile={handleNewFile}
         onOpenWorkspace={handleOpenWorkspace}
         onOpenFile={handleOpenFile}
-        onOpenRecent={openStandalonePath}
+        onOpenRecentWorkspace={handleOpenWorkspace}
+        onOpenRecentFile={openStandalonePath}
       />
     );
   } else {

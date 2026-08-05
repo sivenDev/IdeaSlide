@@ -126,3 +126,10 @@ Remove the New File action from the top editor toolbar while keeping file creati
 - created: 2026-08-05
 
 When inline rename starts in the Workspace directory tree, match VS Code by initially selecting only a file's name before its final extension. Keep the extension visible and editable when the user deliberately changes the selection. Select the full name for directories, extensionless files, and leading-dot files. Apply the behavior consistently to F2, the Rename row action, and automatic rename after creating an entry.
+
+## F016: Refine launch actions and add recent workspaces
+
+- status: done
+- created: 2026-08-05
+
+Replace the Open Workspace and Open File character glyphs on the IdeaNote Home screen with clear Lucide icons consistent with the rest of the application. Add a Recent Workspaces section alongside Recent Files, persist successfully opened directory workspaces in global user configuration, reopen a workspace from its recent row, allow removing stale or unwanted workspace entries, filter paths that no longer exist, and preserve backward compatibility with existing recent-file configuration.

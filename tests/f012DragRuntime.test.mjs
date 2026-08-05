@@ -70,7 +70,7 @@ async function installTauriMock(page) {
       },
       async invoke(cmd, args = {}) {
         window.__b009Invokes.push({ cmd, args });
-        if (cmd === 'get_recent_files') return [];
+        if (cmd === 'get_recent_files' || cmd === 'get_recent_workspaces') return [];
         if (cmd === 'plugin:dialog|open') return '/mock-workspace';
         if (cmd === 'open_workspace') {
           return {

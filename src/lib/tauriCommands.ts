@@ -4,6 +4,7 @@ import type {
   DocumentModel,
   IdeaSketchDocument,
   RecentFile,
+  RecentWorkspace,
   Slide,
   WorkspaceEntry,
   WorkspaceChangeEvent,
@@ -180,6 +181,18 @@ export async function addRecentFile(path: string): Promise<void> {
 
 export async function removeRecentFile(path: string): Promise<void> {
   await invoke("remove_recent_file", { path });
+}
+
+export async function getRecentWorkspaces(): Promise<RecentWorkspace[]> {
+  try {
+    return await invoke<RecentWorkspace[]>("get_recent_workspaces");
+  } catch {
+    return [];
+  }
+}
+
+export async function removeRecentWorkspace(path: string): Promise<void> {
+  await invoke("remove_recent_workspace", { path });
 }
 
 export async function getOpenedFile(): Promise<string | null> {

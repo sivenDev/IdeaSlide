@@ -49,6 +49,12 @@ export interface RecentFile {
   opened_at: string;
 }
 
+export interface RecentWorkspace {
+  path: string;
+  name: string;
+  opened_at: string;
+}
+
 export interface FileManifest {
   version: string;
   slideCount: number;

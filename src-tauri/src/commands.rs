@@ -82,7 +82,11 @@ pub fn inspect_file(path: String) -> Result<FileInspection, String> {
 
 #[command]
 pub fn open_workspace(root: String) -> Result<WorkspaceOpenResult, String> {
-    WorkspaceService::open(PathBuf::from(root).as_path())?.open_result()
+    let result = WorkspaceService::open(PathBuf::from(root).as_path())?.open_result()?;
+    if let Err(error) = crate::recent_files::add_recent_workspace(result.root.clone()) {
+        eprintln!("[IdeaSlide] Failed to refresh recent Workspace entry after open: {error}");
+    }
+    Ok(result)
 }
 
 #[command]
@@ -178,7 +182,10 @@ mod tests {
 
     #[test]
     fn workspace_commands_open_create_and_refresh_without_hidden_metadata_entries() {
+        let _guard = crate::recent_files::config_env_lock().lock().unwrap();
+        let config_dir = TempDir::new().unwrap();
         let directory = TempDir::new().unwrap();
+        std::env::set_var("IDEASLIDE_CONFIG_DIR", config_dir.path());
         let root = directory.path().to_string_lossy().to_string();
         let opened = open_workspace(root.clone()).unwrap();
         assert!(opened.entries.is_empty());
@@ -191,6 +198,7 @@ mod tests {
         let entries = refresh_workspace(root).unwrap();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].name, "Untitled.is");
+        std::env::remove_var("IDEASLIDE_CONFIG_DIR");
     }
 
     #[test]
