@@ -145,3 +145,10 @@ When a dirty active Workspace file cannot be saved because of an external-change
 - created: 2026-08-05
 
 In a Workspace IdeaSketch file, make a persisted edit such as adding a Page and wait longer than the auto-save debounce. The .is archive is updated on disk, but the toolbar remains at Unsaved changes, the recovery draft remains, and the same unchanged document is written repeatedly. Expected: once the saved snapshot remains current, auto-save marks the document Saved, clears recovery, and stops writing until another persisted edit occurs.
+
+## B015: Enable Auto-save in Standalone File Mode
+
+- status: proposed
+- created: 2026-08-05
+
+When an existing editable IdeaSketch file is opened in Standalone (single-file) mode, persisted edits remain unsaved after the normal auto-save debounce and require a manual Save. Expected: writable existing standalone files use the same safe debounced auto-save behavior as Workspace files, while untitled, read-only, externally changed, conflicting, or missing targets remain protected.
