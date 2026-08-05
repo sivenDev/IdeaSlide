@@ -16,6 +16,26 @@ export interface InspectedFileState {
   readOnly: boolean;
 }
 
+export interface StandaloneInspectionOwnership {
+  observedGeneration: number;
+  currentGeneration: number;
+  writeInProgress: boolean;
+  expectedModified?: string;
+}
+
+export function isApplicationOwnedStandaloneInspection(
+  inspection: InspectedFileState,
+  ownership: StandaloneInspectionOwnership,
+): boolean {
+  if (ownership.writeInProgress || ownership.observedGeneration !== ownership.currentGeneration) {
+    return true;
+  }
+  return inspection.exists
+    && !inspection.readOnly
+    && Boolean(inspection.modified)
+    && inspection.modified === ownership.expectedModified;
+}
+
 function pathWithin(path: string, parent: string): boolean {
   return path === parent || path.startsWith(`${parent}/`);
 }

@@ -139,7 +139,7 @@ export function IdeaSketchEditor({
   }, [document.id, flushAndGetDocument, onRegisterSnapshot]);
 
   useAutoSave({
-    enabled: document.mode === "workspace" && !readOnly && document.status === "editable",
+    enabled: Boolean(document.filePath) && !readOnly && document.status === "editable",
     sessionId: document.id,
     filePath: document.filePath,
     revision: autoSaveVersion,

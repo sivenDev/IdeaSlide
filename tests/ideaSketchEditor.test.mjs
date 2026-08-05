@@ -19,8 +19,9 @@ test('IdeaSketch editor binds Excalidraw drafts to document and Page identity', 
   assert.doesNotMatch(canvas, /slideId=\{activePage\.id\}/);
 });
 
-test('Workspace-only autosave and Page-scoped Cameras remain inside IdeaSketch', () => {
-  assert.match(source, /document\.mode === "workspace"/);
+test('saved editable documents autosave in both modes while Page-scoped Cameras remain inside IdeaSketch', () => {
+  assert.match(source, /enabled: Boolean\(document\.filePath\) && !readOnly && document\.status === "editable"/);
+  assert.doesNotMatch(source, /enabled: document\.mode === "workspace"/);
   assert.match(source, /<SlideCanvas/);
   assert.match(source, /<IdeaSketchNavigator/);
   assert.match(source, /<ResizableDivider side="right"/);

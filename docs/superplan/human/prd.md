@@ -360,7 +360,7 @@ Single File Mode：
 - Save 写回当前真实路径。
 - Save As 写入新路径并更新当前 Session。
 - 未保存关闭时提示 Save、Discard 或 Cancel。
-- 应保存 Recovery Draft，但在用户未选择自动保存策略前不能静默覆盖原文件。
+- 已有真实路径且可写的文件使用防抖自动保存；未命名、只读、丢失、冲突或检测到外部修改的文件仍要求用户显式处理。
 - 检测到外部修改时，不得直接覆盖；至少提供 Reload、Save As 或 Cancel。
 
 ### 9.3 双模式、单内核
@@ -781,7 +781,7 @@ IdeaSketch (.is)
 1. 用户可见产品名称改为 `IdeaNote`；当前 MVP 不迁移仓库名、Cargo/npm package name、Bundle ID 或用户数据目录，避免把产品重构与安装迁移混在一起。
 2. `.ideanote/workspace.json` 使用 `schemaVersion: 1`，保存稳定的 `workspaceId`、创建/更新时间和 Workspace 级设置；新的 `.ideanote/state.json` 使用 `schemaVersion: 2`，保存相对路径形式的最后活动文件和 Explorer 状态。读取器继续兼容旧 `schemaVersion: 1` 的 `openTabs`/`activePath`，但只恢复一个活动文件，且仅打开 Workspace 不触发元数据重写。
 3. 第一版使用单个 `state.json`，并由 `.ideanote/.gitignore` 忽略 `state.json`、`recovery/`、`tmp/` 和 `cache/`；不修改 Workspace 根目录的 `.gitignore`。
-4. Workspace Mode 同时提供显式 Save 和防抖自动保存；Single File Mode 默认只显式保存，并使用 Recovery Draft 防止意外丢失。
+4. Workspace Mode 和 Single File Mode 都为已有真实路径且可写的文件提供显式 Save 与防抖自动保存；未命名或受保护的 Single File 仍只允许显式保存，并使用 Recovery Draft 防止意外丢失。
 5. 新建 IdeaSketch 默认名为 `Untitled.is`，冲突时使用递增后缀，并立即进入内联重命名。
 6. 单击受支持文件即使其成为唯一前台文件；目录单击只选择，展开/收起由目录箭头和键盘操作负责。
 7. 只挂载当前活动 Editor；干净的非活动 Session 可以释放，Dirty、冲突、丢失和 Recovery Session 保留必要模型与状态。当前阶段不增加文件前进/后退历史、快速打开、最近关闭文件或其他 Tab 替代导航。

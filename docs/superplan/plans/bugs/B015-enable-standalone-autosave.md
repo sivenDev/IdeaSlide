@@ -2,7 +2,7 @@
 id: "B015"
 title: "Enable Protected Auto-save for Standalone Files"
 type: "bugfix"
-status: "draft"
+status: "complete"
 summary: "Auto-save existing writable standalone files without weakening external-change, recovery, or untitled-file protections."
 source: "docs/superplan/human/bugs.md"
 created: "2026-08-05"
@@ -41,8 +41,8 @@ parent: ""
 - `node --test tests/ideaSketchEditor.test.mjs tests/autoSaveSignature.test.mjs tests/externalFileChanges.test.mjs tests/standaloneAutoSave.test.mjs`
 - Cases: existing standalone edit; untitled edit; read-only/conflict/missing target; self-write inspection during/after save; later external write; edit during in-flight auto-save.
 
-- [ ] Add a focused failing behavior contract for existing standalone auto-save and application-owned polling suppression.
-- [ ] Confirm the baseline fails because both editor eligibility and persistence routing are Workspace-only.
+- [x] Add a focused failing behavior contract for existing standalone auto-save and application-owned polling suppression.
+- [x] Confirm the baseline fails because both editor eligibility and persistence routing are Workspace-only.
 
 ## Task 2: Route Standalone Documents Through Safe Auto-save
 
@@ -63,8 +63,8 @@ parent: ""
 - Run the focused Task 1 suite.
 - Cases: one stable edit produces one write and reaches Saved; recovery clears only after stable completion; a concurrent real edit invalidates the older completion; own-write polling does not conflict; later external replacement does.
 
-- [ ] Implement the smallest adapter and polling-boundary changes without duplicating the editor or serializer.
-- [ ] Verify manual standalone Save/Save As and Workspace auto-save still use their established paths.
+- [x] Implement the smallest adapter and polling-boundary changes without duplicating the editor or serializer.
+- [x] Verify manual standalone Save/Save As and Workspace auto-save still use their established paths.
 
 ## Task 3: Align the Approved Policy and Deliver B015
 
@@ -87,8 +87,17 @@ parent: ""
 - `git diff --check`
 - Native Single File acceptance: open an existing writable `.is`, make one persisted edit, confirm one debounced archive update, `Saved`, and recovery deletion; wait idle and confirm stable mtime; make another edit and confirm one further save; verify no `.ideanote/`; verify untitled, external-change, read-only, and Save As paths remain protected.
 
-- [ ] Run focused checks while implementing and the full frontend/build/native matrix once the code stabilizes.
-- [ ] Review the final diff, complete B015, refresh progress, and create a separate `fix(B015)` commit.
+- [x] Run focused checks while implementing and the full frontend/build/native matrix once the code stabilizes.
+- [x] Review the final diff, complete B015, refresh progress, and create a separate `fix(B015)` commit.
+
+## Completion Evidence
+
+- Test-first reproduction: the focused suite failed on the baseline because `IdeaSketchEditor` still required `document.mode === "workspace"`, `EditorLayout.handleAutoSave` rejected standalone sessions, and no application-owned standalone inspection boundary existed.
+- Focused verification: `node --test tests/ideaSketchEditor.test.mjs tests/autoSaveSignature.test.mjs tests/editorSession.test.mjs tests/externalFileChanges.test.mjs tests/recovery.test.mjs tests/standaloneAutoSave.test.mjs tests/unsavedChanges.test.mjs` passed 40/40.
+- Full frontend verification: an isolated `node --test tests/*.test.mjs` run passed 216/216. An earlier run executed concurrently with the production build reported 215/216; no files changed before the isolated rerun passed, consistent with a timing-sensitive test under concurrent load.
+- Production and native builds: `npm run build` passed with only the existing Excalidraw mixed-import and chunk-size warnings, and `npm run tauri build -- --debug --bundles app` produced the current `IdeaNote.app` successfully.
+- Native standalone acceptance used `/tmp/ideanote-b015-native.8ryInk/B015.is`. The initial explicit save produced mtime `1785939276`; adding Page 2 auto-saved once to `1785939295`, reached `Saved`, cleared the matching recovery draft, and remained at `1785939295` through a further four-second idle interval. Adding Page 3 auto-saved once to `1785939361` and again reached `Saved`.
+- Native protection acceptance: the disposable Single File directory contained only `B015.is` and no `.ideanote/`. Externally touching the saved file changed mtime to `1785939391`; the next standalone poll displayed `File changed` with the established Reload/Keep editing actions, proving the self-write boundary did not hide the next genuine external modification.
 
 ## References
 

@@ -148,7 +148,7 @@ In a Workspace IdeaSketch file, make a persisted edit such as adding a Page and 
 
 ## B015: Enable Auto-save in Standalone File Mode
 
-- status: accepted
+- status: done
 - created: 2026-08-05
 
 When an existing editable IdeaSketch file is opened in Standalone (single-file) mode, persisted edits remain unsaved after the normal auto-save debounce and require a manual Save. Expected: writable existing standalone files use the same safe debounced auto-save behavior as Workspace files, while untitled, read-only, externally changed, conflicting, or missing targets remain protected.

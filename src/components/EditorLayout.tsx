@@ -41,7 +41,10 @@ import {
   clampWorkspacePanelWidth,
 } from "../lib/panelSizing";
 import { classifyRecoveryDraft, createRecoveryDraft, recoveryScopeForDocument, type RecoveryDraft } from "../lib/recovery";
-import { classifyInspectedDocument } from "../lib/externalFileChanges";
+import {
+  classifyInspectedDocument,
+  isApplicationOwnedStandaloneInspection,
+} from "../lib/externalFileChanges";
 import {
   resolveDirtyDocumentsSequentially,
   saveDirtyDocumentBeforeTransition,
@@ -113,6 +116,9 @@ export function EditorLayout({
   const [recoveryCandidate, setRecoveryCandidate] = useState<{ sessionId: string; draft: RecoveryDraft; sourceChanged: boolean }>();
   const documentSnapshotProviders = useRef(new Map<string, () => IdeaSketchDocument>());
   const pendingAutoSaveModified = useRef(new Map<string, string | undefined>());
+  const standaloneWriteGeneration = useRef(new Map<string, number>());
+  const standaloneWritesInProgress = useRef(new Map<string, number>());
+  const standaloneExpectedModified = useRef(new Map<string, string>());
   const checkedRecoveryKeys = useRef(new Set<string>());
   const closeInProgress = useRef(false);
   const latestDocuments = useRef(state.documents);
@@ -298,6 +304,34 @@ export function EditorLayout({
     return false;
   }, [dispatch, state.workspace]);
 
+  const saveStandaloneDocumentWithTracking = useCallback(async (
+    document: DocumentSession,
+    model: DocumentModel,
+    path = document.filePath,
+  ) => {
+    if (!path) throw new Error("Standalone save requires a file path");
+    const generation = (standaloneWriteGeneration.current.get(document.id) ?? 0) + 1;
+    standaloneWriteGeneration.current.set(document.id, generation);
+    standaloneWritesInProgress.current.set(
+      document.id,
+      (standaloneWritesInProgress.current.get(document.id) ?? 0) + 1,
+    );
+    try {
+      const inspection = await saveStandaloneDocument(path, model);
+      if (inspection.modified) standaloneExpectedModified.current.set(document.id, inspection.modified);
+      else standaloneExpectedModified.current.delete(document.id);
+      return inspection;
+    } finally {
+      const remaining = (standaloneWritesInProgress.current.get(document.id) ?? 1) - 1;
+      if (remaining > 0) standaloneWritesInProgress.current.set(document.id, remaining);
+      else standaloneWritesInProgress.current.delete(document.id);
+      standaloneWriteGeneration.current.set(
+        document.id,
+        (standaloneWriteGeneration.current.get(document.id) ?? generation) + 1,
+      );
+    }
+  }, []);
+
   useEffect(() => {
     if (!("__TAURI_INTERNALS__" in window)) return;
     let disposed = false;
@@ -308,8 +342,18 @@ export function EditorLayout({
         && !["loading", "legacy-protected", "unsupported", "invalid"].includes(document.status));
       await Promise.all(documents.map(async (document) => {
         try {
+          const expectedModified = standaloneExpectedModified.current.get(document.id);
+          if (expectedModified && document.sourceModified === expectedModified) {
+            standaloneExpectedModified.current.delete(document.id);
+          }
+          const observedGeneration = standaloneWriteGeneration.current.get(document.id) ?? 0;
           const inspection = await inspectFile(document.filePath);
-          if (disposed || classifyInspectedDocument(document, inspection).kind === "none") return;
+          if (disposed || isApplicationOwnedStandaloneInspection(inspection, {
+            observedGeneration,
+            currentGeneration: standaloneWriteGeneration.current.get(document.id) ?? 0,
+            writeInProgress: (standaloneWritesInProgress.current.get(document.id) ?? 0) > 0,
+            expectedModified: standaloneExpectedModified.current.get(document.id),
+          }) || classifyInspectedDocument(document, inspection).kind === "none") return;
           dispatch({ type: "APPLY_DOCUMENT_INSPECTION", sessionId: document.id, inspection });
           setHiddenExternalNotices((current) => {
             const next = new Set(current);
@@ -384,7 +428,7 @@ export function EditorLayout({
       let path = forceSaveAs ? "" : document.filePath;
       if (!path) path = await chooseStandaloneSavePath(document.displayName || "Untitled.is") ?? "";
       if (!path) return false;
-      const inspection = await saveStandaloneDocument(path, model);
+      const inspection = await saveStandaloneDocumentWithTracking(document, model, path);
       await clearRecoveryForDocument(document);
       dispatch({ type: "UPDATE_DOCUMENT_PATH", sessionId: document.id, filePath: path, mode: "standalone" });
       dispatch({ type: "MARK_DOCUMENT_SAVED", sessionId: document.id, sourceModified: inspection.modified ?? undefined });
@@ -396,7 +440,7 @@ export function EditorLayout({
     } finally {
       setIsSaving(false);
     }
-  }, [clearRecoveryForDocument, dispatch, inspectDocumentTarget, state.workspace]);
+  }, [clearRecoveryForDocument, dispatch, inspectDocumentTarget, saveStandaloneDocumentWithTracking, state.workspace]);
 
   const handleRegisterSnapshot = useCallback((sessionId: string, provider?: () => IdeaSketchDocument) => {
     if (provider) documentSnapshotProviders.current.set(sessionId, provider);
@@ -405,21 +449,35 @@ export function EditorLayout({
 
   const handleAutoSave = useCallback(async (sessionId: string, model: DocumentModel) => {
     const document = state.documents.find((candidate) => candidate.id === sessionId);
-    if (!document || document.mode !== "workspace" || !state.workspace || !document.filePath) return;
-    if (state.workspace.readOnly || !await inspectDocumentTarget(document)) {
+    if (!document || !document.filePath || document.status !== "editable") {
+      throw new Error("Auto-save requires an editable document with a saved path");
+    }
+    if (document.readOnly || (document.mode === "workspace" && (!state.workspace || state.workspace.readOnly))) {
+      throw new Error("Auto-save paused because the file is not writable");
+    }
+    if (!await inspectDocumentTarget(document)) {
       throw new Error("Auto-save paused because the file changed or is not writable");
     }
     setIsSaving(true);
     try {
-      const result = await saveWorkspaceDocument(state.workspace.root, document.filePath, model);
-      pendingAutoSaveModified.current.set(sessionId, result.sourceModified);
-      dispatch({ type: "SET_DOCUMENT_SOURCE_MODIFIED", sessionId, sourceModified: result.sourceModified });
-      if (!result.metadataError) dispatch({ type: "MARK_WORKSPACE_METADATA_EXISTS" });
-      if (result.metadataError) console.warn(`Workspace metadata was not updated: ${result.metadataError}`);
+      let sourceModified: string | undefined;
+      if (document.mode === "workspace") {
+        const workspace = state.workspace;
+        if (!workspace) throw new Error("Auto-save requires an open Workspace");
+        const result = await saveWorkspaceDocument(workspace.root, document.filePath, model);
+        sourceModified = result.sourceModified;
+        if (!result.metadataError) dispatch({ type: "MARK_WORKSPACE_METADATA_EXISTS" });
+        if (result.metadataError) console.warn(`Workspace metadata was not updated: ${result.metadataError}`);
+      } else {
+        const inspection = await saveStandaloneDocumentWithTracking(document, model);
+        sourceModified = inspection.modified ?? undefined;
+      }
+      pendingAutoSaveModified.current.set(sessionId, sourceModified);
+      dispatch({ type: "SET_DOCUMENT_SOURCE_MODIFIED", sessionId, sourceModified });
     } finally {
       setIsSaving(false);
     }
-  }, [dispatch, inspectDocumentTarget, state.documents, state.workspace]);
+  }, [dispatch, inspectDocumentTarget, saveStandaloneDocumentWithTracking, state.documents, state.workspace]);
 
   const handleAutoSaveComplete = useCallback(async (sessionId: string) => {
     const document = state.documents.find((candidate) => candidate.id === sessionId);

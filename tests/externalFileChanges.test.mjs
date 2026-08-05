@@ -4,6 +4,7 @@ import {
   applyWorkspaceTreeEvent,
   classifyExternalDocumentChange,
   classifyInspectedDocument,
+  isApplicationOwnedStandaloneInspection,
 } from '../src/lib/externalFileChanges.ts';
 
 const document = (overrides = {}) => ({
@@ -65,6 +66,47 @@ test('save-time and standalone inspections block missing, read-only, and changed
   assert.equal(classifyInspectedDocument(document(), { exists: true, readOnly: false, modified: 'after' }).status, 'external-change');
   assert.equal(classifyInspectedDocument(document({ isDirty: true }), { exists: true, readOnly: false, modified: 'after' }).status, 'conflict');
   assert.equal(classifyInspectedDocument(document(), { exists: true, readOnly: false, modified: 'before' }).kind, 'none');
+});
+
+test('standalone polling ignores only the application-owned write operation and result', () => {
+  const inspection = { exists: true, readOnly: false, modified: 'saved-by-app' };
+
+  assert.equal(isApplicationOwnedStandaloneInspection(inspection, {
+    observedGeneration: 2,
+    currentGeneration: 2,
+    writeInProgress: true,
+    expectedModified: undefined,
+  }), true);
+  assert.equal(isApplicationOwnedStandaloneInspection(inspection, {
+    observedGeneration: 1,
+    currentGeneration: 2,
+    writeInProgress: false,
+    expectedModified: undefined,
+  }), true);
+  assert.equal(isApplicationOwnedStandaloneInspection(inspection, {
+    observedGeneration: 2,
+    currentGeneration: 2,
+    writeInProgress: false,
+    expectedModified: 'saved-by-app',
+  }), true);
+  assert.equal(isApplicationOwnedStandaloneInspection({ ...inspection, modified: 'changed-externally' }, {
+    observedGeneration: 2,
+    currentGeneration: 2,
+    writeInProgress: false,
+    expectedModified: 'saved-by-app',
+  }), false);
+  assert.equal(isApplicationOwnedStandaloneInspection({ ...inspection, readOnly: true }, {
+    observedGeneration: 2,
+    currentGeneration: 2,
+    writeInProgress: false,
+    expectedModified: 'saved-by-app',
+  }), false);
+  assert.equal(isApplicationOwnedStandaloneInspection({ exists: false, readOnly: false }, {
+    observedGeneration: 2,
+    currentGeneration: 2,
+    writeInProgress: false,
+    expectedModified: 'saved-by-app',
+  }), false);
 });
 
 test('incremental tree events insert, replace, rename, and remove without rescanning bodies', () => {

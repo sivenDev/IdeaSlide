@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Draft | Complete |
-| --- | --- | --- | --- |
-| `required` | 6 | 0 | 6 |
-| `feature` | 19 | 0 | 19 |
-| `bugfix` | 15 | 1 | 14 |
+| Type | Plans | Complete |
+| --- | --- | --- |
+| `required` | 6 | 6 |
+| `feature` | 19 | 19 |
+| `bugfix` | 15 | 15 |
 
 ## Execution Order
 
@@ -74,4 +74,4 @@
 | `B012` | [Save the Active Document Before Switching Files](bugs/B012-save-active-document-before-switching.md) | `complete` | 2026-08-04 |
 | `B013` | [Keep Workspace Selection on the Active File When Switching Is Blocked](bugs/B013-keep-workspace-selection-on-blocked-switch.md) | `complete` | 2026-08-04 |
 | `B014` | [Finish Workspace Auto-save and Stop Repeat Writes](bugs/B014-fix-workspace-autosave-completion-loop.md) | `complete` | 2026-08-05 |
-| `B015` | [Enable Protected Auto-save for Standalone Files](bugs/B015-enable-standalone-autosave.md) | `draft` | 2026-08-05 |
+| `B015` | [Enable Protected Auto-save for Standalone Files](bugs/B015-enable-standalone-autosave.md) | `complete` | 2026-08-05 |

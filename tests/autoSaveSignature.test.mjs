@@ -24,6 +24,6 @@ test('autosave identity changes by document and draft revision', () => {
   assert.notEqual(buildAutoSaveTriggerKey(input()), buildAutoSaveTriggerKey(input({ revision: 5 })));
 });
 
-test('standalone policy can disable an otherwise dirty save trigger', () => {
+test('untitled or protected policy can disable an otherwise dirty save trigger', () => {
   assert.notEqual(buildAutoSaveTriggerKey(input()), buildAutoSaveTriggerKey(input({ enabled: false })));
 });
