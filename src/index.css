@@ -133,6 +133,11 @@ html, body, #root {
   box-shadow: 0 0 0 3px rgb(156 163 175 / 11%);
 }
 
+.idea-slide-save-indicator.is-dirty .idea-slide-save-indicator__label {
+  color: #d92d20;
+  font-weight: 600;
+}
+
 .idea-slide-save-indicator.is-saving .idea-slide-save-indicator__dot {
   background: #eab308;
   box-shadow: 0 0 0 3px rgb(234 179 8 / 11%);
@@ -141,6 +146,131 @@ html, body, #root {
 
 @keyframes idea-slide-save-pulse {
   50% { opacity: 0.45; }
+}
+
+.ideanote-unsaved-dialog__overlay {
+  position: fixed;
+  z-index: 2000;
+  inset: 0;
+  background: rgb(24 28 36 / 34%);
+  backdrop-filter: blur(4px);
+  animation: ideanote-unsaved-dialog-overlay-in 160ms ease-out;
+}
+
+.ideanote-unsaved-dialog__content {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 2001;
+  width: min(calc(100vw - 2rem), 30rem);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  border: 1px solid rgb(255 255 255 / 72%);
+  border-radius: 1.75rem;
+  color: #20242c;
+  background: #f7f7f8;
+  box-shadow: 0 30px 80px rgb(20 24 32 / 26%), 0 8px 24px rgb(20 24 32 / 14%);
+  outline: none;
+  padding: 2rem;
+  transform: translate(-50%, -50%);
+  animation: ideanote-unsaved-dialog-content-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ideanote-unsaved-dialog__title {
+  margin: 0;
+  color: #25282e;
+  font-size: 1.625rem;
+  font-weight: 720;
+  letter-spacing: -0.025em;
+  line-height: 1.18;
+}
+
+.ideanote-unsaved-dialog__description {
+  margin: 0.75rem 0 0;
+  color: #656a73;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.ideanote-unsaved-dialog__filename {
+  color: #35383f;
+  font-weight: 650;
+}
+
+.ideanote-unsaved-dialog__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+}
+
+.ideanote-unsaved-dialog__action {
+  display: inline-flex;
+  width: 100%;
+  height: 3.25rem;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  color: #292b30;
+  background: #e4e4e7;
+  cursor: pointer;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  outline: none;
+  transition: background 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+
+.ideanote-unsaved-dialog__action:hover {
+  background: #d9d9dd;
+}
+
+.ideanote-unsaved-dialog__action:active {
+  transform: translateY(1px);
+}
+
+.ideanote-unsaved-dialog__action:focus-visible {
+  box-shadow: 0 0 0 3px #f7f7f8, 0 0 0 6px rgb(10 124 255 / 48%);
+}
+
+.ideanote-unsaved-dialog__action.is-save {
+  color: #fff;
+  background: #0a7cff;
+  box-shadow: 0 8px 18px rgb(10 124 255 / 22%);
+}
+
+.ideanote-unsaved-dialog__action.is-save:hover {
+  background: #006fe8;
+}
+
+.ideanote-unsaved-dialog__action.is-discard {
+  background: #dedee1;
+}
+
+.ideanote-unsaved-dialog__action.is-cancel {
+  background: #e9e9eb;
+}
+
+@keyframes ideanote-unsaved-dialog-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ideanote-unsaved-dialog-content-in {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 10px)) scale(0.975); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ideanote-unsaved-dialog__overlay,
+  .ideanote-unsaved-dialog__content {
+    animation: none;
+  }
+
+  .ideanote-unsaved-dialog__action {
+    transition: none;
+  }
 }
 
 .idea-slide-side-panel {

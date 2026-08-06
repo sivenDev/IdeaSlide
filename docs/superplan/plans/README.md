@@ -7,7 +7,7 @@
 | Type | Plans | Complete |
 | --- | --- | --- |
 | `required` | 6 | 6 |
-| `feature` | 24 | 24 |
+| `feature` | 25 | 25 |
 | `bugfix` | 16 | 16 |
 
 ## Execution Order
@@ -60,6 +60,7 @@
 | `F022` | [Export Editor Content as draw.io](features/F022-export-editor-content-as-drawio.md) | `complete` | 2026-08-06 |
 | `F023` | [Normalize draw.io Export Style](features/F023-normalize-drawio-export-style.md) | `complete` | 2026-08-06 |
 | `F024` | [Optimize Large Excalidraw Viewport Interactions](features/F024-optimize-large-excalidraw-viewport-interactions.md) | `complete` | 2026-08-06 |
+| `F025` | [Replace Native Unsaved Prompts with a Three-action Dialog](features/F025-three-action-unsaved-changes-dialog.md) | `complete` | 2026-08-06 |
 
 ### Bugfix Plans
 

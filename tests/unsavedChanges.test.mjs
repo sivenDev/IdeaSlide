@@ -77,3 +77,20 @@ test('Workspace switching and creation are save-gated with no Save All path', as
   assert.doesNotMatch(editor, /saveCoordinator/);
   assert.doesNotMatch(editor, /event\.altKey/);
 });
+
+test('document close and session exit share one explicit three-result decision', async () => {
+  const editor = await readFile(new URL('../src/components/EditorLayout.tsx', import.meta.url), 'utf8');
+  const requestClose = editor.slice(editor.indexOf('const requestClose ='), editor.indexOf('const confirmSessionExit ='));
+  const confirmExit = editor.slice(editor.indexOf('const confirmSessionExit ='), editor.indexOf('const confirmSessionExitRef ='));
+
+  assert.match(requestClose, /requestUnsavedChangesDecision/);
+  assert.match(requestClose, /decision === "save"/);
+  assert.match(requestClose, /decision === "discard"/);
+  assert.match(requestClose, /clearRecoveryForDocument/);
+  assert.match(confirmExit, /requestUnsavedChangesDecision/);
+  assert.match(confirmExit, /decision === "save"/);
+  assert.match(confirmExit, /decision === "discard"/);
+  assert.match(confirmExit, /"cancelled"/);
+  assert.doesNotMatch(requestClose, /await ask\(/);
+  assert.doesNotMatch(confirmExit, /await ask\(/);
+});

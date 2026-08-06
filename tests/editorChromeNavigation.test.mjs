@@ -53,6 +53,8 @@ test('system file-open requests are coordinated by EditorLayout before replacing
 
 test('Toolbar keeps generic file commands and centered IdeaNote document title', async () => {
   const source = await readSource('src/components/Toolbar.tsx');
+  const saveIndicator = await readSource('src/components/SaveIndicator.tsx');
+  const styles = await readSource('src/index.css');
   const editor = await readSource('src/components/EditorLayout.tsx');
   const launch = await readSource('src/components/LaunchScreen.tsx');
   const workspace = await readSource('src/components/WorkspaceExplorer.tsx');
@@ -87,4 +89,8 @@ test('Toolbar keeps generic file commands and centered IdeaNote document title',
   assert.match(source, /fileType === "ideasketch"/);
   assert.doesNotMatch(source, /aria-label="Present"/);
   assert.doesNotMatch(source, /aria-label="Cameras"/);
+  assert.match(saveIndicator, /isDirty \? "dirty" : "saved"/);
+  assert.match(saveIndicator, /idea-slide-save-indicator is-\$\{state\}/);
+  assert.match(styles, /\.idea-slide-save-indicator\.is-dirty \.idea-slide-save-indicator__label\s*\{[\s\S]*?color:\s*#d92d20/i);
+  assert.match(styles, /\.idea-slide-save-indicator\.is-dirty \.idea-slide-save-indicator__label\s*\{[\s\S]*?font-weight:\s*600/);
 });

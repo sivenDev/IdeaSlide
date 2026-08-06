@@ -3,6 +3,7 @@ import { ask, message } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAppStore } from "../hooks/useAppStore";
+import { useUnsavedChangesDialog } from "../hooks/useUnsavedChangesDialog";
 import {
   addRecentFile,
   chooseAndOpenStandaloneDocument,
@@ -65,6 +66,7 @@ import { IdeaSketchEditor } from "./IdeaSketchEditor";
 import { ExternalChangeNotice } from "./ExternalChangeNotice";
 import { RecoveryPrompt } from "./RecoveryPrompt";
 import { WorkspaceStatusNotice } from "./WorkspaceStatusNotice";
+import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 
 interface EditorLayoutProps {
   onGoHome: () => void;
@@ -114,6 +116,11 @@ export function EditorLayout({
   const [hiddenExternalNotices, setHiddenExternalNotices] = useState<Set<string>>(() => new Set());
   const [workspaceDiagnosticsHidden, setWorkspaceDiagnosticsHidden] = useState(false);
   const [recoveryCandidate, setRecoveryCandidate] = useState<{ sessionId: string; draft: RecoveryDraft; sourceChanged: boolean }>();
+  const {
+    unsavedChangesDialog,
+    requestUnsavedChangesDecision,
+    resolveUnsavedChangesDecision,
+  } = useUnsavedChangesDialog();
   const documentSnapshotProviders = useRef(new Map<string, () => IdeaSketchDocument>());
   const pendingAutoSaveModified = useRef(new Map<string, string | undefined>());
   const standaloneWriteGeneration = useRef(new Map<string, number>());
@@ -534,42 +541,40 @@ export function EditorLayout({
     const document = state.documents.find((item) => item.id === sessionId);
     if (!document) return true;
     if (document.isDirty) {
-      const shouldSave = await ask(`Save changes to “${document.displayName || "Untitled.is"}” before closing?`, {
-        title: "Unsaved Changes", kind: "warning", okLabel: "Save", cancelLabel: "More Options",
-      });
-      if (shouldSave) {
+      const decision = await requestUnsavedChangesDecision(
+        document.displayName || "Untitled.is",
+        "closing",
+      );
+      if (decision === "save") {
         if (!await saveDocument(document)) return false;
-      } else {
-        const discard = await ask("Discard the unsaved changes?", {
-          title: "Unsaved Changes", kind: "warning", okLabel: "Discard", cancelLabel: "Cancel",
-        });
-        if (!discard) return false;
+      } else if (decision === "discard") {
         await clearRecoveryForDocument(document);
+      } else {
+        return false;
       }
     }
     dispatch({ type: "CLOSE_DOCUMENT", sessionId });
     return true;
-  }, [clearRecoveryForDocument, dispatch, saveDocument, state.documents]);
+  }, [clearRecoveryForDocument, dispatch, requestUnsavedChangesDecision, saveDocument, state.documents]);
 
   const confirmSessionExit = useCallback(async (): Promise<boolean> => {
     const result = await resolveDirtyDocumentsSequentially(
       state.documents,
       state.activeSessionId,
       async (document): Promise<UnsavedDocumentResolution> => {
-        const shouldSave = await ask(`Save changes to “${document.displayName || "Untitled.is"}” before leaving?`, {
-          title: "Unsaved Changes", kind: "warning", okLabel: "Save", cancelLabel: "More Options",
-        });
-        if (shouldSave) return await saveDocument(document) ? "saved" : "cancelled";
-        const discard = await ask("Discard the unsaved changes?", {
-          title: "Unsaved Changes", kind: "warning", okLabel: "Discard", cancelLabel: "Cancel",
-        });
-        return discard ? "discarded" : "cancelled";
+        const decision = await requestUnsavedChangesDecision(
+          document.displayName || "Untitled.is",
+          "leaving",
+        );
+        if (decision === "save") return await saveDocument(document) ? "saved" : "cancelled";
+        if (decision === "discard") return "discarded";
+        return "cancelled";
       },
     );
     if (!result.proceed) return false;
     await Promise.all(result.discarded.map(clearRecoveryForDocument));
     return true;
-  }, [clearRecoveryForDocument, saveDocument, state.activeSessionId, state.documents]);
+  }, [clearRecoveryForDocument, requestUnsavedChangesDecision, saveDocument, state.activeSessionId, state.documents]);
   const confirmSessionExitRef = useRef(confirmSessionExit);
   confirmSessionExitRef.current = confirmSessionExit;
 
@@ -875,6 +880,12 @@ export function EditorLayout({
           </div>
         </main>
       </div>
+      <UnsavedChangesDialog
+        open={Boolean(unsavedChangesDialog)}
+        fileName={unsavedChangesDialog?.fileName ?? "Untitled.is"}
+        intent={unsavedChangesDialog?.intent ?? "leaving"}
+        onDecision={resolveUnsavedChangesDecision}
+      />
       {effectiveReadOnly && <div className="absolute bottom-3 right-3 rounded-full bg-gray-900/80 px-3 py-1.5 text-[11px] font-medium text-white">Read only</div>}
     </div>
   );

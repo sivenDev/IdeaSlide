@@ -36,7 +36,10 @@ test('startup discovery and close lifecycle are wired for standalone drafts', as
   assert.match(editor, /onCloseRequested\(async \(event\) =>/);
   assert.match(editor, /const confirmed = await confirmSessionExit\(\)/);
   assert.match(editor, /resolveDirtyDocumentsSequentially/);
+  assert.match(editor, /requestUnsavedChangesDecision/);
+  assert.match(editor, /decision === "discard"/);
   assert.doesNotMatch(editor, /Save All/);
+  assert.doesNotMatch(editor, /More Options/);
   assert.match(editor, /if \(!confirmed\) \{\s*event\.preventDefault\(\)/);
   assert.match(editor, /if \(!shouldExit\) closeInProgress\.current = false/);
   assert.match(editor, /exitApplication/);

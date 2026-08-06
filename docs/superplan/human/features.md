@@ -189,3 +189,10 @@ When exporting the active Page to draw.io, normalize supported vector and text c
 - created: 2026-08-06
 
 Reduce zoom and pan stalls for large Excalidraw files without changing document/save semantics, Camera badge positioning, selection-style conversion, Page previews, or other user-visible editor behavior. Optimize scene-change classification and fingerprint reuse, selection availability checks, Camera viewport projection, React/WebView rendering isolation, and preview scheduling; verify the result in a production Tauri build.
+
+## F025: Replace native unsaved-change prompts with a three-action dialog
+
+- status: done
+- created: 2026-08-06
+
+Replace the current two-step native Unsaved Changes prompts with one polished in-app modal inspired by the provided reference. Show the affected file name and present three full-width actions in priority order: Save, Discard Changes, and Cancel. Apply the same decision flow to document close and session/application exit, preserve sequential handling for multiple dirty documents, and keep save failure, recovery cleanup, keyboard focus, Escape cancellation, and English UI behavior safe. Also change the title-bar `Unsaved changes` status text from low-contrast gray to a clearly visible red while leaving `Saving...` and `Saved` unchanged.
