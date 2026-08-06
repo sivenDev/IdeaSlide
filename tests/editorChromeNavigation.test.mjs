@@ -101,6 +101,8 @@ test('Toolbar keeps generic file commands and centered IdeaNote document title',
 test('Toolbar preserves the inactive macOS traffic-light footprint on a Shimo-style surface', async () => {
   const source = await readSource('src/components/Toolbar.tsx');
   const styles = await readSource('src/index.css');
+  const config = JSON.parse(await readSource('src-tauri/tauri.conf.json'));
+  const trafficLights = styles.match(/\.idea-slide-window-toolbar__traffic-lights\s*\{[\s\S]*?\}/)?.[0] ?? '';
 
   assert.match(source, /import \{ useEffect, useState \} from "react"/);
   assert.match(source, /const isTauriRuntime = "__TAURI_INTERNALS__" in window/);
@@ -113,6 +115,10 @@ test('Toolbar preserves the inactive macOS traffic-light footprint on a Shimo-st
   assert.match(source, /<span \/>\s*<span \/>\s*<span \/>/);
 
   assert.match(styles, /\.idea-slide-window-toolbar\s*\{[\s\S]*?background:\s*#efefef/i);
-  assert.match(styles, /\.idea-slide-window-toolbar__traffic-lights\s*\{[\s\S]*?left:\s*13px[\s\S]*?pointer-events:\s*none/i);
+  assert.equal(config.app.windows[0].trafficLightPosition.x, 13);
+  assert.equal(config.app.windows[0].trafficLightPosition.y, 28);
+  assert.match(trafficLights, /top:\s*22px/i);
+  assert.match(trafficLights, /left:\s*13px/i);
+  assert.match(trafficLights, /pointer-events:\s*none/i);
   assert.match(styles, /\.idea-slide-window-toolbar__traffic-lights > span\s*\{[\s\S]*?width:\s*12px[\s\S]*?height:\s*12px[\s\S]*?border-radius:\s*50%/i);
 });

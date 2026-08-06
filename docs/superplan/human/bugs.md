@@ -166,3 +166,10 @@ Opening chenlan.is succeeds, but switching to another Page causes the desktop cl
 - created: 2026-08-06
 
 In the editor window, the custom top status/title bar uses a near-white background instead of the Shimo-style light gray shown in the reference. On macOS, the native three traffic-light controls disappear when the window loses focus, leaving an awkward empty padded area. Reproduce by opening an editor window and switching focus to another window. Acceptance: use the reference-style light gray top bar, keep native controls unchanged while focused, and show aligned neutral placeholder dots in their reserved area while unfocused without affecting non-macOS layout or toolbar interactions.
+
+## B018: Lower macOS window controls to align with the title bar
+
+- status: done
+- created: 2026-08-06
+
+After B017, the three macOS system window controls and their inactive placeholders appear slightly too high within the 48px editor title bar. Reproduce by opening an editor window and comparing the traffic-light row with the toolbar centerline. Acceptance: move both the native traffic lights and the inactive placeholder row down by 2px, keep their horizontal position, size, spacing, focus behavior, and title-bar height unchanged, and preserve non-macOS layout.

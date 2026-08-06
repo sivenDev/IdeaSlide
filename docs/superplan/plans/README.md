@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `required` | 6 | 6 |
 | `feature` | 26 | 26 |
-| `bugfix` | 17 | 17 |
+| `bugfix` | 18 | 18 |
 
 ## Execution Order
 
@@ -84,3 +84,4 @@
 | `B015` | [Enable Protected Auto-save for Standalone Files](bugs/B015-enable-standalone-autosave.md) | `complete` | 2026-08-05 |
 | `B016` | [Prevent Large IdeaSketch Page Switch Freezes](bugs/B016-prevent-large-page-switch-freeze.md) | `complete` | 2026-08-06 |
 | `B017` | [Match the Shimo Title Bar and Preserve Inactive Traffic Lights](bugs/B017-match-shimo-title-bar-and-inactive-traffic-lights.md) | `complete` | 2026-08-06 |
+| `B018` | [Lower macOS Window Controls](bugs/B018-lower-macos-window-controls.md) | `complete` | 2026-08-06 |
