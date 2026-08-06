@@ -196,3 +196,10 @@ Reduce zoom and pan stalls for large Excalidraw files without changing document/
 - created: 2026-08-06
 
 Replace the current two-step native Unsaved Changes prompts with one polished in-app modal inspired by the provided reference. Show the affected file name and present three full-width actions in priority order: Save, Discard Changes, and Cancel. Apply the same decision flow to document close and session/application exit, preserve sequential handling for multiple dirty documents, and keep save failure, recovery cleanup, keyboard focus, Escape cancellation, and English UI behavior safe. Also change the title-bar `Unsaved changes` status text from low-contrast gray to a clearly visible red while leaving `Saving...` and `Saved` unchanged.
+
+## F026: Refine unsaved-state danger color and dialog scale
+
+- status: done
+- created: 2026-08-06
+
+Refine the recently added unsaved-state treatment so the title-bar dirty indicator uses one product-consistent danger color for both its dot and label, including a matching subtle halo. Reduce the unsaved-changes dialog to 260 by 200 pixels and proportionally tighten its padding, typography, action spacing, button height, radius, and shadow while preserving the existing three-action hierarchy, accessibility, keyboard behavior, and responsive fit.

@@ -19,7 +19,7 @@ html, body, #root {
   --idea-slide-accent: #6965db;
   --idea-slide-accent-hover: #5b57cf;
   --idea-slide-accent-soft: #eeedff;
-  --idea-slide-danger: #d94c4c;
+  --idea-slide-danger: #c83f47;
   color: var(--idea-slide-text);
   background: #f4f5f7;
 }
@@ -129,12 +129,12 @@ html, body, #root {
 }
 
 .idea-slide-save-indicator.is-dirty .idea-slide-save-indicator__dot {
-  background: #9ca3af;
-  box-shadow: 0 0 0 3px rgb(156 163 175 / 11%);
+  background: var(--idea-slide-danger);
+  box-shadow: 0 0 0 3px rgb(200 63 71 / 14%);
 }
 
 .idea-slide-save-indicator.is-dirty .idea-slide-save-indicator__label {
-  color: #d92d20;
+  color: var(--idea-slide-danger);
   font-weight: 600;
 }
 
@@ -162,16 +162,17 @@ html, body, #root {
   top: 50%;
   left: 50%;
   z-index: 2001;
-  width: min(calc(100vw - 2rem), 30rem);
-  max-height: calc(100vh - 2rem);
+  box-sizing: border-box;
+  width: min(calc(100vw - 2rem), 16.25rem);
+  height: min(calc(100vh - 2rem), 12.5rem);
   overflow-y: auto;
   border: 1px solid rgb(255 255 255 / 72%);
-  border-radius: 1.75rem;
+  border-radius: 1.125rem;
   color: #20242c;
   background: #f7f7f8;
-  box-shadow: 0 30px 80px rgb(20 24 32 / 26%), 0 8px 24px rgb(20 24 32 / 14%);
+  box-shadow: 0 18px 45px rgb(20 24 32 / 22%), 0 4px 12px rgb(20 24 32 / 12%);
   outline: none;
-  padding: 2rem;
+  padding: 0.875rem;
   transform: translate(-50%, -50%);
   animation: ideanote-unsaved-dialog-content-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -179,17 +180,17 @@ html, body, #root {
 .ideanote-unsaved-dialog__title {
   margin: 0;
   color: #25282e;
-  font-size: 1.625rem;
+  font-size: 1rem;
   font-weight: 720;
-  letter-spacing: -0.025em;
-  line-height: 1.18;
+  letter-spacing: -0.018em;
+  line-height: 1.2;
 }
 
 .ideanote-unsaved-dialog__description {
-  margin: 0.75rem 0 0;
+  margin: 0.25rem 0 0;
   color: #656a73;
-  font-size: 0.875rem;
-  line-height: 1.5;
+  font-size: 0.6875rem;
+  line-height: 1.35;
 }
 
 .ideanote-unsaved-dialog__filename {
@@ -200,14 +201,14 @@ html, body, #root {
 .ideanote-unsaved-dialog__actions {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 1.75rem;
+  gap: 0.375rem;
+  margin-top: 0.625rem;
 }
 
 .ideanote-unsaved-dialog__action {
   display: inline-flex;
   width: 100%;
-  height: 3.25rem;
+  height: 2.125rem;
   align-items: center;
   justify-content: center;
   border: 0;
@@ -215,7 +216,7 @@ html, body, #root {
   color: #292b30;
   background: #e4e4e7;
   cursor: pointer;
-  font-size: 1.0625rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: -0.012em;
   outline: none;
@@ -237,7 +238,7 @@ html, body, #root {
 .ideanote-unsaved-dialog__action.is-save {
   color: #fff;
   background: #0a7cff;
-  box-shadow: 0 8px 18px rgb(10 124 255 / 22%);
+  box-shadow: 0 4px 10px rgb(10 124 255 / 20%);
 }
 
 .ideanote-unsaved-dialog__action.is-save:hover {

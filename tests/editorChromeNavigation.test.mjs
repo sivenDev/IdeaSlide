@@ -91,6 +91,9 @@ test('Toolbar keeps generic file commands and centered IdeaNote document title',
   assert.doesNotMatch(source, /aria-label="Cameras"/);
   assert.match(saveIndicator, /isDirty \? "dirty" : "saved"/);
   assert.match(saveIndicator, /idea-slide-save-indicator is-\$\{state\}/);
-  assert.match(styles, /\.idea-slide-save-indicator\.is-dirty \.idea-slide-save-indicator__label\s*\{[\s\S]*?color:\s*#d92d20/i);
+  assert.match(styles, /--idea-slide-danger:\s*#c83f47/i);
+  assert.match(styles, /\.idea-slide-save-indicator\.is-dirty \.idea-slide-save-indicator__dot\s*\{[\s\S]*?background:\s*var\(--idea-slide-danger\)/i);
+  assert.match(styles, /\.idea-slide-save-indicator\.is-dirty \.idea-slide-save-indicator__dot\s*\{[\s\S]*?box-shadow:\s*0 0 0 3px rgb\(200 63 71 \/ 14%\)/i);
+  assert.match(styles, /\.idea-slide-save-indicator\.is-dirty \.idea-slide-save-indicator__label\s*\{[\s\S]*?color:\s*var\(--idea-slide-danger\)/i);
   assert.match(styles, /\.idea-slide-save-indicator\.is-dirty \.idea-slide-save-indicator__label\s*\{[\s\S]*?font-weight:\s*600/);
 });
