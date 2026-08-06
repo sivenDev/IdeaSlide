@@ -17,7 +17,6 @@ import {
   ChevronsUp,
   Ellipsis,
   FilePlus2,
-  FolderOpen,
   FolderPlus,
   RefreshCw,
 } from "lucide-react";
@@ -40,7 +39,6 @@ import { ToolbarAction } from "./ui/ToolbarAction";
 import { TooltipProvider } from "./ui/Tooltip";
 
 interface WorkspaceExplorerProps {
-  rootName: string;
   entries: WorkspaceEntry[];
   selectedPath?: string;
   expandedPaths: string[];
@@ -73,12 +71,10 @@ function parentPath(path: string): string {
   return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
 }
 
-function WorkspaceRootRow({
-  rootName,
+function WorkspaceActionBar({
   readOnly,
   children,
 }: {
-  rootName: string;
   readOnly: boolean;
   children: React.ReactNode;
 }) {
@@ -90,14 +86,11 @@ function WorkspaceRootRow({
   return (
     <div
       ref={rootDrop.setNodeRef}
-      role="treeitem"
-      aria-level={1}
-      aria-expanded={true}
+      role="toolbar"
+      aria-label="Workspace actions"
       data-workspace-root="true"
-      className={`idea-slide-workspace-root-row ${rootDrop.isOver ? "is-drop-inside" : ""}`}
+      className={`idea-slide-workspace-action-bar ${rootDrop.isOver ? "is-drop-inside" : ""}`}
     >
-      <FolderOpen {...panelIconProps} />
-      <span className="min-w-0 flex-1 truncate" title={rootName}>{rootName}</span>
       {children}
     </div>
   );
@@ -122,7 +115,6 @@ const workspaceCollisionDetection: CollisionDetection = (args) => {
 };
 
 export function WorkspaceExplorer({
-  rootName,
   entries,
   selectedPath,
   expandedPaths,
@@ -199,7 +191,7 @@ export function WorkspaceExplorer({
     <div key={entry.path}>
       <WorkspaceResourceRow
         entry={entry}
-        depth={depth + 1}
+        depth={depth}
         isSelected={selectedPath === entry.path}
         isExpanded={expanded.has(entry.path)}
         isDocumentActive={indicatorByPath.get(entry.path)?.isActive ?? false}
@@ -242,74 +234,74 @@ export function WorkspaceExplorer({
     >
       <TooltipProvider>
         <aside className="idea-slide-side-panel flex h-full min-w-0 flex-col" aria-label="Workspace Explorer">
-          <div role="tree" aria-label="Workspace resources" className="idea-slide-side-panel__scroll min-h-0 flex-1 overflow-y-auto py-2">
-            <WorkspaceRootRow rootName={rootName} readOnly={readOnly}>
-              <div className="idea-slide-workspace-root-actions" aria-label="Workspace actions">
-                {!readOnly && (
-                  <>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <span className="inline-flex">
-                          <ToolbarAction tooltip="New File" aria-label="New File" className={actionClassName}>
-                            <FilePlus2 {...panelIconProps} />
-                          </ToolbarAction>
-                        </span>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start">
-                        {creatableTypes.map((definition) => (
-                          <DropdownMenuItem key={definition.type} onSelect={() => void createDocument(definition.type)}>
-                            New {definition.displayName} (.{definition.extensions[0]})
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+          <div className="idea-slide-side-panel__scroll min-h-0 flex-1 overflow-y-auto py-2">
+            <WorkspaceActionBar readOnly={readOnly}>
+              {!readOnly && (
+                <>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <span className="inline-flex">
+                        <ToolbarAction tooltip="New File" aria-label="New File" className={actionClassName}>
+                          <FilePlus2 {...panelIconProps} />
+                        </ToolbarAction>
+                      </span>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      {creatableTypes.map((definition) => (
+                        <DropdownMenuItem key={definition.type} onSelect={() => void createDocument(definition.type)}>
+                          New {definition.displayName} (.{definition.extensions[0]})
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <ToolbarAction
+                    tooltip="New Folder"
+                    aria-label="New Folder"
+                    className={actionClassName}
+                    onClick={() => void createFolder()}
+                  >
+                    <FolderPlus {...panelIconProps} />
+                  </ToolbarAction>
+                  <span className="idea-slide-panel-action-separator" aria-hidden="true" />
+                </>
+              )}
+              <ToolbarAction
+                tooltip="Refresh Workspace"
+                aria-label="Refresh Workspace"
+                className={actionClassName}
+                onClick={() => void onRefresh()}
+              >
+                <RefreshCw {...panelIconProps} />
+              </ToolbarAction>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <span className="inline-flex">
                     <ToolbarAction
-                      tooltip="New Folder"
-                      aria-label="New Folder"
+                      tooltip="Workspace Tree Actions"
+                      aria-label="Workspace Tree Actions"
                       className={actionClassName}
-                      onClick={() => void createFolder()}
                     >
-                      <FolderPlus {...panelIconProps} />
+                      <Ellipsis {...panelIconProps} />
                     </ToolbarAction>
-                    <span className="idea-slide-panel-action-separator" aria-hidden="true" />
-                  </>
-                )}
-                <ToolbarAction
-                  tooltip="Refresh Workspace"
-                  aria-label="Refresh Workspace"
-                  className={actionClassName}
-                  onClick={() => void onRefresh()}
-                >
-                  <RefreshCw {...panelIconProps} />
-                </ToolbarAction>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <span className="inline-flex">
-                      <ToolbarAction
-                        tooltip="Workspace Tree Actions"
-                        aria-label="Workspace Tree Actions"
-                        className={actionClassName}
-                      >
-                        <Ellipsis {...panelIconProps} />
-                      </ToolbarAction>
-                    </span>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-40">
-                    <DropdownMenuItem onSelect={expandAll}>
-                      <ChevronsDown {...menuIconProps} />
-                      <span>Expand all</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={collapseAll}>
-                      <ChevronsUp {...menuIconProps} />
-                      <span>Collapse all</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </WorkspaceRootRow>
-            {entries.length > 0 ? renderEntries() : (
-              <div className="px-7 py-6 text-xs leading-5 text-gray-400">This Workspace is empty.</div>
-            )}
+                  </span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuItem onSelect={expandAll}>
+                    <ChevronsDown {...menuIconProps} />
+                    <span>Expand all</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={collapseAll}>
+                    <ChevronsUp {...menuIconProps} />
+                    <span>Collapse all</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </WorkspaceActionBar>
+            <div role="tree" aria-label="Workspace resources">
+              {entries.length > 0 ? renderEntries() : (
+                <div className="px-3 py-6 text-xs leading-5 text-gray-400">This Workspace is empty.</div>
+              )}
+            </div>
           </div>
         </aside>
       </TooltipProvider>

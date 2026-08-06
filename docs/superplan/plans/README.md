@@ -7,7 +7,7 @@
 | Type | Plans | Complete |
 | --- | --- | --- |
 | `required` | 6 | 6 |
-| `feature` | 26 | 26 |
+| `feature` | 27 | 27 |
 | `bugfix` | 18 | 18 |
 
 ## Execution Order
@@ -62,6 +62,7 @@
 | `F024` | [Optimize Large Excalidraw Viewport Interactions](features/F024-optimize-large-excalidraw-viewport-interactions.md) | `complete` | 2026-08-06 |
 | `F025` | [Replace Native Unsaved Prompts with a Three-action Dialog](features/F025-three-action-unsaved-changes-dialog.md) | `complete` | 2026-08-06 |
 | `F026` | [Refine Unsaved-state Danger Color and Dialog Scale](features/F026-refine-unsaved-state-danger-and-dialog-scale.md) | `complete` | 2026-08-06 |
+| `F027` | [Simplify Workspace Explorer Root Header](features/F027-simplify-workspace-explorer-root-header.md) | `complete` | 2026-08-06 |
 
 ### Bugfix Plans
 

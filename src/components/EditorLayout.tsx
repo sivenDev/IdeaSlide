@@ -787,7 +787,6 @@ export function EditorLayout({
             <div className={`h-full flex-shrink-0 overflow-hidden ${isResizingWorkspace ? "" : "transition-[width] duration-200"}`} style={{ width: showWorkspace ? workspacePanelWidth : 0 }}>
               <div className="h-full" style={{ width: workspacePanelWidth }}>
                 <WorkspaceExplorer
-                  rootName={state.workspace.name}
                   entries={state.workspace.entries}
                   selectedPath={state.workspace.selectedPath}
                   expandedPaths={state.workspace.expandedPaths}

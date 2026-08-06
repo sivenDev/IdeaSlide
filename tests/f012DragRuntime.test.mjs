@@ -237,20 +237,24 @@ test('Workspace drag completes in WebKit after React drop feedback updates', asy
 
     const rows = page.getByRole('treeitem');
     await rows.first().waitFor();
-    assert.deepEqual(await rows.allTextContents(), ['mock-workspace', 'folder', 'a.is', 'b.is']);
+    assert.deepEqual(await rows.allTextContents(), ['folder', 'a.is', 'b.is']);
+    const explorer = page.getByRole('complementary', { name: 'Workspace Explorer' });
+    assert.equal(await explorer.getByText('mock-workspace', { exact: true }).count(), 0);
+    await page.getByRole('toolbar', { name: 'Workspace actions' }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'New Folder' }).isVisible(), true);
     await page.getByRole('button', { name: 'Select folder' }).click();
-    assert.match(await rows.nth(1).getAttribute('class'), /is-selected/);
+    assert.match(await rows.nth(0).getAttribute('class'), /is-selected/);
 
-    await dragRow(page, 'a.is', 3, 0.5);
-    await waitForRowOrder(rows, ['mock-workspace', 'folder', 'a.is', 'b.is']);
+    await dragRow(page, 'a.is', 2, 0.5);
+    await waitForRowOrder(rows, ['folder', 'a.is', 'b.is']);
 
-    await dragRowAndAssertStableHeight(page, 'a.is', 1, 0.5);
-    await waitForRowOrder(rows, ['mock-workspace', 'folder', 'b.is']);
+    await dragRowAndAssertStableHeight(page, 'a.is', 0, 0.5);
+    await waitForRowOrder(rows, ['folder', 'b.is']);
     await page.getByRole('button', { name: 'Expand Folder' }).click();
-    await waitForRowOrder(rows, ['mock-workspace', 'folder', 'a.is', 'b.is']);
+    await waitForRowOrder(rows, ['folder', 'a.is', 'b.is']);
 
     await dragToRootAndAssertStableHeight(page, 'a.is');
-    await waitForRowOrder(rows, ['mock-workspace', 'folder', 'a.is', 'b.is']);
+    await waitForRowOrder(rows, ['folder', 'a.is', 'b.is']);
 
     const refreshCalls = await page.evaluate(() =>
       window.__b009Invokes.filter(({ cmd }) => cmd === 'refresh_workspace').length,

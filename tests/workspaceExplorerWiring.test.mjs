@@ -6,8 +6,9 @@ const readSource = (path) => readFile(new URL(`../${path}`, import.meta.url), 'u
 
 test('Workspace Explorer is driven by real relative paths and backend filesystem actions', async () => {
   const source = await readSource('src/components/WorkspaceExplorer.tsx');
+  const styles = await readSource('src/index.css');
   assert.match(source, /WorkspaceEntry/);
-  assert.match(source, /rootName/);
+  assert.doesNotMatch(source, /rootName/);
   assert.match(source, /getCreatableFileTypeDefinitions/);
   assert.match(source, /onCreateFolder/);
   assert.match(source, /onCreateDocument/);
@@ -23,10 +24,13 @@ test('Workspace Explorer is driven by real relative paths and backend filesystem
   assert.match(source, /handleDragEnd/);
   assert.match(source, /workspaceParentPath/);
   assert.match(source, /data-workspace-root="true"/);
-  assert.match(source, /role="treeitem"/);
-  assert.match(source, /aria-level=\{1\}/);
-  assert.match(source, /depth=\{depth \+ 1\}/);
-  assert.match(source, /idea-slide-workspace-root-row/);
+  assert.match(source, /role="toolbar"/);
+  assert.match(source, /aria-label="Workspace actions"/);
+  assert.match(source, /depth=\{depth\}/);
+  assert.doesNotMatch(source, /depth=\{depth \+ 1\}/);
+  assert.match(source, /idea-slide-workspace-action-bar/);
+  assert.doesNotMatch(source, /WorkspaceRootRow/);
+  assert.doesNotMatch(source, /idea-slide-workspace-root-row/);
   assert.doesNotMatch(source, /idea-slide-side-panel__header/);
   assert.match(source, /onTrash/);
   assert.match(source, /documentIndicators/);
@@ -52,6 +56,10 @@ test('Workspace Explorer is driven by real relative paths and backend filesystem
   assert.doesNotMatch(source, /[＋⌑↻⌃•]/);
   assert.doesNotMatch(source, /WorkspaceResource\b/);
   assert.doesNotMatch(source, /thumbnail/i);
+  assert.match(styles, /\.idea-slide-workspace-action-bar\s*\{[\s\S]*?display:\s*flex/);
+  assert.match(styles, /\.idea-slide-workspace-action-bar\.is-drop-inside/);
+  assert.doesNotMatch(styles, /\.idea-slide-workspace-root-row:hover\s+\.idea-slide-workspace-root-actions/);
+  assert.doesNotMatch(styles, /\.idea-slide-workspace-root-actions\s*\{[\s\S]*?opacity:\s*0/);
 });
 
 test('Workspace rows keep Symlinks non-recursive and unsupported files safe', async () => {

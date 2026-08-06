@@ -203,3 +203,10 @@ Replace the current two-step native Unsaved Changes prompts with one polished in
 - created: 2026-08-06
 
 Refine the recently added unsaved-state treatment so the title-bar dirty indicator uses one product-consistent danger color for both its dot and label, including a matching subtle halo. Reduce the unsaved-changes dialog to 260 by 200 pixels and proportionally tighten its padding, typography, action spacing, button height, radius, and shadow while preserving the existing three-action hierarchy, accessibility, keyboard behavior, and responsive fit.
+
+## F027: Simplify Workspace Explorer Root Header
+
+- status: done
+- created: 2026-08-06
+
+Keep Workspace actions permanently visible instead of revealing them only on hover, remove the Workspace name from the Explorer, and left-align top-level directory entries by removing the synthetic-root indentation. Preserve New File, New Folder, Refresh, tree actions, read-only behavior, tooltips, and the Workspace-root drop destination.
