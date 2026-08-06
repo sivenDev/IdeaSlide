@@ -159,3 +159,10 @@ When an existing editable IdeaSketch file is opened in Standalone (single-file) 
 - created: 2026-08-06
 
 Opening chenlan.is succeeds, but switching to another Page causes the desktop client to become unresponsive after F024. Diagnose the Page-switch remount/subscription path and restore responsive switching without reverting F024's save, Camera, conversion, thumbnail, presentation, or file-format guarantees.
+
+## B017: Match the editor title bar to Shimo and preserve inactive macOS traffic lights
+
+- status: done
+- created: 2026-08-06
+
+In the editor window, the custom top status/title bar uses a near-white background instead of the Shimo-style light gray shown in the reference. On macOS, the native three traffic-light controls disappear when the window loses focus, leaving an awkward empty padded area. Reproduce by opening an editor window and switching focus to another window. Acceptance: use the reference-style light gray top bar, keep native controls unchanged while focused, and show aligned neutral placeholder dots in their reserved area while unfocused without affecting non-macOS layout or toolbar interactions.

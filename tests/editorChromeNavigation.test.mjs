@@ -97,3 +97,22 @@ test('Toolbar keeps generic file commands and centered IdeaNote document title',
   assert.match(styles, /\.idea-slide-save-indicator\.is-dirty \.idea-slide-save-indicator__label\s*\{[\s\S]*?color:\s*var\(--idea-slide-danger\)/i);
   assert.match(styles, /\.idea-slide-save-indicator\.is-dirty \.idea-slide-save-indicator__label\s*\{[\s\S]*?font-weight:\s*600/);
 });
+
+test('Toolbar preserves the inactive macOS traffic-light footprint on a Shimo-style surface', async () => {
+  const source = await readSource('src/components/Toolbar.tsx');
+  const styles = await readSource('src/index.css');
+
+  assert.match(source, /import \{ useEffect, useState \} from "react"/);
+  assert.match(source, /const isTauriRuntime = "__TAURI_INTERNALS__" in window/);
+  assert.match(source, /\.isFocused\(\)/);
+  assert.match(source, /\.onFocusChanged\(/);
+  assert.match(source, /unlisten\?\.\(\)/);
+  assert.match(source, /isMac && !isWindowFocused/);
+  assert.match(source, /idea-slide-window-toolbar__traffic-lights/);
+  assert.match(source, /aria-hidden="true"/);
+  assert.match(source, /<span \/>\s*<span \/>\s*<span \/>/);
+
+  assert.match(styles, /\.idea-slide-window-toolbar\s*\{[\s\S]*?background:\s*#efefef/i);
+  assert.match(styles, /\.idea-slide-window-toolbar__traffic-lights\s*\{[\s\S]*?left:\s*13px[\s\S]*?pointer-events:\s*none/i);
+  assert.match(styles, /\.idea-slide-window-toolbar__traffic-lights > span\s*\{[\s\S]*?width:\s*12px[\s\S]*?height:\s*12px[\s\S]*?border-radius:\s*50%/i);
+});

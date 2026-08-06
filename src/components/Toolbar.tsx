@@ -8,7 +8,7 @@ import {
   House,
   Save,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SaveIndicator } from "./SaveIndicator";
 import { Separator } from "./ui/Separator";
 import { ToolbarAction } from "./ui/ToolbarAction";
@@ -47,7 +47,35 @@ export function Toolbar({
   onGoHome,
 }: ToolbarProps) {
   const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
+  const isTauriRuntime = "__TAURI_INTERNALS__" in window;
   const [openMenuOpen, setOpenMenuOpen] = useState(false);
+  const [isWindowFocused, setIsWindowFocused] = useState(true);
+
+  useEffect(() => {
+    if (!isMac || !isTauriRuntime) return;
+    const appWindow = getCurrentWindow();
+    let disposed = false;
+    let observedFocusChange = false;
+    let unlisten: (() => void) | undefined;
+
+    appWindow.onFocusChanged(({ payload: focused }) => {
+      observedFocusChange = true;
+      if (!disposed) setIsWindowFocused(focused);
+    }).then((dispose) => {
+      if (disposed) dispose();
+      else unlisten = dispose;
+    }).catch(console.error);
+
+    appWindow.isFocused().then((focused) => {
+      if (!disposed && !observedFocusChange) setIsWindowFocused(focused);
+    }).catch(console.error);
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [isMac, isTauriRuntime]);
+
   return (
     <TooltipProvider>
       <div
@@ -58,6 +86,13 @@ export function Toolbar({
           }
         }}
       >
+        {isMac && !isWindowFocused && (
+          <div className="idea-slide-window-toolbar__traffic-lights" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
+        )}
         <div className="idea-slide-window-toolbar__commands">
           <ToolbarAction tooltip="Back to Home" aria-label="Back to Home" onClick={onGoHome}>
             <House {...toolbarIconProps} />
