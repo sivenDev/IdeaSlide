@@ -14,14 +14,15 @@
       {
         "title": "IdeaNote",
         "width": 1200,
-        "height": 800,
-        "minWidth": 800,
+        "height": 850,
+        "minWidth": 850,
         "minHeight": 850,
         "titleBarStyle": "Overlay",
+        "decorations": true,
         "hiddenTitle": true,
         "trafficLightPosition": {
           "x": 13,
-          "y": 28
+          "y": 26
         }
       }
     ],

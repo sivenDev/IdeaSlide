@@ -91,6 +91,14 @@ parent: ""
 - Native smoke: the debug bundle opened `grocery.is` with the Shimo-style title surface, intact Home/Open/Save/Save As controls, `Saved` status, centered filename, Canvas, and navigator. Switching focus to Finder and re-inspecting the client completed without a crash or stalled window. The Computer Use purple control overlay occupies the exact macOS traffic-light area, so it prevented reliable pixel-level screenshot evidence of the three placeholder dots; their focus lifecycle, geometry, accessibility, and pointer isolation are covered by the focused regression and successful native focus transition.
 - `git diff --check` passed against the stabilized implementation and workflow diff.
 
+## Post-delivery Visual Calibration
+
+- After native screenshot review, the user approved a stronger IdeaNote-specific cool-gray violet title surface: `#dedee3` with a `#cfd0d8` lower boundary. The Home/Open separator uses `#c4c5ce`, keeping command groups legible without becoming a dominant divider.
+- The inactive traffic-light placeholder was visually calibrated to three 13-pixel neutral circles at `left: 12.5px; top: 18px` with an 11-pixel gap. Focus lifecycle, accessibility hiding, and pointer isolation remain unchanged.
+- The window keeps the macOS overlay title style and decorations but no longer requests native transparency. This removes the Tauri `macos-private-api` warning without enabling private APIs or changing the opaque application surfaces.
+- `tests/editorChromeNavigation.test.mjs` locks the final palette, separator, placeholder geometry, focus behavior, and no-transparency contract. The focused suite passed 10/10 tests, the complete frontend suite passed 245/245, and production plus Tauri debug App/DMG builds succeeded.
+- The user reviewed the final native title bar and menu-trigger screenshots and explicitly accepted the delivered appearance.
+
 ## References
 
 - `docs/superplan/human/bugs.md`

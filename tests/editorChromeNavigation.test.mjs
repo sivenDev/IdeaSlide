@@ -114,11 +114,49 @@ test('Toolbar preserves the inactive macOS traffic-light footprint on a Shimo-st
   assert.match(source, /aria-hidden="true"/);
   assert.match(source, /<span \/>\s*<span \/>\s*<span \/>/);
 
-  assert.match(styles, /\.idea-slide-window-toolbar\s*\{[\s\S]*?background:\s*#efefef/i);
+  assert.match(styles, /\.idea-slide-window-toolbar\s*\{[\s\S]*?background:\s*#dedee3/i);
   assert.equal(config.app.windows[0].trafficLightPosition.x, 13);
-  assert.equal(config.app.windows[0].trafficLightPosition.y, 28);
-  assert.match(trafficLights, /top:\s*22px/i);
-  assert.match(trafficLights, /left:\s*13px/i);
+  assert.equal(config.app.windows[0].trafficLightPosition.y, 26);
+  assert.match(trafficLights, /top:\s*18px/i);
+  assert.match(trafficLights, /left:\s*12\.5px/i);
+  assert.match(trafficLights, /gap:\s*11px/i);
   assert.match(trafficLights, /pointer-events:\s*none/i);
-  assert.match(styles, /\.idea-slide-window-toolbar__traffic-lights > span\s*\{[\s\S]*?width:\s*12px[\s\S]*?height:\s*12px[\s\S]*?border-radius:\s*50%/i);
+  assert.match(styles, /\.idea-slide-window-toolbar__traffic-lights > span\s*\{[\s\S]*?width:\s*13px[\s\S]*?height:\s*13px[\s\S]*?border-radius:\s*50%/i);
+});
+
+test('Excalidraw main menu uses the IdeaNote cool-gray violet surface', async () => {
+  const styles = await readSource('src/index.css');
+  const menuTrigger = styles.match(/\.excalidraw \.main-menu-trigger\s*\{[\s\S]*?\}/)?.[0] ?? '';
+
+  assert.match(styles, /\.idea-slide-window-toolbar\s*\{[\s\S]*?border-bottom:\s*1px solid #cfd0d8[\s\S]*?background:\s*#dedee3/i);
+  assert.match(menuTrigger, /border:\s*1px solid #d8d6e8/i);
+  assert.match(menuTrigger, /color:\s*#56536d/i);
+  assert.match(menuTrigger, /background:\s*#f0eff7/i);
+  assert.match(styles, /\.excalidraw \.main-menu-trigger:hover\s*\{[\s\S]*?color:\s*#4f4aa8[\s\S]*?background:\s*#e9e7f4/i);
+  assert.match(styles, /\.excalidraw \.main-menu-trigger:focus-visible\s*\{[\s\S]*?0 0 0 3px rgb\(105 101 219 \/ 24%\)/i);
+});
+
+test('Toolbar separator remains visible on the cool-gray title surface', async () => {
+  const styles = await readSource('src/index.css');
+
+  assert.match(styles, /\.idea-slide-window-toolbar__separator\s*\{[\s\S]*?height:\s*1\.5rem[\s\S]*?background:\s*#c4c5ce/i);
+});
+
+test('macOS overlay chrome does not require the private transparency API', async () => {
+  const config = JSON.parse(await readSource('src-tauri/tauri.conf.json'));
+  const mainWindow = config.app.windows[0];
+
+  assert.equal(mainWindow.titleBarStyle, 'Overlay');
+  assert.equal(mainWindow.decorations, true);
+  assert.equal(mainWindow.transparent ?? false, false);
+});
+
+test('Main window preserves the approved 850-pixel desktop bounds', async () => {
+  const config = JSON.parse(await readSource('src-tauri/tauri.conf.json'));
+  const mainWindow = config.app.windows[0];
+
+  assert.equal(mainWindow.width, 1200);
+  assert.equal(mainWindow.height, 850);
+  assert.equal(mainWindow.minWidth, 850);
+  assert.equal(mainWindow.minHeight, 850);
 });

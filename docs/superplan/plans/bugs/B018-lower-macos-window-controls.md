@@ -90,6 +90,12 @@ parent: ""
 - Native smoke: the debug bundle opened `grocery.is` with the focused native controls on the lower baseline. After raising Finder, the inactive three-dot placeholders remained on the same baseline without a visible focus-transition jump; toolbar commands, `Saved` state, centered filename, Canvas, and navigator remained stable.
 - `git diff --check` passed against the stabilized implementation and workflow diff.
 
+## Post-delivery Native Calibration
+
+- Subsequent user-led native screenshot calibration supersedes B018's initial simple `y: 28` / `top: 22px` numeric pairing. The accepted final native traffic-light position is `(13, 26)`; the inactive web placeholder uses `left: 12.5px; top: 18px`, 13-pixel circles, and an 11-pixel gap.
+- Native and web coordinates use different anchoring and geometry, so the final contract is visible focus-transition alignment rather than equal numeric offsets. The user explicitly accepted the focused native row and inactive footprint in the final screenshots.
+- `tests/editorChromeNavigation.test.mjs` now asserts the accepted native and placeholder values together. The focused suite passed 10/10 tests, the complete frontend suite passed 245/245, and the production plus Tauri debug App/DMG builds succeeded without the private-transparency warning.
+
 ## References
 
 - `docs/superplan/human/bugs.md`

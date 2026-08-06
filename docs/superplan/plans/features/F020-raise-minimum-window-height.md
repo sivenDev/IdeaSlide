@@ -43,6 +43,11 @@ parent: ""
 - `cargo check --manifest-path src-tauri/Cargo.toml` completed successfully.
 - `git diff --check` passed.
 
+## Post-delivery Window Calibration
+
+- The user-approved desktop configuration now opens at `1200 × 850`, uses an `850`-pixel minimum width, and preserves F020's required `850`-pixel minimum height. The width and height constraints remain native Tauri configuration rather than frontend enforcement.
+- `tests/editorChromeNavigation.test.mjs` asserts `width=1200`, `height=850`, `minWidth=850`, and `minHeight=850`. The complete frontend suite passed 245/245 tests and the Tauri debug App/DMG build accepted the final configuration.
+
 ## References
 - `docs/superplan/human/features.md#f020-raise-minimum-window-height`
 - `docs/superplan/plans/03-multifile-workspace-shell.md`

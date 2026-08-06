@@ -112,6 +112,13 @@ parent: ""
 - `node --test tests/*.test.mjs` passed all 182 frontend tests; `npm run build` and `git diff --check` passed with only the existing Excalidraw mixed-import and large-chunk warnings.
 - Automated Browser/Tauri visual inspection could not run because the shared Browser and Computer Use transport closed during connection and reset attempts. The focused source contracts and generated Tailwind CSS verification cover the requested width, no-wrap, Tooltip suppression, and single-toggle layout rules without claiming an interactive screenshot run.
 
+## Post-delivery Visual Calibration
+
+- The user explicitly approved a follow-up IdeaNote chrome palette that extends F014's neutral/violet control language to Excalidraw's visible Main Menu trigger. The scoped `.main-menu-trigger` override uses a mist-violet surface (`#f0eff7`), violet-gray border and icon color, restrained elevation, and stronger violet hover/focus feedback without changing the control's dimensions or placement.
+- The Home/Open toolbar separator now uses `#c4c5ce` so it remains visible on the calibrated cool-gray title surface. This is the single approved exception to the original no-private-toolbar-DOM boundary and is limited to Excalidraw's bundled `main-menu-trigger` class.
+- `tests/editorChromeNavigation.test.mjs` locks the trigger palette, hover/focus treatment, and visible separator. The focused editor-chrome suite passed 10/10 tests, the complete frontend suite passed 245/245, and the production and Tauri debug builds succeeded.
+- The user reviewed successive native screenshots and explicitly accepted the final control and title-bar appearance before requesting this delivery commit.
+
 ## References
 - `docs/superplan/human/features.md`
 - `docs/superplan/plans/features/F007-framework-title-bar-icons.md`
