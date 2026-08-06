@@ -12,6 +12,7 @@ test('IdeaSketch editor binds Excalidraw drafts to document and Page identity', 
   assert.match(source, /sessionId !== document\.id/);
   assert.match(source, /payload\.slide\.id !== pageId/);
   assert.match(source, /onRegisterSnapshot/);
+  assert.match(canvas, /key=\{draft\.slideId\}/);
   assert.match(canvas, /slideId=\{draft\.slideId\}/);
   assert.match(canvas, /elements=\{draft\.elements\}/);
   assert.match(canvas, /appState=\{draft\.appState\}/);

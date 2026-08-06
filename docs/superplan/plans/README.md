@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `required` | 6 | 6 |
 | `feature` | 24 | 24 |
-| `bugfix` | 15 | 15 |
+| `bugfix` | 16 | 16 |
 
 ## Execution Order
 
@@ -80,3 +80,4 @@
 | `B013` | [Keep Workspace Selection on the Active File When Switching Is Blocked](bugs/B013-keep-workspace-selection-on-blocked-switch.md) | `complete` | 2026-08-04 |
 | `B014` | [Finish Workspace Auto-save and Stop Repeat Writes](bugs/B014-fix-workspace-autosave-completion-loop.md) | `complete` | 2026-08-05 |
 | `B015` | [Enable Protected Auto-save for Standalone Files](bugs/B015-enable-standalone-autosave.md) | `complete` | 2026-08-05 |
+| `B016` | [Prevent Large IdeaSketch Page Switch Freezes](bugs/B016-prevent-large-page-switch-freeze.md) | `complete` | 2026-08-06 |

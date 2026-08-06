@@ -75,6 +75,7 @@ function SlideCanvasInner({
   const containerRef = useRef<HTMLDivElement>(null);
   const onChangeRef = useRef(onChange);
   const onInteractionChangeRef = useRef(onInteractionChange);
+  const isMountedRef = useRef(true);
   const interactionActiveRef = useRef(false);
   const interactionIdleTimeoutRef = useRef<number | null>(null);
   const [canConvertSelection, setCanConvertSelection] = useState(() =>
@@ -91,6 +92,12 @@ function SlideCanvasInner({
   useEffect(() => {
     onInteractionChangeRef.current = onInteractionChange;
   }, [onInteractionChange]);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const clearInteractionIdleTimeout = useCallback(() => {
     if (interactionIdleTimeoutRef.current === null) return;
@@ -176,6 +183,10 @@ function SlideCanvasInner({
 
   // Stable callback that never changes identity
   const stableOnChange = useRef((els: readonly any[], state: any, sceneFiles: Record<string, any>) => {
+    if (!isMountedRef.current) {
+      return;
+    }
+
     if (isInitialLoad.current) {
       isInitialLoad.current = false;
       return;
@@ -200,6 +211,7 @@ function SlideCanvasInner({
 
   // Handle API ready
   const handleApiReady = useCallback((api: any) => {
+    if (!isMountedRef.current) return;
     excalidrawApiRef.current = api;
     syncStyleConversionAvailabilityRef.current(api.getSceneElements(), api.getAppState());
     setApiReadyVersion((value) => value + 1);

@@ -40,6 +40,40 @@ test('buildSceneFingerprint changes when element geometry changes without changi
   );
 });
 
+test('buildSceneFingerprint ignores persistence-equivalent floating-point tails', async () => {
+  const { buildSceneFingerprint } = await loadFingerprintModule();
+
+  assert.equal(typeof buildSceneFingerprint, 'function');
+
+  const baseElements = [{
+    id: 'text-1',
+    version: 1,
+    versionNonce: 10,
+    x: 0,
+    y: 0,
+    width: 97.2874664291732,
+    height: 24,
+    isDeleted: false,
+  }];
+  const equivalentMeasurement = [{
+    ...baseElements[0],
+    width: 97.28746642917321,
+  }];
+  const meaningfulResize = [{
+    ...baseElements[0],
+    width: 97.2874664292732,
+  }];
+
+  assert.equal(
+    buildSceneFingerprint(baseElements, {}),
+    buildSceneFingerprint(equivalentMeasurement, {}),
+  );
+  assert.notEqual(
+    buildSceneFingerprint(baseElements, {}),
+    buildSceneFingerprint(meaningfulResize, {}),
+  );
+});
+
 test('buildSceneFingerprint changes when file metadata changes', async () => {
   const { buildSceneFingerprint } = await loadFingerprintModule();
 

@@ -58,6 +58,15 @@ test('Camera drawing preview uses explicit activity instead of scanning every sc
   assert.match(source, /cameraPreviewActiveRef\.current = false;\s*api\.updateScene\(/s);
 });
 
+test('Unmounted Page canvases reject delayed Excalidraw change emissions', async () => {
+  const source = await readSource('src/components/SlideCanvas.tsx');
+  const stableOnChange = source.match(/const stableOnChange = useRef\([\s\S]*?\n\s*\}\)\.current;/)?.[0] ?? '';
+
+  assert.match(source, /const isMountedRef = useRef\(true\);/);
+  assert.match(source, /isMountedRef\.current = false;/);
+  assert.match(stableOnChange, /if \(!isMountedRef\.current\) \{/);
+});
+
 test('Selection availability is keyed by scene identity and selected IDs', async () => {
   const { buildSelectedElementIdsSignature } = await import('../src/lib/excalidrawStyleConversion.ts');
   const source = await readSource('src/components/SlideCanvas.tsx');

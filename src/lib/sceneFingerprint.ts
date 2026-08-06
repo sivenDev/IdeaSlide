@@ -19,6 +19,12 @@ interface SceneFileLike {
   size?: number;
 }
 
+function normalizeGeometryNumber(value: number | undefined) {
+  if (value === undefined) return "";
+  if (!Number.isFinite(value)) return String(value);
+  return value.toPrecision(15);
+}
+
 function buildElementsFingerprint(elements: readonly SceneElementLike[]) {
   return elements
     .map((element) =>
@@ -26,10 +32,10 @@ function buildElementsFingerprint(elements: readonly SceneElementLike[]) {
         element.id ?? "",
         element.version ?? "",
         element.versionNonce ?? "",
-        element.x ?? "",
-        element.y ?? "",
-        element.width ?? "",
-        element.height ?? "",
+        normalizeGeometryNumber(element.x),
+        normalizeGeometryNumber(element.y),
+        normalizeGeometryNumber(element.width),
+        normalizeGeometryNumber(element.height),
         element.isDeleted ? "1" : "0",
         element.customData?.type ?? "",
         element.customData?.order ?? "",
