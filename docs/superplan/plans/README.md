@@ -7,7 +7,7 @@
 | Type | Plans | Complete |
 | --- | --- | --- |
 | `required` | 6 | 6 |
-| `feature` | 27 | 27 |
+| `feature` | 28 | 28 |
 | `bugfix` | 19 | 19 |
 
 ## Execution Order
@@ -63,6 +63,7 @@
 | `F025` | [Replace Native Unsaved Prompts with a Three-action Dialog](features/F025-three-action-unsaved-changes-dialog.md) | `complete` | 2026-08-06 |
 | `F026` | [Refine Unsaved-state Danger Color and Dialog Scale](features/F026-refine-unsaved-state-danger-and-dialog-scale.md) | `complete` | 2026-08-06 |
 | `F027` | [Simplify Workspace Explorer Root Header](features/F027-simplify-workspace-explorer-root-header.md) | `complete` | 2026-08-06 |
+| `F028` | [Start Presentation at the First Camera and Add a Preview Laser Pointer](features/F028-first-camera-preview-laser-pointer.md) | `complete` | 2026-08-07 |
 
 ### Bugfix Plans
 

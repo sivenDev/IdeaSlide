@@ -1,4 +1,11 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { SlideCanvas } from "./SlideCanvas";
 import { CameraNavigator } from "./CameraNavigator";
@@ -40,6 +47,7 @@ export function PresentationMode({ slide, mode, transitionSpeed, onExit }: Prese
   const [showSettings, setShowSettings] = useState(false);
   const [speed, setSpeed] = useState<TransitionSpeed>(transitionSpeed);
   const [apiReadyVersion, setApiReadyVersion] = useState(0);
+  const [laserPoint, setLaserPoint] = useState<{ x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const excalidrawApiRef = useRef<any>(null);
   const apiSlideIdRef = useRef<string | null>(null);
@@ -164,6 +172,28 @@ export function PresentationMode({ slide, mode, transitionSpeed, onExit }: Prese
   const goLast = useCallback(() => {
     setCurrentCameraIndex(Math.max(0, cameras.length - 1));
   }, [cameras.length]);
+
+  const handlePreviewPointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (mode !== "preview" || (event.pointerType && event.pointerType !== "mouse")) {
+      return;
+    }
+
+    const bounds = event.currentTarget.getBoundingClientRect();
+    setLaserPoint({
+      x: event.clientX - bounds.left,
+      y: event.clientY - bounds.top,
+    });
+  }, [mode]);
+
+  const clearPreviewPointer = useCallback(() => {
+    setLaserPoint(null);
+  }, []);
+
+  useEffect(() => {
+    if (mode !== "preview" || showCameraNav || showSettings) {
+      setLaserPoint(null);
+    }
+  }, [mode, showCameraNav, showSettings]);
 
   // Keyboard navigation - capture phase
   useEffect(() => {
@@ -292,7 +322,12 @@ export function PresentationMode({ slide, mode, transitionSpeed, onExit }: Prese
       style={{ backgroundColor: '#1a1a1a' }}
     >
       {/* Slide content — camera elements filtered out */}
-      <div className="w-full h-full">
+      <div
+        className="w-full h-full"
+        style={{ cursor: mode === "preview" ? "none" : undefined }}
+        onPointerMove={handlePreviewPointerMove}
+        onPointerLeave={clearPreviewPointer}
+      >
         <ErrorBoundary>
           <SlideCanvas
             key={slide.id}
@@ -308,6 +343,19 @@ export function PresentationMode({ slide, mode, transitionSpeed, onExit }: Prese
           />
         </ErrorBoundary>
       </div>
+
+      {mode === "preview" && laserPoint && (
+        <div
+          aria-hidden="true"
+          className="idea-slide-presentation-laser pointer-events-none absolute z-[55] h-3 w-3 rounded-full bg-red-500"
+          style={{
+            left: laserPoint.x,
+            top: laserPoint.y,
+            transform: "translate(-50%, -50%)",
+            boxShadow: "0 0 0 4px rgba(255, 62, 62, 0.22), 0 0 16px 6px rgba(255, 35, 35, 0.65)",
+          }}
+        />
+      )}
 
       {/* Camera navigator overlay */}
       {showCameraNav && hasCameras && (

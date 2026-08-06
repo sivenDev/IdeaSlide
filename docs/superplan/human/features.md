@@ -210,3 +210,10 @@ Refine the recently added unsaved-state treatment so the title-bar dirty indicat
 - created: 2026-08-06
 
 Keep Workspace actions permanently visible instead of revealing them only on hover, remove the Workspace name from the Explorer, and left-align top-level directory entries by removing the synthetic-root indentation. Preserve New File, New Folder, Refresh, tree actions, read-only behavior, tooltips, and the Workspace-root drop destination.
+
+## F028: Start presentation at the first Camera and use a preview laser pointer
+
+- status: done
+- created: 2026-08-07
+
+When playing an IdeaSketch Page, start at the first ordered Camera when Cameras exist; when none exist, preserve the Page's existing default viewport behavior. In Preview mode, replace the normal mouse cursor over the presentation canvas with a visible laser pointer without persisting scene changes.
