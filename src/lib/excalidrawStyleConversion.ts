@@ -53,6 +53,14 @@ function getSelectedIds(selectedElementIds?: Record<string, boolean>) {
   );
 }
 
+export function buildSelectedElementIdsSignature(selectedElementIds?: Record<string, boolean>) {
+  return Object.entries(selectedElementIds ?? {})
+    .filter(([, selected]) => Boolean(selected))
+    .map(([id]) => id)
+    .sort()
+    .join("|");
+}
+
 function collectSelectionClosure(
   elements: readonly any[],
   selectedElementIds?: Record<string, boolean>,

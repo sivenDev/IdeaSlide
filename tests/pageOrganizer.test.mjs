@@ -29,4 +29,7 @@ test('Pages organizer supports both views and the complete v1 Page lifecycle', (
   assert.doesNotMatch(source, /dataTransfer/);
   assert.doesNotMatch(source, /data-drag-ignore/);
   assert.doesNotMatch(source, /resolveListDropIndex/);
+  assert.match(source, /canvasInteractionActive = false/);
+  assert.match(source, /canvasInteractionActive \|\| editingPageId \|\| draggingPageId \|\| pointerActive/);
+  assert.match(source, /paused: thumbnailPaused/);
 });

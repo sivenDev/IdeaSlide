@@ -12,6 +12,7 @@ interface IdeaSketchNavigatorProps {
   pages: IdeaSketchPage[];
   activePageId: string;
   activePageDraft: EditorSlideDraft;
+  canvasInteractionActive?: boolean;
   cameras: Camera[];
   activeCameraId?: string;
   readOnly?: boolean;
@@ -34,6 +35,7 @@ export function IdeaSketchNavigator({
   pages,
   activePageId,
   activePageDraft,
+  canvasInteractionActive = false,
   cameras,
   activeCameraId,
   readOnly = false,
@@ -74,6 +76,7 @@ export function IdeaSketchNavigator({
             pages={pages}
             activePageId={activePageId}
             activeDraft={activePageDraft}
+            canvasInteractionActive={canvasInteractionActive}
             readOnly={readOnly}
             onSelect={onPageSelect}
             onAdd={onPageAdd}

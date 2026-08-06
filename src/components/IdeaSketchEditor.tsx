@@ -79,6 +79,7 @@ export function IdeaSketchEditor({
   const [navigatorTab, setNavigatorTab] = useState<IdeaSketchNavigatorTab>("pages");
   const [cameraDrawingRequestToken, setCameraDrawingRequestToken] = useState(0);
   const [selectedCameraId, setSelectedCameraId] = useState<string>();
+  const [canvasInteractionActive, setCanvasInteractionActive] = useState(false);
   const excalidrawApiRef = useRef<any>(null);
   const excalidrawSlideIdRef = useRef<string | undefined>(undefined);
   const pendingConversionFeedbackRef = useRef<{
@@ -305,6 +306,9 @@ export function IdeaSketchEditor({
     openNavigator("cameras");
     setCameraDrawingRequestToken((token) => token + 1);
   }, [openNavigator, readOnly]);
+  const handleCanvasInteractionChange = useCallback((active: boolean) => {
+    setCanvasInteractionActive((current) => current === active ? current : active);
+  }, []);
   return (
     <div className="ideanote-ideasketch-editor">
       <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -318,6 +322,7 @@ export function IdeaSketchEditor({
             onChange={updateDraft}
             onApiReady={handleApiReady}
             onConvertSelection={handleConvertSelection}
+            onInteractionChange={handleCanvasInteractionChange}
             viewMode={readOnly}
             editorRefreshToken={editorRefreshToken}
             cameraDrawingRequestToken={cameraDrawingRequestToken}
@@ -332,6 +337,7 @@ export function IdeaSketchEditor({
               pages={editorState.document.pages}
               activePageId={editorState.activePageId}
               activePageDraft={draft}
+              canvasInteractionActive={canvasInteractionActive}
               cameras={cameras}
               activeCameraId={activeCameraId}
               readOnly={readOnly}

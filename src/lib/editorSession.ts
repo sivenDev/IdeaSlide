@@ -33,6 +33,19 @@ export interface DraftChangeSummary {
   hasPersistedChange: boolean;
 }
 
+export interface PersistedDraftProjection {
+  elements: readonly any[];
+  files: Record<string, any>;
+  sceneFingerprint: string;
+  appStateFingerprint: string;
+}
+
+export interface PersistedDraftProjectionUpdate {
+  projection: PersistedDraftProjection;
+  sceneFingerprintComputed: boolean;
+  summary: DraftChangeSummary;
+}
+
 function extractAppStateKeys(
   appState: Partial<any> | undefined,
   keys: readonly string[],
@@ -70,6 +83,59 @@ function normalizePersistedAppStateForComparison(appState: Partial<any>) {
   return normalized;
 }
 
+function buildSaveTriggerAppStateFingerprint(appState: Partial<any> | undefined) {
+  return JSON.stringify(
+    normalizePersistedAppStateForComparison(extractSaveTriggerAppState(appState)),
+  );
+}
+
+export function createPersistedDraftProjection(
+  draftLike: Pick<EditorSlideDraft, "elements" | "appState" | "files">,
+): PersistedDraftProjection {
+  return {
+    elements: draftLike.elements,
+    files: draftLike.files,
+    sceneFingerprint: buildSceneFingerprint(draftLike.elements, draftLike.files),
+    appStateFingerprint: buildSaveTriggerAppStateFingerprint(draftLike.appState),
+  };
+}
+
+export function comparePersistedDraftProjections(
+  previous: PersistedDraftProjection,
+  next: PersistedDraftProjection,
+): DraftChangeSummary {
+  const contentChanged = previous.sceneFingerprint !== next.sceneFingerprint;
+  const appStateChanged = previous.appStateFingerprint !== next.appStateFingerprint;
+
+  return {
+    contentChanged,
+    appStateChanged,
+    hasPersistedChange: contentChanged || appStateChanged,
+  };
+}
+
+export function updatePersistedDraftProjection(
+  previous: PersistedDraftProjection,
+  nextDraftLike: Pick<EditorSlideDraft, "elements" | "appState" | "files">,
+): PersistedDraftProjectionUpdate {
+  const sceneIdentityUnchanged =
+    previous.elements === nextDraftLike.elements && previous.files === nextDraftLike.files;
+  const projection: PersistedDraftProjection = {
+    elements: nextDraftLike.elements,
+    files: nextDraftLike.files,
+    sceneFingerprint: sceneIdentityUnchanged
+      ? previous.sceneFingerprint
+      : buildSceneFingerprint(nextDraftLike.elements, nextDraftLike.files),
+    appStateFingerprint: buildSaveTriggerAppStateFingerprint(nextDraftLike.appState),
+  };
+
+  return {
+    projection,
+    sceneFingerprintComputed: !sceneIdentityUnchanged,
+    summary: comparePersistedDraftProjections(previous, projection),
+  };
+}
+
 export function buildEditorDraftFromSlide(slide: Slide): EditorSlideDraft {
   return {
     slideId: slide.id,
@@ -83,24 +149,10 @@ export function createDraftChangeSummary(
   previousDraftLike: Pick<EditorSlideDraft, "elements" | "appState" | "files">,
   nextDraftLike: Pick<EditorSlideDraft, "elements" | "appState" | "files">
 ): DraftChangeSummary {
-  const previousAppState = normalizePersistedAppStateForComparison(
-    extractSaveTriggerAppState(previousDraftLike.appState)
+  return comparePersistedDraftProjections(
+    createPersistedDraftProjection(previousDraftLike),
+    createPersistedDraftProjection(nextDraftLike),
   );
-  const nextAppState = normalizePersistedAppStateForComparison(
-    extractSaveTriggerAppState(nextDraftLike.appState)
-  );
-  const previousSceneFingerprint = buildSceneFingerprint(previousDraftLike.elements, previousDraftLike.files);
-  const nextSceneFingerprint = buildSceneFingerprint(nextDraftLike.elements, nextDraftLike.files);
-
-  const contentChanged = previousSceneFingerprint !== nextSceneFingerprint;
-  const appStateChanged =
-    JSON.stringify(previousAppState) !== JSON.stringify(nextAppState);
-
-  return {
-    contentChanged,
-    appStateChanged,
-    hasPersistedChange: contentChanged || appStateChanged,
-  };
 }
 
 export function buildSlideCommitPayload(
@@ -181,8 +233,12 @@ export function buildSlidesForPersistence(
   );
 }
 
-export function flushEditorDraft(previousSlide: Slide, draft: EditorSlideDraft) {
-  const commitPayload = buildSlideCommitPayload(previousSlide, draft);
+export function flushEditorDraft(
+  previousSlide: Slide,
+  draft: EditorSlideDraft,
+  summary: DraftChangeSummary = createDraftChangeSummary(previousSlide, draft),
+) {
+  const commitPayload = buildSlideCommitPayload(previousSlide, draft, summary);
   const baseSlide = commitPayload?.slide ?? previousSlide;
   const nextDraft = buildEditorDraftFromSlide(baseSlide);
 

@@ -60,11 +60,24 @@ test('useEditorSession keeps live edits in refs and debounces preview sync befor
   const source = await fs.readFile(sourcePath, 'utf8');
 
   assert.match(source, /const PREVIEW_SYNC_DEBOUNCE_MS = 250;/);
-  assert.match(source, /const draftRef = useRef\(initialDraft\);/);
+  assert.match(source, /const draftRef = useRef\(initialSession\.draft\);/);
   assert.match(source, /draftRef\.current = nextDraft;/);
   assert.match(source, /previewSyncTimeoutRef\.current = window\.setTimeout\(\(\) => \{/s);
   assert.match(source, /syncPreviewDraft\(\);/);
   assert.doesNotMatch(source, /setDraft\(\(previousDraft\) => \{/);
+});
+
+test('useEditorSession computes the initial scene projection only once per mount', async () => {
+  const sourcePath = new URL('../src/hooks/useEditorSession.ts', import.meta.url);
+  const source = await fs.readFile(sourcePath, 'utf8');
+  const initialization = source.match(
+    /const initialSessionRef = useRef<[\s\S]*?const \[draft, setDraft\]/,
+  )?.[0] ?? '';
+
+  assert.match(initialization, /if \(initialSessionRef\.current === null\) \{/);
+  assert.match(initialization, /createPersistedDraftProjection\(initialDraft\)/);
+  assert.match(initialization, /const initialSession = initialSessionRef\.current;/);
+  assert.doesNotMatch(source, /const initialProjection = createPersistedDraftProjection\(initialDraft\);\s*const \[draft/s);
 });
 
 test('useEditorSession advances autosave versions only for persisted consecutive-draft changes', async () => {
@@ -73,8 +86,70 @@ test('useEditorSession advances autosave versions only for persisted consecutive
   const updateDraft = source.match(/const updateDraft = useCallback\([\s\S]*?\n  \);/)?.[0] ?? '';
 
   assert.match(updateDraft, /const previousDraft = draftRef\.current;/);
-  assert.match(updateDraft, /const persistedDraftChanged = createDraftChangeSummary\(previousDraft, nextDraft\)\.hasPersistedChange;/);
+  assert.match(updateDraft, /updatePersistedDraftProjection\([\s\S]*?liveProjectionRef\.current,[\s\S]*?nextDraft/);
+  assert.match(updateDraft, /const persistedDraftChanged = projectionUpdate\.summary\.hasPersistedChange;/);
   assert.match(updateDraft, /if \(persistedDraftChanged\) \{[\s\S]*?editVersionRef\.current \+= 1;[\s\S]*?previewSyncTimeoutRef\.current = window\.setTimeout/);
+});
+
+test('cached persisted projections skip scene fingerprints for viewport noise and hash changed identities once', async () => {
+  const {
+    comparePersistedDraftProjections,
+    createPersistedDraftProjection,
+    updatePersistedDraftProjection,
+  } = await loadModule();
+
+  assert.equal(typeof createPersistedDraftProjection, 'function');
+  assert.equal(typeof updatePersistedDraftProjection, 'function');
+  assert.equal(typeof comparePersistedDraftProjections, 'function');
+
+  const elements = [{ id: 'shape-1', version: 1, versionNonce: 11 }];
+  const files = {};
+  const baseDraft = {
+    elements,
+    files,
+    appState: { viewBackgroundColor: '#ffffff', scrollX: 0, zoom: { value: 1 } },
+  };
+  const baseProjection = createPersistedDraftProjection(baseDraft);
+  const viewportUpdate = updatePersistedDraftProjection(baseProjection, {
+    elements,
+    files,
+    appState: { ...baseDraft.appState, scrollX: 240, zoom: { value: 1.5 } },
+  });
+
+  assert.equal(viewportUpdate.sceneFingerprintComputed, false);
+  assert.equal(viewportUpdate.summary.hasPersistedChange, false);
+  assert.equal(
+    comparePersistedDraftProjections(baseProjection, viewportUpdate.projection).hasPersistedChange,
+    false,
+  );
+
+  const backgroundUpdate = updatePersistedDraftProjection(viewportUpdate.projection, {
+    elements,
+    files,
+    appState: { ...baseDraft.appState, viewBackgroundColor: '#f5f5f5' },
+  });
+  assert.equal(backgroundUpdate.sceneFingerprintComputed, false);
+  assert.equal(backgroundUpdate.summary.appStateChanged, true);
+
+  const clonedEquivalent = updatePersistedDraftProjection(viewportUpdate.projection, {
+    elements: elements.map((element) => ({ ...element })),
+    files: { ...files },
+    appState: baseDraft.appState,
+  });
+  assert.equal(clonedEquivalent.sceneFingerprintComputed, true);
+  assert.equal(clonedEquivalent.summary.hasPersistedChange, false);
+
+  const edited = updatePersistedDraftProjection(clonedEquivalent.projection, {
+    elements: [{ ...elements[0], version: 2, versionNonce: 12 }],
+    files,
+    appState: baseDraft.appState,
+  });
+  assert.equal(edited.sceneFingerprintComputed, true);
+  assert.equal(edited.summary.contentChanged, true);
+
+  const reverted = updatePersistedDraftProjection(edited.projection, baseDraft);
+  assert.equal(reverted.sceneFingerprintComputed, true);
+  assert.equal(reverted.summary.contentChanged, true);
 });
 
 test('consecutive draft comparison ignores persisted-equivalent noise but detects edits and reverts', async () => {

@@ -1,6 +1,6 @@
-import { extractCameras } from "./cameraUtils.ts";
+import { extractCameras, type Camera } from "./cameraUtils.ts";
 
-interface CameraBadgeViewport {
+export interface CameraBadgeViewport {
   scrollX: number;
   scrollY: number;
   zoom: number;
@@ -8,12 +8,12 @@ interface CameraBadgeViewport {
   offsetTop: number;
 }
 
-interface CameraBadgeContainer {
+export interface CameraBadgeContainer {
   left: number;
   top: number;
 }
 
-interface CameraBadgeLike {
+export interface CameraBadgeLike {
   id: string;
   order: number;
   left: number;
@@ -21,7 +21,7 @@ interface CameraBadgeLike {
   strokeColor: string;
 }
 
-function extractCameraBadgeViewport(appState: Partial<any> | undefined): CameraBadgeViewport {
+export function extractCameraBadgeViewport(appState: Partial<any> | undefined): CameraBadgeViewport {
   return {
     scrollX: appState?.scrollX ?? 0,
     scrollY: appState?.scrollY ?? 0,
@@ -31,22 +31,33 @@ function extractCameraBadgeViewport(appState: Partial<any> | undefined): CameraB
   };
 }
 
-export function getCameraBadges(
-  elements: readonly any[],
-  appState: Partial<any> = {},
+export function projectCameraBadges(
+  cameras: readonly Camera[],
+  viewport: CameraBadgeViewport,
   container: CameraBadgeContainer = { left: 0, top: 0 },
 ): CameraBadgeLike[] {
-  const viewport = extractCameraBadgeViewport(appState);
   const localOffsetLeft = viewport.offsetLeft - container.left;
   const localOffsetTop = viewport.offsetTop - container.top;
 
-  return extractCameras(elements).map((camera) => ({
+  return cameras.map((camera) => ({
     id: camera.id,
     order: camera.order,
     left: (camera.bounds.x + viewport.scrollX) * viewport.zoom + localOffsetLeft,
     top: (camera.bounds.y + viewport.scrollY) * viewport.zoom + localOffsetTop,
     strokeColor: camera.strokeColor ?? "#f59e0b",
   }));
+}
+
+export function getCameraBadges(
+  elements: readonly any[],
+  appState: Partial<any> = {},
+  container: CameraBadgeContainer = { left: 0, top: 0 },
+): CameraBadgeLike[] {
+  return projectCameraBadges(
+    extractCameras(elements),
+    extractCameraBadgeViewport(appState),
+    container,
+  );
 }
 
 export function buildCameraBadgeSignature(

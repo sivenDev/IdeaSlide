@@ -126,6 +126,52 @@ test('scheduler pauses queued work and ignores stale in-flight completion', asyn
   assert.deepEqual(completed, ['new-page']);
 });
 
+test('scheduler keeps a valid in-flight result but starts no queued successor while paused', async () => {
+  const { PageThumbnailScheduler } = await loadSchedulerModule();
+  const firstExport = deferred();
+  const firstStarted = deferred();
+  const completed = [];
+  const started = [];
+  const scheduler = new PageThumbnailScheduler({
+    yieldToMain: async () => {},
+    onResult: (job) => completed.push(job.pageId),
+  });
+
+  scheduler.replace([
+    {
+      pageId: 'first-page',
+      priority: 'active-visible',
+      run: async () => {
+        started.push('first-page');
+        firstStarted.resolve();
+        await firstExport.promise;
+        return 'first';
+      },
+    },
+    {
+      pageId: 'second-page',
+      priority: 'visible',
+      run: async () => {
+        started.push('second-page');
+        return 'second';
+      },
+    },
+  ]);
+  await firstStarted.promise;
+  scheduler.setPaused(true);
+  firstExport.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+
+  assert.deepEqual(started, ['first-page']);
+  assert.deepEqual(completed, ['first-page']);
+
+  scheduler.setPaused(false);
+  await scheduler.waitForIdle();
+  assert.deepEqual(started, ['first-page', 'second-page']);
+  assert.deepEqual(completed, ['first-page', 'second-page']);
+});
+
 test('scheduler remains reusable after lifecycle cleanup', async () => {
   const { PageThumbnailScheduler } = await loadSchedulerModule();
   const completed = [];

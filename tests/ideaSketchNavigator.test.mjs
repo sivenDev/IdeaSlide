@@ -20,6 +20,8 @@ test('IdeaSketch navigator switches between fixed Pages and Cameras tabs', async
   assert.match(source, /cameras\.length/);
   assert.doesNotMatch(source, /Collapsible/);
   assert.match(source, /activePageDraft/);
+  assert.match(source, /canvasInteractionActive/);
+  assert.match(source, /canvasInteractionActive=\{canvasInteractionActive\}/);
 });
 
 test('IdeaSketch editor owns one open-by-default compact navigator without a duplicate Page shortcut', async () => {
@@ -40,4 +42,5 @@ test('IdeaSketch editor owns one open-by-default compact navigator without a dup
   assert.doesNotMatch(source, /<CameraList/);
   assert.doesNotMatch(source, /Show Pages\. Current Page/);
   assert.doesNotMatch(source, /ideanote-ideasketch-editor__chrome/);
+  assert.match(source, /canvasInteractionActive=\{canvasInteractionActive\}/);
 });

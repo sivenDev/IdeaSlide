@@ -182,3 +182,10 @@ Add an Export as draw.io action to the editor's top-left Excalidraw main menu. C
 - created: 2026-08-06
 
 When exporting the active Page to draw.io, normalize supported vector and text cells to the project's existing formal draw.io-style contract: solid 2 px strokes, solid fills, full opacity, sharp geometry/connectors, and Helvetica text while preserving colors, geometry, labels, bindings, images, freehand representation, and the source IdeaSketch document.
+
+## F024: Optimize large Excalidraw viewport interactions
+
+- status: done
+- created: 2026-08-06
+
+Reduce zoom and pan stalls for large Excalidraw files without changing document/save semantics, Camera badge positioning, selection-style conversion, Page previews, or other user-visible editor behavior. Optimize scene-change classification and fingerprint reuse, selection availability checks, Camera viewport projection, React/WebView rendering isolation, and preview scheduling; verify the result in a production Tauri build.

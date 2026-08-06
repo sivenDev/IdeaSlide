@@ -7,7 +7,7 @@
 | Type | Plans | Complete |
 | --- | --- | --- |
 | `required` | 6 | 6 |
-| `feature` | 23 | 23 |
+| `feature` | 24 | 24 |
 | `bugfix` | 15 | 15 |
 
 ## Execution Order
@@ -59,6 +59,7 @@
 | `F021` | [Update Documentation to IdeaNote Branding](features/F021-update-documentation-to-ideanote-branding.md) | `complete` | 2026-08-06 |
 | `F022` | [Export Editor Content as draw.io](features/F022-export-editor-content-as-drawio.md) | `complete` | 2026-08-06 |
 | `F023` | [Normalize draw.io Export Style](features/F023-normalize-drawio-export-style.md) | `complete` | 2026-08-06 |
+| `F024` | [Optimize Large Excalidraw Viewport Interactions](features/F024-optimize-large-excalidraw-viewport-interactions.md) | `complete` | 2026-08-06 |
 
 ### Bugfix Plans
 

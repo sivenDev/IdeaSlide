@@ -18,6 +18,9 @@ test('IdeaSketch editor binds Excalidraw drafts to document and Page identity', 
   assert.match(canvas, /files=\{draft\.files\}/);
   assert.match(canvas, /pageTitle=\{activePage\.title\}/);
   assert.doesNotMatch(canvas, /slideId=\{activePage\.id\}/);
+  assert.match(canvas, /onInteractionChange=\{handleCanvasInteractionChange\}/);
+  assert.match(source, /const \[canvasInteractionActive, setCanvasInteractionActive\] = useState\(false\);/);
+  assert.match(source, /setCanvasInteractionActive\(\(current\) => current === active \? current : active\)/);
 });
 
 test('saved editable documents autosave in both modes while Page-scoped Cameras remain inside IdeaSketch', () => {
@@ -31,6 +34,7 @@ test('saved editable documents autosave in both modes while Page-scoped Cameras 
   assert.match(source, /navigatorTab/);
   assert.match(source, /model\.pages\.find/);
   assert.match(source, /activePageDraft=\{draft\}/);
+  assert.match(source, /canvasInteractionActive=\{canvasInteractionActive\}/);
   assert.doesNotMatch(source, /ideanote-ideasketch-editor__chrome/);
   assert.doesNotMatch(source, /Show Pages\. Current Page/);
 });

@@ -1,22 +1,20 @@
 import { Excalidraw, MainMenu } from "@excalidraw/excalidraw";
-import { memo, useRef, useEffect, useState, useCallback } from "react";
+import { memo, useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { Download } from "lucide-react";
 import { getNextCameraOrder } from "../lib/cameraUtils";
-import {
-  buildCameraBadgeSignature,
-  getCameraBadges,
-} from "../lib/cameraBadges";
 import {
   CAMERA_PREVIEW_ID,
   enterCameraDrawingMode,
 } from "../lib/cameraDrawing";
 import { areSlideCanvasPropsEqual } from "../lib/slideCanvasProps";
 import {
+  buildSelectedElementIdsSignature,
   getStyleConversionAvailability,
   type StyleConversionTarget,
 } from "../lib/excalidrawStyleConversion";
 import { exportExcalidrawToDrawio } from "../lib/drawioExport";
 import { CanvasSelectionActions } from "./CanvasSelectionActions";
+import { CameraBadgeOverlay } from "./CameraBadgeOverlay";
 
 function getScenePointerFromEvent(api: any, event: PointerEvent) {
   const appState = api.getAppState();
@@ -34,34 +32,6 @@ function getScenePointerFromEvent(api: any, event: PointerEvent) {
   };
 }
 
-function getBadgeBackgroundColor(color: string) {
-  const normalizedColor = color.trim();
-  const shortHexMatch = /^#([\da-f]{3})$/i.exec(normalizedColor);
-  const fullHexMatch = /^#([\da-f]{6})$/i.exec(normalizedColor);
-  const rgbMatch = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*[\d.]+\s*)?\)$/i.exec(normalizedColor);
-  const alpha = 0.76;
-
-  if (shortHexMatch) {
-    const [r, g, b] = shortHexMatch[1].split("").map((value) => Number.parseInt(`${value}${value}`, 16));
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  }
-
-  if (fullHexMatch) {
-    const hex = fullHexMatch[1];
-    const r = Number.parseInt(hex.slice(0, 2), 16);
-    const g = Number.parseInt(hex.slice(2, 4), 16);
-    const b = Number.parseInt(hex.slice(4, 6), 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  }
-
-  if (rgbMatch) {
-    const [, r, g, b] = rgbMatch;
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  }
-
-  return normalizedColor;
-}
-
 interface SlideCanvasProps {
   slideId: string;
   pageTitle: string;
@@ -72,6 +42,7 @@ interface SlideCanvasProps {
   viewMode?: boolean;
   onApiReady?: (api: any, slideId: string) => void;
   onConvertSelection?: (target: StyleConversionTarget) => void;
+  onInteractionChange?: (active: boolean) => void;
   editorRefreshToken: number;
   cameraDrawingRequestToken?: number;
 }
@@ -96,48 +67,89 @@ function SlideCanvasInner({
   viewMode,
   onApiReady,
   onConvertSelection,
+  onInteractionChange,
   editorRefreshToken,
   cameraDrawingRequestToken = 0,
 }: SlideCanvasProps) {
   // Use a ref to always have the latest onChange without causing re-renders
   const containerRef = useRef<HTMLDivElement>(null);
   const onChangeRef = useRef(onChange);
-  const getBadgeContainerRect = useCallback(() => {
-    const rect = containerRef.current?.getBoundingClientRect();
-    return {
-      left: rect?.left ?? 0,
-      top: rect?.top ?? 0,
-    };
-  }, []);
-  const [cameraBadges, setCameraBadges] = useState(() =>
-    getCameraBadges(elements, appState, getBadgeContainerRect()),
-  );
-  const cameraBadgeSignatureRef = useRef(
-    buildCameraBadgeSignature(elements, appState, getBadgeContainerRect()),
-  );
+  const onInteractionChangeRef = useRef(onInteractionChange);
+  const interactionActiveRef = useRef(false);
+  const interactionIdleTimeoutRef = useRef<number | null>(null);
   const [canConvertSelection, setCanConvertSelection] = useState(() =>
     getStyleConversionAvailability(elements, appState.selectedElementIds, Boolean(viewMode)),
   );
+  const selectionObservationRef = useRef({
+    elements,
+    selectedIdsSignature: buildSelectedElementIdsSignature(appState.selectedElementIds),
+    readOnly: Boolean(viewMode),
+  });
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+  useEffect(() => {
+    onInteractionChangeRef.current = onInteractionChange;
+  }, [onInteractionChange]);
 
-  const syncCameraBadges = useCallback((nextElements: readonly any[], nextAppState: Partial<any>) => {
-    const containerRect = getBadgeContainerRect();
-    const nextSignature = buildCameraBadgeSignature(nextElements, nextAppState, containerRect);
+  const clearInteractionIdleTimeout = useCallback(() => {
+    if (interactionIdleTimeoutRef.current === null) return;
+    window.clearTimeout(interactionIdleTimeoutRef.current);
+    interactionIdleTimeoutRef.current = null;
+  }, []);
+  const beginCanvasInteraction = useCallback(() => {
+    clearInteractionIdleTimeout();
+    if (interactionActiveRef.current) return;
+    interactionActiveRef.current = true;
+    onInteractionChangeRef.current?.(true);
+  }, [clearInteractionIdleTimeout]);
+  const finishCanvasInteractionSoon = useCallback(() => {
+    clearInteractionIdleTimeout();
+    interactionIdleTimeoutRef.current = window.setTimeout(() => {
+      interactionIdleTimeoutRef.current = null;
+      if (!interactionActiveRef.current) return;
+      interactionActiveRef.current = false;
+      onInteractionChangeRef.current?.(false);
+    }, 180);
+  }, [clearInteractionIdleTimeout]);
+  const pulseCanvasInteraction = useCallback(() => {
+    beginCanvasInteraction();
+    finishCanvasInteractionSoon();
+  }, [beginCanvasInteraction, finishCanvasInteractionSoon]);
 
-    if (nextSignature === cameraBadgeSignatureRef.current) {
-      return;
-    }
+  useEffect(() => {
+    const finishPointerInteraction = () => finishCanvasInteractionSoon();
+    window.addEventListener("pointerup", finishPointerInteraction);
+    window.addEventListener("pointercancel", finishPointerInteraction);
+    return () => {
+      window.removeEventListener("pointerup", finishPointerInteraction);
+      window.removeEventListener("pointercancel", finishPointerInteraction);
+      clearInteractionIdleTimeout();
+      if (interactionActiveRef.current) {
+        interactionActiveRef.current = false;
+        onInteractionChangeRef.current?.(false);
+      }
+    };
+  }, [clearInteractionIdleTimeout, finishCanvasInteractionSoon]);
 
-    cameraBadgeSignatureRef.current = nextSignature;
-    setCameraBadges(getCameraBadges(nextElements, nextAppState, containerRect));
-  }, [getBadgeContainerRect]);
-  const syncCameraBadgesRef = useRef(syncCameraBadges);
   const syncStyleConversionAvailability = useCallback((
     nextElements: readonly any[],
     nextAppState: Partial<any>,
   ) => {
+    const nextObservation = {
+      elements: nextElements,
+      selectedIdsSignature: buildSelectedElementIdsSignature(nextAppState.selectedElementIds),
+      readOnly: Boolean(viewMode),
+    };
+    const previousObservation = selectionObservationRef.current;
+    if (
+      previousObservation.elements === nextObservation.elements &&
+      previousObservation.selectedIdsSignature === nextObservation.selectedIdsSignature &&
+      previousObservation.readOnly === nextObservation.readOnly
+    ) {
+      return;
+    }
+    selectionObservationRef.current = nextObservation;
     const nextAvailability = getStyleConversionAvailability(
       nextElements,
       nextAppState.selectedElementIds,
@@ -146,10 +158,6 @@ function SlideCanvasInner({
     setCanConvertSelection((current) => current === nextAvailability ? current : nextAvailability);
   }, [viewMode]);
   const syncStyleConversionAvailabilityRef = useRef(syncStyleConversionAvailability);
-
-  useEffect(() => {
-    syncCameraBadgesRef.current = syncCameraBadges;
-  }, [syncCameraBadges]);
 
   useEffect(() => {
     syncStyleConversionAvailabilityRef.current = syncStyleConversionAvailability;
@@ -163,12 +171,8 @@ function SlideCanvasInner({
   }, [slideId]);
 
   useEffect(() => {
-    const containerRect = getBadgeContainerRect();
-    const nextSignature = buildCameraBadgeSignature(elements, appState, containerRect);
-    cameraBadgeSignatureRef.current = nextSignature;
-    setCameraBadges(getCameraBadges(elements, appState, containerRect));
     syncStyleConversionAvailabilityRef.current(elements, appState);
-  }, [slideId, elements, appState, getBadgeContainerRect]);
+  }, [slideId, elements, appState]);
 
   // Stable callback that never changes identity
   const stableOnChange = useRef((els: readonly any[], state: any, sceneFiles: Record<string, any>) => {
@@ -179,7 +183,7 @@ function SlideCanvasInner({
 
     // The preview rectangle is purely local UI state for drag feedback and
     // should not be persisted into the slide store.
-    if (els.some((element: any) => element.id === CAMERA_PREVIEW_ID)) {
+    if (cameraPreviewActiveRef.current) {
       return;
     }
 
@@ -189,6 +193,7 @@ function SlideCanvasInner({
   // Camera drawing state
   const [isDrawingCamera, setIsDrawingCamera] = useState(false);
   const drawStartRef = useRef<{ x: number; y: number } | null>(null);
+  const cameraPreviewActiveRef = useRef(false);
   const excalidrawApiRef = useRef<any>(null);
   const drawioExportInFlightRef = useRef(false);
   const [apiReadyVersion, setApiReadyVersion] = useState(0);
@@ -196,7 +201,6 @@ function SlideCanvasInner({
   // Handle API ready
   const handleApiReady = useCallback((api: any) => {
     excalidrawApiRef.current = api;
-    syncCameraBadgesRef.current(api.getSceneElements(), api.getAppState());
     syncStyleConversionAvailabilityRef.current(api.getSceneElements(), api.getAppState());
     setApiReadyVersion((value) => value + 1);
     onApiReady?.(api, slideId);
@@ -208,33 +212,20 @@ function SlideCanvasInner({
       return;
     }
 
-    syncCameraBadgesRef.current(api.getSceneElements(), api.getAppState());
-
     const unsubscribeChange = api.onChange(
       (nextElements: readonly any[], nextAppState: Partial<any>) => {
-        syncCameraBadgesRef.current(nextElements, nextAppState);
         syncStyleConversionAvailabilityRef.current(nextElements, nextAppState);
       },
     );
-    const unsubscribeScroll = api.onScrollChange(() => {
-      syncCameraBadgesRef.current(api.getSceneElements(), api.getAppState());
+    const unsubscribeScrollInteraction = api.onScrollChange(() => {
+      pulseCanvasInteraction();
     });
-    const resizeObserver = typeof ResizeObserver === "undefined"
-      ? null
-      : new ResizeObserver(() => {
-          syncCameraBadgesRef.current(api.getSceneElements(), api.getAppState());
-        });
-
-    if (containerRef.current && resizeObserver) {
-      resizeObserver.observe(containerRef.current);
-    }
 
     return () => {
       unsubscribeChange();
-      unsubscribeScroll();
-      resizeObserver?.disconnect();
+      unsubscribeScrollInteraction();
     };
-  }, [apiReadyVersion, slideId]);
+  }, [apiReadyVersion, pulseCanvasInteraction, slideId]);
 
   useEffect(() => {
     const api = excalidrawApiRef.current;
@@ -347,6 +338,7 @@ function SlideCanvasInner({
       };
 
       // Update scene with preview
+      cameraPreviewActiveRef.current = true;
       api.updateScene({
         elements: [...currentElements, previewElement],
       });
@@ -415,11 +407,13 @@ function SlideCanvasInner({
           };
 
           // Add camera to scene
+          cameraPreviewActiveRef.current = false;
           api.updateScene({
             elements: [...currentElements, cameraElement],
           });
         } else {
           // Just remove preview if drag was too small
+          cameraPreviewActiveRef.current = false;
           api.updateScene({
             elements: currentElements,
           });
@@ -446,6 +440,7 @@ function SlideCanvasInner({
     }
 
     drawStartRef.current = null;
+    cameraPreviewActiveRef.current = false;
     const sceneElements = api.getSceneElements();
     if (!sceneElements.some((el: any) => el.id === CAMERA_PREVIEW_ID)) {
       return;
@@ -485,7 +480,7 @@ function SlideCanvasInner({
       });
   }, [pageTitle]);
 
-  const mainMenu = (
+  const mainMenu = useMemo(() => (
     <MainMenu>
       <MainMenu.Item
         icon={<Download aria-hidden="true" size={16} strokeWidth={1.8} />}
@@ -499,10 +494,21 @@ function SlideCanvasInner({
       <MainMenu.DefaultItems.ClearCanvas />
       <MainMenu.DefaultItems.Help />
     </MainMenu>
+  ), [handleExportDrawio]);
+  const renderSelectionActions = useCallback(
+    () => onConvertSelection
+      ? <CanvasSelectionActions onConvert={onConvertSelection} />
+      : null,
+    [onConvertSelection],
   );
 
   return (
-    <div ref={containerRef} style={{ width: "100%", height: "100%", position: "relative" }}>
+    <div
+      ref={containerRef}
+      style={{ width: "100%", height: "100%", position: "relative" }}
+      onPointerDownCapture={beginCanvasInteraction}
+      onWheelCapture={pulseCanvasInteraction}
+    >
       <Excalidraw
         key={slideId}
         excalidrawAPI={handleApiReady}
@@ -525,31 +531,18 @@ function SlideCanvasInner({
           canvasActions: excalidrawCanvasActions,
         }}
         renderTopRightUI={!viewMode && canConvertSelection && onConvertSelection
-          ? () => <CanvasSelectionActions onConvert={onConvertSelection} />
+          ? renderSelectionActions
           : undefined}
       >
         {!viewMode && mainMenu}
       </Excalidraw>
-      {!viewMode && cameraBadges.length > 0 && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-20 overflow-hidden"
-        >
-          {cameraBadges.map((badge) => (
-                <div
-                  key={badge.id}
-                  className="absolute min-w-6 h-6 px-2 rounded-full border border-white/90 text-white text-xs font-semibold shadow-md flex items-center justify-center"
-                  style={{
-                    backgroundColor: getBadgeBackgroundColor(badge.strokeColor),
-                    left: `${badge.left}px`,
-                    top: `${badge.top}px`,
-                    transform: "translate(-28%, -52%)",
-                  }}
-                >
-              {badge.order}
-            </div>
-          ))}
-        </div>
+      {!viewMode && (
+        <CameraBadgeOverlay
+          key={slideId}
+          api={excalidrawApiRef.current}
+          containerRef={containerRef}
+          slideId={slideId}
+        />
       )}
     </div>
   );

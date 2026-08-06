@@ -37,6 +37,7 @@ interface PageOrganizerProps {
   pages: IdeaSketchPage[];
   activePageId: string;
   activeDraft: EditorSlideDraft;
+  canvasInteractionActive?: boolean;
   readOnly?: boolean;
   onSelect: (pageId: string) => void;
   onAdd: () => void;
@@ -211,6 +212,7 @@ export function PageOrganizer({
   pages,
   activePageId,
   activeDraft,
+  canvasInteractionActive = false,
   readOnly = false,
   onSelect,
   onAdd,
@@ -250,7 +252,9 @@ export function PageOrganizer({
       activePageId,
     )
     : [], [activePageId, pageIds, viewMode, virtualIndexKey, visibleEndIndex, visibleStartIndex]);
-  const thumbnailPaused = Boolean(editingPageId || draggingPageId || pointerActive);
+  const thumbnailPaused = Boolean(
+    canvasInteractionActive || editingPageId || draggingPageId || pointerActive,
+  );
   const thumbnails = usePageThumbnails({
     pages,
     activePageId,

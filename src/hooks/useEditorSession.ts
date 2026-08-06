@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Slide } from "../types";
 import {
   buildEditorDraftFromSlide,
-  createDraftChangeSummary,
+  comparePersistedDraftProjections,
+  createPersistedDraftProjection,
   flushEditorDraft,
+  updatePersistedDraftProjection,
   type EditorSlideDraft,
   type SlideCommitPayload,
 } from "../lib/editorSession.ts";
@@ -23,15 +25,32 @@ export function useEditorSession({
   onCommit,
   onDirty,
 }: UseEditorSessionOptions) {
-  const initialDraft = buildEditorDraftFromSlide(page);
-  const initialSummary = createDraftChangeSummary(page, initialDraft);
-  const [draft, setDraft] = useState<EditorSlideDraft>(initialDraft);
-  const [hasPendingCommit, setHasPendingCommit] = useState(initialSummary.hasPersistedChange);
+  const initialSessionRef = useRef<{
+    draft: EditorSlideDraft;
+    projection: ReturnType<typeof createPersistedDraftProjection>;
+    summary: ReturnType<typeof comparePersistedDraftProjections>;
+  } | null>(null);
+  if (initialSessionRef.current === null) {
+    const initialDraft = buildEditorDraftFromSlide(page);
+    const initialProjection = createPersistedDraftProjection(initialDraft);
+    initialSessionRef.current = {
+      draft: initialDraft,
+      projection: initialProjection,
+      summary: comparePersistedDraftProjections(initialProjection, initialProjection),
+    };
+  }
+  const initialSession = initialSessionRef.current;
+  const [draft, setDraft] = useState<EditorSlideDraft>(() => initialSession.draft);
+  const [hasPendingCommit, setHasPendingCommit] = useState(
+    () => initialSession.summary.hasPersistedChange,
+  );
   const [autoSaveVersion, setAutoSaveVersion] = useState(0);
   const baseSlideRef = useRef(page);
   const documentSessionIdRef = useRef(documentSessionId);
-  const draftRef = useRef(initialDraft);
-  const changeSummaryRef = useRef(initialSummary);
+  const draftRef = useRef(initialSession.draft);
+  const changeSummaryRef = useRef(initialSession.summary);
+  const baseProjectionRef = useRef(initialSession.projection);
+  const liveProjectionRef = useRef(initialSession.projection);
   const editVersionRef = useRef(0);
   const previewSyncTimeoutRef = useRef<number | null>(null);
 
@@ -54,10 +73,13 @@ export function useEditorSession({
 
     clearPreviewSyncTimeout();
     const nextDraft = buildEditorDraftFromSlide(page);
-    const nextSummary = createDraftChangeSummary(page, nextDraft);
+    const nextProjection = createPersistedDraftProjection(nextDraft);
+    const nextSummary = comparePersistedDraftProjections(nextProjection, nextProjection);
     baseSlideRef.current = page;
     documentSessionIdRef.current = documentSessionId;
     draftRef.current = nextDraft;
+    baseProjectionRef.current = nextProjection;
+    liveProjectionRef.current = nextProjection;
     editVersionRef.current += 1;
     changeSummaryRef.current = nextSummary;
     setDraft(nextDraft);
@@ -73,7 +95,6 @@ export function useEditorSession({
       appState: Partial<any>,
       files: Record<string, any>
     ) => {
-      const previousSummary = changeSummaryRef.current;
       const previousDraft = draftRef.current;
       const nextDraft = {
         ...previousDraft,
@@ -81,10 +102,20 @@ export function useEditorSession({
         appState,
         files,
       };
-      const nextSummary = createDraftChangeSummary(baseSlideRef.current, nextDraft);
-      const persistedDraftChanged = createDraftChangeSummary(previousDraft, nextDraft).hasPersistedChange;
+      const projectionUpdate = updatePersistedDraftProjection(
+        liveProjectionRef.current,
+        nextDraft,
+      );
+      const nextProjection = projectionUpdate.projection;
+      const nextSummary = comparePersistedDraftProjections(
+        baseProjectionRef.current,
+        nextProjection,
+      );
+      const persistedDraftChanged = projectionUpdate.summary.hasPersistedChange;
+      const previousSummary = changeSummaryRef.current;
 
       draftRef.current = nextDraft;
+      liveProjectionRef.current = nextProjection;
       changeSummaryRef.current = nextSummary;
       setHasPendingCommit((previousValue) =>
         previousValue === nextSummary.hasPersistedChange ? previousValue : nextSummary.hasPersistedChange
@@ -109,7 +140,11 @@ export function useEditorSession({
   const flushDraft = useCallback(() => {
     clearPreviewSyncTimeout();
 
-    const flushed = flushEditorDraft(baseSlideRef.current, draftRef.current);
+    const flushed = flushEditorDraft(
+      baseSlideRef.current,
+      draftRef.current,
+      changeSummaryRef.current,
+    );
     const { commitPayload } = flushed;
 
     if (commitPayload) {
@@ -118,7 +153,19 @@ export function useEditorSession({
 
     baseSlideRef.current = flushed.baseSlide;
     draftRef.current = flushed.draft;
-    changeSummaryRef.current = createDraftChangeSummary(flushed.baseSlide, flushed.draft);
+    const flushedProjection = {
+      ...liveProjectionRef.current,
+      elements: flushed.draft.elements,
+      files: flushed.draft.files,
+    };
+    liveProjectionRef.current = flushedProjection;
+    if (commitPayload) {
+      baseProjectionRef.current = flushedProjection;
+    }
+    changeSummaryRef.current = comparePersistedDraftProjections(
+      baseProjectionRef.current,
+      flushedProjection,
+    );
     setDraft(flushed.draft);
     setHasPendingCommit(changeSummaryRef.current.hasPersistedChange);
     return commitPayload;
