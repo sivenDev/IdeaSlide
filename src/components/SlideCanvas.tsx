@@ -1,5 +1,6 @@
 import { Excalidraw, MainMenu } from "@excalidraw/excalidraw";
 import { memo, useRef, useEffect, useState, useCallback } from "react";
+import { Download } from "lucide-react";
 import { getNextCameraOrder } from "../lib/cameraUtils";
 import {
   buildCameraBadgeSignature,
@@ -14,6 +15,7 @@ import {
   getStyleConversionAvailability,
   type StyleConversionTarget,
 } from "../lib/excalidrawStyleConversion";
+import { exportExcalidrawToDrawio } from "../lib/drawioExport";
 import { CanvasSelectionActions } from "./CanvasSelectionActions";
 
 function getScenePointerFromEvent(api: any, event: PointerEvent) {
@@ -62,6 +64,7 @@ function getBadgeBackgroundColor(color: string) {
 
 interface SlideCanvasProps {
   slideId: string;
+  pageTitle: string;
   elements: readonly any[];
   appState: Partial<any>;
   files: Record<string, any>;
@@ -85,6 +88,7 @@ const excalidrawCanvasActions = {
 
 function SlideCanvasInner({
   slideId,
+  pageTitle,
   elements,
   appState,
   files,
@@ -186,6 +190,7 @@ function SlideCanvasInner({
   const [isDrawingCamera, setIsDrawingCamera] = useState(false);
   const drawStartRef = useRef<{ x: number; y: number } | null>(null);
   const excalidrawApiRef = useRef<any>(null);
+  const drawioExportInFlightRef = useRef(false);
   const [apiReadyVersion, setApiReadyVersion] = useState(0);
 
   // Handle API ready
@@ -451,8 +456,43 @@ function SlideCanvasInner({
     });
   }, [isDrawingCamera]);
 
+  const handleExportDrawio = useCallback(() => {
+    const api = excalidrawApiRef.current;
+    if (!api || drawioExportInFlightRef.current) return;
+    drawioExportInFlightRef.current = true;
+
+    void exportExcalidrawToDrawio({
+      pageTitle,
+      elements: api.getSceneElements(),
+      files: api.getFiles(),
+    })
+      .then((result) => {
+        if (result.status === "cancelled") return;
+        const skipped = result.summary.skipped > 0
+          ? ` Skipped ${result.summary.skipped} unsupported element${result.summary.skipped === 1 ? "" : "s"}: ${result.summary.skippedTypes.join(", ")}.`
+          : "";
+        api.setToast({
+          message: `Exported ${result.fileName}.${skipped}`,
+          duration: skipped ? 5200 : 3200,
+        });
+      })
+      .catch((error) => {
+        const detail = error instanceof Error ? error.message : String(error);
+        api.setToast({ message: `Failed to export draw.io: ${detail}`, duration: 5200 });
+      })
+      .finally(() => {
+        drawioExportInFlightRef.current = false;
+      });
+  }, [pageTitle]);
+
   const mainMenu = (
     <MainMenu>
+      <MainMenu.Item
+        icon={<Download aria-hidden="true" size={16} strokeWidth={1.8} />}
+        onSelect={handleExportDrawio}
+      >
+        Export as draw.io
+      </MainMenu.Item>
       <MainMenu.DefaultItems.SaveAsImage />
       <MainMenu.DefaultItems.ToggleTheme />
       <MainMenu.DefaultItems.ChangeCanvasBackground />

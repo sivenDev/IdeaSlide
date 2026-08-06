@@ -297,6 +297,7 @@ export function PresentationMode({ slide, mode, transitionSpeed, onExit }: Prese
           <SlideCanvas
             key={slide.id}
             slideId={slide.id}
+            pageTitle={slide.title || "Page"}
             elements={presentationElements}
             appState={presentationAppState}
             files={slide.files}

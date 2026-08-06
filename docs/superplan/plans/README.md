@@ -7,7 +7,7 @@
 | Type | Plans | Complete |
 | --- | --- | --- |
 | `required` | 6 | 6 |
-| `feature` | 21 | 21 |
+| `feature` | 22 | 22 |
 | `bugfix` | 15 | 15 |
 
 ## Execution Order
@@ -57,6 +57,7 @@
 | `F019` | [Add Page List View Mode Switching](features/F019-add-page-list-view-mode-switch.md) | `complete` | 2026-08-05 |
 | `F020` | [Raise the Minimum Window Height](features/F020-raise-minimum-window-height.md) | `complete` | 2026-08-05 |
 | `F021` | [Update Documentation to IdeaNote Branding](features/F021-update-documentation-to-ideanote-branding.md) | `complete` | 2026-08-06 |
+| `F022` | [Export Editor Content as draw.io](features/F022-export-editor-content-as-drawio.md) | `complete` | 2026-08-06 |
 
 ### Bugfix Plans
 

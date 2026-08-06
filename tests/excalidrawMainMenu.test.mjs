@@ -4,11 +4,15 @@ import { readFile } from 'node:fs/promises';
 
 const readSource = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('SlideCanvas keeps Excalidraw MainMenu free of a duplicate Navigator control', async () => {
+test('SlideCanvas adds only the draw.io export command to the custom Excalidraw MainMenu', async () => {
   const source = await readSource('src/components/SlideCanvas.tsx');
 
   assert.doesNotMatch(source, /\bPanelRight\b/);
-  assert.doesNotMatch(source, /<MainMenu\.Item/);
+  assert.equal((source.match(/<MainMenu\.Item/g) ?? []).length, 1);
+  assert.match(source, /<MainMenu\.Item[\s\S]*?onSelect=\{handleExportDrawio\}[\s\S]*?>\s*Export as draw\.io\s*<\/MainMenu\.Item>/);
+  assert.match(source, /api\.getSceneElements\(\)/);
+  assert.match(source, /api\.getFiles\(\)/);
+  assert.match(source, /exportExcalidrawToDrawio/);
   assert.doesNotMatch(source, /isNavigatorOpen/);
   assert.doesNotMatch(source, /onToggleNavigator/);
   assert.doesNotMatch(source, />\s*Navigator\s*</);
@@ -27,6 +31,7 @@ test('SlideCanvas reserves public top-right UI for contextual selection conversi
   assert.doesNotMatch(source, />\s*Navigator\s*</);
   assert.match(source, /cameraDrawingRequestToken/);
   assert.match(source, /lastCameraDrawingRequestTokenRef/);
+  assert.match(source, /!viewMode && mainMenu/);
 });
 
 test('IdeaSketchEditor keeps Camera creation in the navigator only', async () => {

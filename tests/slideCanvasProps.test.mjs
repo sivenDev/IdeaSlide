@@ -201,3 +201,20 @@ test('areSlideCanvasPropsEqual tracks the conversion callback', async () => {
     false,
   );
 });
+
+test('areSlideCanvasPropsEqual tracks the active Page title used for draw.io naming', async () => {
+  const { areSlideCanvasPropsEqual } = await loadModule();
+  const base = {
+    slideId: 'slide-1',
+    pageTitle: 'Page 1',
+    elements: [],
+    appState: {},
+    files: {},
+    onChange: () => {},
+    onApiReady: () => {},
+    viewMode: false,
+  };
+
+  assert.equal(areSlideCanvasPropsEqual(base, { ...base }), true);
+  assert.equal(areSlideCanvasPropsEqual(base, { ...base, pageTitle: 'Page 2' }), false);
+});

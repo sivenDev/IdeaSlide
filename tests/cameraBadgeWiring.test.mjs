@@ -22,6 +22,9 @@ test('SlideCanvas enables image export while native scene saves stay in IdeaSlid
   assert.match(source, /export:\s*\{\s*saveFileToDisk:\s*false,\s*\}/);
   assert.match(source, /saveToActiveFile:\s*false/);
   assert.match(source, /saveToActiveFile:\s*false,\s*saveFileToDisk:\s*false/s);
+  assert.match(source, />\s*Export as draw\.io\s*</);
+  assert.match(source, /getSceneElements\(\)/);
+  assert.match(source, /getFiles\(\)/);
 });
 
 test('SlideCanvas refreshes Excalidraw after presentation exit layout changes settle', async () => {

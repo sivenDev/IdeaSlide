@@ -168,3 +168,10 @@ Set the main application window minimum height to 850 px so users cannot resize 
 - created: 2026-08-06
 
 Update documentation that describes the current product so it consistently uses the IdeaNote product name. Preserve explicit predecessor references and exact technical or historical identifiers such as repository paths, package names, bundle identifiers, URLs, code symbols, legacy application paths, and recorded evidence.
+
+## F022: Export editor content as draw.io
+
+- status: done
+- created: 2026-08-06
+
+Add an Export as draw.io action to the editor's top-left Excalidraw main menu. Convert the current editor content to a .drawio file, using https://github.com/bhagman/excalidraw-to-drawio as the implementation reference, and persist the export through the desktop app.

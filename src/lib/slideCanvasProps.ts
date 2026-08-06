@@ -1,5 +1,6 @@
 interface SlideCanvasComparableProps {
   slideId: string;
+  pageTitle?: string;
   elements: readonly any[];
   appState: Partial<any>;
   files: Record<string, any>;
@@ -17,6 +18,7 @@ export function areSlideCanvasPropsEqual(
 ) {
   return (
     previousProps.slideId === nextProps.slideId &&
+    previousProps.pageTitle === nextProps.pageTitle &&
     previousProps.elements === nextProps.elements &&
     previousProps.appState === nextProps.appState &&
     previousProps.files === nextProps.files &&
