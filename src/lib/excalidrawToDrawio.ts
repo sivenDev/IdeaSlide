@@ -91,23 +91,6 @@ function textValue(element: any) {
     .join("<br>");
 }
 
-function mapFontFamily(fontFamily: unknown) {
-  switch (fontFamily) {
-    case 2:
-      return "Times New Roman";
-    case 3:
-      return "Courier New";
-    case 5:
-      return "Comic Sans MS";
-    case 7:
-      return "Georgia";
-    case 8:
-      return "Courier New";
-    default:
-      return "Helvetica";
-  }
-}
-
 function appendRotation(parts: string[], element: any) {
   const rotation = normalizeDegrees(element.angle);
   if (rotation !== 0) parts.push(`rotation=${formatNumber(rotation)}`);
@@ -116,14 +99,6 @@ function appendRotation(parts: string[], element: any) {
 function appendOpacity(parts: string[], element: any) {
   if (typeof element.opacity === "number" && element.opacity !== 100) {
     parts.push(`opacity=${formatNumber(Math.max(0, Math.min(100, element.opacity)))}`);
-  }
-}
-
-function appendStrokeStyle(parts: string[], element: any) {
-  if (element.strokeStyle === "dashed") {
-    parts.push("dashed=1", "fixDash=1");
-  } else if (element.strokeStyle === "dotted") {
-    parts.push("dashed=1", "dashPattern=2 2", "fixDash=1");
   }
 }
 
@@ -138,24 +113,12 @@ function shapeStyle(element: any) {
     "whiteSpace=wrap",
     "html=1",
     `strokeColor=${element.strokeColor || "#000000"}`,
-    `strokeWidth=${formatNumber(Math.max(1, element.strokeWidth || 1), 1)}`,
+    "strokeWidth=2",
     element.backgroundColor && element.backgroundColor !== "transparent"
       ? `fillColor=${element.backgroundColor}`
       : "fillColor=none",
   ];
 
-  if (element.type === "rectangle" && element.roundness) {
-    parts.push("rounded=1", "absoluteArcSize=1", "arcSize=16");
-  }
-  if (
-    element.fillStyle === "hachure"
-    || element.fillStyle === "cross-hatch"
-    || (typeof element.roughness === "number" && element.roughness > 0)
-  ) {
-    parts.push("sketch=1", `jiggle=${formatNumber(Math.max(1, element.roughness || 1), 1)}`);
-  }
-  appendStrokeStyle(parts, element);
-  appendOpacity(parts, element);
   appendRotation(parts, element);
   return parts.join(";");
 }
@@ -169,7 +132,7 @@ function textStyle(element: any) {
     "fillColor=none",
     `fontColor=${element.strokeColor || "#000000"}`,
     `fontSize=${formatNumber(Math.max(4, element.fontSize || 16), 16)}`,
-    `fontFamily=${mapFontFamily(element.fontFamily)}`,
+    "fontFamily=Helvetica",
     `align=${element.textAlign || "left"}`,
     `verticalAlign=${element.verticalAlign || "top"}`,
     "spacingLeft=0",
@@ -177,7 +140,6 @@ function textStyle(element: any) {
     "spacingTop=0",
     "spacingBottom=0",
   ];
-  appendOpacity(parts, element);
   appendRotation(parts, element);
   return parts.join(";");
 }
@@ -211,17 +173,15 @@ function edgeStyle(element: any) {
   const parts = [
     "edgeStyle=none",
     "html=1",
-    "rounded=1",
+    "rounded=0",
     `strokeColor=${element.strokeColor || "#000000"}`,
-    `strokeWidth=${formatNumber(Math.max(1, element.strokeWidth || 1), 1)}`,
+    "strokeWidth=2",
     "fillColor=none",
     `startArrow=${start.shape}`,
     `startFill=${start.fill}`,
     `endArrow=${end.shape}`,
     `endFill=${end.fill}`,
   ];
-  appendStrokeStyle(parts, element);
-  appendOpacity(parts, element);
   return parts.join(";");
 }
 
@@ -450,7 +410,7 @@ export function convertExcalidrawToDrawio(
       "whiteSpace=wrap",
       `fontColor=${element.strokeColor || "#000000"}`,
       `fontSize=${formatNumber(Math.max(4, element.fontSize || 16), 16)}`,
-      `fontFamily=${mapFontFamily(element.fontFamily)}`,
+      "fontFamily=Helvetica",
       `align=${element.textAlign || "center"}`,
       `verticalAlign=${element.verticalAlign || "middle"}`,
     ];

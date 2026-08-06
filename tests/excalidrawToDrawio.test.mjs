@@ -19,11 +19,10 @@ test('convertExcalidrawToDrawio maps shapes, bound text, connectors, and filteri
 
   assert.equal(typeof convertExcalidrawToDrawio, 'function');
 
-  const result = convertExcalidrawToDrawio({
-    elements: [
+  const elements = [
       {
         id: 'rect-1', type: 'rectangle', x: -20, y: -10, width: 100, height: 60,
-        strokeColor: '#123456', backgroundColor: '#abcdef', strokeWidth: 2,
+        strokeColor: '#123456', backgroundColor: '#abcdef', strokeWidth: 5,
         strokeStyle: 'dashed', fillStyle: 'hachure', roughness: 2, opacity: 80,
         roundness: { type: 3 }, angle: Math.PI / 2,
       },
@@ -44,9 +43,14 @@ test('convertExcalidrawToDrawio maps shapes, bound text, connectors, and filteri
       },
       {
         id: 'arrow-1', type: 'arrow', x: 80, y: 20, width: 70, height: 20,
-        points: [[0, 0], [35, 20], [70, 0]], strokeColor: '#ff0000', strokeWidth: 2,
-        strokeStyle: 'dotted', opacity: 100, startArrowhead: null, endArrowhead: 'arrow',
+        points: [[0, 0], [35, 20], [70, 0]], strokeColor: '#ff0000', strokeWidth: 4,
+        strokeStyle: 'dotted', opacity: 55, startArrowhead: null, endArrowhead: 'arrow',
         startBinding: { elementId: 'rect-1' }, endBinding: { elementId: 'ellipse-1' },
+      },
+      {
+        id: 'text-1', type: 'text', x: 340, y: 20, width: 120, height: 30,
+        text: 'Standalone', fontSize: 18, fontFamily: 3, textAlign: 'left',
+        verticalAlign: 'top', strokeColor: '#445566', opacity: 40,
       },
       {
         id: 'camera-1', type: 'rectangle', x: 0, y: 0, width: 400, height: 300,
@@ -55,11 +59,14 @@ test('convertExcalidrawToDrawio maps shapes, bound text, connectors, and filteri
       { id: 'camera-preview', type: 'rectangle', x: 0, y: 0, width: 10, height: 10 },
       { id: 'deleted-1', type: 'ellipse', x: 0, y: 0, width: 10, height: 10, isDeleted: true },
       { id: 'frame-1', type: 'frame', x: 0, y: 0, width: 20, height: 20 },
-    ],
+    ];
+  const originalElements = structuredClone(elements);
+  const result = convertExcalidrawToDrawio({
+    elements,
     files: {},
   }, metadata);
 
-  assert.equal(result.summary.exported, 5);
+  assert.equal(result.summary.exported, 6);
   assert.equal(result.summary.skipped, 1);
   assert.deepEqual(result.summary.skippedTypes, ['frame']);
   assert.match(result.xml, /<mxfile[^>]+modified="2026-08-06T00:00:00\.000Z"/);
@@ -67,15 +74,23 @@ test('convertExcalidrawToDrawio maps shapes, bound text, connectors, and filteri
   assert.match(result.xml, /shape=rectangle/);
   assert.match(result.xml, /shape=ellipse/);
   assert.match(result.xml, /shape=rhombus/);
-  assert.match(result.xml, /rounded=1/);
-  assert.match(result.xml, /sketch=1/);
+  assert.match(result.xml, /strokeColor=#123456;strokeWidth=2;fillColor=#abcdef/);
+  assert.match(result.xml, /strokeColor=#ff0000;strokeWidth=2;fillColor=none/);
+  assert.equal((result.xml.match(/fontFamily=Helvetica/g) ?? []).length, 2);
+  assert.doesNotMatch(result.xml, /rounded=1/);
+  assert.doesNotMatch(result.xml, /sketch=1/);
+  assert.doesNotMatch(result.xml, /jiggle=/);
+  assert.doesNotMatch(result.xml, /dashed=1/);
+  assert.doesNotMatch(result.xml, /dashPattern=/);
+  assert.doesNotMatch(result.xml, /opacity=/);
+  assert.doesNotMatch(result.xml, /fontFamily=(?:Times New Roman|Courier New|Comic Sans MS|Georgia)/);
   assert.match(result.xml, /rotation=90/);
   assert.match(result.xml, /x="0" y="0" width="100" height="60"/);
   assert.match(result.xml, /source="2" target="3"/);
   assert.match(result.xml, /endArrow=block/);
-  assert.match(result.xml, /dashPattern=2 2/);
   assert.match(result.xml, /A &amp;lt; B &amp;amp; C/);
   assert.doesNotMatch(result.xml, /camera-preview/);
+  assert.deepEqual(elements, originalElements);
 });
 
 test('convertExcalidrawToDrawio embeds image and freehand payloads', async () => {

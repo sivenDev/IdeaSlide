@@ -175,3 +175,10 @@ Update documentation that describes the current product so it consistently uses 
 - created: 2026-08-06
 
 Add an Export as draw.io action to the editor's top-left Excalidraw main menu. Convert the current editor content to a .drawio file, using https://github.com/bhagman/excalidraw-to-drawio as the implementation reference, and persist the export through the desktop app.
+
+## F023: Normalize draw.io exports to a clean diagram style
+
+- status: done
+- created: 2026-08-06
+
+When exporting the active Page to draw.io, normalize supported vector and text cells to the project's existing formal draw.io-style contract: solid 2 px strokes, solid fills, full opacity, sharp geometry/connectors, and Helvetica text while preserving colors, geometry, labels, bindings, images, freehand representation, and the source IdeaSketch document.
