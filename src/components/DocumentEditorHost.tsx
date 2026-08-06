@@ -23,9 +23,16 @@ export function DocumentEditorHost({ document, fullPath, renderIdeaSketch }: Doc
   if (document.status === "unsupported" || document.status === "legacy-protected" || document.status === "invalid" || document.status === "error") {
     return <UnsupportedFileView fileName={document.displayName || "file"} fullPath={fullPath} message={document.message} />;
   }
+  const isMissing = document.status === "missing";
   const definition = getFileTypeDefinition(document.fileType);
   if (definition?.editor === "ideasketch" && document.model && renderIdeaSketch) {
-    return <ErrorBoundary>{renderIdeaSketch(document)}</ErrorBoundary>;
+    return (
+      <div className="relative h-full min-h-0 bg-[#f7f8fa]">
+        <div className="h-full min-h-0" hidden={isMissing} aria-hidden={isMissing}>
+          <ErrorBoundary>{renderIdeaSketch(document)}</ErrorBoundary>
+        </div>
+      </div>
+    );
   }
   if (definition?.editor === "ideasketch") {
     return (

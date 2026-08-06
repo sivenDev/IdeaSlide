@@ -9,7 +9,12 @@ test('generic Editor Host loads only the active document and preserves safe fall
   assert.match(source, /UnsupportedFileView/);
   assert.match(source, /definition\?\.editor === "ideasketch"/);
   assert.match(source, /renderIdeaSketch/);
-  assert.doesNotMatch(source, /document\.status === "missing"[\s\S]*UnsupportedFileView/);
+  assert.match(source, /const isMissing = document\.status === "missing"/);
+  assert.match(source, /hidden=\{isMissing\}/);
+  assert.match(source, /aria-hidden=\{isMissing\}/);
+  assert.match(source, /renderIdeaSketch\(document\)/);
+  assert.doesNotMatch(source, /File missing/);
+  assert.doesNotMatch(source, /if\s*\(document\.status === "missing"\)\s*\{?\s*return\s*<UnsupportedFileView/);
 });
 
 test('unsupported page offers reveal and external open without editing content', async () => {

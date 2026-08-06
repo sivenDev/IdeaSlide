@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `required` | 6 | 6 |
 | `feature` | 27 | 27 |
-| `bugfix` | 18 | 18 |
+| `bugfix` | 19 | 19 |
 
 ## Execution Order
 
@@ -86,3 +86,4 @@
 | `B016` | [Prevent Large IdeaSketch Page Switch Freezes](bugs/B016-prevent-large-page-switch-freeze.md) | `complete` | 2026-08-06 |
 | `B017` | [Match the Shimo Title Bar and Preserve Inactive Traffic Lights](bugs/B017-match-shimo-title-bar-and-inactive-traffic-lights.md) | `complete` | 2026-08-06 |
 | `B018` | [Lower macOS Window Controls](bugs/B018-lower-macos-window-controls.md) | `complete` | 2026-08-06 |
+| `B019` | [Left-align Workspace Actions and Replace Missing-file Canvas](bugs/B019-left-align-workspace-actions-and-replace-missing-file-canvas.md) | `complete` | 2026-08-06 |

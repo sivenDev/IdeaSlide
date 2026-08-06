@@ -173,3 +173,10 @@ In the editor window, the custom top status/title bar uses a near-white backgrou
 - created: 2026-08-06
 
 After B017, the three macOS system window controls and their inactive placeholders appear slightly too high within the 48px editor title bar. Reproduce by opening an editor window and comparing the traffic-light row with the toolbar centerline. Acceptance: move both the native traffic lights and the inactive placeholder row down by 2px, keep their horizontal position, size, spacing, focus behavior, and title-bar height unchanged, and preserve non-macOS layout.
+
+## B019: Left-align Workspace Actions and Replace Missing-file Canvas
+
+- status: done
+- created: 2026-08-06
+
+The Workspace Explorer action buttons are right-aligned, leaving an unnecessary empty area on the left. When an active file is removed outside IdeaNote, the File missing notice appears but the live IdeaSketch canvas remains visible underneath. Left-align the action buttons and replace the visible editor surface with a simple File missing state while retaining the existing Save As and Close recovery actions and the latest in-memory document snapshot.

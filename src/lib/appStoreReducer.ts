@@ -329,42 +329,49 @@ export function appStoreReducer(
     case "APPLY_WORKSPACE_CHANGE": {
       if (!state.workspace) return state;
       const workspace = state.workspace;
+      const documentDecisions = state.documents.map((document) => ({
+        document,
+        decision: classifyExternalDocumentChange(document, action.event),
+      }));
       const retainsRemovedEntry = action.event.kind === "remove"
         && Boolean(action.event.path)
-        && state.documents.some((document) =>
-          document.mode === "workspace"
+        && documentDecisions.some(({ document, decision }) =>
+          decision.kind === "missing"
+          && document.isDirty
+          && document.mode === "workspace"
           && pathWithinWorkspaceEntry(document.filePath, action.event.path!),
         );
-      const documents = state.documents.map((document) => {
-        const decision = classifyExternalDocumentChange(document, action.event);
+      const documents: DocumentSession[] = documentDecisions.flatMap(({ document, decision }) => {
         switch (decision.kind) {
           case "modified":
-            return {
+            return [{
               ...document,
               status: decision.status,
               message: decision.message,
               sourceModified: decision.sourceModified ?? document.sourceModified,
               readOnly: decision.readOnly ?? document.readOnly,
-            };
+            }];
           case "missing":
-            return { ...document, status: "missing" as const, message: decision.message };
+            return document.isDirty
+              ? [{ ...document, status: "missing" as const, message: decision.message }]
+              : [];
           case "root-missing":
-            return { ...document, status: "root-missing" as const, message: decision.message };
+            return [{ ...document, status: "root-missing" as const, message: decision.message }];
           case "read-only":
             return document.isDirty
-              ? { ...document, status: "conflict" as const, message: decision.message, readOnly: false }
-              : { ...document, status: "read-only" as const, message: decision.message, readOnly: true };
+              ? [{ ...document, status: "conflict" as const, message: decision.message, readOnly: false }]
+              : [{ ...document, status: "read-only" as const, message: decision.message, readOnly: true }];
           case "relocated":
-            return prepareDocumentSession({
+            return [prepareDocumentSession({
               ...document,
               filePath: decision.toPath,
               displayName: basename(decision.toPath),
               pathKey: undefined,
-            }, workspace.root);
+            }, workspace.root)];
           case "writable":
-            return { ...document, status: "editable" as const, message: undefined, readOnly: false };
+            return [{ ...document, status: "editable" as const, message: undefined, readOnly: false }];
           default:
-            return document;
+            return [document];
         }
       });
       const currentOrder = workspace.entryOrder ?? [];
@@ -374,8 +381,21 @@ export function appStoreReducer(
       const nextEntries = retainsRemovedEntry
         ? workspace.entries
         : applyWorkspaceTreeEvent(workspace.entries, action.event, eventOrder);
+      const selectedPathWasRemoved = action.event.kind === "remove"
+        && Boolean(action.event.path)
+        && Boolean(workspace.selectedPath)
+        && pathWithinWorkspaceEntry(workspace.selectedPath!, action.event.path!);
+      const selectedPathIsProtected = selectedPathWasRemoved
+        && documents.some((document) =>
+          document.mode === "workspace"
+          && document.filePath === workspace.selectedPath
+          && document.status === "missing",
+        );
       return {
         ...state,
+        activeSessionId: documents.some((document) => document.id === state.activeSessionId)
+          ? state.activeSessionId
+          : undefined,
         workspace: {
           ...workspace,
           readOnly: action.event.kind === "rootStatus" && action.event.readOnly !== undefined
@@ -385,6 +405,9 @@ export function appStoreReducer(
           message: action.event.kind === "rootMissing"
             ? "The Workspace folder is no longer available. Relocate it to continue working."
             : workspace.message,
+          selectedPath: selectedPathWasRemoved && !selectedPathIsProtected
+            ? undefined
+            : workspace.selectedPath,
           entries: nextEntries,
           entryOrder: retainsRemovedEntry
             ? currentOrder
@@ -396,31 +419,39 @@ export function appStoreReducer(
       };
     }
     case "APPLY_DOCUMENT_INSPECTION": {
-      const documents = state.documents.map((document) => {
-        if (document.id !== action.sessionId) return document;
+      const documents: DocumentSession[] = state.documents.flatMap((document) => {
+        if (document.id !== action.sessionId) return [document];
         const decision = classifyInspectedDocument(document, action.inspection);
         switch (decision.kind) {
           case "modified":
-            return {
+            return [{
               ...document,
               status: decision.status,
               message: decision.message,
               sourceModified: decision.sourceModified ?? document.sourceModified,
               readOnly: decision.readOnly ?? document.readOnly,
-            };
+            }];
           case "missing":
-            return { ...document, status: "missing" as const, message: decision.message };
+            return document.isDirty
+              ? [{ ...document, status: "missing" as const, message: decision.message }]
+              : [];
           case "read-only":
             return document.isDirty
-              ? { ...document, status: "conflict" as const, message: decision.message, readOnly: false }
-              : { ...document, status: "read-only" as const, message: decision.message, readOnly: true };
+              ? [{ ...document, status: "conflict" as const, message: decision.message, readOnly: false }]
+              : [{ ...document, status: "read-only" as const, message: decision.message, readOnly: true }];
           case "writable":
-            return { ...document, status: "editable" as const, message: undefined, readOnly: false };
+            return [{ ...document, status: "editable" as const, message: undefined, readOnly: false }];
           default:
-            return document;
+            return [document];
         }
       });
-      return { ...state, documents };
+      return {
+        ...state,
+        documents,
+        activeSessionId: documents.some((document) => document.id === state.activeSessionId)
+          ? state.activeSessionId
+          : undefined,
+      };
     }
     case "MARK_WORKSPACE_METADATA_EXISTS":
       return state.workspace ? {

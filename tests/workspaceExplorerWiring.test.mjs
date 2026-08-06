@@ -56,7 +56,10 @@ test('Workspace Explorer is driven by real relative paths and backend filesystem
   assert.doesNotMatch(source, /[＋⌑↻⌃•]/);
   assert.doesNotMatch(source, /WorkspaceResource\b/);
   assert.doesNotMatch(source, /thumbnail/i);
-  assert.match(styles, /\.idea-slide-workspace-action-bar\s*\{[\s\S]*?display:\s*flex/);
+  const actionBarStyles = styles.match(/\.idea-slide-workspace-action-bar\s*\{([^}]*)\}/)?.[1] ?? '';
+  assert.match(actionBarStyles, /display:\s*flex/);
+  assert.match(actionBarStyles, /justify-content:\s*flex-start/);
+  assert.doesNotMatch(actionBarStyles, /justify-content:\s*flex-end/);
   assert.match(styles, /\.idea-slide-workspace-action-bar\.is-drop-inside/);
   assert.doesNotMatch(styles, /\.idea-slide-workspace-root-row:hover\s+\.idea-slide-workspace-root-actions/);
   assert.doesNotMatch(styles, /\.idea-slide-workspace-root-actions\s*\{[\s\S]*?opacity:\s*0/);

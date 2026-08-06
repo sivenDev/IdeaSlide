@@ -171,7 +171,7 @@ test('Workspace watcher transitions clean, dirty, deleted, renamed, and missing-
   const base = {
     ...createInitialAppState(),
     mode: 'workspace',
-    workspace: { root: '/workspace', name: 'workspace', readOnly: false, entries: [workspaceEntry], metadata: { exists: true, diagnostics: [] }, expandedPaths: ['folder'] },
+    workspace: { root: '/workspace', name: 'workspace', readOnly: false, entries: [workspaceEntry], selectedPath: 'folder/drawing.is', metadata: { exists: true, diagnostics: [] }, expandedPaths: ['folder'] },
     documents: [{ ...document('one', 'folder/drawing.is'), status: 'editable', sourceModified: 'before' }],
     activeSessionId: 'one',
   };
@@ -182,8 +182,18 @@ test('Workspace watcher transitions clean, dirty, deleted, renamed, and missing-
   const renamed = appStoreReducer(base, { type: 'APPLY_WORKSPACE_CHANGE', event: { kind: 'rename', oldPath: 'folder', newPath: 'renamed' } });
   assert.equal(renamed.documents[0].filePath, 'renamed/drawing.is');
   const removed = appStoreReducer(base, { type: 'APPLY_WORKSPACE_CHANGE', event: { kind: 'remove', path: 'folder' } });
-  assert.equal(removed.documents[0].status, 'missing');
-  assert.equal(removed.workspace.entries[0].children[0].path, 'folder/drawing.is');
+  assert.deepEqual(removed.documents, []);
+  assert.equal(removed.activeSessionId, undefined);
+  assert.equal(removed.workspace.selectedPath, undefined);
+  assert.deepEqual(removed.workspace.entries, []);
+  const dirtyRemoved = appStoreReducer({ ...base, documents: [{ ...base.documents[0], isDirty: true }] }, {
+    type: 'APPLY_WORKSPACE_CHANGE',
+    event: { kind: 'remove', path: 'folder' },
+  });
+  assert.equal(dirtyRemoved.documents[0].status, 'missing');
+  assert.equal(dirtyRemoved.activeSessionId, 'one');
+  assert.equal(dirtyRemoved.workspace.selectedPath, 'folder/drawing.is');
+  assert.equal(dirtyRemoved.workspace.entries[0].children[0].path, 'folder/drawing.is');
   const rootMissing = appStoreReducer(base, { type: 'APPLY_WORKSPACE_CHANGE', event: { kind: 'rootMissing' } });
   assert.equal(rootMissing.workspace.status, 'root-missing');
   assert.equal(rootMissing.documents[0].status, 'root-missing');
@@ -193,4 +203,34 @@ test('Workspace watcher transitions clean, dirty, deleted, renamed, and missing-
   });
   assert.equal(writable.documents[0].status, 'editable');
   assert.equal(writable.documents[0].readOnly, false);
+});
+
+test('Standalone inspection closes clean missing files and protects dirty drafts', () => {
+  const cleanSession = { ...document('clean', '/clean.is', 'standalone'), status: 'editable' };
+  const cleanState = appStoreReducer({
+    ...createInitialAppState(),
+    mode: 'standalone',
+    documents: [cleanSession],
+    activeSessionId: cleanSession.id,
+  }, {
+    type: 'APPLY_DOCUMENT_INSPECTION',
+    sessionId: cleanSession.id,
+    inspection: { exists: false },
+  });
+  assert.deepEqual(cleanState.documents, []);
+  assert.equal(cleanState.activeSessionId, undefined);
+
+  const dirtySession = { ...cleanSession, id: 'dirty', isDirty: true };
+  const dirtyState = appStoreReducer({
+    ...createInitialAppState(),
+    mode: 'standalone',
+    documents: [dirtySession],
+    activeSessionId: dirtySession.id,
+  }, {
+    type: 'APPLY_DOCUMENT_INSPECTION',
+    sessionId: dirtySession.id,
+    inspection: { exists: false },
+  });
+  assert.equal(dirtyState.documents[0].status, 'missing');
+  assert.equal(dirtyState.activeSessionId, dirtySession.id);
 });
