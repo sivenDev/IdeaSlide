@@ -224,3 +224,10 @@ When playing an IdeaSketch Page, start at the first ordered Camera when Cameras 
 - created: 2026-08-07
 
 Enhance the Preview presentation laser pointer with a smooth fading trail while keeping it presentation-local and non-persistent, and hide Excalidraw's top-left menu trigger while Preview is active. Keep macOS and Windows window controls native-only, retain their platform-specific toolbar safety space in a normal window, and remove that inset in native fullscreen so toolbar content can use the reclaimed width.
+
+## F030: Lengthen the Preview laser trail
+
+- status: done
+- created: 2026-08-07
+
+Make the laser trail in IdeaSketch Preview visibly longer while preserving its bounded, fading, presentation-local, non-interactive, and non-persistent behavior. Add a Preview setting that enables or disables the laser pointer and defaults to enabled.

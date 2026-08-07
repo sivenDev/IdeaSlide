@@ -7,7 +7,7 @@
 | Type | Plans | Complete |
 | --- | --- | --- |
 | `required` | 6 | 6 |
-| `feature` | 29 | 29 |
+| `feature` | 30 | 30 |
 | `bugfix` | 19 | 19 |
 
 ## Execution Order
@@ -65,6 +65,7 @@
 | `F027` | [Simplify Workspace Explorer Root Header](features/F027-simplify-workspace-explorer-root-header.md) | `complete` | 2026-08-06 |
 | `F028` | [Start Presentation at the First Camera and Add a Preview Laser Pointer](features/F028-first-camera-preview-laser-pointer.md) | `complete` | 2026-08-07 |
 | `F029` | [Add a Preview Laser Trail and Reclaim Native Fullscreen Toolbar Space](features/F029-preview-laser-trail-and-fullscreen-toolbar.md) | `complete` | 2026-08-07 |
+| `F030` | [Lengthen the Preview Laser Trail](features/F030-lengthen-preview-laser-trail.md) | `complete` | 2026-08-07 |
 
 ### Bugfix Plans
 
