@@ -522,7 +522,7 @@ function SlideCanvasInner({
       onWheelCapture={pulseCanvasInteraction}
     >
       <Excalidraw
-        key={slideId}
+        key={`excalidraw:${slideId}`}
         excalidrawAPI={handleApiReady}
         initialData={{
           elements: elements as any[],
@@ -550,7 +550,7 @@ function SlideCanvasInner({
       </Excalidraw>
       {!viewMode && (
         <CameraBadgeOverlay
-          key={slideId}
+          key={`camera-badges:${slideId}`}
           api={excalidrawApiRef.current}
           containerRef={containerRef}
           slideId={slideId}

@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `required` | 6 | 6 |
 | `feature` | 30 | 30 |
-| `bugfix` | 20 | 20 |
+| `bugfix` | 21 | 21 |
 
 ## Execution Order
 
@@ -91,3 +91,4 @@
 | `B018` | [Lower macOS Window Controls](bugs/B018-lower-macos-window-controls.md) | `complete` | 2026-08-06 |
 | `B019` | [Left-align Workspace Actions and Replace Missing-file Canvas](bugs/B019-left-align-workspace-actions-and-replace-missing-file-canvas.md) | `complete` | 2026-08-06 |
 | `B020` | [Reuse Unchanged Page Thumbnails](bugs/B020-reuse-unchanged-page-thumbnails.md) | `complete` | 2026-08-07 |
+| `B021` | [Use Unique SlideCanvas Child Keys](bugs/B021-use-unique-slide-canvas-child-keys.md) | `complete` | 2026-08-07 |

@@ -67,6 +67,14 @@ test('Unmounted Page canvases reject delayed Excalidraw change emissions', async
   assert.match(stableOnChange, /if \(!isMountedRef\.current\) \{/);
 });
 
+test('SlideCanvas namespaces Page-derived keys for sibling children', async () => {
+  const source = await readSource('src/components/SlideCanvas.tsx');
+
+  assert.match(source, /<Excalidraw\s+key=\{`excalidraw:\$\{slideId\}`\}/);
+  assert.match(source, /<CameraBadgeOverlay\s+key=\{`camera-badges:\$\{slideId\}`\}/);
+  assert.doesNotMatch(source, /key=\{slideId\}/);
+});
+
 test('Selection availability is keyed by scene identity and selected IDs', async () => {
   const { buildSelectedElementIdsSignature } = await import('../src/lib/excalidrawStyleConversion.ts');
   const source = await readSource('src/components/SlideCanvas.tsx');

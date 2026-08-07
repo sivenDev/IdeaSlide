@@ -187,3 +187,10 @@ The Workspace Explorer action buttons are right-aligned, leaving an unnecessary 
 - created: 2026-08-07
 
 In Thumbnail view, selecting a different Page always replaces its thumbnail with 'Generating preview' and re-exports it even when the Canvas content and preview render key are unchanged. Reuse a matching cached thumbnail across Page activation while preserving live active-draft refresh after real edits, bounded transient cache ownership, stale-job protection, and Blob URL cleanup.
+
+## B021: Use unique SlideCanvas child keys
+
+- status: done
+- created: 2026-08-07
+
+Opening an IdeaSketch editor logs repeated React errors that two children share the current Page UUID as their key. SlideCanvas renders Excalidraw and CameraBadgeOverlay as siblings with the same key={slideId}. Keep both Page-remount safeguards while assigning distinct, deterministic child keys so an empty new document and Page switching produce no duplicate-key warning.
