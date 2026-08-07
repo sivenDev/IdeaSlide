@@ -19,6 +19,7 @@ test('Page thumbnail hook only schedules visible demand and debounces the active
   assert.match(source, /buildSlidePreviewKey/);
   assert.match(source, /demands/);
   assert.match(source, /setTransient/);
+  assert.match(source, /cache\.getActive\(page\.id, renderKey\)/);
   assert.match(source, /scheduler\.replace/);
   assert.doesNotMatch(source, /useSlideThumbnails|previewRendererClient|renderSlides/);
 });

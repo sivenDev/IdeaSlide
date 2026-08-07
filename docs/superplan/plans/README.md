@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `required` | 6 | 6 |
 | `feature` | 30 | 30 |
-| `bugfix` | 19 | 19 |
+| `bugfix` | 20 | 20 |
 
 ## Execution Order
 
@@ -90,3 +90,4 @@
 | `B017` | [Match the Shimo Title Bar and Preserve Inactive Traffic Lights](bugs/B017-match-shimo-title-bar-and-inactive-traffic-lights.md) | `complete` | 2026-08-06 |
 | `B018` | [Lower macOS Window Controls](bugs/B018-lower-macos-window-controls.md) | `complete` | 2026-08-06 |
 | `B019` | [Left-align Workspace Actions and Replace Missing-file Canvas](bugs/B019-left-align-workspace-actions-and-replace-missing-file-canvas.md) | `complete` | 2026-08-06 |
+| `B020` | [Reuse Unchanged Page Thumbnails](bugs/B020-reuse-unchanged-page-thumbnails.md) | `complete` | 2026-08-07 |

@@ -180,3 +180,10 @@ After B017, the three macOS system window controls and their inactive placeholde
 - created: 2026-08-06
 
 The Workspace Explorer action buttons are right-aligned, leaving an unnecessary empty area on the left. When an active file is removed outside IdeaNote, the File missing notice appears but the live IdeaSketch canvas remains visible underneath. Left-align the action buttons and replace the visible editor surface with a simple File missing state while retaining the existing Save As and Close recovery actions and the latest in-memory document snapshot.
+
+## B020: Reuse unchanged Page thumbnails when switching Pages
+
+- status: done
+- created: 2026-08-07
+
+In Thumbnail view, selecting a different Page always replaces its thumbnail with 'Generating preview' and re-exports it even when the Canvas content and preview render key are unchanged. Reuse a matching cached thumbnail across Page activation while preserving live active-draft refresh after real edits, bounded transient cache ownership, stale-job protection, and Blob URL cleanup.

@@ -76,6 +76,24 @@ test('active draft uses one replace-in-place transient slot', async () => {
   assert.deepEqual(harness.revoked, [first.url, second.url]);
 });
 
+test('active lookup reuses a matching stable thumbnail before exporting a draft', async () => {
+  const { PageThumbnailCache } = await loadCacheModule();
+  const harness = createHarness({ maxEntries: 8, maxBytes: 64 });
+  const cache = new PageThumbnailCache(harness.options);
+
+  const stable = cache.setStable('page-1', 'key-1', new Blob(['stable']));
+
+  assert.equal(cache.getActive('page-1', 'key-1')?.url, stable.url);
+  assert.equal(harness.created.length, 1);
+
+  const transient = cache.setTransient('page-1', 'key-1', new Blob(['draft']));
+  assert.equal(cache.getActive('page-1', 'key-1')?.url, transient.url);
+
+  cache.clearTransient();
+  assert.equal(cache.getActive('page-1', 'key-2'), undefined);
+  assert.deepEqual(new Set(harness.revoked), new Set([stable.url, transient.url]));
+});
+
 test('Page deletion and document cleanup revoke owned Blob URLs', async () => {
   const { PageThumbnailCache } = await loadCacheModule();
   const harness = createHarness({ maxEntries: 8, maxBytes: 64 });

@@ -167,7 +167,7 @@ export function usePageThumbnails({
         : page;
       const renderKey = buildSlidePreviewKey(scene.elements, scene.files, scene.appState);
       const cached = transient
-        ? cache.getTransient(page.id, renderKey)
+        ? cache.getActive(page.id, renderKey)
         : cache.getStable(page.id, renderKey);
       if (cached) {
         nextViews.set(page.id, {

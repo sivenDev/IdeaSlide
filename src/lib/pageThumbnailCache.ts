@@ -68,6 +68,10 @@ export class PageThumbnailCache {
       : undefined;
   }
 
+  getActive(pageId: string, renderKey: string) {
+    return this.getTransient(pageId, renderKey) ?? this.getStable(pageId, renderKey);
+  }
+
   setTransient(pageId: string, renderKey: string, blob: Blob) {
     const cached = this.getTransient(pageId, renderKey);
     if (cached) return cached;
