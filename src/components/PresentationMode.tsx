@@ -94,14 +94,15 @@ interface PresentationModeProps {
   mode: 'preview' | 'fullscreen';
   transitionSpeed: TransitionSpeed;
   onExit: () => void;
+  previewLaserEnabled?: boolean;
 }
 
-export function PresentationMode({ slide, mode, transitionSpeed, onExit }: PresentationModeProps) {
+export function PresentationMode({ slide, mode, transitionSpeed, onExit, previewLaserEnabled = true }: PresentationModeProps) {
   const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
   const [showCameraNav, setShowCameraNav] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [speed, setSpeed] = useState<TransitionSpeed>(transitionSpeed);
-  const [laserEnabled, setLaserEnabled] = useState(true);
+  const [laserEnabled, setLaserEnabled] = useState(previewLaserEnabled);
   const [apiReadyVersion, setApiReadyVersion] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const laserCanvasRef = useRef<HTMLCanvasElement>(null);

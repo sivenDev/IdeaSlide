@@ -79,7 +79,7 @@ export function ResizableDivider({
   return (
     <div
       role={canResize ? "separator" : undefined}
-      aria-label={canResize ? "Resize workspace panel" : undefined}
+      aria-label={canResize ? isLeft ? "Resize workspace panel" : "Resize right sidebar" : undefined}
       aria-orientation="vertical"
       aria-valuemin={canResize ? minSize : undefined}
       aria-valuemax={canResize ? maxSize : undefined}

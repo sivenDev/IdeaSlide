@@ -27,7 +27,8 @@ test('IdeaSketch navigator switches between fixed Pages and Cameras tabs', async
 test('IdeaSketch editor owns one open-by-default compact navigator without a duplicate Page shortcut', async () => {
   const source = await readSource('src/components/IdeaSketchEditor.tsx');
 
-  assert.match(source, /const NAVIGATOR_PANEL_WIDTH = 220/);
+  assert.match(source, /const DEFAULT_RIGHT_SIDEBAR_WIDTH = 260/);
+  assert.match(source, /const \[rightSidebarWidth, setRightSidebarWidth\]/);
   assert.match(source, /const \[showNavigator, setShowNavigator\] = useState\(true\)/);
   assert.match(source, /const \[navigatorTab, setNavigatorTab\].*"pages"/);
   assert.match(source, /openNavigator\("cameras"\)/);
@@ -36,7 +37,7 @@ test('IdeaSketch editor owns one open-by-default compact navigator without a dup
   assert.match(source, /activeTab=\{navigatorTab\}/);
   assert.match(source, /isVisible=\{showNavigator\}/);
   assert.doesNotMatch(source, /onToggleNavigator=/);
-  assert.match(source, /<ResizableDivider side="right" isVisible=\{showNavigator\} onToggle=\{toggleNavigator\} \/>/);
+  assert.match(source, /<ResizableDivider[\s\S]*?side="right"[\s\S]*?isVisible=\{showNavigator\}[\s\S]*?onToggle=\{toggleNavigator\}[\s\S]*?onResize=/);
   assert.match(source, /onAddCamera=/);
   assert.doesNotMatch(source, /const \[showCameras, setShowCameras\]/);
   assert.doesNotMatch(source, /<CameraList/);

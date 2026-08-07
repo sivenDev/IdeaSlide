@@ -7,6 +7,7 @@ import {
   FolderOpen,
   House,
   Save,
+  Settings,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SaveIndicator } from "./SaveIndicator";
@@ -33,6 +34,7 @@ interface ToolbarProps {
   onSave: () => void;
   onSaveAs: () => void;
   onGoHome: () => void;
+  onOpenSettings: () => void;
 }
 
 export function Toolbar({
@@ -45,6 +47,7 @@ export function Toolbar({
   onSave,
   onSaveAs,
   onGoHome,
+  onOpenSettings,
 }: ToolbarProps) {
   const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
   const isWindows = /Windows/.test(navigator.userAgent);
@@ -136,6 +139,10 @@ export function Toolbar({
             </DropdownMenuContent>
           </DropdownMenu>
           <SaveIndicator isDirty={isDirty} isSaving={isSaving} />
+          <Separator orientation="vertical" className="idea-slide-window-toolbar__separator" />
+          <ToolbarAction tooltip="Settings" aria-label="Settings" onClick={onOpenSettings}>
+            <Settings {...toolbarIconProps} />
+          </ToolbarAction>
         </div>
         <div className="idea-slide-window-toolbar__title">
           {fileName && (

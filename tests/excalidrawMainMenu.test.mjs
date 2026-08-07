@@ -43,6 +43,6 @@ test('IdeaSketchEditor keeps Camera creation in the navigator only', async () =>
   assert.doesNotMatch(slideCanvas, /isNavigatorOpen=/);
   assert.doesNotMatch(slideCanvas, /onToggleNavigator=/);
   assert.match(slideCanvas, /cameraDrawingRequestToken=\{cameraDrawingRequestToken\}/);
-  assert.match(source, /<ResizableDivider side="right" isVisible=\{showNavigator\} onToggle=\{toggleNavigator\} \/>/);
+  assert.match(source, /<ResizableDivider[\s\S]*?side="right"[\s\S]*?isVisible=\{showNavigator\}[\s\S]*?onToggle=\{toggleNavigator\}[\s\S]*?onResize=/);
   assert.match(navigator, /onAddCamera=\{readOnly \? undefined : handleAddCamera\}/);
 });

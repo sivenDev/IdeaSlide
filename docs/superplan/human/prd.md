@@ -1,9 +1,9 @@
 # IdeaNote Product Requirements Document
 
 - status: accepted
-- document_version: 0.9
+- document_version: 1.0
 - created: 2026-08-03
-- last_updated: 2026-08-04
+- last_updated: 2026-08-08
 - product: IdeaNote
 - predecessor: IdeaSlide
 - implementation_authorized: true
@@ -29,7 +29,7 @@ IdeaNote 同时支持：
 - 中间：当前文件的单一 Editor。
 - 右侧：AI Agent。
 
-当前阶段只实现左侧 Workspace Explorer、中间单一 Editor 和 IdeaSketch 编辑器。AI Agent、其他编辑器以及 Workspace 导入导出在后续阶段开发。
+当前阶段已实现左侧 Workspace Explorer、中间单一 Editor、IdeaSketch 编辑器、全局 Settings Center 和可配置的通用 AI Agent。Markdown、IdeaTable、IdeaWorkflow 以及 Workspace 导入导出在后续阶段开发；新增编辑器复用同一 Agent Runtime，并通过注册表注入自己的 Skill、Tools、Context 和 Change Review。
 
 ## 2. 已确认产品决定
 
@@ -42,14 +42,20 @@ IdeaNote 同时支持：
 7. Workspace Mode 和 Single File Mode 使用同一套 Editor、Parser、Serializer 和 Save Pipeline。
 8. 中间编辑区不显示文件 Tabs，同时只呈现一个当前文件编辑器；文件切换由 Workspace Explorer 驱动。
 9. 从左侧新建文件后，新文件立即成为当前文件并在中间编辑器打开。
-10. 目标布局右侧为 AI Agent，但当前阶段不显示无功能的空 Agent 面板，只保留未来扩展边界。
+10. 右侧使用一个可折叠、可调整宽度的共享 Sidebar，在当前编辑器 Navigator 与 AI Agent 之间切换，不创建两列竞争的右侧面板。
 11. 当前唯一支持的编辑器是 Excalidraw，文件格式为 `.is v1`。
 12. 未来文件格式为 `.it`（IdeaTable）、`.iwf`（IdeaWorkflow）和 `.md`（Markdown）。
-13. 当前阶段不实现 AI Agent。
+13. 当前阶段实现一个编辑器无关的 AI Agent Runtime；Runtime 不包含 `.is`、Markdown、IdeaTable 或 IdeaWorkflow 业务逻辑。
 14. 当前阶段不实现 Workspace 导入导出。
-15. AI Agent 和 Workspace 导入导出在各核心编辑器完成后再开发。
+15. 新编辑器不需要等待 Agent 重构：它们通过 File Type Registry 关联自己的 Agent Extension，直接复用已存在的 Settings、Provider、会话和审核界面。
 16. Workspace Explorer 始终显示可导航的真实目录，但文件只显示当前 File Type Registry 明确支持打开的类型；当前阶段即只显示 `.is`。
 17. Workspace Mode 产生的临时写入文件和其他应用内部临时产物统一放在 Workspace Root 的 `.ideanote/` 子目录中，不在用户文件旁生成 `.is.tmp` 等临时文件。
+18. Settings Center 同时从 Home 和编辑器打开，配置 General、AI Provider、Agent 和编辑器贡献的设置区段。
+19. AI 默认开启；关闭后不挂载 Agent UI、不初始化 Runtime、不发现 Skill、不暴露 Tool、不访问 Provider，也不保留后台 Agent 生命周期。
+20. AI 开启但 Provider Credential 未配置时，只显示配置引导，不发起模型请求。
+21. API Key 仅保存在操作系统 Credential Vault；全局非秘密设置保存在应用配置目录，二者都不得进入 `.ideanote/`、文档、Recovery、日志或对话历史。
+22. 所有 Agent 修改都先形成绑定文档 revision、source fingerprint 和外部状态的 ChangeSet；用户明确批准后才通过现有 Editor/Document Session 应用，并提供一步 Undo。
+23. 旧 MCP stdio Server、`--mcp` 启动模式、隐藏 MCP Renderer 和前端 MCP Bridge 已退休；当前 AI 自动化只通过应用内 Agent Extension 架构提供。
 
 ## 3. 产品目标
 
@@ -63,12 +69,14 @@ IdeaNote 同时支持：
 6. 将 `.is` Writer/Reader 回退并固定为既有 v1 结构。
 7. 保留现有 Excalidraw、Pages、Cameras 和 Present 核心能力。
 8. 为后续 `.md`、`.it`、`.iwf` 编辑器预留稳定扩展点。
+9. 提供可版本化的全局 Settings、原生 Credential 存储和默认开启的 AI Gate。
+10. 提供编辑器无关的 Agent Runtime、共享右侧栏和 IdeaSketch 的首个 Agent Extension。
 
 ### 3.2 长期目标
 
 1. 支持 Markdown、IdeaTable 和 IdeaWorkflow 编辑器。
 2. 为各文件类型提供稳定 SDK。
-3. 在右侧增加可操作当前文件和 Workspace 的 AI Agent。
+3. 扩展右侧 AI Agent，使未来编辑器按注册表注入受限能力，并在需要时增加经过授权的 Workspace 上下文。
 4. 支持 Workspace 的便携导入、导出、备份和迁移。
 5. 在编辑器和 SDK 稳定后增加自动化执行、审计、权限和 Secret 管理。
 
@@ -93,8 +101,9 @@ Open Workspace
 
 以下内容不属于当前阶段：
 
-- AI Agent 界面与模型接入。
-- Agent SDK、Tool Call 和 Change Review。
+- Markdown、IdeaTable 和 IdeaWorkflow 的专用 Agent Extension。
+- 后台自治任务、多 Agent 编排和自动批准写入。
+- 任意 Shell、脚本、网络或未授权 Workspace 索引工具。
 - Markdown 编辑器。
 - IdeaTable 编辑器。
 - IdeaWorkflow 编辑器与运行引擎。
@@ -311,7 +320,7 @@ New Folder
 
 ### 8.3 目标布局
 
-当前阶段：
+AI 关闭或未打开右侧栏时：
 
 ```text
 ┌──────────────────┬────────────────────────────────────────┐
@@ -323,18 +332,18 @@ New Folder
 └──────────────────┴────────────────────────────────────────┘
 ```
 
-长期布局：
+AI 开启并打开共享右侧栏时：
 
 ```text
 ┌──────────────────┬────────────────────────────┬──────────────────┐
-│ Workspace        │ Current File Editor        │ AI Agent         │
+│ Workspace        │ Current File Editor        │ Navigator/Agent  │
 │ Explorer         │                            │                  │
 │                  │                            │ Conversation     │
 │                  │                            │ Tool Activity    │
 └──────────────────┴────────────────────────────┴──────────────────┘
 ```
 
-当前阶段不显示空白 Agent 占位面板，以保证编辑空间。布局组件应允许未来增加可折叠、可调整宽度的右侧 Agent Panel。
+AI 关闭时不挂载 Agent 入口或生命周期。AI 开启时，右侧只有一个物理 Sidebar，并在当前编辑器贡献的 Navigator 与 Agent 之间切换；Sidebar 支持折叠和有界调整宽度。
 
 ## 9. Single File Mode
 
@@ -405,6 +414,8 @@ interface FileTypeDefinition {
   parse(bytes: Uint8Array): Promise<DocumentModel>;
   serialize(model: DocumentModel): Promise<Uint8Array>;
   editor: ResourceEditor;
+  settingsSectionId?: string;
+  agentExtensionId?: string;
 }
 ```
 
@@ -418,7 +429,7 @@ interface FileTypeDefinition {
 - Empty File 创建。
 - Parser、Serializer 和格式验证。
 - Unsupported File 回退。
-- 未来 AI Agent SDK 注册。
+- 编辑器 Settings 区段和 Agent Extension 注册。
 
 当前注册类型只有 IdeaSketch。
 
@@ -503,35 +514,36 @@ Manifest：
 
 ```text
 IdeaSketch (.is)
-  → Markdown (.md)
+  → Generic AI Agent Runtime + IdeaSketch Extension
+  → Markdown (.md) + Markdown Agent Extension
   → IdeaTable (.it)
   → IdeaWorkflow (.iwf)
-  → AI Agent
   → Workspace Import/Export
 ```
 
-每个新编辑器必须先完成 File Type Definition、Parser、Serializer、Editor、保存验证和基本命令接口，再进入下一个阶段。
+每个新编辑器必须完成 File Type Definition、Parser、Serializer、Editor 和保存验证；其 Agent 能力通过可选 Extension 注入，不修改通用 Runtime 或 Agent Panel。
 
-## 13. AI Agent（未来阶段）
+## 13. AI Agent 与 Settings
 
-右侧 AI Agent 是长期产品布局的一部分，但不属于当前阶段。
+AI Agent 是当前产品能力，但必须保持编辑器无关。通用 Runtime 负责 Provider、会话、流式输出、取消、Skill 加载和安全边界；文件类型 Extension 负责业务语义。
 
-在 `.is`、`.md`、`.it` 和 `.iwf` 编辑器及其基本 SDK 稳定后，再实现：
+每个 Agent Extension 可贡献：
 
-- 当前文件上下文。
-- Workspace 文件上下文。
-- 创建和修改受支持文件。
-- Tool Activity。
-- Change Review。
-- Undo。
-- 权限、确认和审计。
+- open Agent Skills `SKILL.md`。
+- 有界的当前文档、活动 Page/Selection 等 Context。
+- 只读 Tool 描述和提案型 Mutation Tool。
+- 格式感知的 Change Review 与 Apply/Undo Adapter。
 
-当前阶段要求：
+通用规则：
 
-- 不接入模型 Provider。
-- 不显示伪 Agent 或不可用输入框。
-- 不为 Agent 提前实现大量未验证的抽象。
-- File Type Registry 和 Editor 边界不能阻止未来增加 Agent Tools。
+- AI 默认开启，用户可在 Settings 中关闭；关闭后完整移除 Agent 生命周期。
+- Provider 使用 OpenAI-compatible Endpoint、Model 和原生 Credential Vault 中的 API Key；未配置时不请求。
+- Skill 先发现 metadata，只有活动编辑器 Extension 才加载完整指令和 Tool。
+- Runtime、Panel、Settings 不直接包含 `.is` 或未来编辑器的解析、验证、读写逻辑。
+- Mutation 只能返回 ChangeSet，不直接修改内存模型或磁盘；批准时复核文档 id、revision、source fingerprint、状态和外部修改标记。
+- Apply 复用现有 Editor、Document Session、Dirty、Auto-save、Recovery 和外部冲突保护；批准后的修改可一步 Undo。
+- 不提供任意本地文件、Shell、脚本、网络或自动执行工具。
+- 旧 MCP Runtime 不再作为并行自动化入口。
 
 ## 14. Workspace Import/Export（未来阶段）
 
@@ -601,8 +613,8 @@ IdeaSketch (.is)
 - 当前文件 Dirty 状态必须在标题栏清晰显示；非活动受保护 Session 的状态必须在 Workspace Explorer 中可识别。
 - 左侧 Explorer 和中间 Editor 之间支持有最小、最大宽度限制的拖动调整。
 - 左侧 Explorer 可以折叠。
-- 当前阶段不显示右侧 Agent 空占位。
-- 未来 Agent Panel 应可折叠、可调整宽度，并与现有布局共存。
+- AI 关闭时不显示 Agent Tab 或空占位；AI 开启但未配置 Provider 时显示可进入 Settings 的配置状态。
+- 共享右侧 Sidebar 可折叠、可调整宽度，并在 Navigator 与 Agent 之间切换。
 - 从显式打开入口触发的 Unsupported File 页面必须说明当前不支持编辑，并提供安全的下一步操作；Workspace Explorer 本身不列出不支持的文件。
 
 ## 18. 当前阶段 MVP 范围
@@ -626,19 +638,23 @@ IdeaSketch (.is)
 15. Pages、Cameras 和 Present 现有能力适配。
 16. Save、Save As、Save All 和 Recovery。
 17. 受支持文件白名单过滤，以及显式打开入口的 Unsupported File 回退。
+18. Home/Editor 共用的 Settings Center、版本化非秘密设置和原生 Credential Vault。
+19. 默认开启但可完整关闭的 AI Gate。
+20. 编辑器无关的流式 Agent Runtime、取消、对话历史和共享右侧栏。
+21. IdeaSketch Skill、受限 Context、Page 读能力以及新增/删除/重排/内容替换提案。
+22. Change Review、显式 Apply、陈旧/外部状态拒绝和一步 Undo。
 
 ### 18.2 不包含
 
-1. AI Agent。
-2. Markdown Editor。
-3. IdeaTable Editor。
-4. IdeaWorkflow Editor。
-5. Workspace Import/Export。
-6. `.is v2` 自动迁移。
-7. Cloud Sync。
-8. Collaboration。
-9. Script Runtime。
-10. Agent SDK 完整工具集。
+1. Markdown Editor。
+2. IdeaTable Editor。
+3. IdeaWorkflow Editor。
+4. Workspace Import/Export。
+5. `.is v2` 自动迁移。
+6. Cloud Sync。
+7. Collaboration。
+8. Script Runtime。
+9. 后台自治、多 Agent 编排和不受限 Agent 工具集。
 
 ## 19. MVP 验收标准
 
@@ -682,7 +698,9 @@ IdeaSketch (.is)
 
 ### Scope
 
-- 当前构建不显示无功能的 Agent Panel。
+- AI 默认开启；关闭后不显示 Agent UI，也不初始化任何 Agent 生命周期。
+- 未配置 Provider 时只显示配置引导，不发起请求。
+- IdeaSketch Agent 修改在批准前不改变文档或磁盘；陈旧、只读、冲突或外部修改目标拒绝 Apply。
 - 当前构建不提供 Workspace Import/Export。
 - New File 菜单当前只有 IdeaSketch 和 Folder。
 - `.md`、`.it`、`.iwf` 在对应编辑器注册为可打开之前不显示在 Workspace Explorer 中；从其他入口显式打开时安全拒绝，且不宣称可编辑。
@@ -715,31 +733,33 @@ IdeaSketch (.is)
 - Workspace/Standalone 共用编辑器。
 - Save、Recovery 和外部修改处理。
 
-### Phase 3：Markdown
+### Phase 3：Settings 与 Generic AI Agent
+
+- Home/Editor 共用 Settings Center。
+- OpenAI-compatible Provider 配置与原生 Credential Vault。
+- 默认开启/完整关闭 AI Gate。
+- 通用 Agent Runtime、流式输出、取消和会话历史。
+- 共享右侧 Sidebar。
+- IdeaSketch Skill、Tools、Context、Change Review、Apply 和 Undo。
+
+### Phase 4：Markdown
 
 - `.md` Editor。
 - Markdown Parser/Serializer。
 - 基本命令接口。
 
-### Phase 4：IdeaTable
+### Phase 5：IdeaTable
 
 - `.it` Schema。
 - Table Editor。
 - 基本命令接口。
 
-### Phase 5：IdeaWorkflow
+### Phase 6：IdeaWorkflow
 
 - `.iwf` Schema。
 - Workflow Editor。
 - 基本命令接口。
 - 暂不自动运行不受信任流程。
-
-### Phase 6：AI Agent
-
-- 右侧 Agent Panel。
-- 文件类型 SDK Tools。
-- Current File 与 Workspace Context。
-- Change Review、Undo、权限和审计。
 
 ### Phase 7：Workspace Import/Export
 
@@ -766,9 +786,9 @@ IdeaSketch (.is)
 
 如果 Workspace 和 Single File 分别实现 Reader、Writer 或 Editor，行为会快速不一致。必须通过 Document Session 和 Persistence Adapter 共享内核。
 
-### 21.5 过早实现 Agent 抽象
+### 21.5 Agent 与编辑器耦合
 
-在各编辑器行为尚未稳定时实现 Agent，会导致 SDK 反复重构。Agent 必须后置到 `.is`、`.md`、`.it`、`.iwf` 编辑器完成之后。
+如果通用 Runtime 或 Panel 直接包含某一种格式的业务逻辑，后续编辑器会迫使 Agent 重构。必须由 File Type Registry 关联 Agent Extension，并让 Extension 独立注入 Skill、Tools、Context 和 Change Review；通用层只维护 Provider、会话、安全和 UI 生命周期。
 
 ### 21.6 `.is v1/v2` 冲突
 
@@ -793,6 +813,11 @@ IdeaSketch (.is)
 13. 文件类型扩展采用前后端对称模块化：IdeaSketch 前端模块与 Rust 后端格式模块只通过稳定注册表和通用命令边界接入。
 14. Workspace Explorer 始终显示真实目录节点，但文件只显示 File Type Registry 中当前 `openable` 的类型；当前阶段只有 `.is`。不支持文件不进入前端树模型，显式打开时走安全的 Unsupported File 回退。
 15. Workspace Mode 的用户文件、Workspace 元数据及其他应用内部操作所需临时文件统一位于 `<workspace>/.ideanote/tmp/`；目标文件旁不得出现 `.is.tmp` 等应用临时文件。Single File Mode 不创建 `.ideanote/`，使用应用本地临时存储或平台安全替换机制。
+16. 全局 Settings 和 AI Credential 位于应用配置目录与操作系统 Credential Vault，不写入 `.ideanote/`；未来若增加 Workspace Override，必须使用独立版本字段且不得包含 Secret。
+17. AI 默认开启；关闭是完整生命周期 Gate，未配置 Credential 是独立的配置状态。
+18. Agent Runtime 使用 IdeaNote 自有接口包装维护中的开源框架；编辑器只通过 Agent Extension Contract 接入。
+19. 每个 Agent Mutation 都先生成一次性 ChangeSet，批准时复核文档 revision、source fingerprint、Document Status 和 source modified marker，并通过现有 Editor Session 应用。
+20. MCP stdio Runtime、`--mcp`/`--visible`、隐藏 MCP Renderer、`rmcp` dependency 和前端 MCP Bridge 已退休；`preview-renderer` 作为缩略图/预览基础设施继续保留。
 
 ## 23. 开发启动门槛
 

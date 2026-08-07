@@ -29,8 +29,11 @@ test('saved editable documents autosave in both modes while Page-scoped Cameras 
   assert.doesNotMatch(source, /enabled: document\.mode === "workspace"/);
   assert.match(source, /<SlideCanvas/);
   assert.match(source, /<IdeaSketchNavigator/);
-  assert.match(source, /<ResizableDivider side="right"/);
-  assert.match(source, /const NAVIGATOR_PANEL_WIDTH = 220/);
+  assert.match(source, /<ResizableDivider[\s\S]*?side="right"/);
+  assert.match(source, /const DEFAULT_RIGHT_SIDEBAR_WIDTH = 260/);
+  assert.match(source, /const MIN_RIGHT_SIDEBAR_WIDTH = 220/);
+  assert.match(source, /const MAX_RIGHT_SIDEBAR_WIDTH = 420/);
+  assert.match(source, /const \[rightSidebarWidth, setRightSidebarWidth\]/);
   assert.match(source, /const \[showNavigator, setShowNavigator\] = useState\(true\)/);
   assert.match(source, /navigatorTab/);
   assert.match(source, /model\.pages\.find/);

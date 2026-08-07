@@ -4,7 +4,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-pub use idea_sketch::{IdeaSketchFileData, SlideData, SlideEntry};
+pub use idea_sketch::IdeaSketchFileData;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
@@ -15,12 +15,6 @@ pub enum DocumentFileData {
 
 impl DocumentFileData {
     pub fn as_idea_sketch(&self) -> Result<&IdeaSketchFileData, String> {
-        match self {
-            Self::IdeaSketch(data) => Ok(data),
-        }
-    }
-
-    pub fn as_idea_sketch_mut(&mut self) -> Result<&mut IdeaSketchFileData, String> {
         match self {
             Self::IdeaSketch(data) => Ok(data),
         }
@@ -130,6 +124,7 @@ pub fn open_file(path: &Path) -> Result<OpenDocumentResult, String> {
     }
 }
 
+#[cfg(test)]
 pub fn read_file(path: &Path) -> Result<DocumentFileData, String> {
     match require_definition(path)?.kind {
         DocumentFormatKind::IdeaSketch => {

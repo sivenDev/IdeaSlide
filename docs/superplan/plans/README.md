@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Draft | Complete |
-| --- | --- | --- | --- |
-| `required` | 6 | 0 | 6 |
-| `feature` | 33 | 3 | 30 |
-| `bugfix` | 22 | 0 | 22 |
+| Type | Plans | Complete |
+| --- | --- | --- |
+| `required` | 6 | 6 |
+| `feature` | 33 | 33 |
+| `bugfix` | 22 | 22 |
 
 ## Execution Order
 
@@ -66,9 +66,9 @@
 | `F028` | [Start Presentation at the First Camera and Add a Preview Laser Pointer](features/F028-first-camera-preview-laser-pointer.md) | `complete` | 2026-08-07 |
 | `F029` | [Add a Preview Laser Trail and Reclaim Native Fullscreen Toolbar Space](features/F029-preview-laser-trail-and-fullscreen-toolbar.md) | `complete` | 2026-08-07 |
 | `F030` | [Lengthen the Preview Laser Trail](features/F030-lengthen-preview-laser-trail.md) | `complete` | 2026-08-07 |
-| `F031-01` | [Add the Settings Center and AI Enablement Gate](features/F031-configurable-ai-agent/F031-01-settings-and-ai-gating.md) | `draft` | 2026-08-08 |
-| `F031-02` | [Deliver the Editor-agnostic Agent Runtime](features/F031-configurable-ai-agent/F031-02-generic-agent-runtime.md) | `draft` | 2026-08-08 |
-| `F031-03` | [Remove the Legacy MCP Runtime](features/F031-configurable-ai-agent/F031-03-remove-legacy-mcp.md) | `draft` | 2026-08-08 |
+| `F031-01` | [Add the Settings Center and AI Enablement Gate](features/F031-configurable-ai-agent/F031-01-settings-and-ai-gating.md) | `complete` | 2026-08-08 |
+| `F031-02` | [Deliver the Editor-agnostic Agent Runtime](features/F031-configurable-ai-agent/F031-02-generic-agent-runtime.md) | `complete` | 2026-08-08 |
+| `F031-03` | [Remove the Legacy MCP Runtime](features/F031-configurable-ai-agent/F031-03-remove-legacy-mcp.md) | `complete` | 2026-08-08 |
 
 ### Bugfix Plans
 

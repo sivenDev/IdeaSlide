@@ -234,7 +234,7 @@ Make the laser trail in IdeaSketch Preview visibly longer while preserving its b
 
 ## F031: Add configurable editor-agnostic AI Agent and remove legacy MCP
 
-- status: accepted
+- status: done
 - created: 2026-08-08
 
 Add a reusable Settings Center accessible from Home and the editor. AI is enabled by default; when disabled, IdeaNote must not mount the Agent panel, initialize the Agent runtime, load Agent Skills, expose Agent tools, or start model work. When AI is enabled but no provider is configured, show a configuration-required state without attempting requests. Build one editor-agnostic AI Agent runtime whose active file type injects Agent Skills, tools, context, and change-review adapters; IdeaSketch is the first extension and future Markdown, IdeaTable, and IdeaWorkflow editors reuse the same runtime. Prefer maintained open-source frameworks, with the Rust runtime, open Agent Skills format, and composable React agent UI kept behind IdeaNote-owned interfaces. Remove the existing MCP feature because it conflicts with the in-app Agent: retire the --mcp startup mode, rmcp dependency, MCP server, hidden MCP renderer, frontend MCP bridge, MCP-only events/commands/capabilities, and current-product MCP documentation after reusable file and IdeaSketch operations have moved behind internal Agent tool services. Preserve real files as source of truth, shared Workspace/Single File behavior, review-before-write, undo, external-change protection, and secure credential storage outside Workspace files.

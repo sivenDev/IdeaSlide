@@ -2,13 +2,14 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["main", "mcp-renderer", "preview-renderer"],
+  "windows": ["main", "preview-renderer"],
   "permissions": [
     "core:default",
     "core:event:default",
     "core:window:allow-set-fullscreen",
     "core:window:allow-start-dragging",
     "opener:default",
-    "dialog:default"
+    "dialog:default",
+    "store:default"
   ]
 }

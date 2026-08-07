@@ -428,6 +428,7 @@ pub fn open_file(path: &Path) -> Result<OpenResult, String> {
     }))
 }
 
+#[cfg(test)]
 pub fn read_file(path: &Path) -> Result<IdeaSketchFileData, String> {
     match open_file(path)? {
         OpenResult::Editable(data) => Ok(data),

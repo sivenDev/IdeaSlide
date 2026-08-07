@@ -70,6 +70,7 @@ import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 
 interface EditorLayoutProps {
   onGoHome: () => void;
+  onOpenSettings: () => void;
   readOnly?: boolean;
   pendingStandalonePath?: string;
   onPendingStandalonePathHandled?: () => void;
@@ -104,6 +105,7 @@ function joinWorkspacePath(root: string, relativePath: string): string {
 
 export function EditorLayout({
   onGoHome,
+  onOpenSettings,
   readOnly = false,
   pendingStandalonePath,
   onPendingStandalonePathHandled,
@@ -780,6 +782,7 @@ export function EditorLayout({
         onSave={() => void handleSave()}
         onSaveAs={() => void handleSaveAs()}
         onGoHome={() => void handleGoHome()}
+        onOpenSettings={onOpenSettings}
       />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {state.workspace && (
@@ -872,6 +875,7 @@ export function EditorLayout({
                     onAutoSaveComplete={(sessionId) => void handleAutoSaveComplete(sessionId)}
                     onWriteRecovery={handleWriteRecovery}
                     onStartPresentation={handleStartPresentation}
+                    onOpenSettings={onOpenSettings}
                   />
                 )}
               />

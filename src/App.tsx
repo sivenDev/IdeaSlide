@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { AppStoreProvider, useAppStore } from "./hooks/useAppStore";
@@ -8,6 +7,8 @@ import { EditorLayout } from "./components/EditorLayout";
 import { PresentationMode } from "./components/PresentationMode";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { RecoveryPrompt } from "./components/RecoveryPrompt";
+import { SettingsCenter } from "./components/SettingsCenter";
+import { SettingsProvider, useSettings } from "./hooks/useSettings";
 import {
   addRecentFile,
   chooseAndOpenStandaloneDocument,
@@ -22,7 +23,6 @@ import {
 } from "./lib/tauriCommands";
 import { getFileTypeDefinition } from "./lib/fileTypeRegistry";
 import { restoreWorkspaceDocuments } from "./lib/workspaceState";
-import { initMcpRenderer } from "./lib/mcpRenderer";
 import { initPreviewRenderer } from "./lib/previewRenderer";
 import type { DocumentSession } from "./types";
 
@@ -64,14 +64,15 @@ function sessionFromOpened(
 
 function AppContent() {
   const { state, dispatch } = useAppStore();
-  const [mcpVisible, setMcpVisible] = useState(false);
+  const { settings } = useSettings();
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [startupRecoveries, setStartupRecoveries] = useState<StandaloneRecoveryRecordData[]>([]);
   const [pendingStandalonePath, setPendingStandalonePath] = useState<string>();
   const latestMode = useRef(state.mode);
   latestMode.current = state.mode;
   const isTauriRuntime = "__TAURI_INTERNALS__" in window;
   const windowLabel = isTauriRuntime ? getCurrentWindow().label : "main";
-  const isRendererWindow = windowLabel === "mcp-renderer" || windowLabel === "preview-renderer";
+  const isRendererWindow = windowLabel === "preview-renderer";
 
   const openStandalonePath = useCallback(async (path: string) => {
     const opened = await openStandaloneDocument(path);
@@ -133,14 +134,8 @@ function AppContent() {
   }, [dispatch]);
 
   useEffect(() => {
-    if (windowLabel === "mcp-renderer") initMcpRenderer().catch(console.error);
     if (windowLabel === "preview-renderer") initPreviewRenderer().catch(console.error);
   }, [windowLabel]);
-
-  useEffect(() => {
-    if (isRendererWindow || !isTauriRuntime) return;
-    invoke<boolean>("is_mcp_visible").then(setMcpVisible).catch(() => undefined);
-  }, [isRendererWindow, isTauriRuntime]);
 
   useEffect(() => {
     if (isRendererWindow || !isTauriRuntime || state.mode !== "launch") return;
@@ -214,16 +209,18 @@ function AppContent() {
         onOpenFile={handleOpenFile}
         onOpenRecentWorkspace={handleOpenWorkspace}
         onOpenRecentFile={openStandalonePath}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
     );
   } else {
     content = (
       <ErrorBoundary>
         <EditorLayout
-          readOnly={mcpVisible}
+          readOnly={false}
           pendingStandalonePath={pendingStandalonePath}
           onPendingStandalonePathHandled={handlePendingStandalonePathHandled}
           onGoHome={() => dispatch({ type: "GO_HOME" })}
+          onOpenSettings={() => setSettingsOpen(true)}
         />
         {state.presentationMode !== "none"
           && state.presentationPage
@@ -234,6 +231,7 @@ function AppContent() {
               mode={state.presentationMode}
               transitionSpeed="slow"
               onExit={handlePresentationExit}
+              previewLaserEnabled={settings.ideaSketch.previewLaserEnabled}
             />
           )}
       </ErrorBoundary>
@@ -254,6 +252,7 @@ function AppContent() {
           />
         </div>
       )}
+      <SettingsCenter open={settingsOpen} onOpenChange={setSettingsOpen} />
     </>
   );
 }
@@ -261,9 +260,11 @@ function AppContent() {
 function App() {
   return (
     <ErrorBoundary>
-      <AppStoreProvider>
-        <AppContent />
-      </AppStoreProvider>
+      <SettingsProvider>
+        <AppStoreProvider>
+          <AppContent />
+        </AppStoreProvider>
+      </SettingsProvider>
     </ErrorBoundary>
   );
 }

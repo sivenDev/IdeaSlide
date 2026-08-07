@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { FileInput, FolderOpen, X } from "lucide-react";
+import { FileInput, FolderOpen, Settings, X } from "lucide-react";
 import {
   getRecentFiles,
   getRecentWorkspaces,
@@ -18,6 +18,7 @@ interface LaunchScreenProps {
   onOpenFile: () => Promise<void> | void;
   onOpenRecentWorkspace: (path: string) => Promise<void> | void;
   onOpenRecentFile: (path: string) => Promise<void> | void;
+  onOpenSettings: () => void;
 }
 
 const launchActionIconProps = {
@@ -43,6 +44,7 @@ export function LaunchScreen({
   onOpenFile,
   onOpenRecentWorkspace,
   onOpenRecentFile,
+  onOpenSettings,
 }: LaunchScreenProps) {
   const [recentWorkspaces, setRecentWorkspaces] = useState<RecentWorkspace[]>([]);
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
@@ -106,6 +108,9 @@ export function LaunchScreen({
             </button>
             <button type="button" onClick={() => void run(onOpenFile)} className="flex items-center gap-3 rounded-xl border border-white/15 bg-white/[0.06] px-5 py-3 text-left text-sm font-medium transition hover:bg-white/12">
               <FileInput {...launchActionIconProps} /><span>Open File</span>
+            </button>
+            <button type="button" onClick={onOpenSettings} className="mt-2 flex items-center gap-3 rounded-xl px-5 py-2.5 text-left text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white">
+              <Settings {...launchActionIconProps} /><span>Settings</span>
             </button>
           </div>
         </div>

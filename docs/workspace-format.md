@@ -2,6 +2,8 @@
 
 An IdeaNote Workspace is a user-selected real directory. User files remain ordinary files in that directory and are the only source of truth for document content. IdeaNote does not copy those files into a Workspace archive or private database.
 
+Global application settings are not Workspace metadata. Versioned non-secret settings live in the platform application configuration directory, and AI provider credentials live only in the operating system credential vault. Neither is written to `.ideanote/`, document files, Recovery data, caches, or conversation history. A future Workspace-specific override must use an explicit versioned contract and must never contain credentials.
+
 ## Read-only open
 
 Opening or refreshing a Workspace performs a metadata-only directory scan:
@@ -22,6 +24,8 @@ The metadata directory is created only after one of these successful, user-autho
 - Create a supported document such as `Untitled.is`.
 - Save an existing Workspace document.
 - Explicitly persist Workspace state or settings.
+
+The settings trigger above applies only to a future user-authorized Workspace override. Opening the global Settings Center or changing global AI configuration does not create `.ideanote/`.
 
 Browsing, opening files, refreshing, and creating a Folder do not create metadata.
 
@@ -65,6 +69,7 @@ If metadata creation fails, the successfully written user file is retained. A fa
 - `workspaceId` is generated once and remains stable.
 - `schemaVersion` must be exactly `1` for this build.
 - Unknown settings fields are retained by the JSON value map.
+- `settings` is reserved for explicitly persisted Workspace overrides; current global General, AI Provider, Agent, and editor settings are stored outside the Workspace.
 
 ### `state.json`
 

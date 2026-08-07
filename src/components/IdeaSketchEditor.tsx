@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DocumentModel, DocumentSession, IdeaSketchDocument, IdeaSketchPage } from "../types";
 import { useEditorSession } from "../hooks/useEditorSession";
 import { useAutoSave } from "../hooks/useAutoSave";
+import { useSettings } from "../hooks/useSettings";
 import {
   createEmptyIdeaSketchPage,
   createIdeaSketchEditorState,
@@ -19,11 +20,21 @@ import {
 } from "../lib/excalidrawStyleConversion";
 import { SlideCanvas } from "./SlideCanvas";
 import { ResizableDivider } from "./ResizableDivider";
+import { AgentPanel } from "./AgentPanel";
+import { RightSidebarHost, type RightSidebarSurface } from "./RightSidebarHost";
+import type { AgentChangeSet } from "../lib/agent/types";
+import {
+  ideaSketchAgentExtension,
+  getIdeaSketchSourceFingerprint,
+  type IdeaSketchAgentOperation,
+} from "../lib/agent/extensions/ideaSketchAgentExtension";
 import {
   IdeaSketchNavigator,
   type IdeaSketchNavigatorTab,
 } from "./IdeaSketchNavigator";
-const NAVIGATOR_PANEL_WIDTH = 220;
+const DEFAULT_RIGHT_SIDEBAR_WIDTH = 260;
+const MIN_RIGHT_SIDEBAR_WIDTH = 220;
+const MAX_RIGHT_SIDEBAR_WIDTH = 420;
 
 interface IdeaSketchEditorProps {
   document: DocumentSession<IdeaSketchDocument>;
@@ -37,6 +48,7 @@ interface IdeaSketchEditorProps {
   onAutoSaveComplete: (sessionId: string) => void;
   onWriteRecovery: (sessionId: string, model: IdeaSketchDocument) => Promise<void>;
   onStartPresentation: (sessionId: string, page: IdeaSketchPage, mode: "preview" | "fullscreen") => void;
+  onOpenSettings: () => void;
 }
 
 function refreshConvertedTextDimensions(
@@ -68,6 +80,7 @@ export function IdeaSketchEditor({
   onAutoSaveComplete,
   onWriteRecovery,
   onStartPresentation,
+  onOpenSettings,
 }: IdeaSketchEditorProps) {
   if (!document.model) throw new Error("IdeaSketch document model is missing");
   const [editorState, setEditorState] = useState<IdeaSketchEditorState>(() =>
@@ -76,6 +89,8 @@ export function IdeaSketchEditor({
   const editorStateRef = useRef(editorState);
   const emittedModelRef = useRef<IdeaSketchDocument | undefined>(undefined);
   const [showNavigator, setShowNavigator] = useState(true);
+  const [rightSidebarWidth, setRightSidebarWidth] = useState(DEFAULT_RIGHT_SIDEBAR_WIDTH);
+  const [rightSidebarSurface, setRightSidebarSurface] = useState<RightSidebarSurface>("navigator");
   const [navigatorTab, setNavigatorTab] = useState<IdeaSketchNavigatorTab>("pages");
   const [cameraDrawingRequestToken, setCameraDrawingRequestToken] = useState(0);
   const [selectedCameraId, setSelectedCameraId] = useState<string>();
@@ -87,6 +102,8 @@ export function IdeaSketchEditor({
     message: string;
     selectedElementIds: Record<string, boolean>;
   } | undefined>(undefined);
+  const agentUndoRef = useRef<IdeaSketchEditorState | undefined>(undefined);
+  const { activationState } = useSettings();
 
   useEffect(() => {
     if (!document.model || document.model === emittedModelRef.current) return;
@@ -309,6 +326,70 @@ export function IdeaSketchEditor({
   const handleCanvasInteractionChange = useCallback((active: boolean) => {
     setCanvasInteractionActive((current) => current === active ? current : active);
   }, []);
+  const handleApplyAgentChangeSet = useCallback((changeSet: AgentChangeSet): boolean => {
+    if (
+      readOnly
+      || changeSet.status !== "proposed"
+      || changeSet.documentId !== document.id
+      || changeSet.extensionId !== ideaSketchAgentExtension.id
+      || changeSet.baseRevision !== document.revision
+      || changeSet.baseDocumentStatus !== document.status
+      || changeSet.baseSourceModified !== document.sourceModified
+    ) return false;
+    flushDraft();
+    const current = editorStateRef.current;
+    if (changeSet.sourceFingerprint !== getIdeaSketchSourceFingerprint(current.document)) return false;
+    const operations = changeSet.operations as IdeaSketchAgentOperation[];
+    if (operations.length !== 1) return false;
+    agentUndoRef.current = current;
+    try {
+      for (const operation of operations) {
+        if (operation.kind === "add-page") {
+          const base = createEmptyIdeaSketchPage(editorStateRef.current.document.pages.length);
+          const restored = restoreElements(operation.elements as any[], null, {
+            refreshDimensions: true,
+            repairBindings: true,
+          });
+          applyAction({
+            type: "ADD_PAGE",
+            page: { ...base, title: operation.title, elements: restored as any[] },
+          });
+        } else if (operation.kind === "delete-page") {
+          if (editorStateRef.current.document.pages.length <= 1) throw new Error("IdeaSketch must keep one Page");
+          applyAction({ type: "DELETE_PAGE", pageId: operation.pageId });
+        } else if (operation.kind === "reorder-page") {
+          applyAction({ type: "REORDER_PAGE", pageId: operation.pageId, toIndex: operation.toIndex });
+        } else {
+          const page = editorStateRef.current.document.pages.find((candidate) => candidate.id === operation.pageId);
+          if (!page) throw new Error("The proposed Page no longer exists");
+          const restored = restoreElements(operation.elements as any[], null, {
+            refreshDimensions: true,
+            repairBindings: true,
+          });
+          applyAction({
+            type: "UPDATE_PAGE_SCENE",
+            pageId: operation.pageId,
+            page: { ...page, elements: restored as any[] },
+          });
+        }
+      }
+      return true;
+    } catch {
+      agentUndoRef.current = undefined;
+      return false;
+    }
+  }, [applyAction, document.id, document.revision, document.sourceModified, document.status, flushDraft, readOnly]);
+  const handleUndoAgentChange = useCallback(() => {
+    const previous = agentUndoRef.current;
+    if (!previous || readOnly) return;
+    agentUndoRef.current = undefined;
+    editorStateRef.current = previous;
+    setEditorState(previous);
+    emittedModelRef.current = previous.document;
+    onModelChange(document.id, previous.document);
+    onEditorStateChange(document.id, previous.activePageId);
+  }, [document.id, onEditorStateChange, onModelChange, readOnly]);
+  const agentAvailable = activationState === "ready" || activationState === "configuration-required";
   return (
     <div className="ideanote-ideasketch-editor">
       <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -329,30 +410,57 @@ export function IdeaSketchEditor({
             cameraDrawingRequestToken={cameraDrawingRequestToken}
           />
         </main>
-        <ResizableDivider side="right" isVisible={showNavigator} onToggle={toggleNavigator} />
-        <div className="h-full flex-shrink-0 overflow-hidden transition-[width] duration-200" style={{ width: showNavigator ? NAVIGATOR_PANEL_WIDTH : 0 }}>
-          <div className="h-full" style={{ width: NAVIGATOR_PANEL_WIDTH }}>
-            <IdeaSketchNavigator
-              activeTab={navigatorTab}
-              onTabChange={setNavigatorTab}
-              pages={editorState.document.pages}
-              activePageId={editorState.activePageId}
-              activePageDraft={draft}
-              canvasInteractionActive={canvasInteractionActive}
-              cameras={cameras}
-              activeCameraId={activeCameraId}
-              readOnly={readOnly}
-              onPageSelect={selectPage}
-              onPageAdd={addPage}
-              onPageRename={renamePage}
-              onPageReorder={reorderPage}
-              onPageDelete={deletePage}
-              onCameraSelect={selectCamera}
-              onCameraDelete={deleteCamera}
-              onCameraReorder={reorderCameraList}
-              onAddCamera={readOnly ? undefined : handleAddCamera}
-              onStartPreview={() => startPresentation("preview")}
-              onStartFullscreen={() => startPresentation("fullscreen")}
+        <ResizableDivider
+          side="right"
+          isVisible={showNavigator}
+          onToggle={toggleNavigator}
+          size={rightSidebarWidth}
+          minSize={MIN_RIGHT_SIDEBAR_WIDTH}
+          maxSize={MAX_RIGHT_SIDEBAR_WIDTH}
+          onResize={(nextSize) => setRightSidebarWidth(Math.max(MIN_RIGHT_SIDEBAR_WIDTH, Math.min(MAX_RIGHT_SIDEBAR_WIDTH, nextSize)))}
+        />
+        <div className="h-full flex-shrink-0 overflow-hidden transition-[width] duration-200" style={{ width: showNavigator ? rightSidebarWidth : 0 }}>
+          <div className="h-full" style={{ width: rightSidebarWidth }}>
+            <RightSidebarHost
+              surface={rightSidebarSurface}
+              agentAvailable={agentAvailable}
+              onSurfaceChange={setRightSidebarSurface}
+              navigator={(
+                <IdeaSketchNavigator
+                  activeTab={navigatorTab}
+                  onTabChange={setNavigatorTab}
+                  pages={editorState.document.pages}
+                  activePageId={editorState.activePageId}
+                  activePageDraft={draft}
+                  canvasInteractionActive={canvasInteractionActive}
+                  cameras={cameras}
+                  activeCameraId={activeCameraId}
+                  readOnly={readOnly}
+                  onPageSelect={selectPage}
+                  onPageAdd={addPage}
+                  onPageRename={renamePage}
+                  onPageReorder={reorderPage}
+                  onPageDelete={deletePage}
+                  onCameraSelect={selectCamera}
+                  onCameraDelete={deleteCamera}
+                  onCameraReorder={reorderCameraList}
+                  onAddCamera={readOnly ? undefined : handleAddCamera}
+                  onStartPreview={() => startPresentation("preview")}
+                  onStartFullscreen={() => startPresentation("fullscreen")}
+                />
+              )}
+              agent={agentAvailable ? (
+                <AgentPanel
+                  document={document}
+                  activePageId={editorState.activePageId}
+                  extension={ideaSketchAgentExtension}
+                  readOnly={readOnly}
+                  onOpenSettings={onOpenSettings}
+                  onApplyChangeSet={handleApplyAgentChangeSet}
+                  onUndo={handleUndoAgentChange}
+                  canUndo={Boolean(agentUndoRef.current)}
+                />
+              ) : undefined}
             />
           </div>
         </div>

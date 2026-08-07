@@ -8,6 +8,7 @@ test('Home offers the approved IdeaNote entry points without an Agent placeholde
   assert.match(source, />New File</);
   assert.match(source, />Open Workspace</);
   assert.match(source, />Open File</);
+  assert.match(source, />Settings</);
   assert.doesNotMatch(source, /AI-Powered/);
   assert.doesNotMatch(source, /Agent Panel/);
 });

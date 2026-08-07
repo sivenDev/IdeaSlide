@@ -90,7 +90,8 @@ test('Preview renders a fixed-spacing, time-fading Canvas path and hides only it
 test('Preview settings expose a default-on laser pointer toggle with immediate cleanup', async () => {
   const source = await readPresentationSource();
 
-  assert.match(source, /const \[laserEnabled, setLaserEnabled\] = useState\(true\)/);
+  assert.match(source, /previewLaserEnabled = true/);
+  assert.match(source, /const \[laserEnabled, setLaserEnabled\] = useState\(previewLaserEnabled\)/);
   assert.match(source, /mode === ['"]preview['"] && \([\s\S]*?Laser pointer[\s\S]*?type="checkbox"/);
   assert.match(source, /checked=\{laserEnabled\}/);
   assert.match(source, /onChange=\{\(event\) => setLaserEnabled\(event\.target\.checked\)\}/);

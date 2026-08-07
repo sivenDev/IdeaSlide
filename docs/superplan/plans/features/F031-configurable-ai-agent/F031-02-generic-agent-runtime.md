@@ -2,7 +2,7 @@
 id: "F031-02"
 title: "Deliver the Editor-agnostic Agent Runtime"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Integrate a native open-source Agent runtime, open Agent Skills, a reusable right-sidebar host, and the first IdeaSketch extension with reviewed reversible changes."
 source: "docs/superplan/human/features.md"
 created: "2026-08-08"
@@ -55,9 +55,9 @@ parent: "F031"
 - `node --test tests/agentExtensionRegistry.test.mjs tests/fileTypeRegistry.test.mjs`
 - Cases: fake-provider streaming/cancellation; no configured provider; step limit; Skill metadata-only discovery then activation; missing/malformed Skill; extension switch; unsupported file has no tools; disabled gate makes no runtime command.
 
-- [ ] Pin and wrap the selected open-source Rust runtime instead of exposing its APIs across the application.
-- [ ] Implement the open Agent Skills discovery/activation contract with packaged, read-only assets.
-- [ ] Add typed cross-process run/tool/review events and the editor Agent extension registry.
+- [x] Pin and wrap the selected open-source Rust runtime instead of exposing its APIs across the application.
+- [x] Implement the open Agent Skills discovery/activation contract with packaged, read-only assets.
+- [x] Add typed cross-process run/tool/review events and the editor Agent extension registry.
 
 ## Task 2: Build One Reusable Right Sidebar and Agent Surface
 
@@ -92,9 +92,9 @@ parent: "F031"
 - `node --test tests/rightSidebarHost.test.mjs tests/agentPanel.test.mjs tests/ideaSketchNavigator.test.mjs tests/panelDividerWiring.test.mjs tests/slideCanvasProps.test.mjs tests/canvasPresentationControls.test.mjs`
 - Browser/Tauri cases: AI disabled; enabled/unconfigured; configured streaming; cancel; switch Agent/Navigator; collapse/resize; Page/Camera actions; 1200px/1024px/minimum-width layout; Canvas pointer/viewport stability.
 
-- [ ] Recompose the current editor navigator and new Agent into one generic app-level sidebar host.
-- [ ] Wire the open-source React Agent primitives through an IdeaNote-owned custom runtime and visual system.
-- [ ] Preserve all IdeaSketch navigator, Camera, Present, focus, resize, and Canvas alignment behavior.
+- [x] Recompose the current editor navigator and new Agent into one generic app-level sidebar host.
+- [x] Wire the open-source React Agent primitives through an IdeaNote-owned custom runtime and visual system.
+- [x] Preserve all IdeaSketch navigator, Camera, Present, focus, resize, and Canvas alignment behavior.
 
 ## Task 3: Add the IdeaSketch Skill, Context, and Proposal Tools
 
@@ -123,9 +123,9 @@ parent: "F031"
 - `node --test tests/ideaSketchAgentExtension.test.mjs tests/agentChangeReview.test.mjs tests/ideaSketchReducer.test.mjs tests/editorSession.test.mjs`
 - Cases: correct activation; context bounds; unselected/unsupported content; deterministic tool schemas; source Page unchanged for new-Page proposal; no write before approval; malformed tool arguments rejected; unsupported file receives no IdeaSketch Skill/tool.
 
-- [ ] Package the IdeaSketch capability as one open-format Skill plus extension-owned tools/context/review.
-- [ ] Keep read tools bounded and make every mutation proposal-only.
-- [ ] Prove that future synthetic editor extensions can register different Skills and Tools without changing runtime or panel code.
+- [x] Package the IdeaSketch capability as one open-format Skill plus extension-owned tools/context/review.
+- [x] Keep read tools bounded and make every mutation proposal-only.
+- [x] Prove that future synthetic editor extensions can register different Skills and Tools without changing runtime or panel code.
 
 ## Task 4: Apply Reviewed Changes Safely and Reversibly
 
@@ -155,9 +155,9 @@ parent: "F031"
 - `node --test tests/agentChangeSet.test.mjs tests/agentApprovalState.test.mjs tests/ideaSketchAgentExtension.test.mjs tests/externalFileChanges.test.mjs tests/recovery.test.mjs tests/appStoreReducer.test.mjs`
 - Native cases: Workspace and Standalone proposals; approve; reject; revise; double-apply rejected; external edit before approval; read-only/missing target; Undo; autosave/explicit save; crash recovery after approved dirty change.
 
-- [ ] Require explicit review for every mutation and reject stale or externally changed targets.
-- [ ] Apply only through the existing document model and persistence pipeline.
-- [ ] Deliver one-step Undo and recovery-safe behavior for approved changes.
+- [x] Require explicit review for every mutation and reject stale or externally changed targets.
+- [x] Apply only through the existing document model and persistence pipeline.
+- [x] Deliver one-step Undo and recovery-safe behavior for approved changes.
 
 ## Task 5: Verify the Generic Runtime and First Extension
 
@@ -177,8 +177,17 @@ parent: "F031"
 - `git diff --check`
 - Native acceptance with a temporary `.is`: configure provider, run read and mutation requests, inspect Tool Activity/review, approve/save/reopen, Undo, conflict rejection, switch Agent/Navigator, disable AI, and confirm no secrets in logs or persisted app/Workspace JSON.
 
-- [ ] Run focused tests while iterating and the complete high-risk regression/security/build matrix after implementation stabilizes.
-- [ ] Record end-to-end evidence for generic extension isolation, reviewed persistence, recovery, and complete disabled teardown.
+- [x] Run focused tests while iterating and the complete high-risk regression/security/build matrix after implementation stabilizes.
+- [x] Record end-to-end evidence for generic extension isolation, reviewed persistence, recovery, and complete disabled teardown.
+
+## Completion Evidence
+
+- Open-source boundaries: the backend exact-pins `rig-core = 0.41.0` behind IdeaNote-owned Agent modules; packaged Skills use the open Agent Skills `SKILL.md` format with metadata-only discovery and active-skill loading. The React surface uses `@assistant-ui/react` external-store runtime, Thread/Message/Composer primitives, established Radix controls, and an IdeaNote-owned adapter instead of exposing framework types to editor extensions.
+- Generic extension proof: `AgentExtension` supplies Skill id, bounded context, Tool descriptors, proposal parsing, and review ownership. IdeaSketch is registered only through File Type Registry metadata, and a synthetic Markdown-like extension test registers a different Skill and Tool set without changing the Rust runtime, Agent panel, or sidebar host.
+- Native runtime proof: offline OpenAI-compatible SSE tests exercise the real Rig adapter, verify streamed text, confirm prior user/assistant history and bearer authorization reach the provider request, and prove cancellation stops an active provider stream. Skills, session cancellation, and typed runtime tests are included in the 74/74 Rust result.
+- IdeaSketch safety: context is bounded to document outline and active Page data. Proposal Tools cover Page add/delete/reorder and element replacement. Every mutation produces a Change Set; Apply verifies document/extension identity, revision, source fingerprint, status, and external-source marker before entering the existing editor reducer/session pipeline. Reject, stale handling, and one-step Undo are covered without direct Agent save/write commands.
+- Sidebar/UI acceptance: one 220–420 px resizable right sidebar switches between Navigator and Agent, preserving Pages/Cameras behavior and avoiding simultaneous right columns. Browser checks verified Navigator/Agent switching, configuration-required guidance, AI-disabled teardown, and restored AI enablement.
+- Verification: `node --test tests/*.test.mjs` passed 271/271; `cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture` passed 74/74; `cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check`, `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets`, `npm run build`, and `git diff --check` passed. The build retains only existing Excalidraw import-overlap and large-chunk informational warnings.
 
 ## References
 - `docs/superplan/human/features.md`

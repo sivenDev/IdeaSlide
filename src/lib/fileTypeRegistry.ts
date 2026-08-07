@@ -5,6 +5,7 @@ import {
   serializeIdeaSketchDocument,
   type IdeaSketchFileData,
 } from "./ideaSketchDocument.ts";
+import "./agent/extensions/ideaSketchAgentExtension.ts";
 
 export interface FileTypeDefinition<TModel extends DocumentModel = DocumentModel> {
   type: string;
@@ -12,6 +13,8 @@ export interface FileTypeDefinition<TModel extends DocumentModel = DocumentModel
   extensions: string[];
   icon: string;
   editor: string;
+  settingsSectionId?: string;
+  agentExtensionId?: string;
   creatable: boolean;
   openable: boolean;
   createEmpty(options?: Record<string, string>): Promise<TModel>;
@@ -25,6 +28,8 @@ const IDEA_SKETCH_DEFINITION: FileTypeDefinition<IdeaSketchDocument> = {
   extensions: ["is"],
   icon: "canvas",
   editor: "ideasketch",
+  settingsSectionId: "ideasketch",
+  agentExtensionId: "ideasketch-agent",
   creatable: true,
   openable: true,
   async createEmpty(options = {}) {

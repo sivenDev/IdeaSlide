@@ -2,7 +2,7 @@
 id: "F031-03"
 title: "Remove the Legacy MCP Runtime"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Delete the legacy stdio MCP server, hidden renderer, frontend bridge, dependency, and active documentation after Agent replacement coverage is proven."
 source: "docs/superplan/human/features.md"
 created: "2026-08-08"
@@ -40,9 +40,9 @@ parent: "F031"
 - `cargo test --manifest-path src-tauri/Cargo.toml agent -- --nocapture`
 - `cargo test --manifest-path src-tauri/Cargo.toml document_formats -- --nocapture`
 
-- [ ] Map every MCP tool/runtime/renderer responsibility to replacement, deletion, or preserved canonical ownership.
-- [ ] Add failing zero-reference/dependency/startup contracts before removing production code.
-- [ ] Confirm Agent mutations remain review-only until applied through the document session.
+- [x] Map every MCP tool/runtime/renderer responsibility to replacement, deletion, or preserved canonical ownership.
+- [x] Add failing zero-reference/dependency/startup contracts before removing production code.
+- [x] Confirm Agent mutations remain review-only until applied through the document session.
 
 ## Task 2: Delete the Backend MCP Runtime and Startup Mode
 
@@ -67,9 +67,9 @@ parent: "F031"
 - `cargo tree --manifest-path src-tauri/Cargo.toml -i rmcp` must report no package.
 - Source contract: no production `mod mcp`, `--mcp`, `McpRendererReady`, `McpVisible`, `mcp_renderer_ready`, `is_mcp_visible`, `mcp-renderer`, or `mcp::start_server` references.
 
-- [ ] Remove the complete MCP backend tree and startup lifecycle.
-- [ ] Preserve canonical IdeaSketch/file behavior tests outside the deleted namespace where still required.
-- [ ] Remove MCP-only dependencies and capabilities without touching preview-renderer support.
+- [x] Remove the complete MCP backend tree and startup lifecycle.
+- [x] Preserve canonical IdeaSketch/file behavior tests outside the deleted namespace where still required.
+- [x] Remove MCP-only dependencies and capabilities without touching preview-renderer support.
 
 ## Task 3: Remove the Frontend Bridge and Active MCP Documentation
 
@@ -97,9 +97,9 @@ parent: "F031"
 - Scoped search across production and active documentation finds no MCP runtime/usage references; historical plan paths are reported separately and accepted.
 - Browser/Tauri smoke: normal launch, hidden preview renderer, Page thumbnails/previews, file association, configured Agent run, and AI-disabled launch.
 
-- [ ] Delete the frontend MCP renderer and visible-MCP read-only behavior.
-- [ ] Remove current-product MCP instructions while preserving explicit historical evidence.
-- [ ] Verify the preview renderer and Agent UI remain independent and functional.
+- [x] Delete the frontend MCP renderer and visible-MCP read-only behavior.
+- [x] Remove current-product MCP instructions while preserving explicit historical evidence.
+- [x] Verify the preview renderer and Agent UI remain independent and functional.
 
 ## Task 4: Verify Complete MCP Retirement
 
@@ -119,8 +119,17 @@ parent: "F031"
 - `git diff --check`
 - Native acceptance: normal launch, Home/Settings, Workspace and Single File edit/save, Page preview/thumbnail, Agent read/propose/review/apply/undo, AI disabled startup, file association, and confirmation that `--mcp` no longer creates a mode/server/window.
 
-- [ ] Run the focused removal checks during deletion and the complete regression/build/startup matrix once stable.
-- [ ] Record scoped zero-reference, lockfile, preview-renderer, Agent replacement, and native startup evidence before completion.
+- [x] Run the focused removal checks during deletion and the complete regression/build/startup matrix once stable.
+- [x] Record scoped zero-reference, lockfile, preview-renderer, Agent replacement, and native startup evidence before completion.
+
+## Completion Evidence
+
+- Deleted runtime: `src-tauri/src/mcp/`, `src/lib/mcpRenderer.ts`, and `docs/mcp-comparison.md` are removed. Tauri startup no longer parses `--mcp` or `--visible`, starts a stdio server, manages MCP readiness/visibility, creates an MCP renderer, or puts the visible editor into an MCP-specific read-only mode.
+- Dependency/capability proof: `rmcp` is absent from `Cargo.toml` and the resolved dependency graph; `cargo tree --manifest-path src-tauri/Cargo.toml -i rmcp` reports that no such package exists. `mcp-renderer` is absent from capabilities while `preview-renderer` remains allowed and initialized.
+- Scoped zero-reference proof: production source plus active README/current-product documentation contains no MCP runtime, command, event, mode, renderer, or usage reference. Immutable historical `docs/superplan/**` and `docs/superpowers/**` records remain intentionally unchanged.
+- Replacement proof: Agent extension tests cover outline/active-Page reads and Page add/delete/reorder/content proposals, reviewed Apply, stale/conflict rejection, and Undo. Mutation proposals do not call the legacy server or any direct persistence command.
+- Preview preservation: `src/App.tsx`, `src/lib/previewRenderer.ts`, Rust startup, and `src-tauri/capabilities/default.json` retain the independent `preview-renderer`; the full thumbnail, preview, presentation, Workspace, and Single File regression suites pass.
+- Verification: `node --test tests/*.test.mjs` passed 271/271; `cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture` passed 74/74; `cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check`, `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets`, `npm run build`, scoped zero-reference checks, dependency inspection, and `git diff --check` passed.
 
 ## References
 - `docs/superplan/human/features.md`
