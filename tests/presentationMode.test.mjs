@@ -6,6 +6,10 @@ const readPresentationSource = () => readFile(
   new URL('../src/components/PresentationMode.tsx', import.meta.url),
   'utf8',
 );
+const readPresentationStyles = () => readFile(
+  new URL('../src/index.css', import.meta.url),
+  'utf8',
+);
 
 test('presentation starts at Camera 1 and preserves the saved viewport without Cameras', async () => {
   const source = await readPresentationSource();
@@ -35,4 +39,32 @@ test('Preview owns a non-persistent laser pointer while Fullscreen keeps the nor
   assert.match(source, /aria-hidden="true"/);
   assert.match(source, /idea-slide-presentation-laser/);
   assert.match(source, /pointer-events-none/);
+});
+
+test('Preview renders a bounded fading laser trail and hides only its Excalidraw menu trigger', async () => {
+  const source = await readPresentationSource();
+  const styles = await readPresentationStyles();
+  const pointerHandler = source.match(
+    /const handlePreviewPointerMove = useCallback\([\s\S]*?\}, \[mode\]\);/,
+  )?.[0] ?? '';
+  const clearHandler = source.match(
+    /const clearPreviewPointer = useCallback\([\s\S]*?\}, \[\]\);/,
+  )?.[0] ?? '';
+
+  assert.match(source, /const MAX_LASER_TRAIL_POINTS = \d+/);
+  assert.match(source, /const \[laserTrail, setLaserTrail\] = useState/);
+  assert.match(source, /const nextLaserTrailIdRef = useRef\(0\)/);
+  assert.match(pointerHandler, /setLaserTrail\(/);
+  assert.match(pointerHandler, /slice\(-MAX_LASER_TRAIL_POINTS\)/);
+  assert.doesNotMatch(pointerHandler, /updateScene|setActiveTool|onChange/);
+  assert.match(clearHandler, /setLaserPoint\(null\)/);
+  assert.match(clearHandler, /setLaserTrail\(\[\]\)/);
+  assert.match(source, /idea-slide-presentation-laser__trail/);
+  assert.match(source, /onAnimationEnd=\{\(\) => removeLaserTrailPoint\(point\.id\)\}/);
+  assert.match(source, /idea-slide-presentation[^\n]*\$\{mode === ['"]preview['"] \? ['"]is-preview['"] : ['"]is-fullscreen['"]\}/);
+
+  assert.match(styles, /\.idea-slide-presentation\.is-preview \.excalidraw \.main-menu-trigger\s*\{[\s\S]*?display:\s*none !important/i);
+  assert.match(styles, /\.idea-slide-presentation-laser__trail\s*\{[\s\S]*?animation:/i);
+  assert.match(styles, /@keyframes idea-slide-presentation-laser-trail/);
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\)\s*\{[\s\S]*?\.idea-slide-presentation-laser__trail/i);
 });

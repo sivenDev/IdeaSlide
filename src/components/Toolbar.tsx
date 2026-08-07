@@ -47,52 +47,52 @@ export function Toolbar({
   onGoHome,
 }: ToolbarProps) {
   const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
+  const isWindows = /Windows/.test(navigator.userAgent);
   const isTauriRuntime = "__TAURI_INTERNALS__" in window;
   const [openMenuOpen, setOpenMenuOpen] = useState(false);
-  const [isWindowFocused, setIsWindowFocused] = useState(true);
+  const [isWindowFullscreen, setIsWindowFullscreen] = useState(false);
 
   useEffect(() => {
-    if (!isMac || !isTauriRuntime) return;
+    if ((!isMac && !isWindows) || !isTauriRuntime) return;
     const appWindow = getCurrentWindow();
     let disposed = false;
-    let observedFocusChange = false;
-    let unlisten: (() => void) | undefined;
+    let unlistenResize: (() => void) | undefined;
+    let fullscreenRequestVersion = 0;
 
-    appWindow.onFocusChanged(({ payload: focused }) => {
-      observedFocusChange = true;
-      if (!disposed) setIsWindowFocused(focused);
+    const refreshFullscreen = () => {
+      const requestVersion = ++fullscreenRequestVersion;
+      appWindow.isFullscreen().then((fullscreen) => {
+        if (!disposed && requestVersion === fullscreenRequestVersion) {
+          setIsWindowFullscreen(fullscreen);
+        }
+      }).catch(console.error);
+    };
+
+    appWindow.onResized(() => {
+      refreshFullscreen();
     }).then((dispose) => {
       if (disposed) dispose();
-      else unlisten = dispose;
+      else unlistenResize = dispose;
     }).catch(console.error);
 
-    appWindow.isFocused().then((focused) => {
-      if (!disposed && !observedFocusChange) setIsWindowFocused(focused);
-    }).catch(console.error);
+    refreshFullscreen();
 
     return () => {
       disposed = true;
-      unlisten?.();
+      unlistenResize?.();
     };
-  }, [isMac, isTauriRuntime]);
+  }, [isMac, isWindows, isTauriRuntime]);
 
   return (
     <TooltipProvider>
       <div
-        className={`idea-slide-window-toolbar ${isMac ? "is-mac" : "is-non-mac"}`}
+        className={`idea-slide-window-toolbar ${isMac ? "is-mac" : "is-non-mac"} ${isWindows ? "is-windows" : ""} ${isWindowFullscreen ? "is-fullscreen" : ""}`}
         onMouseDown={(event) => {
           if (event.target === event.currentTarget || (event.target as HTMLElement).closest("[data-drag-region]")) {
             getCurrentWindow().startDragging();
           }
         }}
       >
-        {isMac && !isWindowFocused && (
-          <div className="idea-slide-window-toolbar__traffic-lights" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </div>
-        )}
         <div className="idea-slide-window-toolbar__commands">
           <ToolbarAction tooltip="Back to Home" aria-label="Back to Home" onClick={onGoHome}>
             <House {...toolbarIconProps} />

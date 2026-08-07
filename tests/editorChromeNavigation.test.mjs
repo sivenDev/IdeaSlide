@@ -98,30 +98,50 @@ test('Toolbar keeps generic file commands and centered IdeaNote document title',
   assert.match(styles, /\.idea-slide-save-indicator\.is-dirty \.idea-slide-save-indicator__label\s*\{[\s\S]*?font-weight:\s*600/);
 });
 
-test('Toolbar preserves the inactive macOS traffic-light footprint on a Shimo-style surface', async () => {
+test('Toolbar reserves the native macOS traffic-light footprint without drawing synthetic controls', async () => {
   const source = await readSource('src/components/Toolbar.tsx');
   const styles = await readSource('src/index.css');
   const config = JSON.parse(await readSource('src-tauri/tauri.conf.json'));
-  const trafficLights = styles.match(/\.idea-slide-window-toolbar__traffic-lights\s*\{[\s\S]*?\}/)?.[0] ?? '';
+  const macToolbar = styles.match(/\.idea-slide-window-toolbar\.is-mac\s*\{[\s\S]*?\}/)?.[0] ?? '';
 
   assert.match(source, /import \{ useEffect, useState \} from "react"/);
   assert.match(source, /const isTauriRuntime = "__TAURI_INTERNALS__" in window/);
-  assert.match(source, /\.isFocused\(\)/);
-  assert.match(source, /\.onFocusChanged\(/);
-  assert.match(source, /unlisten\?\.\(\)/);
-  assert.match(source, /isMac && !isWindowFocused/);
-  assert.match(source, /idea-slide-window-toolbar__traffic-lights/);
-  assert.match(source, /aria-hidden="true"/);
-  assert.match(source, /<span \/>\s*<span \/>\s*<span \/>/);
+  assert.doesNotMatch(source, /\.isFocused\(\)|\.onFocusChanged\(/);
+  assert.doesNotMatch(source, /idea-slide-window-toolbar__traffic-lights/);
+  assert.doesNotMatch(styles, /\.idea-slide-window-toolbar__traffic-lights/);
 
   assert.match(styles, /\.idea-slide-window-toolbar\s*\{[\s\S]*?background:\s*#dedee3/i);
+  assert.match(macToolbar, /padding-left:\s*5rem/i);
   assert.equal(config.app.windows[0].trafficLightPosition.x, 13);
   assert.equal(config.app.windows[0].trafficLightPosition.y, 26);
-  assert.match(trafficLights, /top:\s*18px/i);
-  assert.match(trafficLights, /left:\s*12\.5px/i);
-  assert.match(trafficLights, /gap:\s*11px/i);
-  assert.match(trafficLights, /pointer-events:\s*none/i);
-  assert.match(styles, /\.idea-slide-window-toolbar__traffic-lights > span\s*\{[\s\S]*?width:\s*13px[\s\S]*?height:\s*13px[\s\S]*?border-radius:\s*50%/i);
+});
+
+test('Toolbar releases native macOS and Windows control footprints while fullscreen is active', async () => {
+  const source = await readSource('src/components/Toolbar.tsx');
+  const styles = await readSource('src/index.css');
+  const macFullscreenRule = styles.match(
+    /\.idea-slide-window-toolbar\.is-mac\.is-fullscreen\s*\{[\s\S]*?\}/,
+  )?.[0] ?? '';
+  const windowsFullscreenRule = styles.match(
+    /\.idea-slide-window-toolbar\.is-windows\.is-fullscreen\s*\{[\s\S]*?\}/,
+  )?.[0] ?? '';
+  const nonMacRule = styles.match(
+    /\.idea-slide-window-toolbar\.is-non-mac\s*\{[\s\S]*?\}/,
+  )?.[0] ?? '';
+
+  assert.match(source, /const isWindows = \/Windows\/\.test\(navigator\.userAgent\)/);
+  assert.match(source, /const \[isWindowFullscreen, setIsWindowFullscreen\] = useState\(false\)/);
+  assert.match(source, /if \(\(!isMac && !isWindows\) \|\| !isTauriRuntime\) return/);
+  assert.match(source, /\.isFullscreen\(\)/);
+  assert.match(source, /\.onResized\(/);
+  assert.match(source, /unlistenResize\?\.\(\)/);
+  assert.match(source, /\}, \[isMac, isWindows, isTauriRuntime\]\)/);
+  assert.match(source, /isWindows \? ['"]is-windows['"] : ['"]['"]/);
+  assert.match(source, /isWindowFullscreen \? ['"]is-fullscreen['"] : ['"]['"]/);
+  assert.match(macFullscreenRule, /padding-left:\s*0\.75rem/i);
+  assert.match(nonMacRule, /padding-right:\s*9rem/i);
+  assert.match(windowsFullscreenRule, /padding-right:\s*0\.75rem/i);
+  assert.doesNotMatch(source, /window-controls|window-control-button|traffic-lights/);
 });
 
 test('Excalidraw main menu uses the IdeaNote cool-gray violet surface', async () => {

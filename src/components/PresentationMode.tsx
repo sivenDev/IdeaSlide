@@ -24,6 +24,13 @@ const SPEED_MS: Record<TransitionSpeed, number> = {
 };
 
 const CAMERA_PADDING_FACTOR = 0.9;
+const MAX_LASER_TRAIL_POINTS = 24;
+
+interface LaserTrailPoint {
+  id: number;
+  x: number;
+  y: number;
+}
 
 function readViewport(api: any): ViewportTarget {
   const appState = api.getAppState();
@@ -48,7 +55,9 @@ export function PresentationMode({ slide, mode, transitionSpeed, onExit }: Prese
   const [speed, setSpeed] = useState<TransitionSpeed>(transitionSpeed);
   const [apiReadyVersion, setApiReadyVersion] = useState(0);
   const [laserPoint, setLaserPoint] = useState<{ x: number; y: number } | null>(null);
+  const [laserTrail, setLaserTrail] = useState<LaserTrailPoint[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
+  const nextLaserTrailIdRef = useRef(0);
   const excalidrawApiRef = useRef<any>(null);
   const apiSlideIdRef = useRef<string | null>(null);
   const animatorRef = useRef<ReturnType<typeof createViewportAnimator> | null>(null);
@@ -179,21 +188,31 @@ export function PresentationMode({ slide, mode, transitionSpeed, onExit }: Prese
     }
 
     const bounds = event.currentTarget.getBoundingClientRect();
-    setLaserPoint({
+    const point = {
       x: event.clientX - bounds.left,
       y: event.clientY - bounds.top,
-    });
+    };
+    setLaserPoint(point);
+    setLaserTrail((trail) => [
+      ...trail,
+      { ...point, id: nextLaserTrailIdRef.current++ },
+    ].slice(-MAX_LASER_TRAIL_POINTS));
   }, [mode]);
 
   const clearPreviewPointer = useCallback(() => {
     setLaserPoint(null);
+    setLaserTrail([]);
+  }, []);
+
+  const removeLaserTrailPoint = useCallback((id: number) => {
+    setLaserTrail((trail) => trail.filter((point) => point.id !== id));
   }, []);
 
   useEffect(() => {
     if (mode !== "preview" || showCameraNav || showSettings) {
-      setLaserPoint(null);
+      clearPreviewPointer();
     }
-  }, [mode, showCameraNav, showSettings]);
+  }, [mode, showCameraNav, showSettings, clearPreviewPointer]);
 
   // Keyboard navigation - capture phase
   useEffect(() => {
@@ -318,7 +337,7 @@ export function PresentationMode({ slide, mode, transitionSpeed, onExit }: Prese
       tabIndex={0}
       role="application"
       aria-label="Presentation mode"
-      className="fixed inset-0 z-50 flex items-center justify-center outline-none"
+      className={`idea-slide-presentation ${mode === "preview" ? "is-preview" : "is-fullscreen"} fixed inset-0 z-50 flex items-center justify-center outline-none`}
       style={{ backgroundColor: '#1a1a1a' }}
     >
       {/* Slide content — camera elements filtered out */}
@@ -343,6 +362,16 @@ export function PresentationMode({ slide, mode, transitionSpeed, onExit }: Prese
           />
         </ErrorBoundary>
       </div>
+
+      {mode === "preview" && laserTrail.map((point) => (
+        <div
+          key={point.id}
+          aria-hidden="true"
+          className="idea-slide-presentation-laser__trail pointer-events-none"
+          onAnimationEnd={() => removeLaserTrailPoint(point.id)}
+          style={{ left: point.x, top: point.y }}
+        />
+      ))}
 
       {mode === "preview" && laserPoint && (
         <div

@@ -43,28 +43,16 @@ body,
     padding-left: 5rem;
 }
 
+.idea-slide-window-toolbar.is-mac.is-fullscreen {
+    padding-left: 0.75rem;
+}
+
 .idea-slide-window-toolbar.is-non-mac {
     padding-right: 9rem;
 }
 
-.idea-slide-window-toolbar__traffic-lights {
-    position: absolute;
-    top: 18px;
-    left: 12.5px;
-    z-index: 999;
-    display: flex;
-    gap: 11px;
-    pointer-events: none;
-}
-
-.idea-slide-window-toolbar__traffic-lights > span {
-    box-sizing: border-box;
-    width: 13px;
-    height: 13px;
-    border: 1px solid #c5c5c5;
-    border-radius: 50%;
-    background: #d7d7d7;
-    box-shadow: inset 0 0 0 0.5px rgb(255 255 255 / 24%);
+.idea-slide-window-toolbar.is-windows.is-fullscreen {
+    padding-right: 0.75rem;
 }
 
 .idea-slide-window-toolbar__commands {
@@ -1572,6 +1560,45 @@ body,
 }
 
 /* Presentation mode animations */
+.idea-slide-presentation.is-preview .excalidraw .main-menu-trigger {
+    display: none !important;
+}
+
+.idea-slide-presentation-laser__trail {
+    position: absolute;
+    z-index: 54;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: rgb(255 52 52 / 78%);
+    box-shadow:
+        0 0 5px 2px rgb(255 49 49 / 58%),
+        0 0 11px 4px rgb(255 35 35 / 28%);
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, -50%) scale(0.25);
+    will-change: opacity, transform;
+    animation: idea-slide-presentation-laser-trail 420ms
+        cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes idea-slide-presentation-laser-trail {
+    from {
+        opacity: 0.78;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.25);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .idea-slide-presentation-laser__trail {
+        animation-duration: 80ms;
+    }
+}
+
 @keyframes fadeIn {
     from {
         opacity: 0;

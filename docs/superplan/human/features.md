@@ -217,3 +217,10 @@ Keep Workspace actions permanently visible instead of revealing them only on hov
 - created: 2026-08-07
 
 When playing an IdeaSketch Page, start at the first ordered Camera when Cameras exist; when none exist, preserve the Page's existing default viewport behavior. In Preview mode, replace the normal mouse cursor over the presentation canvas with a visible laser pointer without persisting scene changes.
+
+## F029: Add a preview laser trail and reclaim native fullscreen toolbar space
+
+- status: done
+- created: 2026-08-07
+
+Enhance the Preview presentation laser pointer with a smooth fading trail while keeping it presentation-local and non-persistent, and hide Excalidraw's top-left menu trigger while Preview is active. Keep macOS and Windows window controls native-only, retain their platform-specific toolbar safety space in a normal window, and remove that inset in native fullscreen so toolbar content can use the reclaimed width.
