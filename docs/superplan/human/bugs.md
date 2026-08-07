@@ -194,3 +194,10 @@ In Thumbnail view, selecting a different Page always replaces its thumbnail with
 - created: 2026-08-07
 
 Opening an IdeaSketch editor logs repeated React errors that two children share the current Page UUID as their key. SlideCanvas renders Excalidraw and CameraBadgeOverlay as siblings with the same key={slideId}. Keep both Page-remount safeguards while assigning distinct, deterministic child keys so an empty new document and Page switching produce no duplicate-key warning.
+
+## B022: Keep portrait Page thumbnails visible
+
+- status: done
+- created: 2026-08-07
+
+In the Pages thumbnail view, a Page can contain visible canvas content while its portrait-oriented thumbnail appears blank or heavily clipped in Tauri WebKit. The exported PNG is valid; WebKit Grid intrinsic sizing offsets the image inside the fixed preview and overflow clips it. Fix the preview layout for portrait, near-square, and landscape thumbnails without changing thumbnail generation, caching, virtualization, or update frequency.
