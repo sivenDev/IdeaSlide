@@ -201,3 +201,10 @@ Opening an IdeaSketch editor logs repeated React errors that two children share 
 - created: 2026-08-07
 
 In the Pages thumbnail view, a Page can contain visible canvas content while its portrait-oriented thumbnail appears blank or heavily clipped in Tauri WebKit. The exported PNG is valid; WebKit Grid intrinsic sizing offsets the image inside the fixed preview and overflow clips it. Fix the preview layout for portrait, near-square, and landscape thumbnails without changing thumbnail generation, caching, virtualization, or update frequency.
+
+## B023: Place Agent in an app-level right column
+
+- status: accepted
+- created: 2026-08-08
+
+The Agent is incorrectly rendered as a tab inside the IdeaSketch Navigator. Reproduce by opening an IdeaSketch document and selecting Agent in the editor's right sidebar. The required shell is left Workspace directory, center document editor (including editor-owned navigation), and an independent app-level Agent column on the right. AI-disabled behavior, provider-required guidance, reviewed changes, and future editor reuse must remain intact.
