@@ -42,7 +42,7 @@ IdeaNote 同时支持：
 7. Workspace Mode 和 Single File Mode 使用同一套 Editor、Parser、Serializer 和 Save Pipeline。
 8. 中间编辑区不显示文件 Tabs，同时只呈现一个当前文件编辑器；文件切换由 Workspace Explorer 驱动。
 9. 从左侧新建文件后，新文件立即成为当前文件并在中间编辑器打开。
-10. 右侧使用一个可折叠、可调整宽度的共享 Sidebar，在当前编辑器 Navigator 与 AI Agent 之间切换，不创建两列竞争的右侧面板。
+10. 应用 Shell 使用左、中、右三栏：左侧 Workspace Explorer，中间为当前编辑器及其内部 Navigator，右侧为编辑器无关、可折叠且可调整宽度的 AI Agent；Agent 不嵌入任何具体编辑器的导航区域。
 11. 当前唯一支持的编辑器是 Excalidraw，文件格式为 `.is v1`。
 12. 未来文件格式为 `.it`（IdeaTable）、`.iwf`（IdeaWorkflow）和 `.md`（Markdown）。
 13. 当前阶段实现一个编辑器无关的 AI Agent Runtime；Runtime 不包含 `.is`、Markdown、IdeaTable 或 IdeaWorkflow 业务逻辑。
@@ -70,7 +70,7 @@ IdeaNote 同时支持：
 7. 保留现有 Excalidraw、Pages、Cameras 和 Present 核心能力。
 8. 为后续 `.md`、`.it`、`.iwf` 编辑器预留稳定扩展点。
 9. 提供可版本化的全局 Settings、原生 Credential 存储和默认开启的 AI Gate。
-10. 提供编辑器无关的 Agent Runtime、共享右侧栏和 IdeaSketch 的首个 Agent Extension。
+10. 提供编辑器无关的 Agent Runtime、应用级右侧 Agent 栏和 IdeaSketch 的首个 Agent Extension。
 
 ### 3.2 长期目标
 
@@ -320,7 +320,7 @@ New Folder
 
 ### 8.3 目标布局
 
-AI 关闭或未打开右侧栏时：
+AI 关闭或 Agent 栏折叠时：
 
 ```text
 ┌──────────────────┬────────────────────────────────────────┐
@@ -332,18 +332,18 @@ AI 关闭或未打开右侧栏时：
 └──────────────────┴────────────────────────────────────────┘
 ```
 
-AI 开启并打开共享右侧栏时：
+AI 开启并打开应用级 Agent 栏时：
 
 ```text
-┌──────────────────┬────────────────────────────┬──────────────────┐
-│ Workspace        │ Current File Editor        │ Navigator/Agent  │
-│ Explorer         │                            │                  │
-│                  │                            │ Conversation     │
-│                  │                            │ Tool Activity    │
-└──────────────────┴────────────────────────────┴──────────────────┘
+┌──────────────────┬──────────────────────────────────────┬──────────────────┐
+│ Workspace        │ Current File Editor                  │ AI Agent         │
+│ Explorer         │                                      │                  │
+│                  │ Canvas / editor-owned Navigator      │ Conversation     │
+│                  │                                      │ Tool Activity    │
+└──────────────────┴──────────────────────────────────────┴──────────────────┘
 ```
 
-AI 关闭时不挂载 Agent 入口或生命周期。AI 开启时，右侧只有一个物理 Sidebar，并在当前编辑器贡献的 Navigator 与 Agent 之间切换；Sidebar 支持折叠和有界调整宽度。
+AI 关闭时不挂载 Agent 入口或生命周期。AI 开启时，Agent 作为应用 Shell 的独立最右栏挂载，支持折叠和有界调整宽度；Pages、Cameras 等编辑器 Navigator 仍属于中间编辑器区域，并可独立折叠或调整，不与 Agent 切换或共享容器。
 
 ## 9. Single File Mode
 
@@ -613,8 +613,8 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。通用 Runtime
 - 当前文件 Dirty 状态必须在标题栏清晰显示；非活动受保护 Session 的状态必须在 Workspace Explorer 中可识别。
 - 左侧 Explorer 和中间 Editor 之间支持有最小、最大宽度限制的拖动调整。
 - 左侧 Explorer 可以折叠。
-- AI 关闭时不显示 Agent Tab 或空占位；AI 开启但未配置 Provider 时显示可进入 Settings 的配置状态。
-- 共享右侧 Sidebar 可折叠、可调整宽度，并在 Navigator 与 Agent 之间切换。
+- AI 关闭时不显示 Agent 栏或空占位；AI 开启但未配置 Provider 时，独立 Agent 栏显示可进入 Settings 的配置状态。
+- 应用级右侧 Agent 栏可折叠、可调整宽度；编辑器内部 Navigator 与 Agent 分属不同布局区域并可独立控制。
 - 从显式打开入口触发的 Unsupported File 页面必须说明当前不支持编辑，并提供安全的下一步操作；Workspace Explorer 本身不列出不支持的文件。
 
 ## 18. 当前阶段 MVP 范围
@@ -640,7 +640,7 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。通用 Runtime
 17. 受支持文件白名单过滤，以及显式打开入口的 Unsupported File 回退。
 18. Home/Editor 共用的 Settings Center、版本化非秘密设置和原生 Credential Vault。
 19. 默认开启但可完整关闭的 AI Gate。
-20. 编辑器无关的流式 Agent Runtime、取消、对话历史和共享右侧栏。
+20. 编辑器无关的流式 Agent Runtime、取消、对话历史和应用级右侧 Agent 栏。
 21. IdeaSketch Skill、受限 Context、Page 读能力以及新增/删除/重排/内容替换提案。
 22. Change Review、显式 Apply、陈旧/外部状态拒绝和一步 Undo。
 
@@ -739,7 +739,7 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。通用 Runtime
 - OpenAI-compatible Provider 配置与原生 Credential Vault。
 - 默认开启/完整关闭 AI Gate。
 - 通用 Agent Runtime、流式输出、取消和会话历史。
-- 共享右侧 Sidebar。
+- 独立的应用级右侧 Agent 栏。
 - IdeaSketch Skill、Tools、Context、Change Review、Apply 和 Undo。
 
 ### Phase 4：Markdown

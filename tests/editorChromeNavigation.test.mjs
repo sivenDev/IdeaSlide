@@ -4,8 +4,9 @@ import { readFile } from 'node:fs/promises';
 
 const readSource = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('EditorLayout gives the center to one editor and uses Explorer as the file switcher', async () => {
+test('EditorLayout gives the center to one editor, Explorer to the left, and Agent to the right', async () => {
   const source = await readSource('src/components/EditorLayout.tsx');
+  const ideaSketchEditor = await readSource('src/components/IdeaSketchEditor.tsx');
   assert.match(source, /from "\.\/WorkspaceExplorer"/);
   assert.match(source, /from "\.\/DocumentEditorHost"/);
   assert.match(source, /<WorkspaceExplorer/);
@@ -19,7 +20,9 @@ test('EditorLayout gives the center to one editor and uses Explorer as the file 
   assert.doesNotMatch(source, /CloseOthers|CloseRight/);
   assert.match(source, /side="left"/);
   assert.doesNotMatch(source, /ResourceEditorHost/);
-  assert.doesNotMatch(source, /Agent/);
+  assert.match(source, /from "\.\/RightSidebarHost"/);
+  assert.match(source, /<\/main>\s*\{agentAvailable && \(/);
+  assert.doesNotMatch(ideaSketchEditor, /<AgentPanel|<RightSidebarHost/);
 });
 
 test('EditorLayout captures Save and Save As shortcuts before an editor can consume them', async () => {

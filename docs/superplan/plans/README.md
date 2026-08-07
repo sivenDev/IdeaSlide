@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | In Progress | Complete |
-| --- | --- | --- | --- |
-| `required` | 6 | 0 | 6 |
-| `feature` | 33 | 0 | 33 |
-| `bugfix` | 23 | 1 | 22 |
+| Type | Plans | Complete |
+| --- | --- | --- |
+| `required` | 6 | 6 |
+| `feature` | 33 | 33 |
+| `bugfix` | 23 | 23 |
 
 ## Execution Order
 
@@ -96,4 +96,4 @@
 | `B020` | [Reuse Unchanged Page Thumbnails](bugs/B020-reuse-unchanged-page-thumbnails.md) | `complete` | 2026-08-07 |
 | `B021` | [Use Unique SlideCanvas Child Keys](bugs/B021-use-unique-slide-canvas-child-keys.md) | `complete` | 2026-08-07 |
 | `B022` | [Keep Portrait Page Thumbnails Visible](bugs/B022-keep-portrait-page-thumbnails-visible.md) | `complete` | 2026-08-07 |
-| `B023` | [Move Agent to the App-level Right Column](bugs/B023-separate-agent-right-column.md) | `in_progress` | 2026-08-08 |
+| `B023` | [Move Agent to the App-level Right Column](bugs/B023-separate-agent-right-column.md) | `complete` | 2026-08-08 |

@@ -65,3 +65,18 @@ export interface AgentMessage {
   content: string;
   createdAt: number;
 }
+
+export interface ActiveAgentEditorBinding {
+  document: DocumentSession;
+  extensionId: string;
+  fileType: string;
+  skillId: string;
+  tools: AgentToolDescriptor[];
+  activeContextId?: string;
+  readOnly: boolean;
+  buildContext: () => Record<string, unknown>;
+  parseChangeSet: (response: string) => AgentChangeSet | undefined;
+  applyChangeSet: (changeSet: AgentChangeSet) => boolean;
+  undo: () => void;
+  canUndo: boolean;
+}

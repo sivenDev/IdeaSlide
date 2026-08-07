@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DocumentModel, DocumentSession, IdeaSketchDocument, IdeaSketchPage } from "../types";
 import { useEditorSession } from "../hooks/useEditorSession";
 import { useAutoSave } from "../hooks/useAutoSave";
-import { useSettings } from "../hooks/useSettings";
 import {
   createEmptyIdeaSketchPage,
   createIdeaSketchEditorState,
@@ -20,9 +19,7 @@ import {
 } from "../lib/excalidrawStyleConversion";
 import { SlideCanvas } from "./SlideCanvas";
 import { ResizableDivider } from "./ResizableDivider";
-import { AgentPanel } from "./AgentPanel";
-import { RightSidebarHost, type RightSidebarSurface } from "./RightSidebarHost";
-import type { AgentChangeSet } from "../lib/agent/types";
+import type { ActiveAgentEditorBinding, AgentChangeSet } from "../lib/agent/types";
 import {
   ideaSketchAgentExtension,
   getIdeaSketchSourceFingerprint,
@@ -48,7 +45,7 @@ interface IdeaSketchEditorProps {
   onAutoSaveComplete: (sessionId: string) => void;
   onWriteRecovery: (sessionId: string, model: IdeaSketchDocument) => Promise<void>;
   onStartPresentation: (sessionId: string, page: IdeaSketchPage, mode: "preview" | "fullscreen") => void;
-  onOpenSettings: () => void;
+  onAgentBindingChange: (binding: ActiveAgentEditorBinding | undefined, documentId: string) => void;
 }
 
 function refreshConvertedTextDimensions(
@@ -80,7 +77,7 @@ export function IdeaSketchEditor({
   onAutoSaveComplete,
   onWriteRecovery,
   onStartPresentation,
-  onOpenSettings,
+  onAgentBindingChange,
 }: IdeaSketchEditorProps) {
   if (!document.model) throw new Error("IdeaSketch document model is missing");
   const [editorState, setEditorState] = useState<IdeaSketchEditorState>(() =>
@@ -90,7 +87,6 @@ export function IdeaSketchEditor({
   const emittedModelRef = useRef<IdeaSketchDocument | undefined>(undefined);
   const [showNavigator, setShowNavigator] = useState(true);
   const [rightSidebarWidth, setRightSidebarWidth] = useState(DEFAULT_RIGHT_SIDEBAR_WIDTH);
-  const [rightSidebarSurface, setRightSidebarSurface] = useState<RightSidebarSurface>("navigator");
   const [navigatorTab, setNavigatorTab] = useState<IdeaSketchNavigatorTab>("pages");
   const [cameraDrawingRequestToken, setCameraDrawingRequestToken] = useState(0);
   const [selectedCameraId, setSelectedCameraId] = useState<string>();
@@ -103,7 +99,6 @@ export function IdeaSketchEditor({
     selectedElementIds: Record<string, boolean>;
   } | undefined>(undefined);
   const agentUndoRef = useRef<IdeaSketchEditorState | undefined>(undefined);
-  const { activationState } = useSettings();
 
   useEffect(() => {
     if (!document.model || document.model === emittedModelRef.current) return;
@@ -389,7 +384,52 @@ export function IdeaSketchEditor({
     onModelChange(document.id, previous.document);
     onEditorStateChange(document.id, previous.activePageId);
   }, [document.id, onEditorStateChange, onModelChange, readOnly]);
-  const agentAvailable = activationState === "ready" || activationState === "configuration-required";
+  const agentBindingStateRef = useRef({
+    document,
+    activeContextId: editorState.activePageId,
+    readOnly,
+    applyChangeSet: handleApplyAgentChangeSet,
+    undo: handleUndoAgentChange,
+  });
+  agentBindingStateRef.current = {
+    document,
+    activeContextId: editorState.activePageId,
+    readOnly,
+    applyChangeSet: handleApplyAgentChangeSet,
+    undo: handleUndoAgentChange,
+  };
+  const agentBinding = useMemo<ActiveAgentEditorBinding>(() => ({
+    get document() { return agentBindingStateRef.current.document; },
+    extensionId: ideaSketchAgentExtension.id,
+    fileType: ideaSketchAgentExtension.fileType,
+    skillId: ideaSketchAgentExtension.skillId,
+    tools: ideaSketchAgentExtension.tools,
+    get activeContextId() { return agentBindingStateRef.current.activeContextId; },
+    get readOnly() { return agentBindingStateRef.current.readOnly; },
+    buildContext: () => ideaSketchAgentExtension.buildContext(
+      editorStateRef.current.document,
+      editorStateRef.current.activePageId,
+      agentBindingStateRef.current.document.revision,
+    ),
+    parseChangeSet: (response) => ideaSketchAgentExtension.parseChangeSet(
+      response,
+      agentBindingStateRef.current.document.id,
+      agentBindingStateRef.current.document.revision,
+      editorStateRef.current.document,
+    ),
+    applyChangeSet: (changeSet) => agentBindingStateRef.current.applyChangeSet(changeSet),
+    undo: () => agentBindingStateRef.current.undo(),
+    get canUndo() { return Boolean(agentUndoRef.current); },
+  }), [document.id]);
+
+  useEffect(() => {
+    onAgentBindingChange(agentBinding, document.id);
+  }, [agentBinding, document.id, onAgentBindingChange]);
+
+  useEffect(() => () => {
+    onAgentBindingChange(undefined, document.id);
+  }, [document.id, onAgentBindingChange]);
+
   return (
     <div className="ideanote-ideasketch-editor">
       <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -421,46 +461,27 @@ export function IdeaSketchEditor({
         />
         <div className="h-full flex-shrink-0 overflow-hidden transition-[width] duration-200" style={{ width: showNavigator ? rightSidebarWidth : 0 }}>
           <div className="h-full" style={{ width: rightSidebarWidth }}>
-            <RightSidebarHost
-              surface={rightSidebarSurface}
-              agentAvailable={agentAvailable}
-              onSurfaceChange={setRightSidebarSurface}
-              navigator={(
-                <IdeaSketchNavigator
-                  activeTab={navigatorTab}
-                  onTabChange={setNavigatorTab}
-                  pages={editorState.document.pages}
-                  activePageId={editorState.activePageId}
-                  activePageDraft={draft}
-                  canvasInteractionActive={canvasInteractionActive}
-                  cameras={cameras}
-                  activeCameraId={activeCameraId}
-                  readOnly={readOnly}
-                  onPageSelect={selectPage}
-                  onPageAdd={addPage}
-                  onPageRename={renamePage}
-                  onPageReorder={reorderPage}
-                  onPageDelete={deletePage}
-                  onCameraSelect={selectCamera}
-                  onCameraDelete={deleteCamera}
-                  onCameraReorder={reorderCameraList}
-                  onAddCamera={readOnly ? undefined : handleAddCamera}
-                  onStartPreview={() => startPresentation("preview")}
-                  onStartFullscreen={() => startPresentation("fullscreen")}
-                />
-              )}
-              agent={agentAvailable ? (
-                <AgentPanel
-                  document={document}
-                  activePageId={editorState.activePageId}
-                  extension={ideaSketchAgentExtension}
-                  readOnly={readOnly}
-                  onOpenSettings={onOpenSettings}
-                  onApplyChangeSet={handleApplyAgentChangeSet}
-                  onUndo={handleUndoAgentChange}
-                  canUndo={Boolean(agentUndoRef.current)}
-                />
-              ) : undefined}
+            <IdeaSketchNavigator
+              activeTab={navigatorTab}
+              onTabChange={setNavigatorTab}
+              pages={editorState.document.pages}
+              activePageId={editorState.activePageId}
+              activePageDraft={draft}
+              canvasInteractionActive={canvasInteractionActive}
+              cameras={cameras}
+              activeCameraId={activeCameraId}
+              readOnly={readOnly}
+              onPageSelect={selectPage}
+              onPageAdd={addPage}
+              onPageRename={renamePage}
+              onPageReorder={reorderPage}
+              onPageDelete={deletePage}
+              onCameraSelect={selectCamera}
+              onCameraDelete={deleteCamera}
+              onCameraReorder={reorderCameraList}
+              onAddCamera={readOnly ? undefined : handleAddCamera}
+              onStartPreview={() => startPresentation("preview")}
+              onStartFullscreen={() => startPresentation("fullscreen")}
             />
           </div>
         </div>

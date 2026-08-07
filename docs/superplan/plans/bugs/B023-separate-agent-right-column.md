@@ -2,7 +2,7 @@
 id: "B023"
 title: "Move Agent to the App-level Right Column"
 type: "bugfix"
-status: "in_progress"
+status: "complete"
 summary: "Restore the three-region shell by keeping the Workspace Explorer left, the active editor center, and an independent generic Agent column right."
 source: "docs/superplan/human/bugs.md"
 created: "2026-08-08"
@@ -41,8 +41,8 @@ parent: ""
 **Verification:**
 - `node --test tests/agentShellLayout.test.mjs tests/rightSidebarHost.test.mjs tests/ideaSketchEditor.test.mjs tests/panelDividerWiring.test.mjs`
 
-- [ ] Add the focused failing layout/ownership contract against the current nested Agent composition.
-- [ ] Correct the PRD without changing the generic Agent extension or reviewed-mutation principles.
+- [x] Add the focused failing layout/ownership contract against the current nested Agent composition.
+- [x] Correct the PRD without changing the generic Agent extension or reviewed-mutation principles.
 
 ## Task 2: Move Agent Ownership to the Application Shell
 
@@ -72,8 +72,8 @@ parent: ""
 - `node --test tests/agentChangeSet.test.mjs tests/agentExtensionRegistry.test.mjs tests/agentPanel.test.mjs tests/ideaSketchAgentExtension.test.mjs tests/ideaSketchNavigator.test.mjs tests/editorSession.test.mjs tests/externalFileChanges.test.mjs tests/recovery.test.mjs`
 - Browser cases: Workspace left/center/right layout; standalone center/right layout; independent collapse/resize; AI disabled; provider-required; document switch; Page/Camera actions; reviewed Apply/Undo; 1200px, 1024px, and minimum supported width.
 
-- [ ] Move only Agent shell ownership out of IdeaSketch while keeping format-specific mutation logic inside the editor extension.
-- [ ] Verify Navigator and Agent state, sizing, lifecycle, and focus remain independent across supported modes and widths.
+- [x] Move only Agent shell ownership out of IdeaSketch while keeping format-specific mutation logic inside the editor extension.
+- [x] Verify Navigator and Agent state, sizing, lifecycle, and focus remain independent across supported modes and widths.
 
 ## Task 3: Verify and Deliver B023
 
@@ -93,8 +93,19 @@ parent: ""
 - `git diff --check`
 - Superplan registry, catalog, dependency, artifact, and generated-index validation
 
-- [ ] Run focused checks during implementation and the complete frontend regression/build matrix after the layout stabilizes.
-- [ ] Inspect the final diff, record browser acceptance, complete B023, and create a separate `fix(B023)` commit.
+- [x] Run focused checks during implementation and the complete frontend regression/build matrix after the layout stabilizes.
+- [x] Inspect the final diff, record browser acceptance, complete B023, and create a separate `fix(B023)` commit.
+
+## Completion Evidence
+
+- Regression-first proof: the initial ownership suite failed 4/4 while Agent was still nested inside the IdeaSketch sidebar.
+- Focused layout suite: 15/15 passed after moving Agent ownership to `EditorLayout` and separating both dividers.
+- Agent/editor safety matrix: 40/40 passed for Change Sets, extension registry reuse, IdeaSketch context/tools, Navigator, editor sessions, external changes, and recovery.
+- Full frontend regression: 273/273 Node tests passed.
+- Production verification: `npm run build` passed; only the pre-existing Excalidraw import-overlap and large-chunk warnings remain.
+- Visual verification: the local HTML showed the editor-owned Pages/Cameras Navigator and the independent rightmost Agent simultaneously; Navigator and Agent collapsed independently; configuration-required guidance rendered in Agent; disabling AI removed only the Agent column and restoring AI remounted it.
+- Runtime verification: a fresh browser session reported no console errors after stabilizing the active-editor binding; desktop Workspace inspection confirmed Workspace Explorer remains the left app-shell region while the IdeaSketch Navigator remains within the center editor region.
+- Hygiene: `git diff --check` and Superplan registry/catalog validation passed before delivery.
 
 ## References
 

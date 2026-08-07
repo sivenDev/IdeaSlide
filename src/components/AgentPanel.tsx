@@ -6,12 +6,11 @@ import {
 } from "@assistant-ui/react";
 import { Bot, Settings2, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { DocumentModel, DocumentSession } from "../types";
 import { useSettings } from "../hooks/useSettings";
 import { cancelAgent, discoverAgentSkills, runAgent } from "../lib/agent/agentClient";
 import { markAgentChangeSetApplied, markAgentChangeSetStale, rejectAgentChangeSet } from "../lib/agent/changeSet";
 import { promptFromAssistantUiMessage, toAssistantUiMessage } from "../lib/agent/assistantUiAdapter";
-import type { AgentChangeSet, AgentExtension, AgentMessage } from "../lib/agent/types";
+import type { ActiveAgentEditorBinding, AgentChangeSet, AgentMessage } from "../lib/agent/types";
 import { AgentComposer } from "./agent/AgentComposer";
 import { AgentToolActivity } from "./agent/AgentToolActivity";
 import { IdeaSketchChangeReview } from "./agent/IdeaSketchChangeReview";
@@ -38,24 +37,12 @@ function AssistantAgentMessage() {
   );
 }
 
-export function AgentPanel<TModel extends DocumentModel>({
-  document,
-  activePageId,
-  extension,
-  readOnly,
+export function AgentPanel({
+  binding,
   onOpenSettings,
-  onApplyChangeSet,
-  onUndo,
-  canUndo,
 }: {
-  document: DocumentSession<TModel>;
-  activePageId?: string;
-  extension: AgentExtension<TModel>;
-  readOnly: boolean;
+  binding?: ActiveAgentEditorBinding;
   onOpenSettings: () => void;
-  onApplyChangeSet: (changeSet: AgentChangeSet) => boolean;
-  onUndo: () => void;
-  canUndo: boolean;
 }) {
   const { settings, activationState } = useSettings();
   const [messages, setMessages] = useState<AgentMessage[]>([
@@ -69,20 +56,42 @@ export function AgentPanel<TModel extends DocumentModel>({
   const activeRunId = useRef<string | undefined>(undefined);
 
   useEffect(() => {
-    if (activationState !== "ready") return;
+    if (activationState !== "ready" || !binding) return;
     let active = true;
     discoverAgentSkills()
       .then((skills) => {
-        if (active && !skills.some((skill) => skill.id === extension.skillId)) {
-          setError(`The ${extension.skillId} Skill is not installed.`);
+        if (active && !skills.some((skill) => skill.id === binding.skillId)) {
+          setError(`The ${binding.skillId} Skill is not installed.`);
         }
       })
       .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : String(cause)); });
     return () => { active = false; };
-  }, [activationState, extension.skillId]);
+  }, [activationState, binding?.skillId]);
+
+  useEffect(() => {
+    runGeneration.current += 1;
+    const runId = activeRunId.current;
+    activeRunId.current = undefined;
+    if (runId) void cancelAgent(runId).catch(() => undefined);
+    setRunning(false);
+    setActivity(undefined);
+    setError(undefined);
+    setChangeSet(undefined);
+    setMessages([
+      {
+        id: "welcome",
+        role: "assistant",
+        content: binding
+          ? `I can inspect the active ${binding.fileType} file and prepare reviewable changes.`
+          : "Open a supported file to give the Agent editor context.",
+        createdAt: Date.now(),
+      },
+    ]);
+  }, [binding?.document.id, binding?.extensionId]);
 
   const submit = async (prompt: string) => {
-    if (!document.model || activationState !== "ready") return;
+    if (!binding?.document.model || activationState !== "ready") return;
+    const { document } = binding;
     const generation = ++runGeneration.current;
     const runId = crypto.randomUUID();
     const assistantMessageId = crypto.randomUUID();
@@ -96,7 +105,7 @@ export function AgentPanel<TModel extends DocumentModel>({
     ]);
     setRunning(true);
     setError(undefined);
-    setActivity(`Loaded ${extension.skillId} Skill and ${extension.tools.length} editor Tools`);
+    setActivity(`Loaded ${binding.skillId} Skill and ${binding.tools.length} editor Tools`);
     try {
       let streamedText = "";
       const response = await runAgent({
@@ -105,9 +114,9 @@ export function AgentPanel<TModel extends DocumentModel>({
         baseUrl: settings.ai.baseUrl,
         model: settings.ai.model,
         systemPrompt: settings.ai.systemPrompt,
-        skillId: extension.skillId,
-        context: extension.buildContext(document.model, activePageId, document.revision),
-        tools: extension.tools,
+        skillId: binding.skillId,
+        context: binding.buildContext(),
+        tools: binding.tools,
         messages: previousMessages.map(({ role, content }) => ({ role, content })),
       }, (event) => {
         if (generation !== runGeneration.current || event.runId !== runId) return;
@@ -124,7 +133,7 @@ export function AgentPanel<TModel extends DocumentModel>({
       setMessages((current) => current.map((message) => (
         message.id === assistantMessageId ? { ...message, content } : message
       )));
-      const proposal = extension.parseChangeSet(response.text, document.id, document.revision, document.model);
+      const proposal = binding.parseChangeSet(response.text);
       if (proposal) {
         setChangeSet({
           ...proposal,
@@ -157,9 +166,10 @@ export function AgentPanel<TModel extends DocumentModel>({
   };
 
   const approve = () => {
-    if (!changeSet) return;
+    if (!changeSet || !binding) return;
+    const { document } = binding;
     if (
-      readOnly
+      binding.readOnly
       || document.status !== "editable"
       || document.revision !== changeSet.baseRevision
       || changeSet.baseDocumentStatus !== document.status
@@ -168,7 +178,7 @@ export function AgentPanel<TModel extends DocumentModel>({
       setChangeSet(markAgentChangeSetStale(changeSet));
       return;
     }
-    if (onApplyChangeSet(changeSet)) setChangeSet(markAgentChangeSetApplied(changeSet));
+    if (binding.applyChangeSet(changeSet)) setChangeSet(markAgentChangeSetApplied(changeSet));
     else setChangeSet(markAgentChangeSetStale(changeSet));
   };
 
@@ -198,6 +208,16 @@ export function AgentPanel<TModel extends DocumentModel>({
     );
   }
 
+  if (!binding) {
+    return (
+      <div className="ideanote-agent-empty">
+        <div className="ideanote-agent-empty__icon"><Bot aria-hidden size={20} /></div>
+        <h3>No Active Editor</h3>
+        <p>Open a supported file to give the Agent editor context and Tools.</p>
+      </div>
+    );
+  }
+
   return (
     <AssistantRuntimeProvider runtime={assistantRuntime}>
       <ThreadPrimitive.Root className="ideanote-agent-panel">
@@ -206,14 +226,14 @@ export function AgentPanel<TModel extends DocumentModel>({
             components={{ UserMessage: UserAgentMessage, AssistantMessage: AssistantAgentMessage }}
           />
           {activity && settings.agent.showToolActivity && <AgentToolActivity text={activity} />}
-          {changeSet && extension.fileType === "ideasketch" && (
+          {changeSet && binding.fileType === "ideasketch" && (
             <IdeaSketchChangeReview
               changeSet={changeSet as AgentChangeSet<IdeaSketchAgentOperation>}
-              readOnly={readOnly}
+              readOnly={binding.readOnly}
               onApprove={approve}
               onReject={() => setChangeSet(rejectAgentChangeSet(changeSet))}
-              onUndo={onUndo}
-              canUndo={canUndo}
+              onUndo={binding.undo}
+              canUndo={binding.canUndo}
             />
           )}
           {error && <div className="ideanote-agent-error">{error}</div>}

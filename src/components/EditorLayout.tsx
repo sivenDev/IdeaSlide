@@ -3,6 +3,7 @@ import { ask, message } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAppStore } from "../hooks/useAppStore";
+import { useSettings } from "../hooks/useSettings";
 import { useUnsavedChangesDialog } from "../hooks/useUnsavedChangesDialog";
 import {
   addRecentFile,
@@ -58,6 +59,7 @@ import {
   type WorkspaceDropRequest,
 } from "../lib/workspaceOrdering";
 import type { DocumentModel, DocumentSession, IdeaSketchDocument, IdeaSketchPage, WorkspaceEntry } from "../types";
+import type { ActiveAgentEditorBinding } from "../lib/agent/types";
 import { Toolbar } from "./Toolbar";
 import { WorkspaceExplorer } from "./WorkspaceExplorer";
 import { DocumentEditorHost } from "./DocumentEditorHost";
@@ -67,6 +69,12 @@ import { ExternalChangeNotice } from "./ExternalChangeNotice";
 import { RecoveryPrompt } from "./RecoveryPrompt";
 import { WorkspaceStatusNotice } from "./WorkspaceStatusNotice";
 import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
+import { AgentPanel } from "./AgentPanel";
+import { RightSidebarHost } from "./RightSidebarHost";
+
+const AGENT_PANEL_DEFAULT_WIDTH = 300;
+const AGENT_PANEL_MIN_WIDTH = 260;
+const AGENT_PANEL_MAX_WIDTH = 420;
 
 interface EditorLayoutProps {
   onGoHome: () => void;
@@ -111,9 +119,13 @@ export function EditorLayout({
   onPendingStandalonePathHandled,
 }: EditorLayoutProps) {
   const { state, dispatch } = useAppStore();
+  const { activationState } = useSettings();
   const [isSaving, setIsSaving] = useState(false);
   const [showWorkspace, setShowWorkspace] = useState(state.mode === "workspace");
   const [workspacePanelWidth, setWorkspacePanelWidth] = useState(WORKSPACE_PANEL_DEFAULT_WIDTH);
+  const [showAgent, setShowAgent] = useState(true);
+  const [agentPanelWidth, setAgentPanelWidth] = useState(AGENT_PANEL_DEFAULT_WIDTH);
+  const [agentBinding, setAgentBinding] = useState<ActiveAgentEditorBinding>();
   const [isResizingWorkspace, setIsResizingWorkspace] = useState(false);
   const [hiddenExternalNotices, setHiddenExternalNotices] = useState<Set<string>>(() => new Set());
   const [workspaceDiagnosticsHidden, setWorkspaceDiagnosticsHidden] = useState(false);
@@ -140,6 +152,25 @@ export function EditorLayout({
 
   useEffect(() => setShowWorkspace(state.mode === "workspace"), [state.mode]);
   useEffect(() => setWorkspaceDiagnosticsHidden(false), [state.workspace?.root, state.workspace?.metadata.diagnostics]);
+  useEffect(() => {
+    if (activationState === "disabled") {
+      setShowAgent(false);
+      setAgentBinding(undefined);
+    } else if (activationState === "ready" || activationState === "configuration-required") {
+      setShowAgent(true);
+    }
+  }, [activationState]);
+  useEffect(() => {
+    setAgentBinding((current) => current?.document.id === activeDocument?.id ? current : undefined);
+  }, [activeDocument?.id]);
+
+  const handleAgentBindingChange = useCallback((binding: ActiveAgentEditorBinding | undefined, documentId: string) => {
+    setAgentBinding((current) => {
+      if (activationState === "disabled") return undefined;
+      if (binding) return binding.document.id === activeDocument?.id ? binding : current;
+      return current?.document.id === documentId ? undefined : current;
+    });
+  }, [activationState, activeDocument?.id]);
 
   useEffect(() => {
     if (!state.workspace || !("__TAURI_INTERNALS__" in window)) return;
@@ -769,6 +800,7 @@ export function EditorLayout({
       isDirty: document.isDirty,
       status: document.status,
     }));
+  const agentAvailable = activationState === "ready" || activationState === "configuration-required";
 
   return (
     <div className="idea-slide-editor-shell flex h-screen flex-col">
@@ -875,13 +907,34 @@ export function EditorLayout({
                     onAutoSaveComplete={(sessionId) => void handleAutoSaveComplete(sessionId)}
                     onWriteRecovery={handleWriteRecovery}
                     onStartPresentation={handleStartPresentation}
-                    onOpenSettings={onOpenSettings}
+                    onAgentBindingChange={handleAgentBindingChange}
                   />
                 )}
               />
             </div>
           </div>
         </main>
+        {agentAvailable && (
+          <>
+            <ResizableDivider
+              side="right"
+              panelLabel="Agent"
+              isVisible={showAgent}
+              onToggle={() => setShowAgent((visible) => !visible)}
+              size={agentPanelWidth}
+              minSize={AGENT_PANEL_MIN_WIDTH}
+              maxSize={AGENT_PANEL_MAX_WIDTH}
+              onResize={(nextSize) => setAgentPanelWidth(Math.max(AGENT_PANEL_MIN_WIDTH, Math.min(AGENT_PANEL_MAX_WIDTH, nextSize)))}
+            />
+            <div className="h-full flex-shrink-0 overflow-hidden transition-[width] duration-200" style={{ width: showAgent ? agentPanelWidth : 0 }}>
+              <div className="h-full" style={{ width: agentPanelWidth }}>
+                <RightSidebarHost>
+                  <AgentPanel binding={agentBinding} onOpenSettings={onOpenSettings} />
+                </RightSidebarHost>
+              </div>
+            </div>
+          </>
+        )}
       </div>
       <UnsavedChangesDialog
         open={Boolean(unsavedChangesDialog)}

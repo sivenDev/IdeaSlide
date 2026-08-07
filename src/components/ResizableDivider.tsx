@@ -17,6 +17,7 @@ interface ResizableDividerProps {
   onResize?: (nextSize: number) => void;
   onResizeStart?: () => void;
   onResizeEnd?: () => void;
+  panelLabel?: string;
 }
 
 interface DragState {
@@ -36,13 +37,13 @@ export function ResizableDivider({
   onResize,
   onResizeStart,
   onResizeEnd,
+  panelLabel,
 }: ResizableDividerProps) {
   const [dragState, setDragState] = useState<DragState>();
   const isLeft = side === "left";
   const canResize = isVisible && Boolean(onResize);
-  const tooltipLabel = isLeft
-    ? isVisible ? "Hide workspace" : "Show workspace"
-    : isVisible ? "Hide navigator" : "Show navigator";
+  const panelName = panelLabel ?? (isLeft ? "workspace" : "navigator");
+  const tooltipLabel = `${isVisible ? "Hide" : "Show"} ${panelName}`;
   const arrow = isLeft
     ? isVisible ? "‹" : "›"
     : isVisible ? "›" : "‹";
@@ -79,7 +80,7 @@ export function ResizableDivider({
   return (
     <div
       role={canResize ? "separator" : undefined}
-      aria-label={canResize ? isLeft ? "Resize workspace panel" : "Resize right sidebar" : undefined}
+      aria-label={canResize ? `Resize ${panelName} panel` : undefined}
       aria-orientation="vertical"
       aria-valuemin={canResize ? minSize : undefined}
       aria-valuemax={canResize ? maxSize : undefined}

@@ -48,7 +48,9 @@ test('ResizableDivider uses the shared Tooltip for dynamic panel guidance', asyn
   assert.match(source, /TooltipProvider/);
   assert.match(source, /TooltipTrigger asChild/);
   assert.match(source, /<TooltipContent[^>]*>\{tooltipLabel\}<\/TooltipContent>/);
-  assert.match(source, /isVisible \? "Hide navigator" : "Show navigator"/);
+  assert.match(source, /panelLabel\?: string/);
+  assert.match(source, /panelLabel \?\? \(isLeft \? "workspace" : "navigator"\)/);
+  assert.match(source, /`\$\{isVisible \? "Hide" : "Show"\} \$\{panelName\}`/);
   assert.match(source, /aria-label=\{tooltipLabel\}/);
   assert.doesNotMatch(source, /title=/);
 });

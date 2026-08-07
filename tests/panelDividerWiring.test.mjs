@@ -5,8 +5,9 @@ import { readFile } from 'node:fs/promises';
 test('side panel divider exposes vertical left and right collapse markers', async () => {
   const source = await readFile(new URL('../src/components/ResizableDivider.tsx', import.meta.url), 'utf8');
   assert.match(source, /side: "left" \| "right"/);
-  assert.match(source, /Hide workspace|Show workspace/);
-  assert.match(source, /Hide navigator|Show navigator/);
+  assert.match(source, /panelLabel\?: string/);
+  assert.match(source, /panelLabel \?\? \(isLeft \? "workspace" : "navigator"\)/);
+  assert.match(source, /`\$\{isVisible \? "Hide" : "Show"\} \$\{panelName\}`/);
   assert.match(source, /idea-slide-resize-rail/);
   assert.match(source, /idea-slide-resize-rail__toggle/);
   assert.match(source, /TooltipProvider/);
@@ -15,7 +16,7 @@ test('side panel divider exposes vertical left and right collapse markers', asyn
   assert.doesNotMatch(source, /title=/);
 });
 
-test('divider supports bounded pointer resizing for Workspace and the shared right sidebar', async () => {
+test('divider supports independently bounded resizing for Workspace, Agent, and editor Navigator', async () => {
   const divider = await readFile(new URL('../src/components/ResizableDivider.tsx', import.meta.url), 'utf8');
   const editor = await readFile(new URL('../src/components/EditorLayout.tsx', import.meta.url), 'utf8');
   const ideaSketchEditor = await readFile(new URL('../src/components/IdeaSketchEditor.tsx', import.meta.url), 'utf8');
@@ -36,7 +37,10 @@ test('divider supports bounded pointer resizing for Workspace and the shared rig
   assert.match(editor, /WORKSPACE_PANEL_MAX_WIDTH/);
   assert.match(editor, /clampWorkspacePanelWidth/);
   assert.match(editor, /side="left"[\s\S]*onResize=/);
-  assert.doesNotMatch(editor, /side="right"[\s\S]*onResize=/);
+  assert.match(editor, /const AGENT_PANEL_DEFAULT_WIDTH = 300/);
+  assert.match(editor, /const AGENT_PANEL_MIN_WIDTH = 260/);
+  assert.match(editor, /const AGENT_PANEL_MAX_WIDTH = 420/);
+  assert.match(editor, /side="right"[\s\S]*panelLabel="Agent"[\s\S]*onResize=/);
   assert.match(ideaSketchEditor, /const DEFAULT_RIGHT_SIDEBAR_WIDTH = 260/);
   assert.match(ideaSketchEditor, /const MIN_RIGHT_SIDEBAR_WIDTH = 220/);
   assert.match(ideaSketchEditor, /const MAX_RIGHT_SIDEBAR_WIDTH = 420/);
@@ -49,7 +53,9 @@ test('Workspace Explorer is visible by default in Workspace mode and remains col
   assert.match(editor, /useState\(state\.mode === "workspace"\)/);
   assert.match(editor, /setShowWorkspace\(state\.mode === "workspace"\)/);
   assert.match(editor, /<ResizableDivider[\s\S]*side="left"[\s\S]*isVisible=\{showWorkspace\}/);
-  assert.doesNotMatch(editor, /side="right"/);
+  assert.match(editor, /<ResizableDivider[\s\S]*side="right"[\s\S]*isVisible=\{showAgent\}/);
+  assert.match(editor, /onToggle=\{\(\) => setShowWorkspace/);
+  assert.match(editor, /onToggle=\{\(\) => setShowAgent/);
 });
 
 test('resize rail styling exposes a full-height interaction gutter and visible active state', async () => {
