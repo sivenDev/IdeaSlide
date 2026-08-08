@@ -88,6 +88,7 @@ pub fn run() {
             settings::set_ai_credential,
             settings::delete_ai_credential,
             agent::discover_agent_skills,
+            agent::list_agent_runtimes,
             agent::run_agent,
             agent::cancel_agent,
             get_opened_file,

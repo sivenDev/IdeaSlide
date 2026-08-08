@@ -13,6 +13,29 @@ export interface AgentSkillMetadata {
   description: string;
 }
 
+export type AgentRuntimeKind = "compatibility" | "codexAppServer" | "grokAcp";
+
+export interface AgentRuntimeDescriptor {
+  kind: AgentRuntimeKind;
+  label: string;
+  installed: boolean;
+  compatible: boolean;
+  experimental: boolean;
+  capabilities: {
+    textStreaming: boolean;
+    reasoningSummary: boolean;
+    plans: boolean;
+    toolEvents: boolean;
+    approvals: boolean;
+    cancellation: boolean;
+    steering: boolean;
+    retry: boolean;
+    persistence: boolean;
+    editorTools: boolean;
+  };
+  diagnostic?: string;
+}
+
 export interface AgentRunRequest {
   runId: string;
   prompt: string;

@@ -543,7 +543,7 @@ It should migrate from the current text-only Chat Completions loop toward a prov
 - model and capability discovery where available;
 - classified transport and provider errors.
 
-This adapter may continue using Rig behind the runtime boundary during migration. Rig types remain private.
+The delivered compatibility adapter uses a private Rust `reqwest` transport with Responses-first execution and Chat Completions fallback. Provider transport types remain private.
 
 ### 9.3 Grok Build ACP adapter
 
@@ -611,6 +611,16 @@ Switching editors does not switch runtime implementations.
 | Main risk | Experimental dynamic Tools and protocol churn | Host dynamic Tool gap and unstable ACP features | IdeaNote owns more Agent mechanics | Weakest capability set |
 
 The effective capability set is recorded at Turn start so a mid-Turn provider change cannot alter UI semantics.
+
+### 10.1 F033-03 executable comparison outcome
+
+The comparison spike pins Codex CLI/app-server `0.147.0`, Grok Build source revision `3e620a76a5f374ce644dc7c87f7e990c68348218`, and ACP protocol version `1`. Both adapters use the same bounded stdio JSON-RPC codec, process supervisor, redaction rules, lifecycle contract, and normalized Event mapping.
+
+The installed Codex `0.147.0` app-server completed the real `initialize`/`initialized` handshake. Its documented experimental `dynamicTools` flow maps IdeaNote editor Tool definitions to client-owned calls while the upstream runtime remains `read-only` with automatic built-in mutation approval disabled. Codex is therefore the preferred optional rich runtime for mutation-capable Turns after F033-04 wires persistent execution and completes native proposal/Apply/Undo acceptance.
+
+Grok ACP v1 maps incremental assistant messages, Plans, Tool activity, permissions, cancellation, Session creation/resume, and custom model configuration. Sessions are created with `mcpServers: []`, filesystem write capability disabled, and terminal capability disabled. Neither the official ACP documentation nor the inspected open-source surface establishes a stable client-owned dynamic Tool equivalent. Grok therefore advertises no editor Tool capability and remains optional for read/research Turns; mutation-required selection degrades to the compatibility adapter rather than restoring MCP or allowing built-in writes.
+
+Runtime discovery is native-owned. Compatibility remains the default unless an experimental rich runtime is explicitly enabled, installed, version-compatible, and satisfies the active editor Tool safety gate. The frontend consumes normalized capabilities and never branches on Codex or Grok protocol types.
 
 ## 11. Streaming behavior
 
@@ -1044,10 +1054,15 @@ Mitigation: local application-data storage, bounded persisted Context, explicit 
 
 ## 22. Open questions for implementation planning
 
-1. Should Codex app-server be bundled with IdeaNote or discovered as an optional installed runtime?
-2. Can Grok Build ACP accept IdeaNote-owned dynamic editor Tools without MCP, unrestricted filesystem/shell access, or a broad runtime fork?
-3. When both rich runtimes pass the same contract, should IdeaNote prefer the product-specific Codex app-server surface or standardized ACP by default?
-4. Should the first release expose multiple runtime choices to users or select automatically from Provider configuration?
+F033-03 resolves the runtime questions as follows:
+
+1. Discover Codex app-server as an optional installed runtime; do not bundle it until packaging and update ownership are separately approved.
+2. Treat Grok ACP as lacking editor Tool capability until a stable non-MCP host Tool extension is proven upstream.
+3. Prefer Codex for mutation-capable rich Turns; allow Grok for read/research Turns when explicitly enabled and protocol-compatible.
+4. Select automatically through normalized capabilities and application policy rather than exposing provider-branded UI branches in the first release.
+
+The remaining persistence questions are:
+
 5. Which local storage implementation best supports paginated Threads without adding unnecessary infrastructure?
 6. Should reasoning summaries be persisted by default or only within the active session?
 7. Should Thread history associate primarily with a Workspace, a document, or remain globally searchable with optional filters?

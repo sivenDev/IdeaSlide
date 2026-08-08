@@ -1,5 +1,11 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
-import type { AgentRunEvent, AgentRunRequest, AgentRunResponse, AgentSkillMetadata } from "./types";
+import type {
+  AgentRunEvent,
+  AgentRunRequest,
+  AgentRunResponse,
+  AgentRuntimeDescriptor,
+  AgentSkillMetadata,
+} from "./types";
 
 function requireTauri(): void {
   if (!("__TAURI_INTERNALS__" in window)) {
@@ -10,6 +16,11 @@ function requireTauri(): void {
 export async function discoverAgentSkills(): Promise<AgentSkillMetadata[]> {
   requireTauri();
   return invoke<AgentSkillMetadata[]>("discover_agent_skills");
+}
+
+export async function listAgentRuntimes(): Promise<AgentRuntimeDescriptor[]> {
+  requireTauri();
+  return invoke<AgentRuntimeDescriptor[]>("list_agent_runtimes");
 }
 
 export async function runAgent(

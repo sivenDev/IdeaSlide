@@ -5,6 +5,7 @@ import type {
   AgentRunRequest,
   AgentToolDescriptor,
 } from "./types";
+export { selectAgentRuntime } from "./runtimeSelection";
 import {
   COMPATIBILITY_AGENT_CAPABILITIES,
   createAgentEventId,
@@ -43,6 +44,7 @@ export interface AgentRuntime {
   cancelTurn(turnId: string): Promise<boolean>;
   steerTurn?: (turnId: string, prompt: string) => Promise<boolean>;
 }
+
 
 interface ActiveCompatibilityTurn {
   emit: (event: AgentEvent) => void;

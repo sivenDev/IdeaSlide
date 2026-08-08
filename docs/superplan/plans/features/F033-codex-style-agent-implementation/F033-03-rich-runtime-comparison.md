@@ -2,7 +2,7 @@
 id: "F033-03"
 title: "Compare Codex App-server and Grok Build ACP Runtimes"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Build pinned local adapters and run one contract suite to decide how Codex app-server and Grok Build ACP can safely serve IdeaNote."
 source: "docs/superplan/human/features.md"
 created: "2026-08-08"
@@ -45,9 +45,9 @@ parent: "F033"
 - `cargo test --manifest-path src-tauri/Cargo.toml agent::adapters -- --nocapture`
 - Cases: request/notification ordering; malformed JSON; timeout; crash; restart; cancellation; late events; version mismatch; redacted stderr; AI-disable shutdown.
 
-- [ ] Establish one runtime contract and supervised local stdio boundary.
-- [ ] Make protocol/version/process failures deterministic and safely diagnosable.
-- [ ] Prove all upstream types remain private to adapters.
+- [x] Establish one runtime contract and supervised local stdio boundary.
+- [x] Make protocol/version/process failures deterministic and safely diagnosable.
+- [x] Prove all upstream types remain private to adapters.
 
 ## Task 2: Implement and Verify the Codex App-server Adapter
 
@@ -70,9 +70,9 @@ parent: "F033"
 - Shared offline runtime contract suite against a deterministic Codex JSON-RPC fake.
 - Opt-in local app-server smoke when the pinned executable is available: create/resume/list Thread; Turn start/cancel/steer; text/reasoning/plan; dynamic read/proposal Tool; approval; shutdown/restart; incompatible version.
 
-- [ ] Map Codex rich lifecycle Events into the IdeaNote protocol.
-- [ ] Prove client-owned editor Tools remain proposal-only and idempotent.
-- [ ] Prove clean lifecycle, recovery, redaction, and version gating.
+- [x] Map Codex rich lifecycle Events into the IdeaNote protocol.
+- [x] Prove client-owned editor Tools remain proposal-only and idempotent.
+- [x] Prove clean lifecycle, recovery, redaction, and version gating.
 
 ## Task 3: Implement and Gate the Grok Build ACP Adapter
 
@@ -96,9 +96,9 @@ parent: "F033"
 - Opt-in local Grok smoke when installed/authenticated: initialize/authenticate; Session create/resume; prompt and incremental update; Plan/Tool event; cancellation; recovery; custom model; incompatible protocol.
 - Mandatory gate: proposal Tool reaches IdeaNote's trusted Editor Host with `mcpServers: []`, or the adapter reports read-only/no-editor-Tools capability.
 
-- [ ] Map Grok ACP lifecycle and rich activity into normalized Events.
-- [ ] Resolve the host editor Tool question without MCP or unrestricted mutation.
-- [ ] Capability-limit Grok explicitly when the mandatory Tool gate does not pass.
+- [x] Map Grok ACP lifecycle and rich activity into normalized Events.
+- [x] Resolve the host editor Tool question without MCP or unrestricted mutation.
+- [x] Capability-limit Grok explicitly when the mandatory Tool gate does not pass.
 
 ## Task 4: Select Runtime Policy Through Equivalent Native Acceptance
 
@@ -124,9 +124,19 @@ parent: "F033"
 - `npm run build`
 - Native matrix: fake, compatibility adapter, Codex, and Grok according to effective capabilities; verify no pre-Apply mutation, no MCP endpoint, no credential exposure, process teardown, and fallback.
 
-- [ ] Apply one evidence-backed runtime selection and degradation policy.
-- [ ] Pass equivalent editor lifecycle acceptance for each enabled rich adapter.
-- [ ] Preserve compatibility fallback, no-MCP policy, and AI lifecycle teardown.
+- [x] Apply one evidence-backed runtime selection and degradation policy.
+- [x] Pass equivalent editor lifecycle acceptance for each enabled rich adapter.
+- [x] Preserve compatibility fallback, no-MCP policy, and AI lifecycle teardown.
+
+## Delivery Evidence
+
+- The native adapter layer now owns bounded JSONL/JSON-RPC framing, correlation ids, total request timeouts, redacted bounded stderr, exact Codex version checks, ACP protocol checks, bounded restart policy, crash detection, and kill-on-drop/explicit shutdown. A fake stdio child proves request correlation and teardown without using a network or user document.
+- Codex is pinned to CLI/app-server `0.147.0`. Generated `--experimental` schemas confirmed `dynamicTools` and `item/tool/call`; the installed local app-server completed the real `initialize`/`initialized` handshake. Offline mappings cover Thread/Turn text, reasoning summaries, Plans, dynamic Tools, approvals, interruption, errors, and proposal-only Tool results while thread/Turn configuration remains read-only with automatic built-in mutation approval disabled.
+- Grok is pinned to official source revision `3e620a76a5f374ce644dc7c87f7e990c68348218` and ACP protocol `1`. Official xAI ACP documentation confirmed `grok agent stdio`, authentication, `session/new`, `session/prompt`, incremental `session/update`, cancellation, and `mcpServers: []`. Offline mappings cover assistant chunks, summary-only reasoning when supplied, Plans, Tool activity, permission requests, completion, cancellation, and protocol mismatch. Grok is not installed locally, so no authenticated native Grok smoke was claimed; its editor Tool capability remains false and mutation-required selection degrades to Compatibility.
+- Runtime discovery is native-owned and returns only normalized descriptors. Compatibility remains the default until experimental runtime use is explicitly enabled. Codex is preferred only when installed/version-compatible and the editor Tool gate is required; Grok may be selected only for read/research behavior while its host Tool gap remains unresolved. No runtime brand or upstream protocol type enters `src/lib/agent/protocol.ts`.
+- `cargo test --manifest-path src-tauri/Cargo.toml agent::adapters -- --nocapture`: 18 focused adapter tests passed, including the installed Codex handshake, shared Codex/Grok contract, schema mapping, no-MCP gate, redaction, malformed/oversized frames, timeout/version behavior, bounded restart, process correlation, and shutdown.
+- `cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture`: 102 Rust tests passed. `node --test tests/*.test.mjs`: 294 frontend and contract tests passed. `npm run build`, Rust format check, and Clippy all targets passed; only the existing Vite Excalidraw import and large-chunk warnings remain.
+- `npm run tauri build -- --debug` built the current macOS application and DMG. No rich runtime is enabled in the product yet, so native editor proposal/Review/Apply/Undo remains on the already-verified compatibility path; F033-04 owns persistent runtime execution and equivalent disposable-editor acceptance before Codex can become an enabled rich runtime.
 
 ## References
 

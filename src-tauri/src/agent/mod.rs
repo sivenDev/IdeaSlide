@@ -1,3 +1,4 @@
+mod adapters;
 mod provider;
 mod runtime;
 mod session;
@@ -8,6 +9,11 @@ use crate::settings;
 use session::AgentSessionState;
 use tauri::ipc::Channel;
 use types::{AgentErrorCode, AgentRunEvent, AgentRunRequest, AgentRunResponse, AgentSkillMetadata};
+
+#[tauri::command]
+pub(crate) async fn list_agent_runtimes() -> Vec<adapters::RuntimeDescriptor> {
+    adapters::discover_runtime_catalog().await
+}
 
 #[tauri::command]
 pub(crate) fn discover_agent_skills() -> Vec<AgentSkillMetadata> {
