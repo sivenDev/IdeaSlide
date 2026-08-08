@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Draft | Complete |
-| --- | --- | --- | --- |
-| `required` | 6 | 0 | 6 |
-| `feature` | 33 | 0 | 33 |
-| `bugfix` | 24 | 1 | 23 |
+| Type | Plans | Complete |
+| --- | --- | --- |
+| `required` | 6 | 6 |
+| `feature` | 33 | 33 |
+| `bugfix` | 24 | 24 |
 
 ## Execution Order
 
@@ -97,4 +97,4 @@
 | `B021` | [Use Unique SlideCanvas Child Keys](bugs/B021-use-unique-slide-canvas-child-keys.md) | `complete` | 2026-08-07 |
 | `B022` | [Keep Portrait Page Thumbnails Visible](bugs/B022-keep-portrait-page-thumbnails-visible.md) | `complete` | 2026-08-07 |
 | `B023` | [Move Agent to the App-level Right Column](bugs/B023-separate-agent-right-column.md) | `complete` | 2026-08-08 |
-| `B024` | [Align Tauri Versions and Verify Agent Editing](bugs/B024-align-tauri-versions-and-verify-agent-editing.md) | `draft` | 2026-08-08 |
+| `B024` | [Align Tauri Versions and Verify Agent Editing](bugs/B024-align-tauri-versions-and-verify-agent-editing.md) | `complete` | 2026-08-08 |

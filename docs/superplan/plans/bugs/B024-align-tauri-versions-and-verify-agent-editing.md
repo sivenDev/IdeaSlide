@@ -2,7 +2,7 @@
 id: "B024"
 title: "Align Tauri Versions and Verify Agent Editing"
 type: "bugfix"
-status: "draft"
+status: "complete"
 summary: "Pin the Tauri core toolchain to one minor line, restore normal desktop builds, and prove reviewed Agent edits can be applied and undone in IdeaSketch."
 source: "docs/superplan/human/bugs.md"
 created: "2026-08-08"
@@ -40,8 +40,8 @@ parent: ""
 - `node --test tests/tauriVersionAlignment.test.mjs`
 - Confirm the focused test fails against the current broad and minor-mismatched declarations before changing dependencies.
 
-- [ ] Add the focused source-level regression for exact declarations and compatible locked core versions.
-- [ ] Capture the expected failure against the current manifests and lockfiles.
+- [x] Add the focused source-level regression for exact declarations and compatible locked core versions.
+- [x] Capture the expected failure against the current manifests and lockfiles.
 
 ## Task 2: Pin and Resolve One Tauri 2.11 Toolchain
 
@@ -63,8 +63,8 @@ parent: ""
 - `node --test tests/tauriVersionAlignment.test.mjs`
 - `npm run tauri build -- --debug`
 
-- [ ] Replace broad core constraints with exact compatible 2.11 versions and regenerate both lockfiles.
-- [ ] Re-run the focused regression and the original Bundle-build reproduction successfully.
+- [x] Replace broad core constraints with exact compatible 2.11 versions and regenerate both lockfiles.
+- [x] Re-run the focused regression and the original Bundle-build reproduction successfully.
 
 ## Task 3: Verify Reviewed Agent Editing in a Disposable IdeaSketch Document
 
@@ -83,8 +83,8 @@ parent: ""
 - Native Tauri smoke: Pages count is 1 before approval, remains 1 during Change Review, becomes 2 only after Apply with `Agent Test Page` visible, and returns to 1 after Undo.
 - Inspect Tool Activity/review for the IdeaSketch Skill and proposal tool, and confirm Agent remains the independent rightmost column while the editor Navigator stays in the center region.
 
-- [ ] Run the Agent request against a disposable unsaved document and verify no pre-approval mutation.
-- [ ] Apply the reviewed Change Set, verify the requested editor mutation, Undo it, and close without saving.
+- [x] Run the Agent request against a disposable unsaved document and verify no pre-approval mutation.
+- [x] Apply the reviewed Change Set, verify the requested editor mutation, Undo it, and close without saving.
 
 ## Task 4: Complete Regression and Delivery Evidence
 
@@ -107,8 +107,17 @@ parent: ""
 - `git diff --check`
 - Superplan registry, catalog, dependency, artifact, changed-plan, and generated-index validation
 
-- [ ] Run focused checks while changing dependencies and one relevant full regression/build matrix after implementation stabilizes.
-- [ ] Inspect the final diff, record native Agent acceptance, complete B024, and create a separate `fix(B024)` implementation commit.
+- [x] Run focused checks while changing dependencies and one relevant full regression/build matrix after implementation stabilizes.
+- [x] Inspect the final diff, record native Agent acceptance, complete B024, and create a separate `fix(B024)` implementation commit.
+
+## Completion Evidence
+
+- Regression-first proof: `node --test tests/tauriVersionAlignment.test.mjs` initially failed because `@tauri-apps/api` used the broad `^2` declaration; the checked-in npm/Cargo state also resolved JS API 2.11.1 against Rust `tauri` 2.10.3. The new guard additionally rejects an in-memory 2.11/2.10 drift fixture.
+- Deterministic toolchain: `package.json` now exact-pins `@tauri-apps/api` 2.11.1 and `@tauri-apps/cli` 2.11.4; `src-tauri/Cargo.toml` exact-pins `tauri` 2.11.5. npm and Cargo regenerated their lockfiles, and the focused alignment test passes 2/2.
+- Native build: `npm run tauri build -- --debug` passed the Tauri compatibility check, ran the production frontend build, compiled the Rust application, and produced `IdeaNote.app` plus `IdeaNote_0.1.0_aarch64.dmg`. Only the existing Excalidraw import-overlap and large-chunk informational warnings remained.
+- Native Agent acceptance: a fresh unsaved `Untitled.is` began with Pages 1 while Agent remained the independent rightmost column. The configured runtime loaded the `ideasketch` Skill and six editor Tools, called the proposal-only mutation Tool, and displayed Change Review for `Agent Test Page` with two elements while Pages remained 1 and reported that no file was written.
+- Apply/Undo proof: explicit Apply changed Pages to 2 and exposed `Agent Test Page`; selecting it showed an editable blue rectangle and editable `Agent Test` text on the canvas. `Undo Agent change` restored Pages to 1. Returning Home used `Discard Changes`; the document was never saved and no new recent file appeared.
+- Regression matrix: `node --test tests/*.test.mjs` passed 275/275; Rust tests passed 74/74; `cargo fmt --check` and `cargo clippy --all-targets` passed; the production frontend build passed within the debug Bundle build; `git diff --check` passed.
 
 ## References
 

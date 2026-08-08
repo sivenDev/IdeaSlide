@@ -211,7 +211,7 @@ The Agent is incorrectly rendered as a tab inside the IdeaSketch Navigator. Repr
 
 ## B024: Align Tauri versions and verify Agent editing
 
-- status: accepted
+- status: done
 - created: 2026-08-08
 
 The standard Tauri debug bundle build fails because @tauri-apps/api resolves to 2.11 while the Rust tauri crate remains 2.10. Align the Tauri runtime toolchain on one minor line, prevent future cross-package-manager drift, restore the normal bundle build, then use a disposable unsaved .is document to verify Agent proposal, explicit Apply, visible editor mutation, and Undo without changing a real user file.
