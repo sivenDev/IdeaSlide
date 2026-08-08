@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Draft | Complete |
-| --- | --- | --- | --- |
-| `required` | 6 | 0 | 6 |
-| `feature` | 34 | 1 | 33 |
-| `bugfix` | 24 | 0 | 24 |
+| Type | Plans | Complete |
+| --- | --- | --- |
+| `required` | 6 | 6 |
+| `feature` | 34 | 34 |
+| `bugfix` | 24 | 24 |
 
 ## Execution Order
 
@@ -69,7 +69,7 @@
 | `F031-01` | [Add the Settings Center and AI Enablement Gate](features/F031-configurable-ai-agent/F031-01-settings-and-ai-gating.md) | `complete` | 2026-08-08 |
 | `F031-02` | [Deliver the Editor-agnostic Agent Runtime](features/F031-configurable-ai-agent/F031-02-generic-agent-runtime.md) | `complete` | 2026-08-08 |
 | `F031-03` | [Remove the Legacy MCP Runtime](features/F031-configurable-ai-agent/F031-03-remove-legacy-mcp.md) | `complete` | 2026-08-08 |
-| `F032` | [Author the Codex-style Generic Agent RFC](features/F032-codex-style-generic-agent-rfc.md) | `draft` | 2026-08-08 |
+| `F032` | [Author the Codex-style Generic Agent RFC](features/F032-codex-style-generic-agent-rfc.md) | `complete` | 2026-08-08 |
 
 ### Bugfix Plans
 

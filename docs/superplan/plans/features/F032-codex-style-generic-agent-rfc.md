@@ -2,7 +2,7 @@
 id: "F032"
 title: "Author the Codex-style Generic Agent RFC"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Produce a decision-ready RFC for a Codex-style, editor-agnostic Agent experience and runtime built on open-source foundations."
 source: "docs/superplan/human/features.md"
 created: "2026-08-08"
@@ -14,11 +14,11 @@ parent: ""
 # Author the Codex-style Generic Agent RFC Plan
 
 **Goal:** Define a reviewable product and architecture contract for evolving IdeaNote's generic Agent toward Codex-like interaction and capability without coupling the Agent core to IdeaSketch or any future editor.
-**Scope:** Create an independent English RFC under `docs/rfcs/` that specifies the target right-column experience, thread/turn/item model, Markdown messages, streamed agent/reasoning-summary/plan/tool activity, cancellation and in-flight steering, persistent local history, provider capability negotiation, safe retry and diagnostics, approvals, Change Review, and editor-contributed dynamic Tools, Skills, Context, and apply adapters. Compare extending the current Rig/OpenAI-compatible runtime, adopting the open-source Codex app-server, and using a hybrid IdeaNote-owned adapter; make one explicit recommendation with boundaries, migration phases, risks, and observable acceptance criteria. Use the current gateway/streaming diagnosis and completed F031/B023/B024 architecture as baseline evidence.
+**Scope:** Create an independent English RFC under `docs/rfcs/` that specifies the target right-column experience, thread/turn/item model, Markdown messages, streamed agent/reasoning-summary/plan/tool activity, cancellation and in-flight steering, persistent local history, provider capability negotiation, safe retry and diagnostics, approvals, Change Review, and editor-contributed dynamic Tools, Skills, Context, and apply adapters. Compare extending the current Rig/OpenAI-compatible runtime, adopting the open-source Codex app-server, integrating the open-source Grok Build ACP agent, and using a hybrid IdeaNote-owned adapter; make one explicit recommendation with boundaries, migration phases, risks, and observable acceptance criteria. Use the current gateway/streaming diagnosis and completed F031/B023/B024 architecture as baseline evidence.
 **Non-Goals:** This plan does not implement the RFC, change runtime dependencies, alter the current Agent UI, reintroduce MCP as a product surface, expose arbitrary shell/network/filesystem tools, add multi-agent execution, enable automatic mutation approval, clone Codex branding, or promise raw chain-of-thought. It does not define editor-specific Markdown, IdeaTable, or IdeaWorkflow business tools beyond proving that their future extensions can reuse the generic contract.
-**Architecture:** The RFC must preserve an IdeaNote-owned `AgentRuntime`/`AgentProtocol` boundary. Its recommended direction should evaluate the open-source `openai/codex` app-server as a local Agent kernel for threads, turns, items, approvals, history, streamed events, reasoning summaries, and dynamic tool calls, while insulating IdeaNote from its JSON-RPC/version/experimental APIs and retaining a provider-compatible fallback path where required. Editor capabilities continue to enter only through File Type Registry Agent Extensions and must produce proposal-only Change Sets. The UI consumes normalized IdeaNote events rather than provider or app-server wire types. MCP remains retired; editor tool invocation uses the Agent runtime's client-owned dynamic-tool boundary.
+**Architecture:** The RFC must preserve an IdeaNote-owned `AgentRuntime`/`AgentProtocol` boundary. Its recommended direction evaluates the open-source `openai/codex` app-server and `xai-org/grok-build` ACP agent as local rich-runtime candidates while insulating IdeaNote from their JSON-RPC, ACP, version, and experimental APIs and retaining a provider-compatible fallback path where required. Codex is the first editor-tool spike because it documents client-owned dynamic Tools; Grok is a first-class comparison spike whose host Tool path must be proven without MCP. Editor capabilities continue to enter only through File Type Registry Agent Extensions and must produce proposal-only Change Sets. The UI consumes normalized IdeaNote events rather than provider, app-server, or ACP wire types. MCP remains retired.
 **Baseline:** F031 delivered settings, AI gating, a Rig-based OpenAI-compatible text-stream runtime, open Agent Skills, assistant-ui primitives, an Agent Extension Registry, and reviewed IdeaSketch Change Sets. B023 placed Agent in the independent right column, and B024 proved proposal/Apply/Undo in the native app. Current diagnosis shows plain-string Markdown rendering, no reasoning-summary event model, Chat Completions-only requests, gateway buffering of SSE chunks, intermittent TLS request failures, no retry/backoff, weak error classification, no persisted thread model, and a flattened UI that does not represent plans, tools, approvals, or turn items as first-class activity.
-**Exit Criteria:** A standalone RFC exists and is understandable without reading implementation code. It defines the user-visible Codex-style interaction contract, generic runtime protocol, event/state model, open-source adoption decision, provider capability matrix, editor-extension boundary, storage and security rules, failure/retry behavior, phased migration, verification strategy, and explicit non-goals. The RFC explains how real reasoning summaries differ from raw reasoning, how buffered gateways degrade streaming, how safe retry avoids duplicated partial output or tool execution, and how future editors reuse the Agent without runtime changes. It cites current repository evidence and official OpenAI documentation for Codex app-server capabilities, passes documentation and Superplan validation, and contains no implementation changes or credentials.
+**Exit Criteria:** A standalone RFC exists and is understandable without reading implementation code. It defines the user-visible Codex-style interaction contract, generic runtime protocol, event/state model, open-source adoption decision, provider capability matrix, editor-extension boundary, storage and security rules, failure/retry behavior, phased migration, verification strategy, and explicit non-goals. The RFC explains how real reasoning summaries differ from raw reasoning, how buffered gateways degrade streaming, how safe retry avoids duplicated partial output or tool execution, and how future editors reuse the Agent without runtime changes. It cites current repository evidence, official OpenAI documentation for Codex app-server capabilities, and official xAI documentation/source for Grok Build ACP capabilities and limitations; passes documentation and Superplan validation; and contains no implementation changes or credentials.
 
 ## Task 1: Define the Product Interaction and Protocol Contract
 
@@ -37,9 +37,9 @@ parent: ""
 - Inspect the RFC against F031, B023, B024, the PRD Agent invariants, and the reproduced native/gateway evidence.
 - Confirm every user-visible state has an explicit event/state source and no editor-specific behavior leaks into the generic protocol.
 
-- [ ] Specify the Codex-style interaction model with observable UI states and transitions.
-- [ ] Define the normalized thread/turn/item/delta protocol and provider capability contract.
-- [ ] Preserve the File Type Registry Agent Extension and review-before-apply safety boundary.
+- [x] Specify the Codex-style interaction model with observable UI states and transitions.
+- [x] Define the normalized thread/turn/item/delta protocol and provider capability contract.
+- [x] Preserve the File Type Registry Agent Extension and review-before-apply safety boundary.
 
 ## Task 2: Select the Open-source Runtime Direction and Migration Roadmap
 
@@ -48,12 +48,12 @@ parent: ""
 - Create: `docs/rfcs/001-codex-style-generic-agent.md`
 
 **Change Map:**
-- options analysis: extend current Rig runtime; embed/adapt Codex app-server; hybrid adapter with Codex kernel plus OpenAI-compatible fallback
+- options analysis: extend current Rig runtime; embed/adapt Codex app-server; integrate Grok Build over ACP; hybrid adapter with rich-runtime candidates plus OpenAI-compatible fallback
 - recommendation: ownership boundaries, open-source packages/components, version pinning, schema generation, process lifecycle, Tauri integration, and fallback/degradation behavior
 - provider matrix: Responses/reasoning summary support, Chat Completions compatibility, real versus buffered streaming, tool support, retry classification, request diagnostics, and model capability discovery
 - persistence/security: local thread store, document/workspace association, context compaction, credential redaction, bounded logs, approval records, no direct writes, and no MCP product endpoint
-- roadmap: Markdown and activity fixes, normalized protocol, Codex app-server spike, runtime adapter migration, history/steering/approvals, provider hardening, and later editor reuse
-- decision risks: experimental dynamic tools, upstream protocol churn, app-server process distribution, provider compatibility, gateway buffering, migration of existing conversations, and test determinism
+- roadmap: Markdown and activity fixes, normalized protocol, equivalent Codex app-server/Grok ACP spikes, runtime adapter migration, history/steering/approvals, provider hardening, and later editor reuse
+- decision risks: experimental dynamic Tools, ACP host-Tool gaps, upstream protocol churn, local process distribution, provider compatibility, gateway buffering, migration of existing conversations, and test determinism
 
 **Verification:**
 - `git diff --check`
@@ -61,9 +61,16 @@ parent: ""
 - `python3 /Users/zhengxiwan/.codex/plugins/cache/superplan-dev/superplan/0.4.0+codex.20260804101449/skills/using-superplan/scripts/generate_plans_readme.py --catalog --root /Users/zhengxiwan/ide-workspace/idea-slide`
 - `python3 /Users/zhengxiwan/.codex/plugins/cache/superplan-dev/superplan/0.4.0+codex.20260804101449/skills/using-superplan/scripts/generate_plans_readme.py --write --check --root /Users/zhengxiwan/ide-workspace/idea-slide`
 
-- [ ] Compare maintained open-source options and record one recommended architecture.
-- [ ] Define capability degradation, safe retry, diagnostics, persistence, and security policy.
-- [ ] Provide phased implementation slices and acceptance evidence for subsequent delivery plans.
+- [x] Compare maintained open-source options and record one recommended architecture.
+- [x] Define capability degradation, safe retry, diagnostics, persistence, and security policy.
+- [x] Provide phased implementation slices and acceptance evidence for subsequent delivery plans.
+
+## Completion Evidence
+
+- RFC: `docs/rfcs/001-codex-style-generic-agent.md` defines the accepted right-column UX, IdeaNote-owned frontend SDK, normalized Thread/Turn/Item/Event protocol, editor Agent Extension contract, safe Markdown, real reasoning-summary behavior, capability degradation, retry/error taxonomy, persistence, accessibility, security, and proposal-only Change Sets.
+- Runtime research: official OpenAI documentation and source establish Codex app-server Threads, Turns, Items, streaming, approvals, steering, interruption, and experimental client-owned dynamic Tools. Official xAI documentation and source establish Grok Build as an Apache-2.0 Rust runtime with headless streaming JSON, `grok agent stdio` ACP embedding, persistent Sessions, Plans, permissions, custom models, and local runtime/tool/workspace modules.
+- Decision: use a hybrid IdeaNote-owned adapter architecture. Keep the OpenAI-compatible adapter, spike Codex first for editor Tools, and evaluate Grok ACP against the same contract. Grok cannot become the default mutation runtime until host Tool injection works without restoring MCP, enabling unrestricted writes, or requiring a high-maintenance fork.
+- Verification: documentation whitespace checks, human-request validation, exhaustive plan catalog validation, and generated plan-index validation passed. No application implementation, runtime dependency, credential, or MCP product-surface change is included.
 
 ## References
 
@@ -79,5 +86,11 @@ parent: ""
 - `src-tauri/src/agent/provider.rs`
 - `https://learn.chatgpt.com/docs/app-server`
 - `https://github.com/openai/codex/tree/main/codex-rs/app-server`
+- `https://docs.x.ai/build/overview`
+- `https://docs.x.ai/build/cli/headless-scripting#acp`
+- `https://docs.x.ai/build/features/sessions`
+- `https://docs.x.ai/build/features/plan-mode`
+- `https://docs.x.ai/build/features/permissions`
+- `https://github.com/xai-org/grok-build`
 - `https://github.com/assistant-ui/assistant-ui`
 - `https://github.com/0xPlaygrounds/rig`

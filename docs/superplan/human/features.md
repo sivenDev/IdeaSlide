@@ -241,7 +241,7 @@ Add a reusable Settings Center accessible from Home and the editor. AI is enable
 
 ## F032: Define a Codex-style generic Agent RFC
 
-- status: accepted
+- status: done
 - created: 2026-08-08
 
 Create an independent RFC for evolving IdeaNote's editor-agnostic AI Agent toward Codex-like interaction and capability. The RFC must define the right-column conversation UX, Markdown messages, streamed agent/reasoning-summary/tool/plan activity, persistent threads and turns, cancellation and steering, provider capability negotiation, retry and diagnostics, review-before-apply approvals, and editor-specific dynamic Tools/Skills/Context/Change Review injected through the existing File Type Registry. Prefer maintained open-source foundations, especially evaluating the open-source Codex app-server behind an IdeaNote-owned runtime protocol, while preserving an OpenAI-compatible provider path, keeping MCP removed as a product surface, preventing direct model writes, and allowing future Markdown and other editors to reuse the same Agent core.
