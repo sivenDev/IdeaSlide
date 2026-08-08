@@ -42,6 +42,80 @@ pub(crate) struct AgentRunResponse {
     pub run_id: String,
     pub text: String,
     pub skill_id: Option<String>,
+    pub capabilities: AgentProviderCapabilities,
+    pub telemetry: AgentStreamingTelemetry,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum AgentProviderStrategy {
+    Responses,
+    ChatCompletions,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AgentProviderCapabilities {
+    pub strategy: AgentProviderStrategy,
+    pub text_streaming: bool,
+    pub reasoning_summary: bool,
+    pub tool_events: bool,
+    pub cancellation: bool,
+    pub retry: bool,
+    pub timing: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum AgentErrorCode {
+    ConfigurationRequired,
+    AuthenticationFailed,
+    PermissionDenied,
+    RateLimited,
+    NetworkUnavailable,
+    TlsFailure,
+    RequestTimeout,
+    ProviderUnavailable,
+    ProviderProtocolError,
+    ModelUnavailable,
+    ContextLimit,
+    ToolValidationFailed,
+    ToolExecutionFailed,
+    RuntimeUnavailable,
+    Cancelled,
+    Unknown,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AgentErrorDiagnostic {
+    pub code: AgentErrorCode,
+    pub message: String,
+    pub recovery: Option<String>,
+    pub diagnostic_id: String,
+    pub retryable: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum StreamingBehavior {
+    Incremental,
+    Buffered,
+    Indeterminate,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AgentStreamingTelemetry {
+    pub strategy: AgentProviderStrategy,
+    pub attempts: u8,
+    pub request_ms: u64,
+    pub first_event_ms: Option<u64>,
+    pub first_text_ms: Option<u64>,
+    pub event_span_ms: u64,
+    pub total_ms: u64,
+    pub event_count: u32,
+    pub behavior: StreamingBehavior,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -50,9 +124,43 @@ pub(crate) enum AgentRunEvent {
     Started {
         run_id: String,
     },
+    Capabilities {
+        run_id: String,
+        capabilities: AgentProviderCapabilities,
+    },
+    StrategyFallback {
+        run_id: String,
+        from: AgentProviderStrategy,
+        to: AgentProviderStrategy,
+        reason: String,
+    },
+    RetryScheduled {
+        run_id: String,
+        attempt: u8,
+        delay_ms: u64,
+        diagnostic: AgentErrorDiagnostic,
+    },
+    ReasoningSummaryDelta {
+        run_id: String,
+        text: String,
+    },
     TextDelta {
         run_id: String,
         text: String,
+    },
+    ToolStarted {
+        run_id: String,
+        call_id: String,
+        name: String,
+    },
+    ToolCompleted {
+        run_id: String,
+        call_id: String,
+        name: String,
+    },
+    Telemetry {
+        run_id: String,
+        telemetry: AgentStreamingTelemetry,
     },
     Completed {
         run_id: String,
@@ -64,7 +172,7 @@ pub(crate) enum AgentRunEvent {
     },
     Error {
         run_id: String,
-        message: String,
+        error: AgentErrorDiagnostic,
     },
 }
 

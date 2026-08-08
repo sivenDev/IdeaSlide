@@ -2,7 +2,7 @@
 id: "F033-02"
 title: "Harden the OpenAI-compatible Agent Adapter"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Add capability negotiation, Responses support where available, classified diagnostics, safe retry, and honest streaming telemetry to the current native adapter."
 source: "docs/superplan/human/features.md"
 created: "2026-08-08"
@@ -45,9 +45,9 @@ parent: "F033"
 - `node --test tests/agentProtocol.test.mjs tests/agentStore.test.mjs`
 - Cases: every error category; redacted API key/header/query; unsupported capabilities; cancellation distinguished from failure.
 
-- [ ] Normalize effective capabilities across Responses and Chat Completions strategies.
-- [ ] Classify failures with safe diagnostics and recovery actions.
-- [ ] Keep Provider and Rig types private to the Rust adapter.
+- [x] Normalize effective capabilities across Responses and Chat Completions strategies.
+- [x] Classify failures with safe diagnostics and recovery actions.
+- [x] Keep Provider transport types private to the Rust adapter.
 
 ## Task 2: Add Responses Support, Safe Retry, and Streaming Diagnostics
 
@@ -71,9 +71,9 @@ parent: "F033"
 - `cargo test --manifest-path src-tauri/Cargo.toml agent -- --nocapture`
 - Fake servers: real SSE cadence; fully buffered SSE; TLS/connect failure; timeout; 429/5xx then success before output; failure after first delta; duplicate Tool call id; cancellation during backoff.
 
-- [ ] Use Responses capabilities when verified and degrade safely to Chat Completions.
-- [ ] Retry only before visible output or Tool execution and expose attempt metadata in the same Turn.
-- [ ] Diagnose buffered gateways without fabricating incremental output.
+- [x] Use Responses capabilities when verified and degrade safely to Chat Completions.
+- [x] Retry only before visible output or Tool execution and expose attempt metadata in the same Turn.
+- [x] Diagnose buffered gateways without fabricating incremental output.
 
 ## Task 3: Verify Configured-gateway Compatibility and Native Safety
 
@@ -98,9 +98,18 @@ parent: "F033"
 - `npm run build`
 - Native smoke with a disposable unsaved `.is`: read, streamed/buffered status, transient-failure recovery when reproducible, proposal, explicit Apply, Undo, cancellation, and AI disable.
 
-- [ ] Preserve configured gateway compatibility and secure credential ownership.
-- [ ] Re-prove proposal-only mutation, explicit Apply/Undo, cancellation, and AI teardown.
-- [ ] Record focused, full, build, native, redaction, and buffering evidence.
+- [x] Preserve configured gateway compatibility and secure credential ownership.
+- [x] Re-prove proposal-only mutation, explicit Apply/Undo, cancellation, and AI teardown.
+- [x] Record focused, full, build, native, redaction, and buffering evidence.
+
+## Delivery Evidence
+
+- `cargo test --manifest-path src-tauri/Cargo.toml agent -- --nocapture`: 16 focused Agent tests passed, including typed Responses events, reasoning summaries without raw reasoning, Chat fallback, transient retry, cancellation during backoff, no retry after visible output, duplicate Tool call ids, gateway query preservation, redaction, and incremental/buffered timing.
+- `cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture`: 84 Rust tests passed.
+- `node --test tests/*.test.mjs`: 291 frontend and contract tests passed, including normalized capability/telemetry state, classified errors, proposal-only Change Sets, Apply/Undo guards, cancellation terminal safety, and AI configuration ownership.
+- `npm run build`, `cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets`: passed. Vite retained the existing large-chunk and Excalidraw dynamic/static import warnings.
+- `npm run tauri build -- --debug` with an isolated temporary bundle identifier built the current macOS app and DMG; unified macOS logs confirmed the packaged WebView loaded and the native Keychain lookup path executed. Computer Use could not obtain the app Accessibility window tree, and a separate `cargo test` smoke was blocked by Keychain ACL before any network socket opened, so those attempts are not treated as configured-gateway success or gateway-failure evidence.
+- The configured base URL, model, and credential persistence formats were not changed. Credentials remain Keychain-only and are absent from frontend state, persisted settings, native Events, diagnostics, and logs; synthetic redaction tests cover authorization, bearer token, and URL-query leakage.
 
 ## References
 

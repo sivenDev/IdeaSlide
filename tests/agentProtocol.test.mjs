@@ -28,3 +28,15 @@ test('the public protocol remains owned by IdeaNote and transport-neutral', asyn
   }
   assert.doesNotMatch(source, /@tauri|assistant-ui|\bRig\b|\bCodex\b|\bACP\b|OpenAI/);
 });
+
+test('the compatibility runtime normalizes provider capabilities, summaries, telemetry, and classified errors', async () => {
+  const source = await readFile(new URL('../src/lib/agent/agentRuntime.ts', import.meta.url), 'utf8');
+  assert.match(source, /case "capabilities"/);
+  assert.match(source, /type: "capabilitiesUpdated"/);
+  assert.match(source, /case "reasoningSummaryDelta"/);
+  assert.match(source, /kind: "reasoningSummary"/);
+  assert.match(source, /case "telemetry"/);
+  assert.match(source, /type: "telemetryUpdated"/);
+  assert.match(source, /case "error"/);
+  assert.match(source, /error: event\.error/);
+});

@@ -28,10 +28,13 @@ test('stream deltas are frame-batched while lifecycle events flush immediately',
   assert.match(source, /events\.reduce\(reduceAgentEvent, current\)/);
 });
 
-test('compatibility runtime emits normalized cancellation and never fabricates rich capabilities', async () => {
+test('compatibility runtime emits cancellation and only provider-evidenced rich activity', async () => {
   const source = await readFile(new URL('../src/lib/agent/agentRuntime.ts', import.meta.url), 'utf8');
   assert.match(source, /type: "turnCancelled"/);
   assert.match(source, /cancelled \? "Agent run cancelled" : "Turn stopped locally"/);
   assert.match(source, /if \(!activeTurns\.has\(input\.turnId\)\) return/);
-  assert.doesNotMatch(source, /reasoningSummary.*emitNext|type: "approval"|type: "plan"/s);
+  assert.match(source, /case "reasoningSummaryDelta"/);
+  assert.match(source, /reasoningSummary: capabilities\.reasoningSummary/);
+  assert.match(source, /case "toolStarted"/);
+  assert.doesNotMatch(source, /type: "approval"|type: "plan"/);
 });

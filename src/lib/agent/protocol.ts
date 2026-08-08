@@ -1,4 +1,4 @@
-import type { AgentChangeSet } from "./types";
+import type { AgentChangeSet, AgentStreamingTelemetry } from "./types";
 
 export type AgentTurnStatus = "running" | "completed" | "cancelled" | "failed";
 export type AgentItemStatus = "pending" | "running" | "completed" | "cancelled" | "failed";
@@ -141,6 +141,7 @@ export interface AgentTurn {
   completedAt?: number;
   binding: AgentTurnBindingSnapshot;
   items: AgentItem[];
+  telemetry?: AgentStreamingTelemetry;
 }
 
 export interface AgentThread {
@@ -193,6 +194,11 @@ export interface AgentTurnStartedEvent extends AgentEventBase {
   assistantItemId: string;
 }
 
+export interface AgentCapabilitiesUpdatedEvent extends AgentEventBase {
+  type: "capabilitiesUpdated";
+  capabilities: AgentCapabilities;
+}
+
 export interface AgentItemAddedEvent extends AgentEventBase {
   type: "itemAdded";
   item: AgentItem;
@@ -226,14 +232,21 @@ export interface AgentTurnCancelledEvent extends AgentEventBase {
   label?: string;
 }
 
+export interface AgentTelemetryUpdatedEvent extends AgentEventBase {
+  type: "telemetryUpdated";
+  telemetry: AgentStreamingTelemetry;
+}
+
 export type AgentEvent =
   | AgentTurnStartedEvent
+  | AgentCapabilitiesUpdatedEvent
   | AgentItemAddedEvent
   | AgentItemDeltaEvent
   | AgentItemUpdatedEvent
   | AgentTurnCompletedEvent
   | AgentTurnFailedEvent
-  | AgentTurnCancelledEvent;
+  | AgentTurnCancelledEvent
+  | AgentTelemetryUpdatedEvent;
 
 export function createAgentEventId(turnId: string, sequence: number, type: AgentEvent["type"]): string {
   return `${turnId}:${sequence}:${type}`;

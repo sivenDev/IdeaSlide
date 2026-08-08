@@ -145,6 +145,8 @@ function applyOrderedEvent(state: AgentThreadState, event: AgentEvent): AgentThr
         },
       };
     }
+    case "capabilitiesUpdated":
+      return { ...state, capabilities: event.capabilities };
     case "itemAdded":
       return updateTurn(state, event.turnId, (turn) => (
         turn.items.some((item) => item.id === event.item.id)
@@ -162,6 +164,30 @@ function applyOrderedEvent(state: AgentThreadState, event: AgentEvent): AgentThr
     }
     case "itemUpdated":
       return updateTurn(state, event.turnId, (turn) => updateItem(turn, event.item.id, () => event.item));
+    case "telemetryUpdated": {
+      const firstText = event.telemetry.firstTextMs === undefined
+        ? "no text timing"
+        : `first text ${event.telemetry.firstTextMs} ms`;
+      const label = event.telemetry.behavior === "buffered"
+        ? `Buffered gateway delivery · ${firstText}`
+        : event.telemetry.behavior === "incremental"
+          ? `Live streaming · ${firstText}`
+          : `Provider delivery timing · ${firstText}`;
+      return updateTurn(state, event.turnId, (turn) => ({
+        ...turn,
+        telemetry: event.telemetry,
+        items: [
+          ...turn.items.filter((item) => item.id !== `${event.turnId}:streaming`),
+          {
+            id: `${event.turnId}:streaming`,
+            kind: "lifecycle",
+            label,
+            status: "completed",
+            createdAt: event.at,
+          },
+        ],
+      }));
+    }
     case "turnCompleted": {
       const completed = updateTurn(state, event.turnId, (turn) => {
         const withMessage = updateItem(turn, event.assistantItemId, (item) => (

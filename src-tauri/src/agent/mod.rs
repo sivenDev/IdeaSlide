@@ -7,7 +7,7 @@ mod types;
 use crate::settings;
 use session::AgentSessionState;
 use tauri::ipc::Channel;
-use types::{AgentRunEvent, AgentRunRequest, AgentRunResponse, AgentSkillMetadata};
+use types::{AgentErrorCode, AgentRunEvent, AgentRunRequest, AgentRunResponse, AgentSkillMetadata};
 
 #[tauri::command]
 pub(crate) fn discover_agent_skills() -> Vec<AgentSkillMetadata> {
@@ -30,38 +30,90 @@ pub(crate) async fn run_agent(
     let skill_id = request.skill_id.clone();
     let event_channel = on_event.clone();
     let event_run_id = run_id.clone();
-    let result = runtime::complete(request, api_key, cancellation, move |text| {
-        event_channel
-            .send(AgentRunEvent::TextDelta {
+    let result = runtime::complete(request, api_key, cancellation, move |progress| {
+        let event = match progress {
+            provider::ProviderProgress::Capabilities(capabilities) => AgentRunEvent::Capabilities {
                 run_id: event_run_id.clone(),
-                text: text.to_string(),
-            })
+                capabilities,
+            },
+            provider::ProviderProgress::StrategyFallback { from, to, reason } => {
+                AgentRunEvent::StrategyFallback {
+                    run_id: event_run_id.clone(),
+                    from,
+                    to,
+                    reason,
+                }
+            }
+            provider::ProviderProgress::RetryScheduled {
+                attempt,
+                delay_ms,
+                diagnostic,
+            } => AgentRunEvent::RetryScheduled {
+                run_id: event_run_id.clone(),
+                attempt,
+                delay_ms,
+                diagnostic,
+            },
+            provider::ProviderProgress::ReasoningSummaryDelta(text) => {
+                AgentRunEvent::ReasoningSummaryDelta {
+                    run_id: event_run_id.clone(),
+                    text,
+                }
+            }
+            provider::ProviderProgress::TextDelta(text) => AgentRunEvent::TextDelta {
+                run_id: event_run_id.clone(),
+                text,
+            },
+            provider::ProviderProgress::ToolStarted { call_id, name } => {
+                AgentRunEvent::ToolStarted {
+                    run_id: event_run_id.clone(),
+                    call_id,
+                    name,
+                }
+            }
+            provider::ProviderProgress::ToolCompleted { call_id, name } => {
+                AgentRunEvent::ToolCompleted {
+                    run_id: event_run_id.clone(),
+                    call_id,
+                    name,
+                }
+            }
+            provider::ProviderProgress::Telemetry(telemetry) => AgentRunEvent::Telemetry {
+                run_id: event_run_id.clone(),
+                telemetry,
+            },
+        };
+        event_channel
+            .send(event)
             .map_err(|error| format!("Agent event could not be delivered: {error}"))
     })
     .await;
     state.finish_run(&run_id);
     match result {
-        Ok(text) => {
+        Ok(completion) => {
             let response = AgentRunResponse {
                 run_id: run_id.clone(),
-                text: text.clone(),
+                text: completion.text.clone(),
                 skill_id: skill_id.clone(),
+                capabilities: completion.capabilities,
+                telemetry: completion.telemetry,
             };
             let _ = on_event.send(AgentRunEvent::Completed {
                 run_id,
-                text,
+                text: completion.text,
                 skill_id,
             });
             Ok(response)
         }
-        Err(message) if message == "Agent run cancelled" => {
+        Err(failure) if failure.diagnostic.code == AgentErrorCode::Cancelled => {
             let _ = on_event.send(AgentRunEvent::Cancelled { run_id });
-            Err(message)
+            Err(failure.diagnostic.message)
         }
-        Err(message) => {
+        Err(failure) => {
+            let message = failure.diagnostic.message.clone();
             let _ = on_event.send(AgentRunEvent::Error {
                 run_id,
-                message: message.clone(),
+                error: failure.diagnostic,
             });
             Err(message)
         }

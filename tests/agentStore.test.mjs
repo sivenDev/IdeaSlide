@@ -98,6 +98,36 @@ test('a retried Turn retains explicit linkage to the failed Turn', () => {
   assert.equal(state.thread.turns.at(-1).retryOfTurnId, 'turn-1');
 });
 
+test('provider capabilities and honest streaming telemetry update normalized state', () => {
+  let state = reduceAgentEvent(initial(), started());
+  state = reduceAgentEvent(state, event('capabilitiesUpdated', 1, {
+    capabilities: {
+      ...COMPATIBILITY_AGENT_CAPABILITIES,
+      reasoningSummary: true,
+      toolEvents: true,
+    },
+  }));
+  state = reduceAgentEvent(state, event('telemetryUpdated', 2, {
+    telemetry: {
+      strategy: 'responses',
+      attempts: 2,
+      requestMs: 31,
+      firstEventMs: 520,
+      firstTextMs: 526,
+      eventSpanMs: 12,
+      totalMs: 544,
+      eventCount: 8,
+      behavior: 'buffered',
+    },
+  }));
+
+  const turn = state.thread.turns.at(-1);
+  assert.equal(state.capabilities.reasoningSummary, true);
+  assert.equal(state.capabilities.toolEvents, true);
+  assert.equal(turn.telemetry.behavior, 'buffered');
+  assert.match(turn.items.find((item) => item.id === 'turn-1:streaming').label, /Buffered gateway delivery/);
+});
+
 test('completed turns accept review updates at the next sequence and retain the captured binding', () => {
   const review = {
     id: 'turn-1:review',

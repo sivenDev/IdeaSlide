@@ -1,4 +1,5 @@
 import type { DocumentModel, DocumentSession } from "../../types";
+import type { AgentErrorCode } from "./protocol";
 
 export interface AgentToolDescriptor {
   name: string;
@@ -28,14 +29,69 @@ export interface AgentRunResponse {
   runId: string;
   text: string;
   skillId?: string;
+  capabilities: AgentProviderCapabilities;
+  telemetry: AgentStreamingTelemetry;
+}
+
+export type AgentProviderStrategy = "responses" | "chatCompletions";
+
+export interface AgentProviderCapabilities {
+  strategy: AgentProviderStrategy;
+  textStreaming: boolean;
+  reasoningSummary: boolean;
+  toolEvents: boolean;
+  cancellation: boolean;
+  retry: boolean;
+  timing: boolean;
+}
+
+export type AgentStreamingBehavior = "incremental" | "buffered" | "indeterminate";
+
+export interface AgentStreamingTelemetry {
+  strategy: AgentProviderStrategy;
+  attempts: number;
+  requestMs: number;
+  firstEventMs?: number;
+  firstTextMs?: number;
+  eventSpanMs: number;
+  totalMs: number;
+  eventCount: number;
+  behavior: AgentStreamingBehavior;
+}
+
+export interface AgentNativeError {
+  code: AgentErrorCode;
+  message: string;
+  recovery?: string;
+  diagnosticId: string;
+  retryable: boolean;
 }
 
 export type AgentRunEvent =
   | { type: "started"; runId: string }
+  | { type: "capabilities"; runId: string; capabilities: AgentProviderCapabilities }
+  | {
+    type: "strategyFallback";
+    runId: string;
+    from: AgentProviderStrategy;
+    to: AgentProviderStrategy;
+    reason: string;
+  }
+  | {
+    type: "retryScheduled";
+    runId: string;
+    attempt: number;
+    delayMs: number;
+    diagnostic: AgentNativeError;
+  }
+  | { type: "reasoningSummaryDelta"; runId: string; text: string }
   | { type: "textDelta"; runId: string; text: string }
+  | { type: "toolStarted"; runId: string; callId: string; name: string }
+  | { type: "toolCompleted"; runId: string; callId: string; name: string }
+  | { type: "telemetry"; runId: string; telemetry: AgentStreamingTelemetry }
   | { type: "completed"; runId: string; text: string; skillId?: string }
   | { type: "cancelled"; runId: string }
-  | { type: "error"; runId: string; message: string };
+  | { type: "error"; runId: string; error: AgentNativeError };
 
 export interface AgentChangeSet<TOperation = unknown> {
   id: string;

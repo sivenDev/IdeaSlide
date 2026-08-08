@@ -1,5 +1,10 @@
 import { cancelAgent, runAgent } from "./agentClient";
-import type { AgentMessage, AgentRunRequest, AgentToolDescriptor } from "./types";
+import type {
+  AgentMessage,
+  AgentProviderCapabilities,
+  AgentRunRequest,
+  AgentToolDescriptor,
+} from "./types";
 import {
   COMPATIBILITY_AGENT_CAPABILITIES,
   createAgentEventId,
@@ -64,6 +69,17 @@ function errorFromCause(cause: unknown): AgentError {
   };
 }
 
+function normalizedCapabilities(capabilities: AgentProviderCapabilities): AgentCapabilities {
+  return {
+    ...COMPATIBILITY_AGENT_CAPABILITIES,
+    textStreaming: capabilities.textStreaming,
+    reasoningSummary: capabilities.reasoningSummary,
+    toolEvents: capabilities.toolEvents,
+    cancellation: capabilities.cancellation,
+    retry: capabilities.retry,
+  };
+}
+
 export function createCompatibilityAgentRuntime(): AgentRuntime {
   const activeTurns = new Map<string, ActiveCompatibilityTurn>();
 
@@ -121,16 +137,131 @@ export function createCompatibilityAgentRuntime(): AgentRuntime {
         tools: input.tools,
         messages: input.messages.map(({ role, content }) => ({ role, content })),
       };
+      let reasoningAdded = false;
+      let reasoningContent = "";
+      const toolItems = new Map<string, string>();
 
       try {
         const response = await runAgent(request, (event) => {
           if (!activeTurns.has(input.turnId)) return;
-          if (event.type === "textDelta") {
-            emitNext({ type: "itemDelta", itemId: assistantItemId, text: event.text });
+          switch (event.type) {
+            case "capabilities":
+              emitNext({
+                type: "capabilitiesUpdated",
+                capabilities: normalizedCapabilities(event.capabilities),
+              });
+              break;
+            case "strategyFallback":
+              emitNext({
+                type: "itemAdded",
+                item: {
+                  id: `${input.turnId}:fallback`,
+                  kind: "lifecycle",
+                  label: event.reason,
+                  status: "completed",
+                  createdAt: Date.now(),
+                },
+              });
+              break;
+            case "retryScheduled":
+              emitNext({
+                type: "itemAdded",
+                item: {
+                  id: `${input.turnId}:retry:${event.attempt}`,
+                  kind: "lifecycle",
+                  label: `Retrying provider request (attempt ${event.attempt}) in ${event.delayMs} ms`,
+                  status: "completed",
+                  createdAt: Date.now(),
+                },
+              });
+              break;
+            case "reasoningSummaryDelta": {
+              const itemId = `${input.turnId}:reasoning`;
+              reasoningContent += event.text;
+              if (!reasoningAdded) {
+                reasoningAdded = true;
+                emitNext({
+                  type: "itemAdded",
+                  item: {
+                    id: itemId,
+                    kind: "reasoningSummary",
+                    content: "",
+                    status: "running",
+                    createdAt: Date.now(),
+                  },
+                });
+              }
+              emitNext({ type: "itemDelta", itemId, text: event.text });
+              break;
+            }
+            case "textDelta":
+              emitNext({ type: "itemDelta", itemId: assistantItemId, text: event.text });
+              break;
+            case "toolStarted": {
+              if (toolItems.has(event.callId)) break;
+              const itemId = `${input.turnId}:tool:${event.callId}`;
+              toolItems.set(event.callId, itemId);
+              emitNext({
+                type: "itemAdded",
+                item: {
+                  id: itemId,
+                  kind: "tool",
+                  name: event.name,
+                  callId: event.callId,
+                  summary: "Provider Tool activity",
+                  status: "running",
+                  createdAt: Date.now(),
+                },
+              });
+              break;
+            }
+            case "toolCompleted": {
+              const itemId = toolItems.get(event.callId);
+              if (!itemId) break;
+              emitNext({
+                type: "itemUpdated",
+                item: {
+                  id: itemId,
+                  kind: "tool",
+                  name: event.name,
+                  callId: event.callId,
+                  summary: "Provider Tool activity",
+                  status: "completed",
+                  createdAt: Date.now(),
+                },
+              });
+              break;
+            }
+            case "telemetry":
+              emitNext({ type: "telemetryUpdated", telemetry: event.telemetry });
+              break;
+            case "error":
+              emitNext({ type: "turnFailed", assistantItemId, error: event.error });
+              activeTurns.delete(input.turnId);
+              break;
+            case "cancelled":
+              emitNext({ type: "turnCancelled", label: "Agent run cancelled" });
+              activeTurns.delete(input.turnId);
+              break;
+            case "started":
+            case "completed":
+              break;
           }
         });
         if (!activeTurns.has(input.turnId)) {
           return { runId: input.turnId, text: response.text, nextSequence: sequence, assistantItemId };
+        }
+        if (reasoningAdded) {
+          emitNext({
+            type: "itemUpdated",
+            item: {
+              id: `${input.turnId}:reasoning`,
+              kind: "reasoningSummary",
+              content: reasoningContent,
+              status: "completed",
+              createdAt: Date.now(),
+            },
+          });
         }
         activeTurns.delete(input.turnId);
         return { runId: response.runId, text: response.text, nextSequence: sequence, assistantItemId };
