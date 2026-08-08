@@ -2,7 +2,7 @@
 id: "F033-01"
 title: "Normalize the Agent SDK and Codex-style Interaction UI"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Replace the flattened Agent chat state with an IdeaNote-owned Thread, Turn, Item, Event, and capability SDK plus safe Markdown and first-class activity UI."
 source: "docs/superplan/human/features.md"
 created: "2026-08-08"
@@ -43,9 +43,9 @@ parent: "F033"
 - `node --test tests/agentProtocol.test.mjs tests/agentStore.test.mjs tests/agentExtensionRegistry.test.mjs tests/agentChangeSet.test.mjs`
 - Cases: ordered/out-of-order deltas; duplicate event ids; missing sequence diagnostics; cancellation; late completion; retry linkage; unsupported reasoning/steering; editor binding captured at Turn start.
 
-- [ ] Add the normalized public SDK without leaking Tauri, Rig, assistant-ui, Codex, ACP, or provider types.
-- [ ] Project deterministic Events into stable Thread, Turn, and Item state.
-- [ ] Wrap the current runtime as a capability-limited compatibility adapter.
+- [x] Add the normalized public SDK without leaking Tauri, Rig, assistant-ui, Codex, ACP, or provider types.
+- [x] Project deterministic Events into stable Thread, Turn, and Item state.
+- [x] Wrap the current runtime as a capability-limited compatibility adapter.
 
 ## Task 2: Render Safe Markdown and First-class Agent Activity
 
@@ -76,9 +76,9 @@ parent: "F033"
 - `node --test tests/agentMarkdown.test.mjs tests/agentItems.test.mjs tests/agentPanel.test.mjs tests/agentChangeSet.test.mjs`
 - Browser cases: heading, list, emphasis, link, fenced code; reasoning disclosure; plan/tool timeline; approval and Change Review cards; configuration/error states; keyboard and screen-reader labels.
 
-- [ ] Render assistant content as safe Markdown in the narrow Agent column.
-- [ ] Render reasoning, plan, Tool, approval, review, and error Items from structured state.
-- [ ] Preserve proposal-only Change Sets and editor-owned review/apply behavior.
+- [x] Render assistant content as safe Markdown in the narrow Agent column.
+- [x] Render reasoning, plan, Tool, approval, review, and error Items from structured state.
+- [x] Preserve proposal-only Change Sets and editor-owned review/apply behavior.
 
 ## Task 3: Complete Interaction, Performance, and Layout Acceptance
 
@@ -106,9 +106,17 @@ parent: "F033"
 - `npm run build`
 - Browser cases: real-stream fake; buffered fake; Stop; retry; steering hidden/visible by capability; scroll anchoring; 1,000-Item transcript; AI disable; Workspace and Single File layouts; Canvas pointer stability.
 
-- [ ] Deliver observable lifecycle transitions for Send, Stop, retry, and capability-gated steering.
-- [ ] Keep long and streaming transcripts responsive and accessible.
-- [ ] Verify the independent Agent column and current editor safety regressions end to end.
+- [x] Deliver observable lifecycle transitions for Send, Stop, retry, and capability-gated steering.
+- [x] Keep long and streaming transcripts responsive and accessible.
+- [x] Verify the independent Agent column and current editor safety regressions end to end.
+
+## Completion Evidence
+
+- Public SDK and reducer: `protocol.ts`, `agentRuntime.ts`, and `agentStore.ts` now define the IdeaNote-owned Thread/Turn/Item/Event/Error/Capability boundary. Focused tests prove ordered and buffered deltas, duplicate suppression, foreign-thread diagnostics, terminal cancellation, ignored late completion, explicit retry linkage, post-completion Change Review updates, and Turn-start editor binding capture without transport or provider types in the public protocol.
+- Runtime truthfulness and performance: the existing native text stream is isolated behind a compatibility adapter that advertises text streaming, cancellation, and retry only. Delta events are frame-batched, lifecycle events flush immediately, buffered output says `Waiting for the model`, cancellation cannot be overwritten by a late completion, and unsupported reasoning, plans, approvals, steering, and persistence are not fabricated.
+- UI and safety: `react-markdown` 10.1.0 plus `remark-gfm` 4.0.1 render GFM with raw HTML disabled, safe external links, wrapped code, and Copy. Structured Item components render messages, reasoning summaries, plans, Tool activity, approvals, editor-owned Change Reviews, classified errors, and lifecycle boundaries. Apply still requires the captured document/extension, current revision/status/source marker, and the existing proposal-only Change Set path.
+- Interaction and visual acceptance: the independent left Explorer, center editor, and right Agent layout was exercised in a temporary browser harness using the production components and normalized fake Items. Complete, waiting, Stop, failed, explicit Retry, Markdown, Tool, plan, reasoning-summary, Change Review, and capability-degraded states rendered correctly; retry visibly returned to `Waiting for the model`. The harness was removed after inspection.
+- Verification: focused Agent tests passed 20/20 in the final full run; `node --test tests/*.test.mjs` passed 289/289; `npm run build` passed; dependency inspection confirmed only the intended Markdown packages; and `git diff --check` passed. The build retains only the existing Excalidraw dynamic/static import overlap and large-chunk informational warnings.
 
 ## References
 

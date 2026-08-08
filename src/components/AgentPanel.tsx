@@ -1,40 +1,35 @@
 import {
   AssistantRuntimeProvider,
-  MessagePrimitive,
   ThreadPrimitive,
   useExternalStoreRuntime,
 } from "@assistant-ui/react";
-import { Bot, Settings2, Sparkles } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Bot, Settings2 } from "lucide-react";
+import { useEffect, useMemo, useRef } from "react";
+import { useAgentThread } from "../hooks/useAgentThread";
 import { useSettings } from "../hooks/useSettings";
-import { cancelAgent, discoverAgentSkills, runAgent } from "../lib/agent/agentClient";
+import { createCompatibilityAgentRuntime } from "../lib/agent/agentRuntime";
+import { discoverAgentSkills } from "../lib/agent/agentClient";
 import { markAgentChangeSetApplied, markAgentChangeSetStale, rejectAgentChangeSet } from "../lib/agent/changeSet";
 import { promptFromAssistantUiMessage, toAssistantUiMessage } from "../lib/agent/assistantUiAdapter";
-import type { ActiveAgentEditorBinding, AgentChangeSet, AgentMessage } from "../lib/agent/types";
-import { AgentComposer } from "./agent/AgentComposer";
-import { AgentToolActivity } from "./agent/AgentToolActivity";
-import { IdeaSketchChangeReview } from "./agent/IdeaSketchChangeReview";
+import type { AgentChangeSet, ActiveAgentEditorBinding } from "../lib/agent/types";
+import {
+  createAgentEventId,
+  type AgentChangeReviewItem,
+  type AgentEvent,
+  type AgentTurn,
+} from "../lib/agent/protocol";
 import type { IdeaSketchAgentOperation } from "../lib/agent/extensions/ideaSketchAgentExtension";
+import { AgentComposer } from "./agent/AgentComposer";
+import { AgentThreadHeader } from "./agent/AgentThreadHeader";
+import { AgentTranscript } from "./agent/AgentTranscript";
+import { IdeaSketchChangeReview } from "./agent/IdeaSketchChangeReview";
 
 function visibleResponse(text: string): string {
   return text.replace(/```ideanote-change[\s\S]*?```/gi, "").trim();
 }
 
-function UserAgentMessage() {
-  return (
-    <MessagePrimitive.Root className="ideanote-agent-message is-user">
-      <MessagePrimitive.Content />
-    </MessagePrimitive.Root>
-  );
-}
-
-function AssistantAgentMessage() {
-  return (
-    <MessagePrimitive.Root className="ideanote-agent-message is-assistant">
-      <Sparkles aria-hidden size={13} />
-      <MessagePrimitive.Content />
-    </MessagePrimitive.Root>
-  );
+function turnForReview(turns: AgentTurn[], itemId: string): AgentTurn | undefined {
+  return turns.find((turn) => turn.items.some((item) => item.id === itemId));
 }
 
 export function AgentPanel({
@@ -45,141 +40,235 @@ export function AgentPanel({
   onOpenSettings: () => void;
 }) {
   const { settings, activationState } = useSettings();
-  const [messages, setMessages] = useState<AgentMessage[]>([
-    { id: "welcome", role: "assistant", content: "I can inspect the active IdeaSketch file and prepare reviewable changes.", createdAt: Date.now() },
-  ]);
-  const [running, setRunning] = useState(false);
-  const [activity, setActivity] = useState<string>();
-  const [error, setError] = useState<string>();
-  const [changeSet, setChangeSet] = useState<AgentChangeSet>();
+  const runtime = useMemo(() => createCompatibilityAgentRuntime(), []);
   const runGeneration = useRef(0);
   const activeRunId = useRef<string | undefined>(undefined);
+  const title = binding?.document.displayName ?? "Current file";
+  const bindingDocumentId = binding?.document.id;
+  const bindingExtensionId = binding?.extensionId;
+  const bindingSkillId = binding?.skillId;
+  const welcome = binding
+    ? `I can inspect **${binding.document.displayName}** and prepare reviewable changes.`
+    : "Open a supported file to give the Agent editor context.";
+  const {
+    state,
+    emit,
+    setNotice,
+    removeNotice,
+    messages,
+    retryPrompt,
+    retryTurnId,
+  } = useAgentThread({
+    bindingKey: `${bindingDocumentId ?? "none"}:${bindingExtensionId ?? "none"}`,
+    title,
+    welcome,
+    capabilities: runtime.capabilities,
+  });
+  const running = Boolean(state.activeTurnId);
 
   useEffect(() => {
-    if (activationState !== "ready" || !binding) return;
+    if (activationState !== "ready" || !bindingSkillId) return;
     let active = true;
     discoverAgentSkills()
       .then((skills) => {
-        if (active && !skills.some((skill) => skill.id === binding.skillId)) {
-          setError(`The ${binding.skillId} Skill is not installed.`);
+        if (!active) return;
+        if (skills.some((skill) => skill.id === bindingSkillId)) {
+          removeNotice("skill-discovery-error");
+        } else {
+          setNotice({
+            id: "skill-discovery-error",
+            kind: "error",
+            status: "failed",
+            createdAt: Date.now(),
+            error: {
+              code: "runtimeUnavailable",
+              message: `The ${bindingSkillId} Skill is not installed.`,
+              recovery: "Reinstall the application or restore its packaged Agent Skills.",
+              retryable: false,
+            },
+          });
         }
       })
-      .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : String(cause)); });
+      .catch((cause) => {
+        if (!active) return;
+        setNotice({
+          id: "skill-discovery-error",
+          kind: "error",
+          status: "failed",
+          createdAt: Date.now(),
+          error: {
+            code: "runtimeUnavailable",
+            message: cause instanceof Error ? cause.message : String(cause),
+            recovery: "Retry after restarting the Agent or open Settings to verify AI is enabled.",
+            retryable: true,
+          },
+        });
+      });
     return () => { active = false; };
-  }, [activationState, binding?.skillId]);
+  }, [activationState, bindingSkillId, removeNotice, setNotice]);
 
   useEffect(() => {
     runGeneration.current += 1;
-    const runId = activeRunId.current;
+    const turnId = activeRunId.current;
     activeRunId.current = undefined;
-    if (runId) void cancelAgent(runId).catch(() => undefined);
-    setRunning(false);
-    setActivity(undefined);
-    setError(undefined);
-    setChangeSet(undefined);
-    setMessages([
-      {
-        id: "welcome",
-        role: "assistant",
-        content: binding
-          ? `I can inspect the active ${binding.fileType} file and prepare reviewable changes.`
-          : "Open a supported file to give the Agent editor context.",
-        createdAt: Date.now(),
-      },
-    ]);
-  }, [binding?.document.id, binding?.extensionId]);
+    if (turnId) void runtime.cancelTurn(turnId).catch(() => undefined);
+  }, [bindingDocumentId, bindingExtensionId, runtime]);
 
-  const submit = async (prompt: string) => {
-    if (!binding?.document.model || activationState !== "ready") return;
-    const { document } = binding;
+  const submit = async (prompt: string, retryOfTurnId?: string) => {
+    if (!binding?.document.model || activationState !== "ready" || running) return;
+    const capturedBinding = binding;
     const generation = ++runGeneration.current;
-    const runId = crypto.randomUUID();
-    const assistantMessageId = crypto.randomUUID();
-    activeRunId.current = runId;
-    const userMessage: AgentMessage = { id: crypto.randomUUID(), role: "user", content: prompt, createdAt: Date.now() };
-    const previousMessages = messages;
-    setMessages((current) => [
-      ...current,
-      userMessage,
-      { id: assistantMessageId, role: "assistant", content: "", createdAt: Date.now() },
-    ]);
-    setRunning(true);
-    setError(undefined);
-    setActivity(`Loaded ${binding.skillId} Skill and ${binding.tools.length} editor Tools`);
+    const turnId = crypto.randomUUID();
+    activeRunId.current = turnId;
     try {
-      let streamedText = "";
-      const response = await runAgent({
-        runId,
+      const result = await runtime.startTurn({
+        threadId: state.thread.id,
+        turnId,
+        retryOfTurnId,
         prompt,
+        binding: {
+          documentId: capturedBinding.document.id,
+          documentName: capturedBinding.document.displayName ?? "Untitled",
+          extensionId: capturedBinding.extensionId,
+          fileType: capturedBinding.fileType,
+          skillId: capturedBinding.skillId,
+          revision: capturedBinding.document.revision,
+          sourceModified: capturedBinding.document.sourceModified,
+        },
         baseUrl: settings.ai.baseUrl,
         model: settings.ai.model,
         systemPrompt: settings.ai.systemPrompt,
-        skillId: binding.skillId,
-        context: binding.buildContext(),
-        tools: binding.tools,
-        messages: previousMessages.map(({ role, content }) => ({ role, content })),
-      }, (event) => {
-        if (generation !== runGeneration.current || event.runId !== runId) return;
-        if (event.type === "textDelta") {
-          streamedText += event.text;
-          const content = visibleResponse(streamedText);
-          setMessages((current) => current.map((message) => (
-            message.id === assistantMessageId ? { ...message, content } : message
-          )));
-        }
-      });
-      if (generation !== runGeneration.current) return;
-      const content = visibleResponse(response.text) || "I prepared a change proposal for review.";
-      setMessages((current) => current.map((message) => (
-        message.id === assistantMessageId ? { ...message, content } : message
-      )));
-      const proposal = binding.parseChangeSet(response.text);
+        context: capturedBinding.buildContext(),
+        tools: capturedBinding.tools,
+        messages,
+      }, emit);
+      if (generation !== runGeneration.current || activeRunId.current !== turnId) return;
+      let sequence = result.nextSequence;
+      const responseText = visibleResponse(result.text) || "I prepared a change proposal for review.";
+      const proposal = capturedBinding.parseChangeSet(result.text);
       if (proposal) {
-        setChangeSet({
+        const changeSet: AgentChangeSet = {
           ...proposal,
-          baseDocumentStatus: document.status,
-          baseSourceModified: document.sourceModified,
-        });
-        setActivity("Mutation Tool produced a proposal; no file was written");
-      } else {
-        setActivity("Agent run completed");
+          baseDocumentStatus: capturedBinding.document.status,
+          baseSourceModified: capturedBinding.document.sourceModified,
+        };
+        const reviewEvent: AgentEvent = {
+          type: "itemAdded",
+          eventId: createAgentEventId(turnId, sequence, "itemAdded"),
+          threadId: state.thread.id,
+          turnId,
+          sequence,
+          at: Date.now(),
+          item: {
+            id: `${turnId}:change-review`,
+            kind: "changeReview",
+            changeSet,
+            status: "pending",
+            createdAt: Date.now(),
+          },
+        };
+        sequence += 1;
+        emit(reviewEvent);
       }
-    } catch (cause) {
-      if (generation === runGeneration.current) setError(cause instanceof Error ? cause.message : String(cause));
+      emit({
+        type: "turnCompleted",
+        eventId: createAgentEventId(turnId, sequence, "turnCompleted"),
+        threadId: state.thread.id,
+        turnId,
+        sequence,
+        at: Date.now(),
+        assistantItemId: result.assistantItemId,
+        finalText: responseText,
+      });
+    } catch {
+      // The runtime emits a normalized failure Item before rejecting.
     } finally {
-      if (activeRunId.current === runId) activeRunId.current = undefined;
-      if (generation === runGeneration.current) setRunning(false);
+      if (activeRunId.current === turnId) activeRunId.current = undefined;
     }
   };
 
-  const cancel = () => {
-    const runId = activeRunId.current;
+  const cancel = async () => {
+    const turnId = activeRunId.current;
+    if (!turnId) return;
+    const activeGeneration = runGeneration.current;
     runGeneration.current += 1;
-    activeRunId.current = undefined;
-    setRunning(false);
-    setActivity("Cancelling Agent run…");
-    if (runId) {
-      cancelAgent(runId)
-        .then((cancelled) => setActivity(cancelled ? "Agent run cancelled" : "Agent run already completed"))
-        .catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)));
+    try {
+      await runtime.cancelTurn(turnId);
+      if (activeRunId.current === turnId) activeRunId.current = undefined;
+    } catch (cause) {
+      if (activeRunId.current === turnId) runGeneration.current = activeGeneration;
+      setNotice({
+        id: "cancel-error",
+        kind: "error",
+        status: "failed",
+        createdAt: Date.now(),
+        error: {
+          code: "runtimeUnavailable",
+          message: cause instanceof Error ? cause.message : String(cause),
+          recovery: "Retry cancelling or restart the Agent.",
+          retryable: true,
+        },
+      });
     }
   };
 
-  const approve = () => {
-    if (!changeSet || !binding) return;
-    const { document } = binding;
-    if (
-      binding.readOnly
-      || document.status !== "editable"
-      || document.revision !== changeSet.baseRevision
-      || changeSet.baseDocumentStatus !== document.status
-      || changeSet.baseSourceModified !== document.sourceModified
-    ) {
-      setChangeSet(markAgentChangeSetStale(changeSet));
-      return;
+  const updateReview = (item: AgentChangeReviewItem, changeSet: AgentChangeSet) => {
+    const turn = turnForReview(state.thread.turns, item.id);
+    if (!turn) return;
+    const sequence = state.nextSequenceByTurn[turn.id] ?? 0;
+    emit({
+      type: "itemUpdated",
+      eventId: createAgentEventId(turn.id, sequence, "itemUpdated"),
+      threadId: state.thread.id,
+      turnId: turn.id,
+      sequence,
+      at: Date.now(),
+      item: {
+        ...item,
+        changeSet,
+        status: changeSet.status === "proposed" ? "pending" : "completed",
+      },
+    });
+  };
+
+  const renderChangeReview = (item: AgentChangeReviewItem) => {
+    if (!binding || item.changeSet.extensionId !== binding.extensionId || binding.fileType !== "ideasketch") {
+      return <div className="ideanote-agent-review is-stale">The original editor is not active. Reopen it to review this proposal.</div>;
     }
-    if (binding.applyChangeSet(changeSet)) setChangeSet(markAgentChangeSetApplied(changeSet));
-    else setChangeSet(markAgentChangeSetStale(changeSet));
+    const turn = turnForReview(state.thread.turns, item.id);
+    const capturedTargetMatches = turn?.binding.documentId === binding.document.id
+      && turn.binding.extensionId === binding.extensionId;
+    const approve = () => {
+      const { document } = binding;
+      const changeSet = item.changeSet;
+      if (
+        !capturedTargetMatches
+        || binding.readOnly
+        || document.status !== "editable"
+        || document.revision !== changeSet.baseRevision
+        || changeSet.baseDocumentStatus !== document.status
+        || changeSet.baseSourceModified !== document.sourceModified
+      ) {
+        updateReview(item, markAgentChangeSetStale(changeSet));
+        return;
+      }
+      updateReview(
+        item,
+        binding.applyChangeSet(changeSet)
+          ? markAgentChangeSetApplied(changeSet)
+          : markAgentChangeSetStale(changeSet),
+      );
+    };
+    return (
+      <IdeaSketchChangeReview
+        changeSet={item.changeSet as AgentChangeSet<IdeaSketchAgentOperation>}
+        readOnly={binding.readOnly || !capturedTargetMatches}
+        onApprove={approve}
+        onReject={() => updateReview(item, rejectAgentChangeSet(item.changeSet))}
+        onUndo={binding.undo}
+        canUndo={binding.canUndo}
+      />
+    );
   };
 
   const assistantRuntime = useExternalStoreRuntime({
@@ -194,7 +283,7 @@ export function AgentPanel({
       const prompt = promptFromAssistantUiMessage(message);
       if (prompt) await submit(prompt);
     },
-    onCancel: async () => cancel(),
+    onCancel: cancel,
   });
 
   if (activationState === "configuration-required") {
@@ -213,7 +302,7 @@ export function AgentPanel({
       <div className="ideanote-agent-empty">
         <div className="ideanote-agent-empty__icon"><Bot aria-hidden size={20} /></div>
         <h3>No Active Editor</h3>
-        <p>Open a supported file to give the Agent editor context and Tools.</p>
+        <p>Open a supported file to give the Agent editor context and tools.</p>
       </div>
     );
   }
@@ -221,24 +310,27 @@ export function AgentPanel({
   return (
     <AssistantRuntimeProvider runtime={assistantRuntime}>
       <ThreadPrimitive.Root className="ideanote-agent-panel">
-        <ThreadPrimitive.Viewport className="ideanote-agent-messages" aria-live="polite">
-          <ThreadPrimitive.Messages
-            components={{ UserMessage: UserAgentMessage, AssistantMessage: AssistantAgentMessage }}
-          />
-          {activity && settings.agent.showToolActivity && <AgentToolActivity text={activity} />}
-          {changeSet && binding.fileType === "ideasketch" && (
-            <IdeaSketchChangeReview
-              changeSet={changeSet as AgentChangeSet<IdeaSketchAgentOperation>}
-              readOnly={binding.readOnly}
-              onApprove={approve}
-              onReject={() => setChangeSet(rejectAgentChangeSet(changeSet))}
-              onUndo={binding.undo}
-              canUndo={binding.canUndo}
-            />
-          )}
-          {error && <div className="ideanote-agent-error">{error}</div>}
-        </ThreadPrimitive.Viewport>
-        <AgentComposer disabled={activationState !== "ready"} running={running} />
+        <AgentThreadHeader
+          title={title}
+          runtimeLabel={runtime.label}
+          capabilities={state.capabilities}
+          running={running}
+          onOpenSettings={onOpenSettings}
+        />
+        <AgentTranscript
+          state={state}
+          showToolActivity={settings.agent.showToolActivity}
+          onRetry={retryPrompt ? () => void submit(retryPrompt, retryTurnId) : undefined}
+          renderChangeReview={renderChangeReview}
+        />
+        <AgentComposer
+          disabled={activationState !== "ready"}
+          running={running}
+          steeringAvailable={state.capabilities.steering}
+          retryAvailable={Boolean(retryPrompt)}
+          targetLabel={binding.document.displayName ?? "Untitled"}
+          onRetry={() => { if (retryPrompt) void submit(retryPrompt, retryTurnId); }}
+        />
       </ThreadPrimitive.Root>
     </AssistantRuntimeProvider>
   );
