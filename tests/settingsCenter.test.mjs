@@ -25,3 +25,17 @@ test('Agent settings explain complete disable semantics in English', async () =>
   assert.match(source, /load Skills or Tools/);
   assert.match(source, /call a model/);
 });
+
+test('AI Provider settings expose typed-token visibility and bounded automatic retries', async () => {
+  const source = await readFile(new URL('../src/components/settings/AiProviderSettings.tsx', import.meta.url), 'utf8');
+  assert.match(source, /Encrypted local credential/);
+  assert.match(source, /apiKeyVisible \? "text" : "password"/);
+  assert.match(source, /Show API key/);
+  assert.match(source, /Hide API key/);
+  assert.match(source, /Automatic retry/);
+  assert.match(source, /Maximum attempts/);
+  assert.match(source, /min=\{1\}/);
+  assert.match(source, /max=\{5\}/);
+  assert.match(source, /disabled=\{!settings\.ai\.retry\.enabled\}/);
+  assert.doesNotMatch(source, /system credential vault|Keychain/i);
+});

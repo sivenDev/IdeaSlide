@@ -79,9 +79,10 @@ pub(crate) async fn run_agent(
     request: AgentRunRequest,
     on_event: Channel<AgentRunEvent>,
     state: tauri::State<'_, AgentSessionState>,
+    app_handle: tauri::AppHandle,
 ) -> Result<AgentRunResponse, String> {
     let run_id = request.run_id.clone();
-    let api_key = settings::read_provider_api_key()?
+    let api_key = settings::read_provider_api_key(&app_handle)?
         .ok_or_else(|| "AI provider configuration is required".to_string())?;
     let cancellation = state.start_run(&run_id)?;
     let _ = on_event.send(AgentRunEvent::Started {

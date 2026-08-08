@@ -8,11 +8,10 @@ use uuid::Uuid;
 
 use super::types::{
     AgentErrorCode, AgentErrorDiagnostic, AgentMessageInput, AgentMessageRole,
-    AgentProviderCapabilities, AgentProviderStrategy, AgentStreamingTelemetry, AgentToolCall,
-    AgentToolDescriptor, StreamingBehavior,
+    AgentProviderCapabilities, AgentProviderStrategy, AgentRetryPolicy, AgentStreamingTelemetry,
+    AgentToolCall, AgentToolDescriptor, StreamingBehavior,
 };
 
-const MAX_ATTEMPTS: u8 = 3;
 const MAX_ERROR_BODY_BYTES: usize = 8 * 1024;
 
 pub(crate) struct ProviderRequest {
@@ -23,6 +22,7 @@ pub(crate) struct ProviderRequest {
     pub messages: Vec<AgentMessageInput>,
     pub tools: Vec<AgentToolDescriptor>,
     pub strategy: AgentProviderStrategy,
+    pub retry: AgentRetryPolicy,
 }
 
 #[derive(Debug)]
@@ -131,6 +131,7 @@ pub(crate) async fn complete(
     let total_started = std::time::Instant::now();
     let mut strategy = request.strategy;
     let mut attempt = 1_u8;
+    let max_attempts = effective_max_attempts(request.retry);
 
     loop {
         if *cancelled.borrow() {
@@ -197,7 +198,7 @@ pub(crate) async fn complete(
             Err(failure)
                 if failure.diagnostic.retryable
                     && !failure.visible_progress
-                    && attempt < max_attempts_for(failure.diagnostic.code) =>
+                    && attempt < max_attempts =>
             {
                 let delay_ms = retry_delay_ms(attempt);
                 emit(ProviderProgress::RetryScheduled {
@@ -1007,12 +1008,11 @@ fn retry_delay_ms(attempt: u8) -> u64 {
     250_u64.saturating_mul(1_u64 << attempt.saturating_sub(1))
 }
 
-fn max_attempts_for(code: AgentErrorCode) -> u8 {
-    match code {
-        AgentErrorCode::NetworkUnavailable
-        | AgentErrorCode::TlsFailure
-        | AgentErrorCode::RequestTimeout => 2,
-        _ => MAX_ATTEMPTS,
+fn effective_max_attempts(policy: AgentRetryPolicy) -> u8 {
+    if policy.enabled {
+        policy.max_attempts.clamp(1, 5)
+    } else {
+        1
     }
 }
 
@@ -1089,6 +1089,7 @@ mod contract_tests {
                 messages: Vec::new(),
                 tools: Vec::new(),
                 strategy: AgentProviderStrategy::Responses,
+                retry: AgentRetryPolicy::default(),
             },
             AgentProviderStrategy::Responses,
         );
@@ -1189,8 +1190,28 @@ mod contract_tests {
             assert!(diagnostic.retryable);
             assert!(diagnostic.recovery.is_some());
         }
-        assert_eq!(max_attempts_for(AgentErrorCode::RequestTimeout), 2);
-        assert_eq!(max_attempts_for(AgentErrorCode::RateLimited), 3);
+        assert_eq!(effective_max_attempts(AgentRetryPolicy::default()), 3);
+        assert_eq!(
+            effective_max_attempts(AgentRetryPolicy {
+                enabled: false,
+                max_attempts: 5,
+            }),
+            1
+        );
+        assert_eq!(
+            effective_max_attempts(AgentRetryPolicy {
+                enabled: true,
+                max_attempts: 0,
+            }),
+            1
+        );
+        assert_eq!(
+            effective_max_attempts(AgentRetryPolicy {
+                enabled: true,
+                max_attempts: 9,
+            }),
+            5
+        );
     }
 
     #[test]

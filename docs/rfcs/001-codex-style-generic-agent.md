@@ -34,14 +34,14 @@ Confirmed baseline gaps:
 - Conversations are component-local rather than persistent Threads and Turns.
 - A running request can be cancelled but cannot be steered.
 - Provider errors are not classified or presented with actionable recovery.
-- Safe automatic retry is not implemented.
+- Safe pre-progress automatic retry exists and is controlled by versioned Settings with a one-to-five total-attempt bound.
 - The configured gateway has shown intermittent TLS failures.
 - The configured gateway may buffer hundreds of SSE chunks until generation is complete, producing no meaningful visible streaming despite using a streaming protocol.
 
 The current architecture remains valuable:
 
 - AI enablement is a complete lifecycle gate.
-- Credentials stay in the native credential vault.
+- Credentials stay in Rust-owned authenticated-encrypted application configuration and never enter frontend settings or Agent history.
 - The Agent occupies an independent application-level right column.
 - The Agent runtime is editor-agnostic.
 - File Type Registry selects an Agent Extension.
@@ -531,7 +531,7 @@ Codex app-server support for MCP does not restore IdeaNote's retired MCP product
 
 ### 9.2 OpenAI-compatible adapter
 
-The compatibility adapter preserves the existing user-configurable Base URL, Model, and native Credential Vault path.
+The compatibility adapter preserves the user-configurable Base URL and Model while reading the API key only through the Rust encrypted credential repository. Existing Keychain data is neither read nor removed automatically; users save the token once into the new repository.
 
 It should migrate from the current text-only Chat Completions loop toward a provider abstraction that can support:
 
@@ -690,7 +690,7 @@ Automatic retry is allowed only when all are true:
 - the user has not cancelled;
 - the configured attempt limit is not exceeded.
 
-Use exponential backoff with jitter. Retry metadata remains part of the same visible Turn.
+Versioned Settings default automatic retry to enabled with three total attempts. Users may disable it or choose one to five total attempts. A Turn captures the effective policy when it starts, so later Settings changes do not alter an in-flight request. Use cancellable exponential backoff. Retry metadata remains part of the same visible Turn.
 
 ### 12.3 Retry after partial progress
 
@@ -736,8 +736,10 @@ Long-running Threads may compact older model context while retaining the user-vi
 
 ## 14. Security and approval
 
-- Credentials remain exclusively in Rust/native secure storage.
-- The frontend never receives provider API keys.
+- Credentials remain exclusively in a Rust-owned AES-256-GCM repository under the platform application configuration directory. The random application key is stored separately with current-user-only permissions where the platform supports them.
+- The encrypted repository prevents plaintext-at-rest disclosure and prevents the credential envelope alone from revealing the token. It is not an OS-vault boundary: a process running as the same operating-system user that can read both files can decrypt the token.
+- The frontend never receives saved provider API keys. The Settings visibility control reveals only the value currently typed by the user and resets to hidden after save or removal.
+- Credentials, key material, and plaintext never enter Workspace files, `.ideanote/`, Recovery, caches, logs, persisted Threads, or serialized frontend Settings.
 - Tool schemas and arguments are validated at the trusted host boundary.
 - Only the active registered editor extension can receive editor Tool calls.
 - Read Tools return bounded data with truncation markers.

@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { load, type Store } from "@tauri-apps/plugin-store";
 
-export const SETTINGS_SCHEMA_VERSION = 1;
+export const SETTINGS_SCHEMA_VERSION = 2;
 const SETTINGS_STORE_PATH = "settings.json";
 const SETTINGS_STORE_KEY = "settings";
 const BROWSER_STORAGE_KEY = "ideanote.settings.v1";
@@ -17,6 +17,10 @@ export interface AppSettings {
     baseUrl: string;
     model: string;
     systemPrompt: string;
+    retry: {
+      enabled: boolean;
+      maxAttempts: number;
+    };
   };
   agent: {
     maxSteps: number;
@@ -42,6 +46,10 @@ export const DEFAULT_SETTINGS = Object.freeze({
     baseUrl: "https://api.openai.com/v1",
     model: "gpt-5-mini",
     systemPrompt: "You are IdeaNote's editor assistant. Use the active editor skill and propose changes for review before applying them.",
+    retry: {
+      enabled: true,
+      maxAttempts: 3,
+    },
   },
   agent: {
     maxSteps: 8,
@@ -60,6 +68,7 @@ export function normalizeSettings(value: unknown): AppSettings {
   if (!isRecord(value)) return structuredClone(DEFAULT_SETTINGS);
   const general = isRecord(value.general) ? value.general : {};
   const ai = isRecord(value.ai) ? value.ai : {};
+  const retry = isRecord(ai.retry) ? ai.retry : {};
   const agent = isRecord(value.agent) ? value.agent : {};
   const ideaSketch = isRecord(value.ideaSketch) ? value.ideaSketch : {};
   const maxSteps = typeof agent.maxSteps === "number" && Number.isFinite(agent.maxSteps)
@@ -81,6 +90,12 @@ export function normalizeSettings(value: unknown): AppSettings {
       systemPrompt: typeof ai.systemPrompt === "string" && ai.systemPrompt.trim()
         ? ai.systemPrompt.trim()
         : DEFAULT_SETTINGS.ai.systemPrompt,
+      retry: {
+        enabled: typeof retry.enabled === "boolean" ? retry.enabled : DEFAULT_SETTINGS.ai.retry.enabled,
+        maxAttempts: typeof retry.maxAttempts === "number" && Number.isFinite(retry.maxAttempts)
+          ? Math.min(5, Math.max(1, Math.round(retry.maxAttempts)))
+          : DEFAULT_SETTINGS.ai.retry.maxAttempts,
+      },
     },
     agent: {
       maxSteps,

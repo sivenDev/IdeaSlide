@@ -252,3 +252,10 @@ Create an independent RFC for evolving IdeaNote's editor-agnostic AI Agent towar
 - created: 2026-08-08
 
 Implement accepted RFC 001 in independently deliverable phases: first add the IdeaNote-owned Agent SDK, normalized Thread/Turn/Item/Event state, safe Markdown, and Codex-style activity UI; then harden the OpenAI-compatible adapter with capability negotiation, classified diagnostics, safe retry, and streaming timing; then spike pinned Codex app-server and Grok Build ACP adapters against the same editor Tool and lifecycle contract; finally add persistent Threads, cancellation/steering/approvals, editor dynamic Tool routing, and a second-editor reuse proof. Preserve the independent right column, AI lifecycle gate, registry-driven editor extensions, proposal-only Change Sets, explicit Apply/Undo, secure credentials, and the retired MCP product surface.
+
+## F034: Store the AI token in encrypted application configuration
+
+- status: done
+- created: 2026-08-09
+
+Replace the native OS Credential Vault path for the AI provider token with a simple encrypted credential file under the application configuration directory. Keep plaintext out of frontend state, logs, Workspace files, Recovery, and Agent history; remove Keychain-facing UX and runtime dependency. Use authenticated encryption with application-owned key material, document the reduced same-user threat model, and require the user to save the token once in the new storage rather than triggering an automatic Keychain migration prompt. In AI Provider Settings, add a password visibility toggle for the token currently being entered and configurable automatic retry enablement plus a bounded maximum-attempt count.

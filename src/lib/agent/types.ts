@@ -100,10 +100,16 @@ export interface AgentRunRequest {
   baseUrl: string;
   model: string;
   systemPrompt: string;
+  retry: AgentRetryPolicy;
   skillId?: string;
   context: Record<string, unknown>;
   tools: AgentToolDescriptor[];
   messages: Array<Pick<AgentMessage, "role" | "content">>;
+}
+
+export interface AgentRetryPolicy {
+  enabled: boolean;
+  maxAttempts: number;
 }
 
 export interface AgentRunResponse {

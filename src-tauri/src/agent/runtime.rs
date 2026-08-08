@@ -36,6 +36,7 @@ pub(crate) async fn complete(
             messages: request.messages,
             tools: request.tools,
             strategy: super::types::AgentProviderStrategy::Responses,
+            retry: request.retry,
         },
         api_key,
         cancelled,
@@ -81,6 +82,7 @@ mod tests {
             base_url,
             model: "test-model".to_string(),
             system_prompt: "Follow the editor contract".to_string(),
+            retry: Default::default(),
             skill_id: None,
             context: serde_json::json!({"documentType": "test"}),
             tools: vec![AgentToolDescriptor {
@@ -350,6 +352,37 @@ mod tests {
                 .expect("requests should lock")
                 .len(),
             2
+        );
+    }
+
+    #[tokio::test]
+    async fn disabled_automatic_retry_stops_after_the_initial_attempt() {
+        let (base_url, captured_requests) = provider_server(vec![TestResponse::failure(
+            429,
+            r#"{"error":{"message":"slow down"}}"#,
+        )])
+        .await;
+        let (_cancel_sender, cancel_receiver) = watch::channel(false);
+        let mut run_request = request(base_url);
+        run_request.retry.enabled = false;
+        run_request.retry.max_attempts = 5;
+        let result = complete(run_request, "test-key".to_string(), cancel_receiver, |_| {
+            Ok(())
+        })
+        .await;
+        assert_eq!(
+            result
+                .expect_err("retry should remain disabled")
+                .diagnostic
+                .code,
+            AgentErrorCode::RateLimited
+        );
+        assert_eq!(
+            captured_requests
+                .lock()
+                .expect("requests should lock")
+                .len(),
+            1
         );
     }
 

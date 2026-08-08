@@ -7,7 +7,7 @@
 | Type | Plans | Complete |
 | --- | --- | --- |
 | `required` | 6 | 6 |
-| `feature` | 38 | 38 |
+| `feature` | 39 | 39 |
 | `bugfix` | 24 | 24 |
 
 ## Execution Order
@@ -74,6 +74,7 @@
 | `F033-02` | [Harden the OpenAI-compatible Agent Adapter](features/F033-codex-style-agent-implementation/F033-02-harden-openai-compatible-adapter.md) | `complete` | 2026-08-08 |
 | `F033-03` | [Compare Codex App-server and Grok Build ACP Runtimes](features/F033-codex-style-agent-implementation/F033-03-rich-runtime-comparison.md) | `complete` | 2026-08-08 |
 | `F033-04` | [Complete Persistent Threads and Editor Tool Integration](features/F033-codex-style-agent-implementation/F033-04-persistent-threads-and-editor-tools.md) | `complete` | 2026-08-08 |
+| `F034` | [Store the AI Token in Encrypted Application Configuration](features/F034-encrypted-ai-token-configuration.md) | `complete` | 2026-08-09 |
 
 ### Bugfix Plans
 

@@ -8,10 +8,28 @@ pub(crate) struct AgentRunRequest {
     pub base_url: String,
     pub model: String,
     pub system_prompt: String,
+    #[serde(default)]
+    pub retry: AgentRetryPolicy,
     pub skill_id: Option<String>,
     pub context: serde_json::Value,
     pub tools: Vec<AgentToolDescriptor>,
     pub messages: Vec<AgentMessageInput>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AgentRetryPolicy {
+    pub enabled: bool,
+    pub max_attempts: u8,
+}
+
+impl Default for AgentRetryPolicy {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            max_attempts: 3,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]

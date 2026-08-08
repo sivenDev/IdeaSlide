@@ -53,9 +53,11 @@ IdeaNote 同时支持：
 18. Settings Center 同时从 Home 和编辑器打开，配置 General、AI Provider、Agent 和编辑器贡献的设置区段。
 19. AI 默认开启；关闭后不挂载 Agent UI、不初始化 Runtime、不发现 Skill、不暴露 Tool、不访问 Provider，也不保留后台 Agent 生命周期。
 20. AI 开启但 Provider Credential 未配置时，只显示配置引导，不发起模型请求。
-21. API Key 仅保存在操作系统 Credential Vault；全局非秘密设置保存在应用配置目录，二者都不得进入 `.ideanote/`、文档、Recovery、日志或对话历史。
-22. 所有 Agent 修改都先形成绑定文档 revision、source fingerprint 和外部状态的 ChangeSet；用户明确批准后才通过现有 Editor/Document Session 应用，并提供一步 Undo。
-23. 旧 MCP stdio Server、`--mcp` 启动模式、隐藏 MCP Renderer 和前端 MCP Bridge 已退休；当前 AI 自动化只通过应用内 Agent Extension 架构提供。
+21. API Key 由 Rust 使用 AES-256-GCM 保存在应用配置目录的版本化加密凭据文件中，随机密钥单独保存并限制为当前用户访问；不读取、迁移或删除旧 Keychain 数据，也不触发 Keychain 授权。该边界防止明文落盘和仅复制凭据文件造成泄露，但不能抵御可同时读取密钥与密文的同一操作系统用户进程。
+22. 已保存 API Key 不返回前端；Settings 的显示/隐藏按钮只影响当前输入内容。自动重试默认开启、默认最多三次总尝试、可关闭并限制在一至五次，只允许发生在可重试错误且尚无文本、Reasoning Summary 或 Tool 进度时。
+23. API Key、密钥和明文不得进入 `.ideanote/`、文档、Recovery、日志、前端持久化设置或对话历史。
+24. 所有 Agent 修改都先形成绑定文档 revision、source fingerprint 和外部状态的 ChangeSet；用户明确批准后才通过现有 Editor/Document Session 应用，并提供一步 Undo。
+25. 旧 MCP stdio Server、`--mcp` 启动模式、隐藏 MCP Renderer 和前端 MCP Bridge 已退休；当前 AI 自动化只通过应用内 Agent Extension 架构提供。
 
 ## 3. 产品目标
 
@@ -537,7 +539,8 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。通用 Runtime
 通用规则：
 
 - AI 默认开启，用户可在 Settings 中关闭；关闭后完整移除 Agent 生命周期。
-- Provider 使用 OpenAI-compatible Endpoint、Model 和原生 Credential Vault 中的 API Key；未配置时不请求。
+- Provider 使用 OpenAI-compatible Endpoint、Model 和 Rust 管理的本地加密 API Key；未配置时不请求，旧 Keychain 数据不自动读取或迁移。
+- Settings 只允许查看当前正在输入的 API Key，不返回已保存值；自动重试可关闭，总尝试次数限制为一至五次并在 Turn 开始时捕获。
 - Skill 先发现 metadata，只有活动编辑器 Extension 才加载完整指令和 Tool。
 - Runtime、Panel、Settings 不直接包含 `.is` 或未来编辑器的解析、验证、读写逻辑。
 - Mutation 只能返回 ChangeSet，不直接修改内存模型或磁盘；批准时复核文档 id、revision、source fingerprint、状态和外部修改标记。
@@ -638,7 +641,7 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。通用 Runtime
 15. Pages、Cameras 和 Present 现有能力适配。
 16. Save、Save As、Save All 和 Recovery。
 17. 受支持文件白名单过滤，以及显式打开入口的 Unsupported File 回退。
-18. Home/Editor 共用的 Settings Center、版本化非秘密设置和原生 Credential Vault。
+18. Home/Editor 共用的 Settings Center、版本化非秘密设置和 Rust 管理的本地加密凭据。
 19. 默认开启但可完整关闭的 AI Gate。
 20. 编辑器无关的流式 Agent Runtime、取消、对话历史和应用级右侧 Agent 栏。
 21. IdeaSketch Skill、受限 Context、Page 读能力以及新增/删除/重排/内容替换提案。
@@ -736,7 +739,7 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。通用 Runtime
 ### Phase 3：Settings 与 Generic AI Agent
 
 - Home/Editor 共用 Settings Center。
-- OpenAI-compatible Provider 配置与原生 Credential Vault。
+- OpenAI-compatible Provider 配置、本地加密凭据与可配置安全重试。
 - 默认开启/完整关闭 AI Gate。
 - 通用 Agent Runtime、流式输出、取消和会话历史。
 - 独立的应用级右侧 Agent 栏。
@@ -813,7 +816,7 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。通用 Runtime
 13. 文件类型扩展采用前后端对称模块化：IdeaSketch 前端模块与 Rust 后端格式模块只通过稳定注册表和通用命令边界接入。
 14. Workspace Explorer 始终显示真实目录节点，但文件只显示 File Type Registry 中当前 `openable` 的类型；当前阶段只有 `.is`。不支持文件不进入前端树模型，显式打开时走安全的 Unsupported File 回退。
 15. Workspace Mode 的用户文件、Workspace 元数据及其他应用内部操作所需临时文件统一位于 `<workspace>/.ideanote/tmp/`；目标文件旁不得出现 `.is.tmp` 等应用临时文件。Single File Mode 不创建 `.ideanote/`，使用应用本地临时存储或平台安全替换机制。
-16. 全局 Settings 和 AI Credential 位于应用配置目录与操作系统 Credential Vault，不写入 `.ideanote/`；未来若增加 Workspace Override，必须使用独立版本字段且不得包含 Secret。
+16. 全局 Settings 和 AI Credential 位于应用配置目录；Credential 使用独立受限密钥和认证加密，不写入 `.ideanote/`，未来若增加 Workspace Override，必须使用独立版本字段且不得包含 Secret。
 17. AI 默认开启；关闭是完整生命周期 Gate，未配置 Credential 是独立的配置状态。
 18. Agent Runtime 使用 IdeaNote 自有接口包装维护中的开源框架；编辑器只通过 Agent Extension Contract 接入。
 19. 每个 Agent Mutation 都先生成一次性 ChangeSet，批准时复核文档 revision、source fingerprint、Document Status 和 source modified marker，并通过现有 Editor Session 应用。

@@ -2,6 +2,7 @@ import { cancelAgent, runAgent } from "./agentClient";
 import type {
   AgentMessage,
   AgentProviderCapabilities,
+  AgentRetryPolicy,
   AgentRunRequest,
   AgentToolDescriptor,
   AgentToolExecutor,
@@ -25,6 +26,7 @@ export interface StartAgentTurnInput {
   baseUrl: string;
   model: string;
   systemPrompt: string;
+  retry: AgentRetryPolicy;
   context: Record<string, unknown>;
   tools: AgentToolDescriptor[];
   messages: AgentMessage[];
@@ -137,6 +139,7 @@ export function createCompatibilityAgentRuntime(): AgentRuntime {
         baseUrl: input.baseUrl,
         model: input.model,
         systemPrompt: input.systemPrompt,
+        retry: input.retry,
         skillId: input.binding.skillId,
         context: input.context,
         tools: input.tools,

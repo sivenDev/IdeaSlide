@@ -2,7 +2,7 @@
 
 An IdeaNote Workspace is a user-selected real directory. User files remain ordinary files in that directory and are the only source of truth for document content. IdeaNote does not copy those files into a Workspace archive or private database.
 
-Global application settings are not Workspace metadata. Versioned non-secret settings live in the platform application configuration directory, and AI provider credentials live only in the operating system credential vault. Neither is written to `.ideanote/`, document files, Recovery data, caches, or conversation history. A future Workspace-specific override must use an explicit versioned contract and must never contain credentials.
+Global application settings are not Workspace metadata. Versioned non-secret settings and the Rust-owned AI credential repository live under the platform application configuration directory. The API key is stored only as an AES-256-GCM authenticated-encrypted envelope with separate application key material and current-user-only permissions where supported. Neither plaintext, ciphertext, nor key material is written to `.ideanote/`, document files, Recovery data, caches, logs, frontend settings, or conversation history. Existing Keychain data is not read, migrated, or deleted automatically. This protects against plaintext-at-rest disclosure, but not against a same-user process that can read both application-owned files. A future Workspace-specific override must use an explicit versioned contract and must never contain credentials.
 
 ## Read-only open
 

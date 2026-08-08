@@ -153,6 +153,7 @@ export function AgentPanel({
         baseUrl: settings.ai.baseUrl,
         model: settings.ai.model,
         systemPrompt: settings.ai.systemPrompt,
+        retry: settings.ai.retry,
         context: capturedBinding.buildContext(),
         tools: capturedBinding.tools,
         messages: runtimeMessages,

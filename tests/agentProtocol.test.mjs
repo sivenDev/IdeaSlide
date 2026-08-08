@@ -40,3 +40,19 @@ test('the compatibility runtime normalizes provider capabilities, summaries, tel
   assert.match(source, /case "error"/);
   assert.match(source, /error: event\.error/);
 });
+
+test('the captured retry policy crosses the generic Agent request boundary', async () => {
+  const panel = await readFile(new URL('../src/components/AgentPanel.tsx', import.meta.url), 'utf8');
+  const frontendTypes = await readFile(new URL('../src/lib/agent/types.ts', import.meta.url), 'utf8');
+  const runtime = await readFile(new URL('../src/lib/agent/agentRuntime.ts', import.meta.url), 'utf8');
+  const nativeTypes = await readFile(new URL('../src-tauri/src/agent/types.rs', import.meta.url), 'utf8');
+  const provider = await readFile(new URL('../src-tauri/src/agent/provider.rs', import.meta.url), 'utf8');
+  assert.match(panel, /retry: settings\.ai\.retry/);
+  assert.match(frontendTypes, /interface AgentRetryPolicy/);
+  assert.match(frontendTypes, /retry: AgentRetryPolicy/);
+  assert.match(runtime, /retry: input\.retry/);
+  assert.match(nativeTypes, /struct AgentRetryPolicy/);
+  assert.match(nativeTypes, /max_attempts: u8/);
+  assert.match(provider, /effective_max_attempts\(request\.retry\)/);
+  assert.match(provider, /policy\.max_attempts\.clamp\(1, 5\)/);
+});
