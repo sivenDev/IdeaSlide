@@ -23,7 +23,11 @@ test('a synthetic future editor can register different Skills and Tools', async 
     skillId: 'markdown',
     tools: [{ name: 'read_markdown', description: 'Read Markdown', inputSchema: { type: 'object' } }],
     buildContext: () => ({ documentType: 'markdown' }),
-    parseChangeSet: () => undefined,
+    executeTool: () => ({
+      kind: 'read', callId: 'read', name: 'read_markdown', success: true,
+      summary: 'Read Markdown', content: {}, truncated: false, persistable: true,
+    }),
+    describeChangeSet: () => [],
   });
   assert.equal(getAgentExtension('synthetic-markdown').skillId, 'markdown');
   unregister();

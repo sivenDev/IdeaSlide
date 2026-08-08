@@ -2,7 +2,7 @@
 id: "F033-04"
 title: "Complete Persistent Threads and Editor Tool Integration"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Add durable local Threads, history and resume, steering and approvals, normalized editor Tool routing, and a second-editor reuse proof."
 source: "docs/superplan/human/features.md"
 created: "2026-08-08"
@@ -44,9 +44,9 @@ parent: "F033"
 - `node --test tests/agentThreadRepository.test.mjs tests/agentStore.test.mjs`
 - Cases: create/list/page/resume/rename/archive; restart; atomic replacement; corrupt entry; migration; missing upstream session; redaction; AI disabled; no Workspace writes.
 
-- [ ] Persist only bounded, explicitly persistable Thread/Turn/Item state.
-- [ ] Support versioning, pagination, atomic writes, migration, and corruption recovery.
-- [ ] Prove credentials, hidden reasoning, and unbounded document data never enter history.
+- [x] Persist only bounded, explicitly persistable Thread/Turn/Item state.
+- [x] Support versioning, pagination, atomic writes, migration, and corruption recovery.
+- [x] Prove credentials, hidden reasoning, and unbounded document data never enter history.
 
 ## Task 2: Deliver History, Resume, Steering, and Approval Interaction
 
@@ -72,9 +72,9 @@ parent: "F033"
 - `node --test tests/agentThreadHistory.test.mjs tests/agentInteraction.test.mjs tests/agentPanel.test.mjs`
 - Browser cases: create/switch/resume/rename/archive; app restart; capable/incapable steering; cancellation; approval; retry; long history pagination; keyboard and screen-reader labels.
 
-- [ ] Expose complete local Thread history and resume behavior.
-- [ ] Deliver capability-gated steering, cancellation, approval, retry, and compaction states.
-- [ ] Complete accessible keyboard/focus behavior for the durable interaction model.
+- [x] Expose complete local Thread history and resume behavior.
+- [x] Deliver capability-gated steering, cancellation, approval, retry, and compaction states.
+- [x] Complete accessible keyboard/focus behavior for the durable interaction model.
 
 ## Task 3: Route Editor Tools Through the Trusted Generic Host
 
@@ -103,9 +103,9 @@ parent: "F033"
 - `node --test tests/agentToolHost.test.mjs tests/ideaSketchAgentExtension.test.mjs tests/agentChangeSet.test.mjs tests/editorSession.test.mjs tests/externalFileChanges.test.mjs tests/recovery.test.mjs`
 - Cases: unsupported editor; malformed arguments; bounded read; duplicate call id; cancelled Tool; proposal only; double Apply; stale revision; external change; read-only/missing target; document switch; Apply/Undo/recovery.
 
-- [ ] Route all editor Tool traffic through one schema-validating, idempotent host.
-- [ ] Migrate IdeaSketch without leaking `.is` semantics into the runtime or generic UI.
-- [ ] Re-prove proposal-only mutation, explicit Apply, stale/conflict rejection, Undo, and recovery.
+- [x] Route all editor Tool traffic through one schema-validating, idempotent host.
+- [x] Migrate IdeaSketch without leaking `.is` semantics into the runtime or generic UI.
+- [x] Re-prove proposal-only mutation, explicit Apply, stale/conflict rejection, Undo, and recovery.
 
 ## Task 4: Prove Reuse and Complete Native Delivery
 
@@ -132,9 +132,18 @@ parent: "F033"
 - `npm run tauri build -- --debug`
 - Native disposable-document matrix plus restart/history inspection, no-secret/no-MCP/no-direct-write audit, supported-width layout, keyboard/accessibility, and long-transcript checks.
 
-- [ ] Prove a second editor extension reuses the complete Agent core without generic changes.
-- [ ] Pass full native lifecycle, privacy, recovery, accessibility, performance, and build acceptance.
-- [ ] Record completion evidence and map every RFC acceptance criterion to current verification.
+- [x] Prove a second editor extension reuses the complete Agent core without generic changes.
+- [x] Pass full native lifecycle, privacy, recovery, accessibility, performance, and build acceptance.
+- [x] Record completion evidence and map every RFC acceptance criterion to current verification.
+
+## Completion Evidence
+
+- Frontend regression: `node --test tests/*.test.mjs` passed 305/305 tests.
+- Native regression: `cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture` passed 106/106 tests; `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets` and `cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check` passed.
+- Production checks: `npm run build`, `npm run tauri build -- --debug`, and `git diff --check` passed; the debug application and DMG bundled successfully.
+- Native acceptance used the configured OpenAI-compatible gateway and verified Skill/Tool discovery, reasoning summaries, proposal-only `propose_add_page`, Change Review, explicit Apply, Undo, Thread history, and restart resume on a disposable IdeaSketch document.
+- Privacy/recovery inspection confirmed bounded application-data Thread files without credentials, hidden reasoning, raw Provider payloads, unbounded snapshots, Workspace metadata writes, MCP endpoints, or direct Agent writes; the Responses request also omits non-portable `metadata` rejected by the tested gateway.
+- Reuse coverage registered a synthetic Markdown-like extension with distinct Context and Tools while leaving the generic runtime, store, and interaction UI unchanged.
 
 ## References
 

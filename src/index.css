@@ -308,11 +308,27 @@ body,
 }
 
 .ideanote-agent-panel {
+    position: relative;
     display: flex;
     height: 100%;
     min-height: 0;
     flex-direction: column;
     background: #fcfcfd;
+}
+
+.ideanote-agent-persistence-warning,
+.ideanote-agent-configuration {
+    border-bottom: 1px solid #eadfb9;
+    color: #7b6318;
+    background: #fff9e7;
+    font-size: 9px;
+    line-height: 1.45;
+    padding: 7px 10px;
+    text-align: left;
+}
+
+.ideanote-agent-configuration:hover {
+    background: #fff5d5;
 }
 
 .ideanote-agent-thread-header {
@@ -355,7 +371,13 @@ body,
     animation: ideanote-agent-pulse 1.4s ease-in-out infinite;
 }
 
-.ideanote-agent-thread-header > button {
+.ideanote-agent-thread-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.ideanote-agent-thread-header__actions > button {
     display: inline-flex;
     width: 28px;
     height: 28px;
@@ -367,9 +389,155 @@ body,
     transition: background 120ms ease, color 120ms ease;
 }
 
-.ideanote-agent-thread-header > button:hover {
+.ideanote-agent-thread-header__actions > button:hover:not(:disabled) {
     color: #3f4450;
     background: #f0f1f4;
+}
+
+.ideanote-agent-thread-header__actions > button:disabled {
+    opacity: 0.35;
+}
+
+.ideanote-agent-history {
+    position: absolute;
+    z-index: 20;
+    top: 48px;
+    right: 0;
+    left: 0;
+    display: flex;
+    max-height: calc(100% - 48px);
+    flex-direction: column;
+    border-bottom: 1px solid #dddfe7;
+    background: rgb(252 252 253 / 98%);
+    box-shadow: 0 14px 28px rgb(32 36 45 / 14%);
+}
+
+.ideanote-agent-history__heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    border-bottom: 1px solid #e8eaf0;
+    padding: 11px 12px;
+}
+
+.ideanote-agent-history__heading h3 {
+    color: #2e323b;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.ideanote-agent-history__heading p,
+.ideanote-agent-history__empty {
+    margin-top: 3px;
+    color: #9297a2;
+    font-size: 9px;
+}
+
+.ideanote-agent-history__heading > button,
+.ideanote-agent-history__actions button,
+.ideanote-agent-history__item form button {
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    color: #767d89;
+}
+
+.ideanote-agent-history__list {
+    min-height: 0;
+    overflow-y: auto;
+    padding: 6px;
+}
+
+.ideanote-agent-history__item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 8px;
+    padding: 3px;
+}
+
+.ideanote-agent-history__item + .ideanote-agent-history__item {
+    margin-top: 2px;
+}
+
+.ideanote-agent-history__item.is-active {
+    background: #efefff;
+}
+
+.ideanote-agent-history__resume {
+    min-width: 0;
+    flex: 1;
+    border-radius: 6px;
+    text-align: left;
+    padding: 6px;
+}
+
+.ideanote-agent-history__resume > span,
+.ideanote-agent-history__resume > small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ideanote-agent-history__resume > span {
+    color: #404550;
+    font-size: 10px;
+    font-weight: 650;
+}
+
+.ideanote-agent-history__resume > small {
+    margin-top: 3px;
+    color: #8b919c;
+    font-size: 8px;
+}
+
+.ideanote-agent-history__actions {
+    display: flex;
+    flex: 0 0 auto;
+}
+
+.ideanote-agent-history__actions button:hover,
+.ideanote-agent-history__heading > button:hover,
+.ideanote-agent-history__item form button:hover {
+    color: #4e5460;
+    background: #eceef2;
+}
+
+.ideanote-agent-history__item form {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    align-items: center;
+    gap: 3px;
+}
+
+.ideanote-agent-history__item form input {
+    min-width: 0;
+    flex: 1;
+    border: 1px solid #cbcde2;
+    border-radius: 6px;
+    color: #343842;
+    background: #fff;
+    font-size: 10px;
+    outline: none;
+    padding: 6px 7px;
+}
+
+.ideanote-agent-history__more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    border-top: 1px solid #e8eaf0;
+    color: #626976;
+    font-size: 9px;
+    font-weight: 650;
+    padding: 8px;
 }
 
 .ideanote-agent-transcript-wrap {

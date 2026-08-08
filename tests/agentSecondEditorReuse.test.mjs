@@ -1,0 +1,90 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createAgentToolHost } from '../src/lib/agent/agentToolHost.ts';
+import {
+  getAgentExtension,
+  registerAgentExtension,
+} from '../src/lib/agent/agentExtensionRegistry.ts';
+
+test('a Markdown-like extension reuses the generic registry and Tool host without runtime or UI changes', async () => {
+  const markdownExtension = {
+    id: 'synthetic-markdown-agent',
+    fileType: 'synthetic-markdown',
+    skillId: 'synthetic-markdown',
+    tools: [
+      {
+        name: 'read_headings',
+        description: 'Read Markdown headings.',
+        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+      },
+      {
+        name: 'propose_append_section',
+        description: 'Propose appending a section.',
+        inputSchema: {
+          type: 'object',
+          properties: { heading: { type: 'string' }, body: { type: 'string' } },
+          required: ['heading', 'body'],
+          additionalProperties: false,
+        },
+      },
+    ],
+    buildContext(model, activeHeadingId, revision) {
+      return { revision, activeHeadingId, headings: model.headings.slice(0, 50) };
+    },
+    executeTool(call, context) {
+      if (call.name === 'read_headings') {
+        return {
+          kind: 'read', callId: call.callId, name: call.name, success: true,
+          summary: `Read ${context.model.headings.length} headings`,
+          content: context.model.headings, truncated: false, persistable: true,
+        };
+      }
+      return {
+        kind: 'proposal', callId: call.callId, name: call.name, success: true,
+        summary: `Append ${call.arguments.heading}`,
+        changeSet: {
+          id: `md-${call.callId}`,
+          extensionId: 'synthetic-markdown-agent',
+          documentId: context.documentId,
+          baseRevision: context.revision,
+          sourceFingerprint: 'markdown-fingerprint',
+          summary: `Append section ${call.arguments.heading}`,
+          operations: [{ kind: 'append-section', ...call.arguments }],
+          status: 'proposed',
+        },
+        truncated: false,
+        persistable: true,
+      };
+    },
+    describeChangeSet(changeSet) {
+      return changeSet.operations.map((operation) => `Append Markdown section · ${operation.heading}`);
+    },
+  };
+
+  const unregister = registerAgentExtension(markdownExtension);
+  try {
+    assert.equal(getAgentExtension('synthetic-markdown-agent'), markdownExtension);
+    const model = { text: '# Intro', headings: [{ id: 'intro', text: 'Intro' }] };
+    assert.deepEqual(markdownExtension.buildContext(model, 'intro', 2), {
+      revision: 2,
+      activeHeadingId: 'intro',
+      headings: [{ id: 'intro', text: 'Intro' }],
+    });
+    const executor = createAgentToolHost({
+      extension: markdownExtension,
+      context: {
+        documentId: 'readme-md', revision: 2, documentStatus: 'editable', activeContextId: 'intro', model,
+      },
+    });
+    const read = await executor.execute({ callId: 'read', name: 'read_headings', arguments: {} });
+    const proposal = await executor.execute({
+      callId: 'proposal', name: 'propose_append_section', arguments: { heading: 'API', body: 'Details' },
+    });
+    assert.equal(read.kind, 'read');
+    assert.equal(proposal.kind, 'proposal');
+    assert.equal(proposal.changeSet.extensionId, 'synthetic-markdown-agent');
+    assert.deepEqual(markdownExtension.describeChangeSet(proposal.changeSet), ['Append Markdown section · API']);
+  } finally {
+    unregister();
+  }
+});

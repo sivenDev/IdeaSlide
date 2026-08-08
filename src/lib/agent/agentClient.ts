@@ -6,6 +6,7 @@ import type {
   AgentRuntimeDescriptor,
   AgentSkillMetadata,
 } from "./types";
+import type { AgentThreadPage, AgentThreadRecord } from "./protocol";
 
 function requireTauri(): void {
   if (!("__TAURI_INTERNALS__" in window)) {
@@ -36,4 +37,37 @@ export async function runAgent(
 export async function cancelAgent(runId: string): Promise<boolean> {
   requireTauri();
   return invoke<boolean>("cancel_agent", { runId });
+}
+
+export async function saveAgentThread(record: AgentThreadRecord): Promise<AgentThreadRecord> {
+  requireTauri();
+  return invoke<AgentThreadRecord>("save_agent_thread", { record });
+}
+
+export async function getAgentThread(threadId: string): Promise<AgentThreadRecord | undefined> {
+  requireTauri();
+  return (await invoke<AgentThreadRecord | null>("get_agent_thread", { threadId })) ?? undefined;
+}
+
+export async function listAgentThreads({
+  cursor,
+  limit = 20,
+  includeArchived = false,
+}: {
+  cursor?: string;
+  limit?: number;
+  includeArchived?: boolean;
+} = {}): Promise<AgentThreadPage> {
+  requireTauri();
+  return invoke<AgentThreadPage>("list_agent_threads", { cursor, limit, includeArchived });
+}
+
+export async function renameAgentThread(threadId: string, title: string): Promise<AgentThreadRecord> {
+  requireTauri();
+  return invoke<AgentThreadRecord>("rename_agent_thread", { threadId, title });
+}
+
+export async function archiveAgentThread(threadId: string): Promise<AgentThreadRecord> {
+  requireTauri();
+  return invoke<AgentThreadRecord>("archive_agent_thread", { threadId });
 }

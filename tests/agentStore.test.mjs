@@ -161,3 +161,27 @@ test('events for another thread are diagnosed and ignored', () => {
   assert.equal(state.thread.turns.length, 1);
   assert.equal(state.diagnostics.at(-1).code, 'foreignThread');
 });
+
+test('plans and approvals remain first-class Items with explicit decisions', () => {
+  let state = reduceAgentEvent(initial(), started());
+  state = reduceAgentEvent(state, event('planUpdated', 1, {
+    item: {
+      id: 'turn-1:plan', kind: 'plan', title: 'Edit safely', status: 'running', createdAt: 11,
+      steps: [{ id: 'step-1', label: 'Inspect', status: 'completed' }],
+    },
+  }));
+  state = reduceAgentEvent(state, event('approvalRequested', 2, {
+    item: {
+      id: 'turn-1:approval', kind: 'approval', requestId: 'approval-1', title: 'Permission',
+      description: 'Allow a bounded action?', status: 'pending', createdAt: 12,
+    },
+  }));
+  state = reduceAgentEvent(state, event('approvalResolved', 3, {
+    itemId: 'turn-1:approval', decision: 'rejected',
+  }));
+  const turn = state.thread.turns.at(-1);
+  assert.equal(turn.items.find((item) => item.kind === 'plan').title, 'Edit safely');
+  const approval = turn.items.find((item) => item.kind === 'approval');
+  assert.equal(approval.decision, 'rejected');
+  assert.equal(approval.status, 'completed');
+});

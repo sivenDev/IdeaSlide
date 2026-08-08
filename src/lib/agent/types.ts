@@ -1,10 +1,68 @@
-import type { DocumentModel, DocumentSession } from "../../types";
+import type { DocumentSession } from "../../types";
 import type { AgentErrorCode } from "./protocol";
 
 export interface AgentToolDescriptor {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+}
+
+export interface AgentToolCall {
+  callId: string;
+  name: string;
+  arguments: unknown;
+}
+
+export interface AgentToolReadResult {
+  kind: "read";
+  callId: string;
+  name: string;
+  success: true;
+  summary: string;
+  content: unknown;
+  truncated: boolean;
+  persistable: boolean;
+}
+
+export interface AgentToolProposalResult<TOperation = unknown> {
+  kind: "proposal";
+  callId: string;
+  name: string;
+  success: true;
+  summary: string;
+  changeSet: AgentChangeSet<TOperation>;
+  truncated: false;
+  persistable: boolean;
+}
+
+export interface AgentToolFailureResult {
+  kind: "failure";
+  callId: string;
+  name: string;
+  success: false;
+  summary: string;
+  error: AgentNativeError;
+  truncated: false;
+  persistable: true;
+}
+
+export type AgentToolResult<TOperation = unknown> =
+  | AgentToolReadResult
+  | AgentToolProposalResult<TOperation>
+  | AgentToolFailureResult;
+
+export interface AgentToolExecutionContext<TModel = unknown> {
+  documentId: string;
+  revision: number;
+  documentStatus: DocumentSession["status"];
+  sourceModified?: string;
+  activeContextId?: string;
+  model: TModel;
+}
+
+export interface AgentToolExecutor {
+  execute(call: AgentToolCall, signal?: AbortSignal): Promise<AgentToolResult>;
+  cancel(callId: string): void;
 }
 
 export interface AgentSkillMetadata {
@@ -54,6 +112,7 @@ export interface AgentRunResponse {
   skillId?: string;
   capabilities: AgentProviderCapabilities;
   telemetry: AgentStreamingTelemetry;
+  toolCalls: AgentToolCall[];
 }
 
 export type AgentProviderStrategy = "responses" | "chatCompletions";
@@ -110,7 +169,7 @@ export type AgentRunEvent =
   | { type: "reasoningSummaryDelta"; runId: string; text: string }
   | { type: "textDelta"; runId: string; text: string }
   | { type: "toolStarted"; runId: string; callId: string; name: string }
-  | { type: "toolCompleted"; runId: string; callId: string; name: string }
+  | { type: "toolCompleted"; runId: string; callId: string; name: string; arguments: unknown }
   | { type: "telemetry"; runId: string; telemetry: AgentStreamingTelemetry }
   | { type: "completed"; runId: string; text: string; skillId?: string }
   | { type: "cancelled"; runId: string }
@@ -129,13 +188,17 @@ export interface AgentChangeSet<TOperation = unknown> {
   status: "proposed" | "applied" | "rejected" | "stale";
 }
 
-export interface AgentExtension<TModel extends DocumentModel = DocumentModel, TOperation = unknown> {
+export interface AgentExtension<TModel = unknown, TOperation = unknown> {
   id: string;
   fileType: string;
   skillId: string;
   tools: AgentToolDescriptor[];
   buildContext(model: TModel, activePageId: string | undefined, revision: number): Record<string, unknown>;
-  parseChangeSet(response: string, documentId: string, revision: number, model: TModel): AgentChangeSet<TOperation> | undefined;
+  executeTool(
+    call: AgentToolCall,
+    context: AgentToolExecutionContext<TModel>,
+  ): Promise<AgentToolResult<TOperation>> | AgentToolResult<TOperation>;
+  describeChangeSet(changeSet: AgentChangeSet<TOperation>): string[];
 }
 
 export interface AgentMessage {
@@ -154,7 +217,8 @@ export interface ActiveAgentEditorBinding {
   activeContextId?: string;
   readOnly: boolean;
   buildContext: () => Record<string, unknown>;
-  parseChangeSet: (response: string) => AgentChangeSet | undefined;
+  createToolExecutor: () => AgentToolExecutor;
+  describeChangeSet: (changeSet: AgentChangeSet) => string[];
   applyChangeSet: (changeSet: AgentChangeSet) => boolean;
   undo: () => void;
   canUndo: boolean;

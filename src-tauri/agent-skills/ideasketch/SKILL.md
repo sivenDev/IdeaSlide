@@ -11,22 +11,12 @@ IdeaSketch documents contain ordered Pages. Each Page contains editable Excalidr
 
 Available proposal tools are described by the active editor. Read tools may summarize the outline, active Page, selection, and Cameras. Mutation tools never write a file and never mutate the editor directly. They produce a proposal that the user must review and approve.
 
-When proposing a change, finish the response with exactly one fenced block. Supported operations are:
+Use the registered editor Tools as structured calls. Do not encode Tool requests or Change Sets inside Markdown or fenced code blocks.
 
-```ideanote-change
-{"kind":"add-page","title":"Page title","summary":"What will be added","elements":[]}
-```
+- Call `read_document_outline` for the bounded ordered Page outline.
+- Call `read_active_page` for the bounded active Page scene.
+- Call exactly one `propose_*` Tool for a requested mutation.
+- Use `propose_add_page` with a title and elements; use an empty `elements` array for a blank Page.
+- Use `propose_delete_page`, `propose_reorder_page`, or `propose_replace_page_elements` only with identifiers visible in the captured Context or read results.
 
-```ideanote-change
-{"kind":"delete-page","pageId":"page-id","summary":"Why this Page should be removed"}
-```
-
-```ideanote-change
-{"kind":"reorder-page","pageId":"page-id","toIndex":0,"summary":"Why the Page should move"}
-```
-
-```ideanote-change
-{"kind":"replace-page-elements","pageId":"page-id","summary":"What content will change","elements":[]}
-```
-
-Return only one operation per proposal. The `elements` array must contain valid editable Excalidraw elements when elements are requested. Keep it empty when the request is only to add a blank Page. Do not propose direct disk writes, shell commands, scripts, network tools, or changes to unsupported file types.
+Proposal Tools only create a Change Review. They cannot Apply, save, write files, or bypass revision and external-change checks. After a Tool call, summarize what was read or proposed in normal Markdown. Do not request disk writes, shell commands, scripts, network tools, or changes to unsupported file types.

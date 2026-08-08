@@ -6,6 +6,7 @@ import type {
   AgentItem,
   AgentMessageItem,
   AgentThreadState,
+  AgentThreadRecord,
   AgentTurn,
 } from "./protocol";
 
@@ -53,6 +54,25 @@ export function createAgentThreadState({
     nextSequenceByTurn: {},
     pendingEventsByTurn: {},
     diagnostics: [],
+  };
+}
+
+export function hydrateAgentThreadState(record: AgentThreadRecord): AgentThreadState {
+  return {
+    thread: record.thread,
+    capabilities: { ...record.capabilities, persistence: true },
+    notices: [],
+    processedEventIds: {},
+    nextSequenceByTurn: {},
+    pendingEventsByTurn: {},
+    diagnostics: [],
+  };
+}
+
+export function renameAgentThreadState(state: AgentThreadState, title: string, now = Date.now()): AgentThreadState {
+  return {
+    ...state,
+    thread: { ...state.thread, title, updatedAt: now },
   };
 }
 
@@ -164,6 +184,24 @@ function applyOrderedEvent(state: AgentThreadState, event: AgentEvent): AgentThr
     }
     case "itemUpdated":
       return updateTurn(state, event.turnId, (turn) => updateItem(turn, event.item.id, () => event.item));
+    case "planUpdated":
+      return updateTurn(state, event.turnId, (turn) => (
+        turn.items.some((item) => item.id === event.item.id)
+          ? updateItem(turn, event.item.id, () => event.item)
+          : { ...turn, items: [...turn.items, event.item] }
+      ));
+    case "approvalRequested":
+      return updateTurn(state, event.turnId, (turn) => (
+        turn.items.some((item) => item.id === event.item.id)
+          ? turn
+          : { ...turn, items: [...turn.items, event.item] }
+      ));
+    case "approvalResolved":
+      return updateTurn(state, event.turnId, (turn) => updateItem(turn, event.itemId, (item) => (
+        item.kind === "approval"
+          ? { ...item, decision: event.decision, status: "completed" }
+          : item
+      )));
     case "telemetryUpdated": {
       const firstText = event.telemetry.firstTextMs === undefined
         ? "no text timing"
@@ -349,6 +387,23 @@ export function agentMessagesFromState(state: AgentThreadState): AgentMessage[] 
   return state.thread.turns.flatMap((turn) => turn.items)
     .filter((item): item is AgentMessageItem => item.kind === "message" && Boolean(item.content))
     .map((item) => ({ id: item.id, role: item.role, content: item.content, createdAt: item.createdAt }));
+}
+
+export function agentRuntimeMessagesFromState(
+  state: AgentThreadState,
+  maxMessages = 60,
+): { messages: AgentMessage[]; compactedBeforeTurnId?: string } {
+  const messages = agentMessagesFromState(state);
+  if (messages.length <= maxMessages) return { messages };
+  const retained = messages.slice(-maxMessages);
+  const firstRetainedId = retained[0]?.id;
+  const firstRetainedTurnIndex = state.thread.turns.findIndex((turn) => (
+    turn.items.some((item) => item.id === firstRetainedId)
+  ));
+  const compactedBeforeTurnId = firstRetainedTurnIndex > 0
+    ? state.thread.turns[firstRetainedTurnIndex - 1]?.id
+    : undefined;
+  return { messages: retained, compactedBeforeTurnId };
 }
 
 export function retryPromptFromState(state: AgentThreadState): string | undefined {

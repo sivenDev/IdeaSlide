@@ -10,11 +10,13 @@ export function AgentTranscript({
   showToolActivity,
   onRetry,
   renderChangeReview,
+  onApprovalDecision,
 }: {
   state: AgentThreadState;
   showToolActivity: boolean;
   onRetry?: () => void;
   renderChangeReview: (item: AgentChangeReviewItem) => ReactNode;
+  onApprovalDecision?: (itemId: string, approved: boolean) => void;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [anchored, setAnchored] = useState(true);
@@ -55,6 +57,7 @@ export function AgentTranscript({
               showToolActivity={showToolActivity}
               onRetry={onRetry}
               renderChangeReview={renderChangeReview}
+              onApprovalDecision={onApprovalDecision}
             />
           ))}
         </div>

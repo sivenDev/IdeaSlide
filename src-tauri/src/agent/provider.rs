@@ -8,19 +8,20 @@ use uuid::Uuid;
 
 use super::types::{
     AgentErrorCode, AgentErrorDiagnostic, AgentMessageInput, AgentMessageRole,
-    AgentProviderCapabilities, AgentProviderStrategy, AgentStreamingTelemetry, StreamingBehavior,
+    AgentProviderCapabilities, AgentProviderStrategy, AgentStreamingTelemetry, AgentToolCall,
+    AgentToolDescriptor, StreamingBehavior,
 };
 
 const MAX_ATTEMPTS: u8 = 3;
 const MAX_ERROR_BODY_BYTES: usize = 8 * 1024;
 
 pub(crate) struct ProviderRequest {
-    pub run_id: String,
     pub base_url: String,
     pub model: String,
     pub preamble: String,
     pub prompt: String,
     pub messages: Vec<AgentMessageInput>,
+    pub tools: Vec<AgentToolDescriptor>,
     pub strategy: AgentProviderStrategy,
 }
 
@@ -29,6 +30,7 @@ pub(crate) struct ProviderCompletion {
     pub text: String,
     pub capabilities: AgentProviderCapabilities,
     pub telemetry: AgentStreamingTelemetry,
+    pub tool_calls: Vec<AgentToolCall>,
 }
 
 #[derive(Debug)]
@@ -58,6 +60,7 @@ pub(crate) enum ProviderProgress {
     ToolCompleted {
         call_id: String,
         name: String,
+        arguments: Value,
     },
     Telemetry(AgentStreamingTelemetry),
 }
@@ -66,8 +69,21 @@ pub(crate) enum ProviderProgress {
 enum ProviderStreamEvent {
     TextDelta(String),
     ReasoningSummaryDelta(String),
-    ToolStarted { call_id: String, name: String },
-    ToolCompleted { call_id: String, name: String },
+    ToolStarted {
+        call_id: String,
+        name: String,
+    },
+    ToolArgumentsDelta {
+        call_id: Option<String>,
+        index: u64,
+        name: String,
+        arguments: String,
+    },
+    ToolCompleted {
+        call_id: String,
+        name: String,
+        arguments: Value,
+    },
     Completed,
     Error(String),
 }
@@ -86,6 +102,7 @@ struct AttemptSuccess {
     first_text_ms: Option<u64>,
     event_span_ms: u64,
     event_count: u32,
+    tool_calls: Vec<AgentToolCall>,
 }
 
 #[derive(Clone, Copy)]
@@ -157,6 +174,7 @@ pub(crate) async fn complete(
                     text: success.text,
                     capabilities: success.capabilities,
                     telemetry,
+                    tool_calls: success.tool_calls,
                 });
             }
             Err(failure)
@@ -274,7 +292,9 @@ async fn execute_attempt(
     let mut last_event_ms = None;
     let mut event_count = 0_u32;
     let mut visible_progress = false;
-    let mut active_tools = HashMap::<String, String>::new();
+    let mut active_tools = HashMap::<String, (String, String)>::new();
+    let mut chat_tool_ids = HashMap::<u64, String>::new();
+    let mut tool_calls = Vec::<AgentToolCall>::new();
 
     loop {
         let chunk = tokio::select! {
@@ -337,17 +357,58 @@ async fn execute_attempt(
                 ProviderStreamEvent::ToolStarted { call_id, name } => {
                     visible_progress = true;
                     if !active_tools.contains_key(&call_id) {
-                        active_tools.insert(call_id.clone(), name.clone());
+                        active_tools.insert(call_id.clone(), (name.clone(), String::new()));
                         emit(ProviderProgress::ToolStarted { call_id, name })
                             .map_err(|message| runtime_attempt_failure(&message))?;
                     }
                 }
-                ProviderStreamEvent::ToolCompleted { call_id, name } => {
+                ProviderStreamEvent::ToolArgumentsDelta {
+                    call_id,
+                    index,
+                    name,
+                    arguments,
+                } => {
                     visible_progress = true;
-                    if active_tools.remove(&call_id).is_some() {
-                        emit(ProviderProgress::ToolCompleted { call_id, name })
+                    let call_id = if let Some(call_id) = call_id {
+                        chat_tool_ids.insert(index, call_id.clone());
+                        call_id
+                    } else {
+                        chat_tool_ids
+                            .get(&index)
+                            .cloned()
+                            .unwrap_or_else(|| format!("chat-tool-{index}"))
+                    };
+                    let is_new = !active_tools.contains_key(&call_id);
+                    let entry = active_tools
+                        .entry(call_id.clone())
+                        .or_insert_with(|| (name.clone(), String::new()));
+                    if entry.0 == "Editor Tool" && name != "Editor Tool" {
+                        entry.0 = name.clone();
+                    }
+                    entry.1.push_str(&arguments);
+                    if is_new {
+                        emit(ProviderProgress::ToolStarted { call_id, name })
                             .map_err(|message| runtime_attempt_failure(&message))?;
                     }
+                }
+                ProviderStreamEvent::ToolCompleted {
+                    call_id,
+                    name,
+                    arguments,
+                } => {
+                    visible_progress = true;
+                    active_tools.remove(&call_id);
+                    emit(ProviderProgress::ToolCompleted {
+                        call_id: call_id.clone(),
+                        name: name.clone(),
+                        arguments: arguments.clone(),
+                    })
+                    .map_err(|message| runtime_attempt_failure(&message))?;
+                    tool_calls.push(AgentToolCall {
+                        call_id,
+                        name,
+                        arguments,
+                    });
                 }
                 ProviderStreamEvent::Error(message) => {
                     return Err(AttemptFailure {
@@ -368,11 +429,21 @@ async fn execute_attempt(
         }
     }
 
-    for (call_id, name) in active_tools {
-        emit(ProviderProgress::ToolCompleted { call_id, name })
-            .map_err(|message| runtime_attempt_failure(&message))?;
+    for (call_id, (name, arguments)) in active_tools {
+        let arguments = serde_json::from_str(&arguments).unwrap_or_else(|_| json!({}));
+        emit(ProviderProgress::ToolCompleted {
+            call_id: call_id.clone(),
+            name: name.clone(),
+            arguments: arguments.clone(),
+        })
+        .map_err(|message| runtime_attempt_failure(&message))?;
+        tool_calls.push(AgentToolCall {
+            call_id,
+            name,
+            arguments,
+        });
     }
-    if text.trim().is_empty() {
+    if text.trim().is_empty() && tool_calls.is_empty() {
         return Err(AttemptFailure {
             diagnostic: diagnostic(
                 AgentErrorCode::ProviderProtocolError,
@@ -394,6 +465,7 @@ async fn execute_attempt(
         first_text_ms,
         event_span_ms,
         event_count,
+        tool_calls,
     })
 }
 
@@ -445,20 +517,47 @@ fn request_body(request: &ProviderRequest, strategy: AgentProviderStrategy) -> V
         AgentProviderStrategy::Responses => {
             let mut input = history.collect::<Vec<_>>();
             input.push(json!({"role": "user", "content": request.prompt}));
+            let tools = request
+                .tools
+                .iter()
+                .map(|tool| {
+                    json!({
+                        "type": "function",
+                        "name": tool.name,
+                        "description": tool.description,
+                        "parameters": tool.input_schema,
+                        "strict": false,
+                    })
+                })
+                .collect::<Vec<_>>();
             json!({
                 "model": request.model,
                 "stream": true,
                 "instructions": request.preamble,
                 "input": input,
                 "reasoning": {"summary": "auto"},
-                "metadata": {"ideanote_run_id": request.run_id},
+                "tools": tools,
             })
         }
         AgentProviderStrategy::ChatCompletions => {
             let mut messages = vec![json!({"role": "system", "content": request.preamble})];
             messages.extend(history);
             messages.push(json!({"role": "user", "content": request.prompt}));
-            json!({"model": request.model, "stream": true, "messages": messages})
+            let tools = request
+                .tools
+                .iter()
+                .map(|tool| {
+                    json!({
+                        "type": "function",
+                        "function": {
+                            "name": tool.name,
+                            "description": tool.description,
+                            "parameters": tool.input_schema,
+                        }
+                    })
+                })
+                .collect::<Vec<_>>();
+            json!({"model": request.model, "stream": true, "messages": messages, "tools": tools})
         }
     }
 }
@@ -468,7 +567,7 @@ fn capabilities_for(strategy: AgentProviderStrategy) -> AgentProviderCapabilitie
         strategy,
         text_streaming: true,
         reasoning_summary: strategy == AgentProviderStrategy::Responses,
-        tool_events: strategy == AgentProviderStrategy::Responses,
+        tool_events: true,
         cancellation: true,
         retry: true,
         timing: true,
@@ -516,7 +615,16 @@ fn function_call_event(value: &Value, completed: bool) -> Option<ProviderStreamE
         .unwrap_or("Editor Tool")
         .to_string();
     Some(if completed {
-        ProviderStreamEvent::ToolCompleted { call_id, name }
+        let arguments = item
+            .get("arguments")
+            .and_then(Value::as_str)
+            .and_then(|value| serde_json::from_str(value).ok())
+            .unwrap_or_else(|| json!({}));
+        ProviderStreamEvent::ToolCompleted {
+            call_id,
+            name,
+            arguments,
+        }
     } else {
         ProviderStreamEvent::ToolStarted { call_id, name }
     })
@@ -549,18 +657,25 @@ fn parse_chat_event(data: &str) -> Result<Option<ProviderStreamEvent>, String> {
         .and_then(Value::as_array)
         .and_then(|calls| calls.first());
     if let Some(tool) = tool {
-        let call_id = tool
-            .get("id")
-            .and_then(Value::as_str)
-            .unwrap_or("tool-call");
+        let call_id = tool.get("id").and_then(Value::as_str).map(str::to_string);
+        let index = tool.get("index").and_then(Value::as_u64).unwrap_or(0);
         let name = tool
             .get("function")
             .and_then(|function| function.get("name"))
             .and_then(Value::as_str)
-            .unwrap_or("Editor Tool");
-        return Ok(Some(ProviderStreamEvent::ToolStarted {
-            call_id: call_id.to_string(),
-            name: name.to_string(),
+            .unwrap_or("Editor Tool")
+            .to_string();
+        let arguments = tool
+            .get("function")
+            .and_then(|function| function.get("arguments"))
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        return Ok(Some(ProviderStreamEvent::ToolArgumentsDelta {
+            call_id,
+            index,
+            name,
+            arguments,
         }));
     }
     Ok(None)
@@ -961,6 +1076,26 @@ mod contract_tests {
         let endpoint = endpoint_url(&base, AgentProviderStrategy::Responses);
         assert_eq!(endpoint.path(), "/v1/responses");
         assert_eq!(endpoint.query(), Some("api-version=2026-08-08"));
+    }
+
+    #[test]
+    fn responses_request_uses_only_portable_openai_compatible_fields() {
+        let body = request_body(
+            &ProviderRequest {
+                base_url: "https://gateway.example/v1".to_string(),
+                model: "gpt-test".to_string(),
+                preamble: "Use the editor tools.".to_string(),
+                prompt: "Add a Page.".to_string(),
+                messages: Vec::new(),
+                tools: Vec::new(),
+                strategy: AgentProviderStrategy::Responses,
+            },
+            AgentProviderStrategy::Responses,
+        );
+
+        assert_eq!(body["model"], "gpt-test");
+        assert!(body.get("metadata").is_none());
+        assert!(body["tools"].is_array());
     }
 
     #[test]

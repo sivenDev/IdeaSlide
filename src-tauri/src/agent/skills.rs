@@ -32,7 +32,8 @@ mod tests {
     #[test]
     fn active_skill_loads_full_instructions() {
         let instructions = load_skill("ideasketch").expect("skill should load");
-        assert!(instructions.contains("```ideanote-change"));
+        assert!(instructions.contains("propose_add_page"));
+        assert!(!instructions.contains("```ideanote-change"));
         assert!(load_skill("unknown").is_err());
     }
 }

@@ -1,36 +1,23 @@
 import { AlertTriangle, Check, FilePenLine, RotateCcw, X } from "lucide-react";
 import type { AgentChangeSet } from "../../lib/agent/types";
-import type { IdeaSketchAgentOperation } from "../../lib/agent/extensions/ideaSketchAgentExtension";
 
-function operationLabel(operation: IdeaSketchAgentOperation): string {
-  switch (operation.kind) {
-    case "add-page":
-      return `New Page · ${operation.title} · ${operation.elements.length} elements`;
-    case "delete-page":
-      return `Delete Page · ${operation.pageId}`;
-    case "reorder-page":
-      return `Move Page · ${operation.pageId} · position ${operation.toIndex + 1}`;
-    case "replace-page-elements":
-      return `Replace Page content · ${operation.pageId} · ${operation.elements.length} elements`;
-  }
-}
-
-export function IdeaSketchChangeReview({
+export function AgentChangeReview({
   changeSet,
+  operationLabels,
   readOnly,
   onApprove,
   onReject,
   onUndo,
   canUndo,
 }: {
-  changeSet: AgentChangeSet<IdeaSketchAgentOperation>;
+  changeSet: AgentChangeSet;
+  operationLabels: string[];
   readOnly: boolean;
   onApprove: () => void;
   onReject: () => void;
   onUndo: () => void;
   canUndo: boolean;
 }) {
-  const operation = changeSet.operations[0];
   return (
     <section className={`ideanote-agent-review is-${changeSet.status}`} aria-label="Agent Change Review">
       <div className="flex items-start gap-2.5">
@@ -38,24 +25,24 @@ export function IdeaSketchChangeReview({
         <div className="min-w-0 flex-1">
           <div className="text-xs font-semibold text-gray-900">Change Review</div>
           <p className="mt-1 text-[11px] leading-5 text-gray-600">{changeSet.summary}</p>
-          {operation && (
-            <div className="mt-2 rounded-md bg-white/75 px-2.5 py-2 text-[10px] text-gray-500">
-              {operationLabel(operation)}
+          {operationLabels.map((label, index) => (
+            <div className="mt-2 rounded-md bg-white/75 px-2.5 py-2 text-[10px] text-gray-500" key={`${changeSet.id}:${index}`}>
+              {label}
             </div>
-          )}
+          ))}
         </div>
       </div>
       {readOnly && (
         <div className="mt-3 flex items-center gap-2 text-[10px] text-amber-700">
-          <AlertTriangle aria-hidden size={12} /> This document is read only.
+          <AlertTriangle aria-hidden size={12} /> This proposal cannot be applied to the current editor state.
         </div>
       )}
       {changeSet.status === "proposed" && (
         <div className="mt-3 flex gap-2">
-          <button type="button" className="ideanote-agent-review__primary" disabled={readOnly} onClick={onApprove}>
+          <button type="button" className="ideanote-agent-review__primary" disabled={readOnly} onClick={onApprove} aria-label={`Apply ${changeSet.summary}`}>
             <Check aria-hidden size={12} /> Apply
           </button>
-          <button type="button" className="ideanote-agent-review__secondary" onClick={onReject}>
+          <button type="button" className="ideanote-agent-review__secondary" onClick={onReject} aria-label={`Reject ${changeSet.summary}`}>
             <X aria-hidden size={12} /> Reject
           </button>
         </div>

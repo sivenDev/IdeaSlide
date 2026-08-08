@@ -12,11 +12,13 @@ export function AgentItem({
   showToolActivity,
   onRetry,
   renderChangeReview,
+  onApprovalDecision,
 }: {
   item: AgentItemModel;
   showToolActivity: boolean;
   onRetry?: () => void;
   renderChangeReview: (item: AgentChangeReviewItem) => ReactNode;
+  onApprovalDecision?: (itemId: string, approved: boolean) => void;
 }) {
   switch (item.kind) {
     case "message":
@@ -48,6 +50,12 @@ export function AgentItem({
           <div className="ideanote-agent-item__heading"><ShieldCheck aria-hidden size={13} /><span>{item.title}</span></div>
           <p>{item.description}</p>
           {item.decision && <span className="ideanote-agent-approval__decision">{item.decision}</span>}
+          {!item.decision && onApprovalDecision && (
+            <div className="mt-2 flex gap-2">
+              <button type="button" className="ideanote-agent-review__secondary" onClick={() => onApprovalDecision(item.id, false)}>Reject</button>
+              <button type="button" className="ideanote-agent-review__primary" onClick={() => onApprovalDecision(item.id, true)}>Approve</button>
+            </div>
+          )}
         </section>
       );
     case "changeReview":

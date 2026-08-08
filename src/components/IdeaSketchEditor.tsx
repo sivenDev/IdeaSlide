@@ -20,6 +20,7 @@ import {
 import { SlideCanvas } from "./SlideCanvas";
 import { ResizableDivider } from "./ResizableDivider";
 import type { ActiveAgentEditorBinding, AgentChangeSet } from "../lib/agent/types";
+import { createAgentToolHost } from "../lib/agent/agentToolHost";
 import {
   ideaSketchAgentExtension,
   getIdeaSketchSourceFingerprint,
@@ -411,11 +412,19 @@ export function IdeaSketchEditor({
       editorStateRef.current.activePageId,
       agentBindingStateRef.current.document.revision,
     ),
-    parseChangeSet: (response) => ideaSketchAgentExtension.parseChangeSet(
-      response,
-      agentBindingStateRef.current.document.id,
-      agentBindingStateRef.current.document.revision,
-      editorStateRef.current.document,
+    createToolExecutor: () => createAgentToolHost({
+      extension: ideaSketchAgentExtension,
+      context: {
+        documentId: agentBindingStateRef.current.document.id,
+        revision: agentBindingStateRef.current.document.revision,
+        documentStatus: agentBindingStateRef.current.document.status,
+        sourceModified: agentBindingStateRef.current.document.sourceModified,
+        activeContextId: agentBindingStateRef.current.activeContextId,
+        model: structuredClone(editorStateRef.current.document),
+      },
+    }),
+    describeChangeSet: (changeSet) => ideaSketchAgentExtension.describeChangeSet(
+      changeSet as AgentChangeSet<IdeaSketchAgentOperation>,
     ),
     applyChangeSet: (changeSet) => agentBindingStateRef.current.applyChangeSet(changeSet),
     undo: () => agentBindingStateRef.current.undo(),

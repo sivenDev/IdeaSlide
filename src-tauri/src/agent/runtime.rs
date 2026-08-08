@@ -24,17 +24,17 @@ pub(crate) async fn complete(
     let context = serde_json::to_string_pretty(&request.context)
         .map_err(|error| runtime_failure(format!("Agent context could not be encoded: {error}")))?;
     let preamble = format!(
-        "{}\n\nACTIVE EDITOR SKILL:\n{}\n\nAVAILABLE EDITOR TOOLS:\n{}\n\nACTIVE DOCUMENT CONTEXT:\n{}\n\nNever write files directly. Mutation requests must be returned as reviewable proposals in the active Skill format.",
+        "{}\n\nACTIVE EDITOR SKILL:\n{}\n\nAVAILABLE EDITOR TOOLS:\n{}\n\nACTIVE DOCUMENT CONTEXT:\n{}\n\nNever write files directly. Use registered structured editor Tools for reads and proposals. Mutation Tools only create reviewable Change Sets and cannot Apply or save.",
         request.system_prompt, skill, tools, context
     );
     provider::complete(
         provider::ProviderRequest {
-            run_id: request.run_id,
             base_url: request.base_url,
             model: request.model,
             preamble,
             prompt: request.prompt,
             messages: request.messages,
+            tools: request.tools,
             strategy: super::types::AgentProviderStrategy::Responses,
         },
         api_key,
@@ -63,7 +63,7 @@ mod tests {
         provider::ProviderProgress,
         types::{
             AgentErrorCode, AgentMessageInput, AgentMessageRole, AgentProviderStrategy,
-            AgentRunRequest, StreamingBehavior,
+            AgentRunRequest, AgentToolDescriptor, StreamingBehavior,
         },
     };
     use std::collections::VecDeque;
@@ -83,7 +83,15 @@ mod tests {
             system_prompt: "Follow the editor contract".to_string(),
             skill_id: None,
             context: serde_json::json!({"documentType": "test"}),
-            tools: Vec::new(),
+            tools: vec![AgentToolDescriptor {
+                name: "propose_change".to_string(),
+                description: "Create a reviewable proposal".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {"title": {"type": "string"}},
+                    "required": ["title"]
+                }),
+            }],
             messages: vec![
                 AgentMessageInput {
                     role: AgentMessageRole::User,
@@ -260,6 +268,7 @@ mod tests {
         assert!(request_text.starts_with("POST /v1/responses"));
         assert!(request_text.contains("Earlier question"));
         assert!(request_text.contains("Earlier answer"));
+        assert!(request_text.contains("propose_change"));
         assert!(request_text
             .to_ascii_lowercase()
             .contains("authorization: bearer test-key"));
@@ -379,11 +388,11 @@ mod tests {
     async fn duplicate_tool_call_ids_emit_one_proposal_activity() {
         let tool = serde_json::json!({
             "type": "response.output_item.added",
-            "item": {"type": "function_call", "call_id": "call-1", "name": "propose_change"}
+            "item": {"type": "function_call", "call_id": "call-1", "name": "propose_change", "arguments": "{\"title\":\"New\"}"}
         });
         let tool_done = serde_json::json!({
             "type": "response.output_item.done",
-            "item": {"type": "function_call", "call_id": "call-1", "name": "propose_change"}
+            "item": {"type": "function_call", "call_id": "call-1", "name": "propose_change", "arguments": "{\"title\":\"New\"}"}
         });
         let (base_url, _) = provider_server(vec![TestResponse::sse(vec![
             (0, tool.clone()),
@@ -395,7 +404,7 @@ mod tests {
         let (_cancel_sender, cancel_receiver) = watch::channel(false);
         let progress = Arc::new(Mutex::new(Vec::<ProviderProgress>::new()));
         let captured_progress = progress.clone();
-        complete(
+        let completion = complete(
             request(base_url),
             "test-key".to_string(),
             cancel_receiver,
@@ -409,6 +418,8 @@ mod tests {
         )
         .await
         .expect("tool activity stream should complete");
+        assert_eq!(completion.tool_calls.len(), 1);
+        assert_eq!(completion.tool_calls[0].arguments["title"], "New");
         let progress = progress.lock().expect("progress should lock");
         assert_eq!(
             progress

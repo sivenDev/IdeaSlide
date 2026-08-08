@@ -16,7 +16,7 @@ test('compatibility capabilities describe only behavior the current runtime expo
     cancellation: true,
     steering: false,
     retry: true,
-    persistence: false,
+    persistence: true,
   });
   assert.equal(createAgentEventId('turn-1', 4, 'itemDelta'), 'turn-1:4:itemDelta');
 });

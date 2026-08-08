@@ -1,4 +1,4 @@
-import type { AgentChangeSet, AgentStreamingTelemetry } from "./types";
+import type { AgentChangeSet, AgentRuntimeKind, AgentStreamingTelemetry } from "./types";
 
 export type AgentTurnStatus = "running" | "completed" | "cancelled" | "failed";
 export type AgentItemStatus = "pending" | "running" | "completed" | "cancelled" | "failed";
@@ -24,7 +24,7 @@ export const COMPATIBILITY_AGENT_CAPABILITIES: AgentCapabilities = {
   cancellation: true,
   steering: false,
   retry: true,
-  persistence: false,
+  persistence: true,
 };
 
 export interface AgentTurnBindingSnapshot {
@@ -75,6 +75,7 @@ export interface AgentToolItem extends AgentItemBase {
 
 export interface AgentApprovalItem extends AgentItemBase {
   kind: "approval";
+  requestId: string;
   title: string;
   description: string;
   decision?: "approved" | "rejected";
@@ -150,6 +151,39 @@ export interface AgentThread {
   createdAt: number;
   updatedAt: number;
   turns: AgentTurn[];
+}
+
+export interface AgentThreadRuntimeMetadata {
+  kind: AgentRuntimeKind;
+  label: string;
+  model: string;
+  upstreamThreadId?: string;
+  compactedBeforeTurnId?: string;
+  degraded: boolean;
+}
+
+export interface AgentThreadRecord {
+  schemaVersion: 1;
+  thread: AgentThread;
+  capabilities: AgentCapabilities;
+  runtime: AgentThreadRuntimeMetadata;
+  archivedAt?: number;
+}
+
+export interface AgentThreadSummary {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  turnCount: number;
+  archivedAt?: number;
+  runtime: AgentThreadRuntimeMetadata;
+}
+
+export interface AgentThreadPage {
+  threads: AgentThreadSummary[];
+  nextCursor?: string;
+  recoveredCorruptEntries: number;
 }
 
 export interface AgentDiagnostic {
@@ -237,6 +271,22 @@ export interface AgentTelemetryUpdatedEvent extends AgentEventBase {
   telemetry: AgentStreamingTelemetry;
 }
 
+export interface AgentPlanUpdatedEvent extends AgentEventBase {
+  type: "planUpdated";
+  item: AgentPlanItem;
+}
+
+export interface AgentApprovalRequestedEvent extends AgentEventBase {
+  type: "approvalRequested";
+  item: AgentApprovalItem;
+}
+
+export interface AgentApprovalResolvedEvent extends AgentEventBase {
+  type: "approvalResolved";
+  itemId: string;
+  decision: "approved" | "rejected";
+}
+
 export type AgentEvent =
   | AgentTurnStartedEvent
   | AgentCapabilitiesUpdatedEvent
@@ -246,7 +296,10 @@ export type AgentEvent =
   | AgentTurnCompletedEvent
   | AgentTurnFailedEvent
   | AgentTurnCancelledEvent
-  | AgentTelemetryUpdatedEvent;
+  | AgentTelemetryUpdatedEvent
+  | AgentPlanUpdatedEvent
+  | AgentApprovalRequestedEvent
+  | AgentApprovalResolvedEvent;
 
 export function createAgentEventId(turnId: string, sequence: number, type: AgentEvent["type"]): string {
   return `${turnId}:${sequence}:${type}`;

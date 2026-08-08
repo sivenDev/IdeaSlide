@@ -36,6 +36,14 @@ pub(crate) struct AgentToolDescriptor {
     pub input_schema: serde_json::Value,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AgentToolCall {
+    pub call_id: String,
+    pub name: String,
+    pub arguments: serde_json::Value,
+}
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AgentRunResponse {
@@ -44,6 +52,7 @@ pub(crate) struct AgentRunResponse {
     pub skill_id: Option<String>,
     pub capabilities: AgentProviderCapabilities,
     pub telemetry: AgentStreamingTelemetry,
+    pub tool_calls: Vec<AgentToolCall>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
@@ -157,6 +166,7 @@ pub(crate) enum AgentRunEvent {
         run_id: String,
         call_id: String,
         name: String,
+        arguments: serde_json::Value,
     },
     Telemetry {
         run_id: String,

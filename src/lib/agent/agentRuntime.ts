@@ -4,6 +4,7 @@ import type {
   AgentProviderCapabilities,
   AgentRunRequest,
   AgentToolDescriptor,
+  AgentToolExecutor,
 } from "./types";
 export { selectAgentRuntime } from "./runtimeSelection";
 import {
@@ -27,6 +28,7 @@ export interface StartAgentTurnInput {
   context: Record<string, unknown>;
   tools: AgentToolDescriptor[];
   messages: AgentMessage[];
+  toolExecutor: AgentToolExecutor;
 }
 
 export interface AgentTurnResult {
@@ -43,6 +45,7 @@ export interface AgentRuntime {
   startTurn(input: StartAgentTurnInput, emit: (event: AgentEvent) => void): Promise<AgentTurnResult>;
   cancelTurn(turnId: string): Promise<boolean>;
   steerTurn?: (turnId: string, prompt: string) => Promise<boolean>;
+  resolveApproval?: (turnId: string, requestId: string, approved: boolean) => Promise<boolean>;
 }
 
 
@@ -227,7 +230,7 @@ export function createCompatibilityAgentRuntime(): AgentRuntime {
                   kind: "tool",
                   name: event.name,
                   callId: event.callId,
-                  summary: "Provider Tool activity",
+                  summary: "Waiting for the trusted editor Tool host",
                   status: "completed",
                   createdAt: Date.now(),
                 },
@@ -264,6 +267,45 @@ export function createCompatibilityAgentRuntime(): AgentRuntime {
               createdAt: Date.now(),
             },
           });
+        }
+        for (const toolCall of response.toolCalls) {
+          const result = await input.toolExecutor.execute(toolCall);
+          const itemId = toolItems.get(toolCall.callId) ?? `${input.turnId}:tool:${toolCall.callId}`;
+          emitNext({
+            type: "itemUpdated",
+            item: {
+              id: itemId,
+              kind: "tool",
+              name: toolCall.name,
+              callId: toolCall.callId,
+              summary: result.summary,
+              status: result.success ? "completed" : "failed",
+              createdAt: Date.now(),
+            },
+          });
+          if (result.kind === "proposal") {
+            emitNext({
+              type: "itemAdded",
+              item: {
+                id: `${input.turnId}:change-review:${toolCall.callId}`,
+                kind: "changeReview",
+                changeSet: result.changeSet,
+                status: "pending",
+                createdAt: Date.now(),
+              },
+            });
+          } else if (result.kind === "failure") {
+            emitNext({
+              type: "itemAdded",
+              item: {
+                id: `${input.turnId}:tool-error:${toolCall.callId}`,
+                kind: "error",
+                error: result.error,
+                status: "failed",
+                createdAt: Date.now(),
+              },
+            });
+          }
         }
         activeTurns.delete(input.turnId);
         return { runId: response.runId, text: response.text, nextSequence: sequence, assistantItemId };
