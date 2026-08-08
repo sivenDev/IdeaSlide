@@ -259,3 +259,10 @@ Implement accepted RFC 001 in independently deliverable phases: first add the Id
 - created: 2026-08-09
 
 Replace the native OS Credential Vault path for the AI provider token with a simple encrypted credential file under the application configuration directory. Keep plaintext out of frontend state, logs, Workspace files, Recovery, and Agent history; remove Keychain-facing UX and runtime dependency. Use authenticated encryption with application-owned key material, document the reduced same-user threat model, and require the user to save the token once in the new storage rather than triggering an automatic Keychain migration prompt. In AI Provider Settings, add a password visibility toggle for the token currently being entered and configurable automatic retry enablement plus a bounded maximum-attempt count.
+
+## F035: Complete Agent history, Codex runtime, and reasoning visibility
+
+- status: accepted
+- created: 2026-08-09
+
+Add permanent deletion for local Agent Threads with explicit confirmation and storage cleanup; decide and enable the pinned Codex app-server as the production rich runtime only after native editor Tool, lifecycle, fallback, packaging, and privacy acceptance; and make model-supplied reasoning summaries visible while showing an explicit unavailable/degraded state when the active runtime or Provider supplies none. Never fabricate or expose hidden chain-of-thought, preserve the compatibility fallback, AI lifecycle gate, generic editor-extension boundary, proposal-only Change Sets, explicit Apply/Undo, and retired MCP surface.
