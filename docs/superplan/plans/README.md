@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Complete |
-| --- | --- | --- |
-| `required` | 6 | 6 |
-| `feature` | 34 | 34 |
-| `bugfix` | 24 | 24 |
+| Type | Plans | Draft | Complete |
+| --- | --- | --- | --- |
+| `required` | 6 | 0 | 6 |
+| `feature` | 38 | 4 | 34 |
+| `bugfix` | 24 | 0 | 24 |
 
 ## Execution Order
 
@@ -70,6 +70,10 @@
 | `F031-02` | [Deliver the Editor-agnostic Agent Runtime](features/F031-configurable-ai-agent/F031-02-generic-agent-runtime.md) | `complete` | 2026-08-08 |
 | `F031-03` | [Remove the Legacy MCP Runtime](features/F031-configurable-ai-agent/F031-03-remove-legacy-mcp.md) | `complete` | 2026-08-08 |
 | `F032` | [Author the Codex-style Generic Agent RFC](features/F032-codex-style-generic-agent-rfc.md) | `complete` | 2026-08-08 |
+| `F033-01` | [Normalize the Agent SDK and Codex-style Interaction UI](features/F033-codex-style-agent-implementation/F033-01-normalized-agent-sdk-and-ui.md) | `draft` | 2026-08-08 |
+| `F033-02` | [Harden the OpenAI-compatible Agent Adapter](features/F033-codex-style-agent-implementation/F033-02-harden-openai-compatible-adapter.md) | `draft` | 2026-08-08 |
+| `F033-03` | [Compare Codex App-server and Grok Build ACP Runtimes](features/F033-codex-style-agent-implementation/F033-03-rich-runtime-comparison.md) | `draft` | 2026-08-08 |
+| `F033-04` | [Complete Persistent Threads and Editor Tool Integration](features/F033-codex-style-agent-implementation/F033-04-persistent-threads-and-editor-tools.md) | `draft` | 2026-08-08 |
 
 ### Bugfix Plans
 
