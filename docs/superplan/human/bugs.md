@@ -243,3 +243,10 @@ Agent current-Page element edits currently mutate the IdeaSketch document model 
 - created: 2026-08-09
 
 Agent editing Turns can skip read_active_page because the full active Page scene is injected into the initial context, so the UI shows only the mutation Tool. Assistant text also remains in one item across Tool calls, placing the completed response before later Tool cards. Make editor reads real and observable: provide lean turn-start metadata, require a successful same-turn current-revision read before canvas mutation, stream Tool Running and Completed states in true execution order, segment assistant output around Tool activity, and keep editor SDK application, stale-target safety, and native Undo/Redo intact.
+
+## B029: Make Burst-delivered Agent Answers Visibly Progressive
+
+- status: accepted
+- created: 2026-08-09
+
+The Agent answer still appears as one complete block instead of growing visibly like Teable. A direct Codex app-server trace reproduced 149 genuine `item/agentMessage/delta` events arriving within roughly 4 ms, followed by Turn completion about 63 ms later; the frontend then frame-batches the burst into one visible React update. A Teable comparison showed answer text growing over roughly 5.3 seconds in repeated visible increments after its Preparing/Working state. Preserve authoritative source events and chronology, add Codex delivery telemetry, and introduce bounded answer-only presentation pacing for burst or atomic delivery without presenting it as hidden reasoning or live model-token generation. Tool, lifecycle, cancellation, error, and terminal state must remain immediate and authoritative.

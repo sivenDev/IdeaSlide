@@ -59,7 +59,7 @@ IdeaNote 同时支持：
 24. 所有 Agent 修改都先形成绑定文档 revision、source fingerprint 和外部状态的 ChangeSet；用户明确批准后才通过现有 Editor/Document Session 应用，并提供一步 Undo。
 25. 旧 MCP stdio Server、`--mcp` 启动模式、隐藏 MCP Renderer 和前端 MCP Bridge 已退休；当前 AI 自动化只通过应用内 Agent Extension 架构提供。
 26. Rust 自动选择通过版本和编辑器 Tool 安全检查的 Codex `0.147.0` app-server；缺失、不兼容、初始化失败或尚未产生可见进度时崩溃，透明回退到 OpenAI-compatible Compatibility Runtime。已经产生文本、公开活动、Plan 或 Tool 进度后崩溃则明确失败并要求显式重试，避免重复副作用。Grok 继续作为已评估候选，不进入当前生产选择。
-27. Agent 只显示真实增量答案、确定性的 Preparing/Working/elapsed 活动，以及 Runtime 明确标记为公开的过程信息；不得展示或推断隐藏 chain-of-thought，也不得把完成文本回放成伪流式输出。
+27. Agent 保留真实增量答案、确定性的 Preparing/Working/elapsed 活动，以及 Runtime 明确标记为公开的过程信息。对于上游在极短时间内突发或原子交付的 assistant answer，可以使用有界的展示节奏让内容可感知地逐步出现，但必须保留并区分真实来源时序，不得把展示节奏描述为模型仍在生成、token 直播或隐藏思考；不得展示或推断 hidden chain-of-thought。
 
 ## 3. 产品目标
 
@@ -546,7 +546,7 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 - Settings 显示自动 Runtime 选择状态；通过安全门的已安装 Codex `0.147.0` 优先，缺失、不兼容、初始化失败或 pre-progress crash 时回退 Compatibility，并显示有界诊断原因。
 - 本地 Thread 支持创建、恢复、重命名、归档和确认后的永久删除；运行中的 Thread 不允许删除，删除当前 Thread 前必须先建立有效替代 Thread。
 - Codex upstream Thread id 与有效 Runtime/model/fallback metadata 随本地 Thread 持久化，用于后续 Turn 恢复和历史解释。
-- 真正的文本 delta 必须在完成事件前可见；若上游缓冲，则显示 Preparing、Working、elapsed time 和诚实的诊断，不回放伪 token stream。
+- 真正的文本 delta 必须立即进入规范化事件链；若上游增量交付，则在有界渲染延迟内直接显示；若上游缓冲、突发或原子交付，则允许只对 assistant answer 使用有界展示节奏，同时保留来源时序诊断，且不得将其表述为实时 token 生成或 reasoning。
 - 可展开 Tool Activity 只显示经过 Rust Tool Broker 限界和脱敏的参数/结果；call id、schema、重复调用、超时和结果大小由 Rust 统一治理。
 - 只显示 Runtime 明确分类为公开的过程摘要；隐藏 chain-of-thought 不进入事件、UI 或持久化。缺少公开过程信息时不显示误导性提示。
 - Skill 先发现 metadata，只有活动编辑器 Extension 才加载完整指令和 Tool。
@@ -713,7 +713,7 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 - AI 默认开启；关闭后不显示 Agent UI，也不初始化任何 Agent 生命周期。
 - 未配置 Provider 时只显示配置引导，不发起请求。
 - 已安装且兼容的 Codex `0.147.0` 自动用于支持编辑器 Tool 的 Turn；不可用时回退 Compatibility，并在 Agent/Settings 显示有效 Runtime、Model、能力和诊断。
-- Agent 答案在上游提供增量时于完成前持续增长；上游缓冲时显示 Preparing、Working 和 elapsed activity，不伪造 token stream。
+- Agent 答案在上游提供增量时于完成前持续增长；上游缓冲、突发或原子交付时，Preparing、Working 和 elapsed activity 仍由真实生命周期驱动，assistant answer 可使用有界展示节奏逐步出现，但 UI 与诊断不得声称这是实时 token 生成或模型思考。
 - 本地 Thread 历史支持恢复、重命名、归档和确认永久删除；运行中的 Thread 不可删除，删除不会触及文档、Workspace、Recovery、凭据或其他 Thread。
 - Tool 请求通过 Rust ledger 与 TypeScript 活动编辑器 executor 往返；所有修改仍只生成 ChangeSet，必须经 Review 和显式 Apply，并可一步 Undo。
 - Hidden reasoning 不显示、不推断、不持久化；只有 Runtime 明确标记为公开的过程信息才可流式呈现。

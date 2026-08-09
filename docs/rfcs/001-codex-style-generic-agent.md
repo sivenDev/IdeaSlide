@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-08-08
+- Amended: 2026-08-09 by RFC Addendum 002
 - Source: F032
 - Delivered through: F035
 - Audience: IdeaNote product and engineering
@@ -22,6 +23,8 @@ The delivered runtime architecture is a native hybrid adapter architecture:
 
 The result should feel similar to Codex in interaction quality and task visibility, but it is not a visual clone and does not adopt Codex branding. IdeaNote continues to own editor safety, document mutation, persistence, recovery, and external-change protection.
 
+The streaming amendment adds a two-clock answer contract. Source events and terminal lifecycle remain authoritative, while the frontend may pace burst or atomic assistant-answer delivery over a bounded interval so the user can perceive progressive output. This presentation behavior is not model reasoning or proof that generation is still running.
+
 ## 2. Motivation
 
 The original Agent baseline proved the editor-extension boundary and reviewed mutation workflow but remained a minimal chat implementation.
@@ -29,14 +32,14 @@ The original Agent baseline proved the editor-extension boundary and reviewed mu
 The F035 delivery closes the following previously confirmed gaps:
 
 - Assistant messages render safe Markdown.
-- Genuine provider and Codex text deltas reach the reducer and UI before Turn completion when the upstream transport is incremental.
+- Genuine provider and Codex text deltas reach the reducer before Turn completion, but the installed Codex path can deliver many small deltas inside one browser paint and therefore still look atomic.
 - Deterministic Preparing/Working state, elapsed time, Plans, public runtime activity, and expandable bounded Tool rows are first-class Items.
 - Conversations are persistent local Threads and Turns with create, resume, rename, archive, and confirmed permanent deletion.
 - A running request can be cancelled; steering and approval controls remain hidden until their end-to-end commands exist.
 - Provider errors are classified and presented with actionable recovery.
 - Safe pre-progress automatic retry exists and is controlled by versioned Settings with a one-to-five total-attempt bound.
 - The configured gateway has shown intermittent TLS failures.
-- A configured gateway may still buffer SSE chunks until generation is complete; IdeaNote reports activity honestly and does not replay completed text as fake streaming.
+- A configured gateway or rich runtime may buffer or burst text until generation is nearly complete. IdeaNote preserves that source truth while using bounded answer-only presentation pacing when required for readable progressive output.
 
 The current architecture remains valuable:
 
@@ -55,7 +58,7 @@ This RFC keeps those strengths and replaces the flattened chat model with a task
 
 1. Provide a Codex-style right-column task experience with first-class activity items.
 2. Render safe Markdown, lists, links, and fenced code blocks.
-3. Stream agent messages, public runtime activity, plans, tool activity, approvals, and errors independently when the selected runtime supplies them.
+3. Stream agent messages, public runtime activity, plans, tool activity, approvals, and errors independently when the selected runtime supplies them, and provide bounded progressive answer presentation when text arrives as a burst or atomic value.
 4. Support persistent local Threads containing ordered Turns and Items.
 5. Support cancellation, explicit retry, and in-flight steering when the runtime supports it.
 6. Normalize provider and runtime capabilities behind one Rust Agent Core and one frontend SDK.
@@ -67,7 +70,7 @@ This RFC keeps those strengths and replaces the flattened chat model with a task
 ## 4. Non-goals
 
 - Exact reproduction of Codex visuals, branding, or internal implementation.
-- Displaying hidden chain-of-thought or claiming a status indicator is model reasoning.
+- Displaying hidden chain-of-thought, claiming a status indicator is model reasoning, or describing presentation pacing as live model-token generation.
 - Direct model writes to documents or the filesystem.
 - Automatic approval of editor mutations.
 - Arbitrary shell, script, filesystem, or network access.
@@ -114,11 +117,11 @@ Changing the active document does not silently retarget an in-flight Turn. A pro
 
 ### 5.4 Activity is data, not formatted prose
 
-A tool call is a Tool Call Item. A plan is a Plan Item. Explicitly public runtime narration or reasoning summary is a separate Item. An approval is an Approval Item. The model must not encode these as Markdown conventions for the UI to guess.
+A tool call is a Tool Call Item. A plan is a Plan Item. Explicitly public runtime narration is a separate Activity Item. An approval is an Approval Item. The model must not encode these as Markdown conventions for the UI to guess.
 
 ### 5.5 Capability degradation is honest
 
-If a runtime cannot provide public process text, the UI does not show a fake reasoning stream or an unsupported-summary banner. If a gateway buffers output, the UI keeps deterministic lifecycle activity visible rather than claiming tokens are streaming.
+If a runtime cannot provide public process text, the UI does not show a fake reasoning stream or an unsupported-summary banner. If a gateway or runtime bursts output, deterministic lifecycle stays authoritative and answer presentation may be paced independently; the UI does not claim that pacing is live generation.
 
 ## 6. Target interaction
 
@@ -212,11 +215,11 @@ Requirements:
 
 IdeaNote distinguishes three concepts:
 
-1. **Public runtime summary:** readable model-provided process or reasoning-summary events explicitly classified as user-visible, displayed only when supported.
+1. **Public runtime activity:** readable runtime-provided process events explicitly classified as user-visible, displayed only when supported.
 2. **Agent activity:** deterministic application events such as loading a Skill, calling a Tool, waiting for approval, or validating a Change Set.
 3. **Hidden reasoning:** not available to the UI and never claimed to be displayed.
 
-Public summaries are optional and collapsed by default after Turn completion. They must not be persisted if the selected runtime or policy marks them non-persistable. Raw/private reasoning is discarded at the adapter boundary.
+There is no dedicated Reasoning Summary product surface. Public activity is optional, appears in chronological transcript order, and is persisted only when the runtime and policy mark it safe. Codex reasoning-summary events and raw/private reasoning are discarded at the adapter boundary.
 
 ## 7. Native Agent Core and frontend SDK architecture
 
@@ -296,7 +299,7 @@ No provider SDK, Codex JSON-RPC, Rig, or assistant-ui type may appear in this in
 export interface AgentCapabilities {
   markdown: boolean;
   textStreaming: boolean;
-  reasoningSummary: boolean;
+  publicActivity: boolean;
   planItems: boolean;
   toolCalls: boolean;
   dynamicEditorTools: boolean;
@@ -347,7 +350,7 @@ export interface AgentTurn {
 export type AgentItem =
   | AgentUserMessageItem
   | AgentMessageItem
-  | AgentReasoningSummaryItem
+  | AgentActivityItem
   | AgentPlanItem
   | AgentSkillItem
   | AgentToolCallItem
@@ -394,7 +397,7 @@ Required event classes:
 - Turn started, status changed, completed.
 - Item started, replaced, completed.
 - Agent message delta.
-- Reasoning summary part added and text delta.
+- Public activity part added and text delta when explicitly supplied.
 - Plan delta and final Plan Item.
 - Tool call requested, progress, result, failure.
 - Approval requested and resolved.
@@ -594,7 +597,7 @@ Switching editors changes only the injected Skill, Context, and Tool definitions
 | Embedding protocol | Product JSON-RPC | Standard ACP JSON-RPC | IdeaNote adapter | IdeaNote adapter |
 | Markdown agent message | Yes | Yes | Yes | Yes |
 | Text delta | Yes | ACP Session updates | Expected | Provider dependent |
-| Reasoning summary | Documented Item deltas when supported | Stable ACP representation must be verified | When provider supports it | No by default |
+| Public activity | Adapter accepts only events explicitly classified as public; reasoning-summary events are ignored | Stable ACP public-activity representation must be verified | When explicitly supported | No by default |
 | Plans as first-class items | Yes | ACP Plan updates and Grok Plan mode | IdeaNote synthesis/adapter | No by default |
 | Tool calls | Yes | ACP Tool call updates | When supported | When supported |
 | Host-injected editor Tools | Documented experimental dynamic Tools | Not confirmed without MCP or Tool-router extension | IdeaNote Tool loop | IdeaNote Tool loop |
@@ -619,7 +622,7 @@ Runtime discovery and selection are native-owned. The installed Codex `0.147.0` 
 
 ## 11. Streaming behavior
 
-### 11.1 Real streaming
+### 11.1 Source delivery
 
 The runtime reports:
 
@@ -630,11 +633,13 @@ The runtime reports:
 - last delta time;
 - completion time.
 
-Native provider/Codex deltas cross the Tauri Channel immediately and append to one running assistant Item in sequence. The frontend may frame-batch high-frequency renders, but partial Markdown must become observable before completion when the upstream transport is incremental. The terminal value reconciles without duplication or a final-text replacement flash.
+Native provider/Codex deltas cross the Tauri Channel immediately and append to one authoritative running assistant Item in sequence. The frontend may frame-batch high-frequency renders. Partial Markdown must become observable before completion when the upstream transport is genuinely incremental. The terminal value reconciles without duplication or a final-text replacement flash.
 
-### 11.2 Buffered gateways
+Runtime telemetry classifies answer delivery as `incremental`, `burst`, `atomic`, or `unknown`. The classification uses arrival timing and character distribution, not the mere presence of multiple delta events.
 
-A stream is considered effectively buffered when a long first-token delay is followed by nearly all content arriving in one narrow burst. This classification is diagnostic, not a correctness failure.
+### 11.2 Burst and buffered delivery
+
+A stream is considered effectively burst-delivered when a long first-text delay is followed by nearly all content arriving inside one browser paint window. This classification is diagnostic, not a runtime correctness failure, but it is a product-experience failure when the user sees one complete block.
 
 While waiting, the UI shows deterministic statuses such as:
 
@@ -642,9 +647,23 @@ While waiting, the UI shows deterministic statuses such as:
 - `Working` with elapsed time;
 - `Provider is buffering the response` when sufficient evidence exists.
 
-IdeaNote must not fabricate a token stream. A cosmetic reveal animation, if ever added, must be labelled and implemented independently from transport metrics.
+IdeaNote does not synthesize source events or claim that a paced display is token generation. For burst or atomic assistant answers, the frontend may use the bounded presentation queue defined by RFC Addendum 002. Source completion, Tool activity, cancellation, errors, and telemetry remain immediate and authoritative.
 
-### 11.3 Scroll anchoring
+### 11.3 Presentation pacing
+
+The frontend maintains separate source and display projections for the currently running assistant segment:
+
+- genuinely incremental source delivery renders directly within one frame;
+- burst or atomic delivery is revealed in Markdown-safe, grapheme-safe chunks over a bounded interval;
+- Tool, Plan, lifecycle, approval, cancellation, and error events bypass the queue;
+- a Tool event flushes earlier assistant text before the Tool row is rendered;
+- source `Working` ends when the runtime completes even if a short `revealing` display state remains;
+- reduced-motion preference disables character-like pacing;
+- persisted history stores only final authoritative content and safe source telemetry.
+
+The default pacing target is a visible update every 40–100 ms and a typical total reveal time of 0.8–2.5 seconds, adapting chunk size so long answers do not become artificially slow.
+
+### 11.4 Scroll anchoring
 
 When the user is at the transcript end, streamed Items keep the end anchored. If the user scrolls up, new deltas do not force the viewport down; a `Jump to latest` action appears.
 
@@ -768,6 +787,8 @@ Users may permanently delete a non-running local Thread after confirmation. Dele
 ### 15.2 Performance
 
 - Batch text deltas before React state updates.
+- Keep source content and display projection separate so pacing never mutates persisted Thread state.
+- Bypass pacing for Tool and lifecycle events and for reduced-motion users.
 - Normalize events through one reducer rather than local component state.
 - Paginate or virtualize long history.
 - Avoid rerendering the editor Canvas for Agent transcript changes.
@@ -913,7 +934,7 @@ Run equivalent offline and native acceptance against both rich-runtime candidate
 - Pin one app-server version.
 - Launch over local stdio from Tauri/Rust.
 - Generate schemas and map core Thread/Turn/Item events.
-- Prove create/resume/list Thread, start/cancel/steer Turn, Markdown text, reasoning summary, Tool call, and approval events.
+- Prove create/resume/list Thread, start/cancel/steer Turn, Markdown text, public activity, Tool call, and approval events while confirming reasoning-summary events remain non-product data.
 - Prove clean shutdown, crash recovery, redaction, and version mismatch handling.
 
 #### Grok Build ACP
@@ -948,6 +969,14 @@ The comparison selected Codex for production editor-capable Turns after its dyna
 - Register the Markdown Agent Extension without changing the Agent Runtime, Protocol, React SDK, or generic UI.
 - Use the result to decide whether the internal frontend SDK is ready to become a separately versioned package.
 
+### Phase 7: Perceived streaming optimization — proposed in RFC Addendum 002
+
+- Instrument Codex and Compatibility with the same delivery telemetry.
+- Classify incremental, burst, atomic, and unknown source delivery.
+- Add an editor-agnostic assistant-answer presentation queue for burst and atomic delivery.
+- Preserve immediate Tool/lifecycle chronology, exact final reconciliation, cancellation, reduced-motion behavior, and persisted source truth.
+- Tune the bounded cadence against native Codex evidence and the observed Teable interaction.
+
 ## 19. Verification strategy
 
 ### 19.1 Protocol tests
@@ -968,7 +997,7 @@ Run the same contract suite against offline fake implementations of every adapte
 - cancel Turn;
 - steer when supported;
 - text stream;
-- reasoning summary when supported;
+- explicitly public activity when supported;
 - Tool request/result;
 - approval request/result;
 - classified failures;
@@ -992,7 +1021,9 @@ Run the same contract suite against offline fake implementations of every adapte
 - Markdown heading, list, emphasis, link, and code block;
 - visible incremental text with a real streaming fake;
 - honest waiting state with a buffered fake;
-- optional public-runtime-summary disclosure;
+- progressive answer presentation with burst and atomic fakes;
+- source-completed/display-revealing reconciliation without a false Working state;
+- optional public-activity presentation;
 - plan and Tool timeline;
 - approval and Change Review cards;
 - Stop, retry, and steering;
@@ -1015,7 +1046,7 @@ Use a disposable unsaved document. Prove a complete read, proposal, review, Appl
 6. Persistent local Threads can be created, resumed, listed, renamed, archived, and permanently deleted after confirmation.
 7. Cancellation works; steering and approvals appear only when their complete product commands are supported.
 8. Transient failures retry automatically only before visible output or Tool execution.
-9. Buffered gateways are diagnosed without fabricating token streaming.
+9. Buffered, burst, and atomic delivery are diagnosed from source timing; bounded answer presentation may be paced without claiming live token generation or reasoning.
 10. Editor Tools are selected through File Type Registry Agent Extensions.
 11. Mutation Tools cannot Apply or write directly.
 12. Apply and Undo preserve all current document safety checks.
@@ -1025,7 +1056,7 @@ Use a disposable unsaved document. Prove a complete read, proposal, review, Appl
 16. Runtime selection cannot weaken proposal-only mutation, bypass explicit Apply, enable unrestricted filesystem/shell mutation, or restore MCP as an IdeaNote product surface.
 17. A future Markdown extension can reuse the Rust runtime, TypeScript editor Tool executor, and frontend without generic code changes.
 18. Rust owns Turn sequencing and Tool governance; TypeScript owns only live editor execution, proposal construction, Review, Apply, Undo, and UI.
-19. Incremental upstream text is visible before completion; buffered upstream delivery is reported honestly without cosmetic replay.
+19. Incremental upstream text is visible before completion; burst or atomic upstream text becomes visibly progressive through the bounded answer-only presentation queue while source timing and terminal lifecycle remain truthful.
 
 ## 21. Risks
 
@@ -1057,6 +1088,10 @@ Mitigation: stable call ids, execution ledger, no automatic retry after Tool exe
 
 Mitigation: local application-data storage, bounded persisted Context, explicit persistence flags, redaction, and no credentials or hidden reasoning in history.
 
+### 21.8 Presentation/source divergence
+
+Mitigation: keep authoritative source content and terminal state separate from ephemeral displayed content, cap reveal duration, flush at chronological barriers, disable character-like pacing for reduced motion, and reconcile final content exactly once.
+
 ## 22. Resolved implementation decisions
 
 F033-03 resolves the runtime questions as follows:
@@ -1069,6 +1104,7 @@ F033-03 resolves the runtime questions as follows:
 6. Persist only explicitly public, bounded runtime summaries allowed by policy; never persist hidden reasoning.
 7. Keep local Thread identity stable and store optional document/Workspace association without silently retargeting a Turn.
 8. Persist Codex upstream Thread ids so later local Turns can resume the same compatible upstream conversation.
+9. Treat Reasoning Summary as non-product data, retain only explicitly public activity, and use RFC Addendum 002's two-clock contract for burst-safe perceived streaming.
 
 ## 23. References
 
@@ -1091,3 +1127,4 @@ F033-03 resolves the runtime questions as follows:
 - Grok Build source: <https://github.com/xai-org/grok-build>
 - assistant-ui: <https://github.com/assistant-ui/assistant-ui>
 - Rig: <https://github.com/0xPlaygrounds/rig>
+- Streaming optimization: `docs/rfcs/002-agent-perceived-streaming-optimization.md`
