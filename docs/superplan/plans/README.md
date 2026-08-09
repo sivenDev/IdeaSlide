@@ -75,7 +75,7 @@
 | `F033-03` | [Compare Codex App-server and Grok Build ACP Runtimes](features/F033-codex-style-agent-implementation/F033-03-rich-runtime-comparison.md) | `complete` | 2026-08-08 |
 | `F033-04` | [Complete Persistent Threads and Editor Tool Integration](features/F033-codex-style-agent-implementation/F033-04-persistent-threads-and-editor-tools.md) | `complete` | 2026-08-08 |
 | `F034` | [Store the AI Token in Encrypted Application Configuration](features/F034-encrypted-ai-token-configuration.md) | `complete` | 2026-08-09 |
-| `F035` | [Complete Agent History, Codex Runtime, and Reasoning Visibility](features/F035-agent-history-codex-runtime-and-reasoning-visibility.md) | `draft` | 2026-08-09 |
+| `F035` | [Complete Agent History, Codex Runtime, and Streaming Activity](features/F035-agent-history-codex-runtime-and-streaming-activity.md) | `draft` | 2026-08-09 |
 
 ### Bugfix Plans
 
