@@ -40,6 +40,7 @@ test('native Agent Core owns lifecycle activity while TypeScript only forwards e
   assert.match(native, /ProviderProgress::PublicActivityDelta/);
   assert.match(native, /ProviderProgress::ToolStarted/);
   assert.match(native, /"label": "Working"/);
-  assert.match(native, /turn\.ensure_assistant\(\)/);
+  assert.match(native, /turn\.append_assistant_delta\(/);
+  assert.match(native, /turn\.close_assistant_segment\(\)/);
   assert.match(native, /emit_tool_result/);
 });

@@ -141,6 +141,64 @@ test('assistant Markdown grows from genuine deltas before completion and reconci
   assert.match(turn.items.find((item) => item.id === 'turn-1:activity').label, /Completed in/);
 });
 
+test('assistant segments and real Tool rows retain chronological transcript order', () => {
+  let state = reduceAgentEvent(initial(), started());
+  const message = (id, content, status) => ({
+    id, kind: 'message', role: 'assistant', content, status, createdAt: 11,
+  });
+  const tool = (id, callId, name, status, summary) => ({
+    id, kind: 'tool', callId, name, status, summary, createdAt: 11,
+  });
+  state = reduceAgentEvent(state, event('itemAdded', 1, { item: message('turn-1:assistant', '', 'running') }));
+  state = reduceAgentEvent(state, event('itemDelta', 2, {
+    itemId: 'turn-1:assistant', text: 'Inspecting the Page.',
+  }));
+  state = reduceAgentEvent(state, event('itemUpdated', 3, {
+    item: message('turn-1:assistant', 'Inspecting the Page.', 'completed'),
+  }));
+  state = reduceAgentEvent(state, event('itemAdded', 4, {
+    item: tool('turn-1:tool:read-1', 'read-1', 'read_active_page', 'running', 'Running editor Tool'),
+  }));
+  state = reduceAgentEvent(state, event('itemUpdated', 5, {
+    item: tool('turn-1:tool:read-1', 'read-1', 'read_active_page', 'completed', 'Read active Page'),
+  }));
+  state = reduceAgentEvent(state, event('itemAdded', 6, {
+    item: message('turn-1:assistant:1', '', 'running'),
+  }));
+  state = reduceAgentEvent(state, event('itemDelta', 7, {
+    itemId: 'turn-1:assistant:1', text: 'Preparing the update.',
+  }));
+  state = reduceAgentEvent(state, event('itemUpdated', 8, {
+    item: message('turn-1:assistant:1', 'Preparing the update.', 'completed'),
+  }));
+  state = reduceAgentEvent(state, event('itemAdded', 9, {
+    item: tool('turn-1:tool:replace-1', 'replace-1', 'replace_page_elements', 'running', 'Running editor Tool'),
+  }));
+  state = reduceAgentEvent(state, event('itemUpdated', 10, {
+    item: tool('turn-1:tool:replace-1', 'replace-1', 'replace_page_elements', 'completed', 'Replaced Page elements'),
+  }));
+  state = reduceAgentEvent(state, event('itemAdded', 11, {
+    item: message('turn-1:assistant:2', '', 'running'),
+  }));
+  state = reduceAgentEvent(state, event('itemDelta', 12, {
+    itemId: 'turn-1:assistant:2', text: 'Updated the Page.',
+  }));
+  state = reduceAgentEvent(state, event('turnCompleted', 13, {
+    assistantItemId: 'turn-1:assistant:2', finalText: 'Updated the Page.',
+  }));
+
+  const orderedActivity = state.thread.turns.at(-1).items
+    .filter((item) => item.kind === 'tool' || (item.kind === 'message' && item.role === 'assistant'))
+    .map((item) => item.kind === 'tool' ? item.name : item.content);
+  assert.deepEqual(orderedActivity, [
+    'Inspecting the Page.',
+    'read_active_page',
+    'Preparing the update.',
+    'replace_page_elements',
+    'Updated the Page.',
+  ]);
+});
+
 test('a retried Turn retains explicit linkage to the failed Turn', () => {
   let state = reduceAgentEvent(initial(), started());
   state = reduceAgentEvent(state, event('turnFailed', 1, {

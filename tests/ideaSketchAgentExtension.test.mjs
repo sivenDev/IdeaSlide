@@ -25,8 +25,10 @@ test('IdeaSketch context and read Tools are bounded and identify the active Page
   const context = ideaSketchAgentExtension.buildContext(document, 'page-1', 7);
   assert.equal(context.revision, 7);
   assert.equal(context.activePage.id, 'page-1');
-  assert.equal(context.activePage.elements.length, 80);
-  assert.equal(context.activePage.truncated, true);
+  assert.equal(context.activePage.elementCount, 90);
+  assert.equal(context.activePage.cameraCount, 0);
+  assert.equal('elements' in context.activePage, false);
+  assert.equal('truncated' in context.activePage, false);
 
   const result = await host(document, 7).execute({ callId: 'read-1', name: 'read_active_page', arguments: {} });
   assert.equal(result.kind, 'read');
@@ -99,4 +101,5 @@ test('IdeaSketch Tool contract covers outline, Page reads, and direct mutations'
   ]);
   const replace = ideaSketchAgentExtension.tools.find((tool) => tool.name === 'replace_page_elements');
   assert.match(replace.description, /active Page/);
+  assert.deepEqual(replace.requires, ['read_active_page']);
 });

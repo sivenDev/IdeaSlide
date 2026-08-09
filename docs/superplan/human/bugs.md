@@ -236,3 +236,10 @@ The previous Agent verification did not prove editing a real saved .is file end 
 - created: 2026-08-09
 
 Agent current-Page element edits currently mutate the IdeaSketch document model and maintain a separate Agent-only history instead of entering Excalidraw's native edit history. Route current-Page canvas operations through the mounted IdeaSketch/Excalidraw frontend SDK as one captured editor transaction, remove the application-level Agent Undo/Redo controls and snapshot stack, and let the normal editor change/autosave pipeline persist the result. Page add, delete, reorder, and non-mounted Page operations must not falsely claim Excalidraw-native Undo support.
+
+## B028: Show Real Agent Read Tools in Execution Order
+
+- status: done
+- created: 2026-08-09
+
+Agent editing Turns can skip read_active_page because the full active Page scene is injected into the initial context, so the UI shows only the mutation Tool. Assistant text also remains in one item across Tool calls, placing the completed response before later Tool cards. Make editor reads real and observable: provide lean turn-start metadata, require a successful same-turn current-revision read before canvas mutation, stream Tool Running and Completed states in true execution order, segment assistant output around Tool activity, and keep editor SDK application, stale-target safety, and native Undo/Redo intact.

@@ -518,6 +518,7 @@ mod tests {
                     "properties": {},
                     "additionalProperties": false
                 }),
+                requires: Vec::new(),
             }],
         };
         let mut driver =
@@ -568,6 +569,112 @@ mod tests {
         assert!(
             answer.contains("Native Tool Bridge Verified"),
             "Codex should use the dynamic Tool result"
+        );
+        driver.shutdown().await.expect("Codex should shut down");
+    }
+
+    #[tokio::test]
+    async fn installed_codex_respects_editor_tool_prerequisites_when_enabled() {
+        if std::env::var("IDEANOTE_CODEX_SMOKE").ok().as_deref() != Some("1") {
+            return;
+        }
+        let model = std::env::var("IDEANOTE_CODEX_SMOKE_MODEL")
+            .unwrap_or_else(|_| "gpt-5.6-terra".to_string());
+        let input = RuntimeTurnInput {
+            conversation_id: None,
+            prompt: concat!(
+                "Optimize the active Page by replacing its elements. ",
+                "Tool descriptors declare prerequisites: replace_page_elements requires ",
+                "read_active_page. Complete required Tools in order and then summarize the change."
+            )
+            .to_string(),
+            model,
+            cwd: std::env::temp_dir(),
+            tools: vec![
+                AgentToolDescriptor {
+                    name: "read_active_page".to_string(),
+                    description: "Read the bounded active Page scene.".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": false
+                    }),
+                    requires: Vec::new(),
+                },
+                AgentToolDescriptor {
+                    name: "replace_page_elements".to_string(),
+                    description:
+                        "After read_active_page succeeds, replace the active Page elements."
+                            .to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "pageId": {"type": "string"},
+                            "elements": {"type": "array", "items": {"type": "object"}}
+                        },
+                        "required": ["pageId", "elements"],
+                        "additionalProperties": false
+                    }),
+                    requires: vec!["read_active_page".to_string()],
+                },
+            ],
+        };
+        let mut driver =
+            tokio::time::timeout(Duration::from_secs(30), CodexTurnDriver::start(&input))
+                .await
+                .expect("Codex startup should not time out")
+                .expect("Codex should start");
+        let mut tool_order = Vec::new();
+        let mut answer = String::new();
+        loop {
+            let event = tokio::time::timeout(Duration::from_secs(90), driver.next_event())
+                .await
+                .expect("Codex event should not time out")
+                .expect("Codex event should map");
+            match event {
+                RuntimeDriverEvent::ToolRequest { request_id, call } => {
+                    tool_order.push(call.name.clone());
+                    let result = match call.name.as_str() {
+                        "read_active_page" => serde_json::json!({
+                            "kind": "read", "callId": call.call_id, "name": call.name,
+                            "success": true, "summary": "Read active Page",
+                            "content": {"id": "page-1", "title": "Overview", "elements": []},
+                            "truncated": false, "persistable": false
+                        }),
+                        "replace_page_elements" => {
+                            assert_eq!(
+                                tool_order,
+                                ["read_active_page", "replace_page_elements"],
+                                "Codex must complete the declared read prerequisite first"
+                            );
+                            serde_json::json!({
+                                "kind": "mutation", "callId": call.call_id, "name": call.name,
+                                "success": true, "summary": "Replaced active Page elements",
+                                "changeSet": {"id": "change-1", "summary": "Optimize Page", "status": "applied"},
+                                "truncated": false, "persistable": true
+                            })
+                        }
+                        name => panic!("Codex requested an unexpected Tool: {name}"),
+                    };
+                    driver
+                        .tool_result(&request_id, result, true)
+                        .await
+                        .expect("Tool result should return to Codex");
+                }
+                RuntimeDriverEvent::Event(RuntimeEvent::TextDelta(delta)) => {
+                    answer.push_str(&delta);
+                }
+                RuntimeDriverEvent::Event(RuntimeEvent::TurnCompleted) => break,
+                RuntimeDriverEvent::Event(RuntimeEvent::RuntimeError(message)) => {
+                    panic!("Codex runtime failed: {message}");
+                }
+                RuntimeDriverEvent::Event(_) => {}
+            }
+        }
+        assert_eq!(tool_order, ["read_active_page", "replace_page_elements"]);
+        assert!(
+            !answer.trim().is_empty(),
+            "Codex should produce a final answer"
         );
         driver.shutdown().await.expect("Codex should shut down");
     }

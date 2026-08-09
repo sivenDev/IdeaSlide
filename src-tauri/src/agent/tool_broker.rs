@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use serde_json::{json, Value};
 
@@ -24,6 +24,7 @@ pub(crate) enum BrokerDecision {
 pub(crate) struct AgentToolBroker {
     tools: HashMap<String, AgentToolDescriptor>,
     ledger: HashMap<String, LedgerEntry>,
+    successful_tools: HashSet<String>,
 }
 
 impl AgentToolBroker {
@@ -43,9 +44,11 @@ impl AgentToolBroker {
                 ));
             }
         }
+        validate_prerequisites(&definitions)?;
         Ok(Self {
             tools: definitions,
             ledger: HashMap::new(),
+            successful_tools: HashSet::new(),
         })
     }
 
@@ -55,6 +58,19 @@ impl AgentToolBroker {
             .tools
             .get(&call.name)
             .ok_or_else(|| format!("Editor Tool is not registered: {}", call.name))?;
+        let missing = descriptor
+            .requires
+            .iter()
+            .filter(|required| !self.successful_tools.contains(*required))
+            .cloned()
+            .collect::<Vec<_>>();
+        if !missing.is_empty() {
+            return Err(format!(
+                "Editor Tool {} requires successful Tool completion first: {}",
+                call.name,
+                missing.join(", ")
+            ));
+        }
         let validator = jsonschema::JSONSchema::compile(&descriptor.input_schema)
             .map_err(|_| format!("Editor Tool schema is invalid: {}", call.name))?;
         if let Err(errors) = validator.validate(&call.arguments) {
@@ -133,8 +149,64 @@ impl AgentToolBroker {
             .get_mut(&call.call_id)
             .ok_or_else(|| "Editor Tool call is not active.".to_string())?;
         entry.result = Some(result.clone());
+        if result
+            .get("success")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            self.successful_tools.insert(call.name.clone());
+        }
         Ok(result)
     }
+}
+
+fn validate_prerequisites(
+    definitions: &HashMap<String, AgentToolDescriptor>,
+) -> Result<(), String> {
+    for (name, tool) in definitions {
+        for required in &tool.requires {
+            validate_tool_name(required)?;
+            if required == name {
+                return Err(format!("Editor Tool {name} cannot require itself."));
+            }
+            if !definitions.contains_key(required) {
+                return Err(format!(
+                    "Editor Tool {name} requires an unregistered Tool: {required}"
+                ));
+            }
+        }
+    }
+
+    fn visit(
+        name: &str,
+        definitions: &HashMap<String, AgentToolDescriptor>,
+        visiting: &mut HashSet<String>,
+        visited: &mut HashSet<String>,
+    ) -> Result<(), String> {
+        if visited.contains(name) {
+            return Ok(());
+        }
+        if !visiting.insert(name.to_string()) {
+            return Err(format!(
+                "Editor Tool prerequisites contain a cycle involving {name}."
+            ));
+        }
+        if let Some(tool) = definitions.get(name) {
+            for required in &tool.requires {
+                visit(required, definitions, visiting, visited)?;
+            }
+        }
+        visiting.remove(name);
+        visited.insert(name.to_string());
+        Ok(())
+    }
+
+    let mut visiting = HashSet::new();
+    let mut visited = HashSet::new();
+    for name in definitions.keys() {
+        visit(name, definitions, &mut visiting, &mut visited)?;
+    }
+    Ok(())
 }
 
 fn validate_tool_name(name: &str) -> Result<(), String> {
@@ -178,7 +250,34 @@ mod tests {
                 "required": ["pageId"],
                 "additionalProperties": false
             }),
+            requires: Vec::new(),
         }]
+    }
+
+    fn prerequisite_tools() -> Vec<AgentToolDescriptor> {
+        vec![
+            AgentToolDescriptor {
+                name: "read_active_page".to_string(),
+                description: "Read the active Page".to_string(),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                }),
+                requires: Vec::new(),
+            },
+            AgentToolDescriptor {
+                name: "replace_page_elements".to_string(),
+                description: "Replace active Page elements".to_string(),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {"pageId": {"type": "string"}},
+                    "required": ["pageId"],
+                    "additionalProperties": false
+                }),
+                requires: vec!["read_active_page".to_string()],
+            },
+        ]
     }
 
     #[test]
@@ -290,5 +389,79 @@ mod tests {
             )
             .unwrap();
         assert_eq!(applied["changeSet"]["status"], "applied");
+    }
+
+    #[test]
+    fn requires_a_successful_prerequisite_before_dependent_tool_execution() {
+        let mut broker = AgentToolBroker::new(&prerequisite_tools()).unwrap();
+        let mutation = AgentToolCall {
+            call_id: "mutation-before-read".to_string(),
+            name: "replace_page_elements".to_string(),
+            arguments: json!({"pageId": "page-1"}),
+        };
+        let error = match broker.begin(&mutation) {
+            Err(error) => error,
+            Ok(_) => panic!("mutation must wait for its prerequisite"),
+        };
+        assert!(error.contains("read_active_page"));
+
+        let failed_read = AgentToolCall {
+            call_id: "failed-read".to_string(),
+            name: "read_active_page".to_string(),
+            arguments: json!({}),
+        };
+        assert!(matches!(
+            broker.begin(&failed_read).unwrap(),
+            BrokerDecision::Execute
+        ));
+        broker
+            .complete(
+                &failed_read,
+                json!({
+                    "kind": "failure", "callId": "failed-read", "name": "read_active_page",
+                    "success": false, "summary": "Read failed", "truncated": false,
+                    "persistable": true
+                }),
+            )
+            .unwrap();
+        assert!(broker.begin(&mutation).is_err());
+
+        let successful_read = AgentToolCall {
+            call_id: "successful-read".to_string(),
+            ..failed_read
+        };
+        assert!(matches!(
+            broker.begin(&successful_read).unwrap(),
+            BrokerDecision::Execute
+        ));
+        broker
+            .complete(
+                &successful_read,
+                json!({
+                    "kind": "read", "callId": "successful-read", "name": "read_active_page",
+                    "success": true, "summary": "Read Page", "content": {"id": "page-1"},
+                    "truncated": false, "persistable": false
+                }),
+            )
+            .unwrap();
+        assert!(matches!(
+            broker.begin(&mutation).unwrap(),
+            BrokerDecision::Execute
+        ));
+    }
+
+    #[test]
+    fn rejects_invalid_prerequisite_descriptors() {
+        let mut missing = prerequisite_tools();
+        missing[1].requires = vec!["missing_read".to_string()];
+        assert!(AgentToolBroker::new(&missing).is_err());
+
+        let mut self_referential = prerequisite_tools();
+        self_referential[1].requires = vec!["replace_page_elements".to_string()];
+        assert!(AgentToolBroker::new(&self_referential).is_err());
+
+        let mut cyclic = prerequisite_tools();
+        cyclic[0].requires = vec!["replace_page_elements".to_string()];
+        assert!(AgentToolBroker::new(&cyclic).is_err());
     }
 }

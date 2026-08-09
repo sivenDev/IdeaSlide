@@ -17,7 +17,7 @@ export const IDEA_SKETCH_AGENT_TOOLS: AgentToolDescriptor[] = [
   },
   {
     name: "read_active_page",
-    description: "Read the bounded active Page scene and Page-scoped Cameras from supplied context.",
+    description: "Read the bounded active Page scene and Page-scoped Cameras from the captured editor state.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
@@ -55,7 +55,8 @@ export const IDEA_SKETCH_AGENT_TOOLS: AgentToolDescriptor[] = [
   },
   {
     name: "replace_page_elements",
-    description: "Replace the editable elements of the active Page through its mounted canvas editor while preserving Page identity and metadata.",
+    description: "After read_active_page succeeds, replace the editable elements of that active Page through its mounted canvas editor while preserving Page identity and metadata.",
+    requires: ["read_active_page"],
     inputSchema: {
       type: "object",
       properties: {

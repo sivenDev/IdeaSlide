@@ -46,7 +46,7 @@ pub(crate) fn prompt_with_context(
     let context = serde_json::to_string_pretty(&request.context)
         .map_err(|error| runtime_failure(format!("Agent context could not be encoded: {error}")))?;
     let preamble = format!(
-        "{}\n\nACTIVE EDITOR SKILL:\n{}\n\nAVAILABLE EDITOR TOOLS:\n{}\n\nACTIVE DOCUMENT CONTEXT:\n{}\n\nNever write files directly. Use registered structured editor Tools for reads and mutations. Mutation Tools apply through the active editor as reversible transactions and cannot save or bypass editor safety checks. When the user requests a supported reversible editor mutation, do not ask for approval, confirmation, or review; call exactly one matching mutation Tool immediately.",
+        "{}\n\nACTIVE EDITOR SKILL:\n{}\n\nAVAILABLE EDITOR TOOLS:\n{}\n\nACTIVE DOCUMENT CONTEXT:\n{}\n\nNever write files directly. Use registered structured editor Tools for reads and mutations. Complete every Tool named in a descriptor's requires list before calling that dependent Tool. Mutation Tools apply through the active editor as reversible transactions and cannot save or bypass editor safety checks. When the user requests a supported reversible editor mutation, do not ask for approval, confirmation, or review; complete its required reads and then call exactly one matching mutation Tool.",
         request.system_prompt, skill, tools, context
     );
     Ok(preamble)
@@ -104,6 +104,7 @@ mod tests {
                     "properties": {"title": {"type": "string"}},
                     "required": ["title"]
                 }),
+                requires: Vec::new(),
             }],
             messages: vec![
                 AgentMessageInput {
@@ -123,7 +124,8 @@ mod tests {
         let prompt = prompt_with_context(&request("http://localhost".to_string()))
             .expect("prompt should be assembled");
         assert!(prompt.contains("do not ask for approval, confirmation, or review"));
-        assert!(prompt.contains("call exactly one matching mutation Tool immediately"));
+        assert!(prompt.contains("complete its required reads"));
+        assert!(prompt.contains("call exactly one matching mutation Tool"));
     }
 
     struct TestResponse {

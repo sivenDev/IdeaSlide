@@ -37,8 +37,7 @@ export const ideaSketchAgentExtension: AgentExtension<IdeaSketchDocument, IdeaSk
         id: activePage.id,
         title: activePage.title,
         elementCount: activePage.elements.length,
-        elements: activePage.elements.slice(0, 80),
-        truncated: activePage.elements.length > 80,
+        cameraCount: extractCameras(activePage.elements).length,
       } : null,
     };
   },

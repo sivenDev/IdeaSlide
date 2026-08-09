@@ -6,6 +6,7 @@ export interface AgentToolDescriptor {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  requires?: string[];
 }
 
 export interface AgentToolCall {

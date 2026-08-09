@@ -100,10 +100,13 @@ struct NativeTurnEmitter {
     turn_id: String,
     sequence: u64,
     assistant_item_id: String,
+    assistant_segment: u32,
     assistant_added: bool,
+    assistant_content: String,
     activity_added: bool,
     activity_content: String,
     tool_items: HashMap<String, String>,
+    tool_activity_started: bool,
     runtime_progressed: bool,
     terminal: bool,
 }
@@ -117,10 +120,13 @@ impl NativeTurnEmitter {
             turn_id,
             sequence: 0,
             assistant_item_id,
+            assistant_segment: 0,
             assistant_added: false,
+            assistant_content: String::new(),
             activity_added: false,
             activity_content: String::new(),
             tool_items: HashMap::new(),
+            tool_activity_started: false,
             runtime_progressed: false,
             terminal: false,
         }
@@ -170,6 +176,75 @@ impl NativeTurnEmitter {
                 }
             }),
         )
+    }
+
+    fn append_assistant_delta(&mut self, delta: &str) -> Result<(), String> {
+        self.ensure_assistant()?;
+        self.assistant_content.push_str(delta);
+        let item_id = self.assistant_item_id.clone();
+        self.send("itemDelta", json!({"itemId": item_id, "text": delta}))
+    }
+
+    fn close_assistant_segment(&mut self) -> Result<(), String> {
+        if !self.assistant_added {
+            return Ok(());
+        }
+        let item_id = self.assistant_item_id.clone();
+        let content = self.assistant_content.clone();
+        self.send(
+            "itemUpdated",
+            json!({"item": {
+                "id": item_id,
+                "kind": "message",
+                "role": "assistant",
+                "content": content,
+                "status": "completed",
+                "createdAt": now_millis(),
+            }}),
+        )?;
+        self.assistant_segment = self.assistant_segment.saturating_add(1);
+        self.assistant_item_id = format!("{}:assistant:{}", self.turn_id, self.assistant_segment);
+        self.assistant_added = false;
+        self.assistant_content.clear();
+        Ok(())
+    }
+
+    fn finalize_assistant(&mut self, response_text: &str) -> Result<(String, String), String> {
+        let final_text = if self.assistant_added && !self.assistant_content.is_empty() {
+            self.assistant_content.clone()
+        } else if self.tool_activity_started {
+            "I completed the requested editor Tool activity.".to_string()
+        } else {
+            response_text.to_string()
+        };
+        if !self.assistant_added {
+            self.ensure_assistant()?;
+        }
+        if self.assistant_content.is_empty() && !final_text.is_empty() {
+            self.assistant_content.push_str(&final_text);
+            let item_id = self.assistant_item_id.clone();
+            self.send(
+                "itemDelta",
+                json!({"itemId": item_id, "text": final_text.clone()}),
+            )?;
+        }
+        let item_id = self.assistant_item_id.clone();
+        let content = self.assistant_content.clone();
+        self.send(
+            "itemUpdated",
+            json!({"item": {
+                "id": item_id,
+                "kind": "message",
+                "role": "assistant",
+                "content": content,
+                "status": "completed",
+                "createdAt": now_millis(),
+            }}),
+        )?;
+        Ok((
+            self.assistant_item_id.clone(),
+            self.assistant_content.clone(),
+        ))
     }
 
     fn send_terminal(&mut self, event_type: &str, payload: Value) -> Result<bool, String> {
@@ -279,6 +354,34 @@ fn emit_public_activity_delta(turn: &mut NativeTurnEmitter, delta: String) -> Re
     turn.send("itemDelta", json!({"itemId": item_id, "text": delta}))
 }
 
+fn emit_tool_started(
+    turn: &mut NativeTurnEmitter,
+    call_id: &str,
+    name: &str,
+    input: Option<&Value>,
+) -> Result<(), String> {
+    if turn.tool_items.contains_key(call_id) {
+        return Ok(());
+    }
+    turn.close_assistant_segment()?;
+    turn.tool_activity_started = true;
+    let item_id = format!("{}:tool:{call_id}", turn.turn_id);
+    turn.tool_items.insert(call_id.to_string(), item_id.clone());
+    let mut item = json!({
+        "id": item_id,
+        "kind": "tool",
+        "name": name,
+        "callId": call_id,
+        "summary": "Running editor Tool",
+        "status": "running",
+        "createdAt": now_millis(),
+    });
+    if let Some(input) = input {
+        item["input"] = input.clone();
+    }
+    turn.send("itemAdded", json!({"item": item}))
+}
+
 fn emit_tool_result(
     turn: &mut NativeTurnEmitter,
     call: &AgentToolCall,
@@ -337,7 +440,7 @@ fn emit_tool_result(
 fn finalize_turn(
     emitter: &Arc<Mutex<NativeTurnEmitter>>,
     response_text: &str,
-) -> Result<(u64, String), String> {
+) -> Result<(u64, String, String), String> {
     let mut turn = emitter
         .lock()
         .map_err(|_| "Agent Turn event state is unavailable")?;
@@ -355,12 +458,12 @@ fn finalize_turn(
             }}),
         )?;
     }
-    let assistant_item_id = turn.assistant_item_id.clone();
+    let (assistant_item_id, final_text) = turn.finalize_assistant(response_text)?;
     turn.send_terminal(
         "turnCompleted",
-        json!({"assistantItemId": assistant_item_id, "finalText": response_text}),
+        json!({"assistantItemId": assistant_item_id.clone(), "finalText": final_text.clone()}),
     )?;
-    Ok((turn.sequence, turn.assistant_item_id.clone()))
+    Ok((turn.sequence, assistant_item_id, final_text))
 }
 
 async fn receive_tool_result(
@@ -470,24 +573,7 @@ async fn run_codex_driver(
                         .lock()
                         .map_err(|_| "Agent Turn event state is unavailable")?;
                     turn.runtime_progressed = true;
-                    if !turn.tool_items.contains_key(&call.call_id) {
-                        let item_id = format!("{}:tool:{}", turn.turn_id, call.call_id);
-                        turn.tool_items
-                            .insert(call.call_id.clone(), item_id.clone());
-                        turn.send(
-                            "itemAdded",
-                            json!({"item": {
-                                "id": item_id,
-                                "kind": "tool",
-                                "name": call.name,
-                                "callId": call.call_id,
-                                "summary": "Running editor Tool",
-                                "input": call.arguments,
-                                "status": "running",
-                                "createdAt": now_millis(),
-                            }}),
-                        )?;
-                    }
+                    emit_tool_started(&mut turn, &call.call_id, &call.name, Some(&call.arguments))?;
                 }
                 let result =
                     execute_editor_tool(state, emitter, &mut broker, &call, cancellation.clone())
@@ -512,9 +598,7 @@ async fn run_codex_driver(
                         .lock()
                         .map_err(|_| "Agent Turn event state is unavailable")?;
                     turn.runtime_progressed = true;
-                    turn.ensure_assistant()?;
-                    let item_id = turn.assistant_item_id.clone();
-                    turn.send("itemDelta", json!({"itemId": item_id, "text": delta}))?;
+                    turn.append_assistant_delta(&delta)?;
                 }
                 adapters::RuntimeEvent::PublicActivityDelta(delta) => {
                     let mut turn = emitter
@@ -748,7 +832,7 @@ pub(crate) async fn run_agent(
                         } else {
                             text
                         };
-                        let (next_sequence, assistant_item_id) =
+                        let (next_sequence, assistant_item_id, response_text) =
                             finalize_turn(&emitter, &response_text)?;
                         let response = AgentRunResponse {
                             run_id: run_id.clone(),
@@ -891,25 +975,10 @@ pub(crate) async fn run_agent(
                 emit_public_activity_delta(&mut turn, text)
             }
             provider::ProviderProgress::TextDelta(text) => {
-                turn.ensure_assistant()?;
-                let item_id = turn.assistant_item_id.clone();
-                turn.send("itemDelta", json!({"itemId": item_id, "text": text}))
+                turn.append_assistant_delta(&text)
             }
             provider::ProviderProgress::ToolStarted { call_id, name } => {
-                if turn.tool_items.contains_key(&call_id) {
-                    return Ok(());
-                }
-                let item_id = format!("{}:tool:{call_id}", turn.turn_id);
-                turn.tool_items.insert(call_id.clone(), item_id.clone());
-                turn.send("itemAdded", json!({"item": {
-                    "id": item_id,
-                    "kind": "tool",
-                    "name": name,
-                    "callId": call_id,
-                    "summary": "Running editor Tool",
-                    "status": "running",
-                    "createdAt": now_millis(),
-                }}))
+                emit_tool_started(&mut turn, &call_id, &name, None)
             }
             provider::ProviderProgress::ToolCompleted {
                 call_id,
@@ -973,7 +1042,8 @@ pub(crate) async fn run_agent(
             } else {
                 completion.text.clone()
             };
-            let (next_sequence, assistant_item_id) = finalize_turn(&emitter, &response_text)?;
+            let (next_sequence, assistant_item_id, response_text) =
+                finalize_turn(&emitter, &response_text)?;
             let response = AgentRunResponse {
                 run_id: run_id.clone(),
                 text: response_text,
@@ -1039,11 +1109,152 @@ fn now_millis() -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::can_fallback_after_codex_failure;
+    use super::{
+        can_fallback_after_codex_failure, emit_tool_result, emit_tool_started, finalize_turn,
+        NativeTurnEmitter,
+    };
+    use crate::agent::types::{AgentRunEvent, AgentToolCall};
+    use serde_json::{json, Value};
+    use std::sync::{Arc, Mutex};
+    use tauri::ipc::{Channel, InvokeResponseBody};
 
     #[test]
     fn codex_failure_falls_back_only_before_visible_or_tool_progress() {
         assert!(can_fallback_after_codex_failure(false));
         assert!(!can_fallback_after_codex_failure(true));
+    }
+
+    #[test]
+    fn assistant_segments_follow_tool_execution_order() {
+        let captured = Arc::new(Mutex::new(Vec::<Value>::new()));
+        let event_capture = captured.clone();
+        let channel = Channel::<AgentRunEvent>::new(move |body| {
+            let InvokeResponseBody::Json(text) = body else {
+                panic!("Agent events must be JSON");
+            };
+            event_capture
+                .lock()
+                .unwrap()
+                .push(serde_json::from_str(&text).unwrap());
+            Ok(())
+        });
+        let emitter = Arc::new(Mutex::new(NativeTurnEmitter::new(
+            channel,
+            "thread-1".to_string(),
+            "turn-1".to_string(),
+        )));
+        let call = AgentToolCall {
+            call_id: "read-1".to_string(),
+            name: "read_active_page".to_string(),
+            arguments: json!({}),
+        };
+        let mutation = AgentToolCall {
+            call_id: "replace-1".to_string(),
+            name: "replace_page_elements".to_string(),
+            arguments: json!({"pageId": "page-1", "elements": []}),
+        };
+        {
+            let mut turn = emitter.lock().unwrap();
+            turn.append_assistant_delta("Inspecting the Page.").unwrap();
+            emit_tool_started(&mut turn, &call.call_id, &call.name, Some(&call.arguments)).unwrap();
+            emit_tool_result(
+                &mut turn,
+                &call,
+                &json!({
+                    "kind": "read", "callId": "read-1", "name": "read_active_page",
+                    "success": true, "summary": "Read active Page", "content": {"id": "page-1"},
+                    "truncated": false, "persistable": false
+                }),
+            )
+            .unwrap();
+            turn.append_assistant_delta("Preparing the update.")
+                .unwrap();
+            emit_tool_started(
+                &mut turn,
+                &mutation.call_id,
+                &mutation.name,
+                Some(&mutation.arguments),
+            )
+            .unwrap();
+            emit_tool_result(
+                &mut turn,
+                &mutation,
+                &json!({
+                    "kind": "mutation", "callId": "replace-1", "name": "replace_page_elements",
+                    "success": true, "summary": "Replaced active Page elements",
+                    "changeSet": {"id": "change-1", "summary": "Replace Page", "status": "applied"},
+                    "truncated": false, "persistable": true
+                }),
+            )
+            .unwrap();
+            turn.append_assistant_delta("Updated the Page.").unwrap();
+        }
+        let (_, assistant_item_id, final_text) = finalize_turn(
+            &emitter,
+            "Inspecting the Page.Preparing the update.Updated the Page.",
+        )
+        .unwrap();
+        assert_eq!(assistant_item_id, "turn-1:assistant:2");
+        assert_eq!(final_text, "Updated the Page.");
+
+        let events = captured.lock().unwrap();
+        let ordered = events
+            .iter()
+            .filter_map(|envelope| {
+                let event = envelope.get("event")?;
+                match event.get("type")?.as_str()? {
+                    "itemAdded" | "itemUpdated" => {
+                        let item = event.get("item")?;
+                        Some(format!(
+                            "{}:{}:{}",
+                            event.get("type")?.as_str()?,
+                            item.get("kind")?.as_str()?,
+                            item.get("status")?.as_str()?
+                        ))
+                    }
+                    "turnCompleted" => Some("turnCompleted".to_string()),
+                    _ => None,
+                }
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            ordered,
+            [
+                "itemAdded:message:running",
+                "itemUpdated:message:completed",
+                "itemAdded:tool:running",
+                "itemUpdated:tool:completed",
+                "itemAdded:message:running",
+                "itemUpdated:message:completed",
+                "itemAdded:tool:running",
+                "itemUpdated:tool:completed",
+                "itemAdded:message:running",
+                "itemUpdated:message:completed",
+                "turnCompleted",
+            ]
+        );
+    }
+
+    #[test]
+    fn tool_only_completion_does_not_repeat_pre_tool_text_as_the_final_message() {
+        let channel = Channel::<AgentRunEvent>::new(|_| Ok(()));
+        let emitter = Arc::new(Mutex::new(NativeTurnEmitter::new(
+            channel,
+            "thread-2".to_string(),
+            "turn-2".to_string(),
+        )));
+        {
+            let mut turn = emitter.lock().unwrap();
+            turn.append_assistant_delta("I will inspect the Page.")
+                .unwrap();
+            emit_tool_started(&mut turn, "read-2", "read_active_page", Some(&json!({}))).unwrap();
+        }
+        let (_, assistant_item_id, final_text) =
+            finalize_turn(&emitter, "I will inspect the Page.").unwrap();
+        assert_eq!(assistant_item_id, "turn-2:assistant:1");
+        assert_eq!(
+            final_text,
+            "I completed the requested editor Tool activity."
+        );
     }
 }

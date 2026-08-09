@@ -193,9 +193,7 @@ impl AgentRuntimeAdapter for CodexAppServerAdapter {
             "item/agentMessage/delta" => codex_schema::string_at(&params, &["delta"])
                 .map(|text| vec![RuntimeEvent::TextDelta(text.to_string())])
                 .unwrap_or_default(),
-            "item/reasoning/summaryTextDelta" => codex_schema::string_at(&params, &["delta"])
-                .map(|text| vec![RuntimeEvent::PublicActivityDelta(text.to_string())])
-                .unwrap_or_default(),
+            "item/reasoning/summaryTextDelta" => Vec::new(),
             "turn/plan/updated" => vec![RuntimeEvent::PlanUpdated {
                 title: codex_schema::string_at(&params, &["explanation"])
                     .unwrap_or("Plan")
@@ -286,6 +284,7 @@ mod tests {
                 name: "edit_document".to_string(),
                 description: "Apply a reversible editor mutation".to_string(),
                 input_schema: json!({"type": "object"}),
+                requires: Vec::new(),
             }],
         };
         let message = adapter().start_conversation(&input);
@@ -303,12 +302,10 @@ mod tests {
             "item/reasoning/summaryTextDelta",
             json!({"delta": "Inspected the document"}),
         );
-        assert_eq!(
-            adapter.map_message(&reasoning).expect("message should map"),
-            [RuntimeEvent::PublicActivityDelta(
-                "Inspected the document".to_string()
-            )]
-        );
+        assert!(adapter
+            .map_message(&reasoning)
+            .expect("message should map")
+            .is_empty());
         let tool = JsonRpcMessage::Request {
             id: JsonRpcId::Number(9),
             method: "item/tool/call".to_string(),

@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `required` | 6 | 6 |
 | `feature` | 41 | 41 |
-| `bugfix` | 27 | 27 |
+| `bugfix` | 28 | 28 |
 
 ## Execution Order
 
@@ -109,3 +109,4 @@
 | `B025` | [Fix Agent Fallback Hangs, Cancellation, and Activity Presentation](bugs/B025-fix-agent-fallback-hangs-cancellation-and-activity-presentation.md) | `complete` | 2026-08-09 |
 | `B026` | [Validate Agent Editing of Saved IdeaSketch Files](bugs/B026-validate-agent-editing-of-saved-ideasketch-files.md) | `complete` | 2026-08-09 |
 | `B027` | [Use IdeaSketch Native Undo for Agent Canvas Edits](bugs/B027-use-ideasketch-native-undo-for-agent-canvas-edits.md) | `complete` | 2026-08-09 |
+| `B028` | [Show Real Agent Read Tools in Execution Order](bugs/B028-show-real-agent-read-tools-in-execution-order.md) | `complete` | 2026-08-09 |
