@@ -1,19 +1,20 @@
-#![allow(dead_code)] // Rich runtimes stay capability-gated until F033-04 wires persistent execution.
-
 mod acp_schema;
 mod codex_app_server;
 mod codex_schema;
 mod contract;
 mod grok_acp;
 mod process;
-mod stdio_json_rpc;
+pub(crate) mod stdio_json_rpc;
 
-use std::{fmt, path::PathBuf, time::Duration};
+pub(crate) use codex_app_server::PINNED_CODEX_VERSION;
+
+use std::{collections::VecDeque, fmt, path::PathBuf, time::Duration};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::types::AgentToolDescriptor;
+use stdio_json_rpc::JsonRpcId;
 use stdio_json_rpc::JsonRpcMessage;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -153,6 +154,152 @@ pub(crate) struct RuntimeAvailability {
     pub compatible: bool,
     pub enabled: bool,
     pub capabilities: RuntimeCapabilities,
+}
+
+pub(crate) enum RuntimeDriverEvent {
+    Event(RuntimeEvent),
+    ToolRequest {
+        request_id: JsonRpcId,
+        call: super::types::AgentToolCall,
+    },
+}
+
+pub(crate) struct CodexTurnDriver {
+    adapter: codex_app_server::CodexAppServerAdapter,
+    process: process::LocalRuntimeProcess,
+    conversation_id: String,
+    queued: VecDeque<RuntimeDriverEvent>,
+}
+
+impl CodexTurnDriver {
+    pub(crate) async fn start(input: &RuntimeTurnInput) -> Result<Self, RuntimeAdapterError> {
+        let executable = resolve_executable("codex").ok_or_else(|| {
+            RuntimeAdapterError::unavailable("Codex app-server is not installed.")
+        })?;
+        let adapter = codex_app_server::CodexAppServerAdapter::new(executable);
+        let mut process = process::LocalRuntimeProcess::spawn(adapter.command()).await?;
+        let initialized = process.request(&adapter.initialize()).await?;
+        if let Some(error) = process::response_error(&initialized) {
+            return Err(RuntimeAdapterError::unavailable(error));
+        }
+        if let Some(notification) = adapter.initialized() {
+            process.send(&notification).await?;
+        }
+        let started = if let Some(conversation_id) = input.conversation_id.as_deref() {
+            process
+                .request(&adapter.resume_conversation(conversation_id, &input.cwd))
+                .await?
+        } else {
+            process.request(&adapter.start_conversation(input)).await?
+        };
+        if let Some(error) = process::response_error(&started) {
+            return Err(RuntimeAdapterError::unavailable(error));
+        }
+        let conversation_id = response_result(&started)
+            .and_then(|result| {
+                ["/thread/id", "/threadId", "/id"]
+                    .into_iter()
+                    .find_map(|pointer| result.pointer(pointer).and_then(Value::as_str))
+            })
+            .ok_or_else(|| RuntimeAdapterError::protocol("Codex did not return a Thread id."))?
+            .to_string();
+        process
+            .send(&adapter.start_turn(&conversation_id, input))
+            .await?;
+        Ok(Self {
+            adapter,
+            process,
+            conversation_id,
+            queued: VecDeque::new(),
+        })
+    }
+
+    pub(crate) fn capabilities(&self) -> RuntimeCapabilities {
+        self.adapter.capabilities()
+    }
+
+    pub(crate) fn conversation_id(&self) -> &str {
+        &self.conversation_id
+    }
+
+    pub(crate) async fn next_event(&mut self) -> Result<RuntimeDriverEvent, RuntimeAdapterError> {
+        loop {
+            if let Some(event) = self.queued.pop_front() {
+                return Ok(event);
+            }
+            let message = self.process.next_message().await?;
+            if message.method() == Some("item/tool/call") {
+                let request_id = message.id().cloned().ok_or_else(|| {
+                    RuntimeAdapterError::protocol("Codex Tool request is missing an id.")
+                })?;
+                for event in self.adapter.map_message(&message)? {
+                    if let RuntimeEvent::ToolStarted {
+                        call_id,
+                        name,
+                        arguments,
+                        proposal_only: true,
+                    } = event
+                    {
+                        return Ok(RuntimeDriverEvent::ToolRequest {
+                            request_id,
+                            call: super::types::AgentToolCall {
+                                call_id,
+                                name,
+                                arguments,
+                            },
+                        });
+                    }
+                }
+                continue;
+            }
+            if message.method().is_some_and(|method| {
+                matches!(
+                    method,
+                    "item/commandExecution/requestApproval" | "item/fileChange/requestApproval"
+                )
+            }) {
+                if let Some(request_id) = message.id().cloned() {
+                    self.process
+                        .send(&self.adapter.approval_result(&request_id, false))
+                        .await?;
+                }
+            }
+            self.queued.extend(
+                self.adapter
+                    .map_message(&message)?
+                    .into_iter()
+                    .map(RuntimeDriverEvent::Event),
+            );
+        }
+    }
+
+    pub(crate) async fn tool_result(
+        &mut self,
+        request_id: &JsonRpcId,
+        result: Value,
+        success: bool,
+    ) -> Result<(), RuntimeAdapterError> {
+        self.process
+            .send(&self.adapter.tool_result(request_id, result, success))
+            .await
+    }
+
+    pub(crate) async fn cancel(&mut self) -> Result<(), RuntimeAdapterError> {
+        self.process
+            .send(&self.adapter.cancel_turn(&self.conversation_id))
+            .await
+    }
+
+    pub(crate) async fn shutdown(self) -> Result<String, RuntimeAdapterError> {
+        self.process.shutdown().await
+    }
+}
+
+fn response_result(message: &JsonRpcMessage) -> Option<&Value> {
+    match message {
+        JsonRpcMessage::Response { result, .. } => result.as_ref(),
+        _ => None,
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -347,5 +494,80 @@ mod tests {
             .expect("initialized notification should send");
         let stderr = process.shutdown().await.expect("Codex should shut down");
         assert!(!stderr.to_ascii_lowercase().contains("bearer "));
+    }
+
+    #[tokio::test]
+    async fn installed_codex_executes_dynamic_editor_tool_smoke_when_enabled() {
+        if std::env::var("IDEANOTE_CODEX_SMOKE").ok().as_deref() != Some("1") {
+            return;
+        }
+        let model = std::env::var("IDEANOTE_CODEX_SMOKE_MODEL")
+            .unwrap_or_else(|_| "gpt-5.6-terra".to_string());
+        let input = RuntimeTurnInput {
+            conversation_id: None,
+            prompt: "Call read_document exactly once, then answer with the returned title."
+                .to_string(),
+            model,
+            cwd: std::env::temp_dir(),
+            tools: vec![AgentToolDescriptor {
+                name: "read_document".to_string(),
+                description: "Read the active editor document.".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                }),
+            }],
+        };
+        let mut driver =
+            tokio::time::timeout(Duration::from_secs(30), CodexTurnDriver::start(&input))
+                .await
+                .expect("Codex startup should not time out")
+                .expect("Codex should start");
+        let mut saw_tool = false;
+        let mut answer = String::new();
+        loop {
+            let event = tokio::time::timeout(Duration::from_secs(90), driver.next_event())
+                .await
+                .expect("Codex event should not time out")
+                .expect("Codex event should map");
+            match event {
+                RuntimeDriverEvent::ToolRequest { request_id, call } => {
+                    assert_eq!(call.name, "read_document");
+                    saw_tool = true;
+                    driver
+                        .tool_result(
+                            &request_id,
+                            serde_json::json!({
+                                "kind": "read",
+                                "callId": call.call_id,
+                                "name": call.name,
+                                "success": true,
+                                "summary": "Read active document",
+                                "content": {"title": "Native Tool Bridge Verified"},
+                                "truncated": false,
+                                "persistable": false
+                            }),
+                            true,
+                        )
+                        .await
+                        .expect("Tool result should return to Codex");
+                }
+                RuntimeDriverEvent::Event(RuntimeEvent::TextDelta(delta)) => {
+                    answer.push_str(&delta);
+                }
+                RuntimeDriverEvent::Event(RuntimeEvent::TurnCompleted) => break,
+                RuntimeDriverEvent::Event(RuntimeEvent::RuntimeError(message)) => {
+                    panic!("Codex runtime failed: {message}");
+                }
+                RuntimeDriverEvent::Event(_) => {}
+            }
+        }
+        assert!(saw_tool, "Codex should request the dynamic editor Tool");
+        assert!(
+            answer.contains("Native Tool Bridge Verified"),
+            "Codex should use the dynamic Tool result"
+        );
+        driver.shutdown().await.expect("Codex should shut down");
     }
 }

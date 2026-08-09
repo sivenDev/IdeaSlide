@@ -67,3 +67,15 @@ test('credentials use native commands and are not part of persisted settings', a
   assert.match(cargo, /zeroize\s*=\s*"1"/);
   assert.doesNotMatch(cargo, /\bkeyring\s*=/);
 });
+
+test('Agent settings explain automatic Codex selection and Compatibility fallback', async () => {
+  const agentSettings = await readFile(
+    new URL('../src/components/settings/AgentSettings.tsx', import.meta.url),
+    'utf8',
+  );
+  assert.match(agentSettings, /title="Runtime selection"/);
+  assert.match(agentSettings, /automatically uses the pinned Codex app-server/);
+  assert.match(agentSettings, /falls back to the configured OpenAI-compatible provider/);
+  assert.match(agentSettings, /listAgentRuntimes\(\)/);
+  assert.match(agentSettings, /selectAgentRuntime\(runtimes/);
+});

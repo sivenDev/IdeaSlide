@@ -71,6 +71,8 @@ export interface AgentToolItem extends AgentItemBase {
   name: string;
   summary?: string;
   callId?: string;
+  input?: unknown;
+  output?: unknown;
 }
 
 export interface AgentApprovalItem extends AgentItemBase {
@@ -159,6 +161,7 @@ export interface AgentThreadRuntimeMetadata {
   model: string;
   upstreamThreadId?: string;
   compactedBeforeTurnId?: string;
+  diagnostic?: string;
   degraded: boolean;
 }
 
@@ -203,6 +206,7 @@ export interface AgentDiagnostic {
 export interface AgentThreadState {
   thread: AgentThread;
   capabilities: AgentCapabilities;
+  runtime: AgentThreadRuntimeMetadata;
   activeTurnId?: string;
   notices: AgentItem[];
   processedEventIds: Record<string, true>;
@@ -231,6 +235,11 @@ export interface AgentTurnStartedEvent extends AgentEventBase {
 export interface AgentCapabilitiesUpdatedEvent extends AgentEventBase {
   type: "capabilitiesUpdated";
   capabilities: AgentCapabilities;
+}
+
+export interface AgentRuntimeUpdatedEvent extends AgentEventBase {
+  type: "runtimeUpdated";
+  runtime: AgentThreadRuntimeMetadata;
 }
 
 export interface AgentItemAddedEvent extends AgentEventBase {
@@ -290,6 +299,7 @@ export interface AgentApprovalResolvedEvent extends AgentEventBase {
 export type AgentEvent =
   | AgentTurnStartedEvent
   | AgentCapabilitiesUpdatedEvent
+  | AgentRuntimeUpdatedEvent
   | AgentItemAddedEvent
   | AgentItemDeltaEvent
   | AgentItemUpdatedEvent

@@ -4,7 +4,13 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AgentRunRequest {
     pub run_id: String,
+    pub thread_id: String,
+    #[serde(default)]
+    pub retry_of_turn_id: Option<String>,
+    #[serde(default)]
+    pub upstream_thread_id: Option<String>,
     pub prompt: String,
+    pub binding: serde_json::Value,
     pub base_url: String,
     pub model: String,
     pub system_prompt: String,
@@ -67,6 +73,8 @@ pub(crate) struct AgentToolCall {
 pub(crate) struct AgentRunResponse {
     pub run_id: String,
     pub text: String,
+    pub next_sequence: u64,
+    pub assistant_item_id: String,
     pub skill_id: Option<String>,
     pub capabilities: AgentProviderCapabilities,
     pub telemetry: AgentStreamingTelemetry,
@@ -148,60 +156,8 @@ pub(crate) struct AgentStreamingTelemetry {
 #[derive(Clone, Debug, Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub(crate) enum AgentRunEvent {
-    Started {
-        run_id: String,
-    },
-    Capabilities {
-        run_id: String,
-        capabilities: AgentProviderCapabilities,
-    },
-    StrategyFallback {
-        run_id: String,
-        from: AgentProviderStrategy,
-        to: AgentProviderStrategy,
-        reason: String,
-    },
-    RetryScheduled {
-        run_id: String,
-        attempt: u8,
-        delay_ms: u64,
-        diagnostic: AgentErrorDiagnostic,
-    },
-    ReasoningSummaryDelta {
-        run_id: String,
-        text: String,
-    },
-    TextDelta {
-        run_id: String,
-        text: String,
-    },
-    ToolStarted {
-        run_id: String,
-        call_id: String,
-        name: String,
-    },
-    ToolCompleted {
-        run_id: String,
-        call_id: String,
-        name: String,
-        arguments: serde_json::Value,
-    },
-    Telemetry {
-        run_id: String,
-        telemetry: AgentStreamingTelemetry,
-    },
-    Completed {
-        run_id: String,
-        text: String,
-        skill_id: Option<String>,
-    },
-    Cancelled {
-        run_id: String,
-    },
-    Error {
-        run_id: String,
-        error: AgentErrorDiagnostic,
-    },
+    Event { event: serde_json::Value },
+    ToolExecutionRequested { run_id: String, call: AgentToolCall },
 }
 
 #[derive(Clone, Debug, Serialize)]

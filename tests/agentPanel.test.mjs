@@ -6,10 +6,11 @@ test('Agent panel uses the normalized runtime/store, captured editor binding, re
   const source = await readFile(new URL('../src/components/AgentPanel.tsx', import.meta.url), 'utf8');
   assert.match(source, /activationState === "configuration-required"/);
   assert.match(source, /discoverAgentSkills\(\)/);
-  assert.match(source, /createCompatibilityAgentRuntime\(\)/);
+  assert.match(source, /createNativeAgentRuntime\(\)/);
   assert.match(source, /useAgentThread\(\{/);
   assert.match(source, /runtime\.startTurn\(\{/);
   assert.match(source, /retryOfTurnId/);
+  assert.match(source, /upstreamThreadId: state\.runtime\.kind === "codexAppServer"/);
   assert.match(source, /const capturedBinding = binding/);
   assert.match(source, /capturedBinding\.createToolExecutor/);
   assert.match(source, /runGeneration\.current \+= 1/);

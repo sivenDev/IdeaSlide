@@ -39,6 +39,11 @@ export async function cancelAgent(runId: string): Promise<boolean> {
   return invoke<boolean>("cancel_agent", { runId });
 }
 
+export async function submitAgentToolResult(runId: string, result: unknown): Promise<boolean> {
+  requireTauri();
+  return invoke<boolean>("submit_agent_tool_result", { runId, result });
+}
+
 export async function saveAgentThread(record: AgentThreadRecord): Promise<AgentThreadRecord> {
   requireTauri();
   return invoke<AgentThreadRecord>("save_agent_thread", { record });
@@ -70,4 +75,9 @@ export async function renameAgentThread(threadId: string, title: string): Promis
 export async function archiveAgentThread(threadId: string): Promise<AgentThreadRecord> {
   requireTauri();
   return invoke<AgentThreadRecord>("archive_agent_thread", { threadId });
+}
+
+export async function deleteAgentThread(threadId: string): Promise<boolean> {
+  requireTauri();
+  return invoke<boolean>("delete_agent_thread", { threadId });
 }

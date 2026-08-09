@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { createAgentToolHost } from '../src/lib/agent/agentToolHost.ts';
 
 function extension(overrides = {}) {
@@ -60,13 +61,9 @@ function host(extensionValue) {
   });
 }
 
-test('trusted Tool host validates schemas and keeps proposal results review-only', async () => {
+test('thin Tool host keeps proposals review-only while Rust owns schema validation', async () => {
   const { value } = extension();
   const executor = host(value);
-  const invalid = await executor.execute({ callId: 'invalid', name: 'propose_replace_heading', arguments: {} });
-  assert.equal(invalid.kind, 'failure');
-  assert.equal(invalid.error.code, 'toolValidationFailed');
-
   const proposal = await executor.execute({
     callId: 'valid',
     name: 'propose_replace_heading',
@@ -77,21 +74,24 @@ test('trusted Tool host validates schemas and keeps proposal results review-only
   assert.equal(proposal.changeSet.documentId, 'md-1');
   assert.equal(proposal.changeSet.baseRevision, 4);
   assert.equal('apply' in proposal, false);
+
+  const broker = await readFile(new URL('../src-tauri/src/agent/tool_broker.rs', import.meta.url), 'utf8');
+  assert.match(broker, /jsonschema::JSONSchema::compile/);
+  assert.match(broker, /validator\.validate\(&call\.arguments\)/);
 });
 
-test('stable call ids are idempotent and cannot be replayed with changed arguments', async () => {
+test('stable call id idempotency is authoritative in the Rust Tool Broker', async () => {
   const synthetic = extension();
   const executor = host(synthetic.value);
   const call = { callId: 'stable', name: 'propose_replace_heading', arguments: { heading: 'One' } };
-  const first = await executor.execute(call);
-  const duplicate = await executor.execute(structuredClone(call));
-  assert.deepEqual(duplicate, first);
-  assert.equal(synthetic.executions(), 1);
+  await executor.execute(call);
+  await executor.execute(structuredClone(call));
+  assert.equal(synthetic.executions(), 2);
 
-  const collision = await executor.execute({ ...call, arguments: { heading: 'Two' } });
-  assert.equal(collision.kind, 'failure');
-  assert.equal(collision.error.code, 'toolValidationFailed');
-  assert.equal(synthetic.executions(), 1);
+  const broker = await readFile(new URL('../src-tauri/src/agent/tool_broker.rs', import.meta.url), 'utf8');
+  assert.match(broker, /ledger: HashMap<String, LedgerEntry>/);
+  assert.match(broker, /BrokerDecision::Cached/);
+  assert.match(broker, /was reused with different arguments/);
 });
 
 test('cancelled, unknown, and retargeted Tool results fail closed', async () => {
@@ -126,7 +126,7 @@ test('cancelled, unknown, and retargeted Tool results fail closed', async () => 
   assert.equal(unsafe.error.code, 'toolExecutionFailed');
 });
 
-test('read results are bounded and preserve explicit persistence policy', async () => {
+test('read results preserve editor persistence policy and are bounded by the Rust Tool Broker', async () => {
   const readExtension = extension({
     tools: [{
       name: 'read_document',
@@ -142,6 +142,9 @@ test('read results are bounded and preserve explicit persistence policy', async 
   });
   const result = await host(readExtension.value).execute({ callId: 'read', name: 'read_document', arguments: {} });
   assert.equal(result.kind, 'read');
-  assert.equal(result.truncated, true);
+  assert.equal(result.truncated, false);
   assert.equal(result.persistable, false);
+  const broker = await readFile(new URL('../src-tauri/src/agent/tool_broker.rs', import.meta.url), 'utf8');
+  assert.match(broker, /MAX_TOOL_RESULT_BYTES: usize = 64 \* 1024/);
+  assert.match(broker, /result exceeded the bounded result limit/);
 });

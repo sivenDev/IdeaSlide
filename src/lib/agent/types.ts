@@ -1,5 +1,6 @@
 import type { DocumentSession } from "../../types";
 import type { AgentErrorCode } from "./protocol";
+import type { AgentEvent, AgentTurnBindingSnapshot } from "./protocol";
 
 export interface AgentToolDescriptor {
   name: string;
@@ -96,7 +97,11 @@ export interface AgentRuntimeDescriptor {
 
 export interface AgentRunRequest {
   runId: string;
+  threadId: string;
+  retryOfTurnId?: string;
+  upstreamThreadId?: string;
   prompt: string;
+  binding: AgentTurnBindingSnapshot;
   baseUrl: string;
   model: string;
   systemPrompt: string;
@@ -115,6 +120,8 @@ export interface AgentRetryPolicy {
 export interface AgentRunResponse {
   runId: string;
   text: string;
+  nextSequence: number;
+  assistantItemId: string;
   skillId?: string;
   capabilities: AgentProviderCapabilities;
   telemetry: AgentStreamingTelemetry;
@@ -156,30 +163,8 @@ export interface AgentNativeError {
 }
 
 export type AgentRunEvent =
-  | { type: "started"; runId: string }
-  | { type: "capabilities"; runId: string; capabilities: AgentProviderCapabilities }
-  | {
-    type: "strategyFallback";
-    runId: string;
-    from: AgentProviderStrategy;
-    to: AgentProviderStrategy;
-    reason: string;
-  }
-  | {
-    type: "retryScheduled";
-    runId: string;
-    attempt: number;
-    delayMs: number;
-    diagnostic: AgentNativeError;
-  }
-  | { type: "reasoningSummaryDelta"; runId: string; text: string }
-  | { type: "textDelta"; runId: string; text: string }
-  | { type: "toolStarted"; runId: string; callId: string; name: string }
-  | { type: "toolCompleted"; runId: string; callId: string; name: string; arguments: unknown }
-  | { type: "telemetry"; runId: string; telemetry: AgentStreamingTelemetry }
-  | { type: "completed"; runId: string; text: string; skillId?: string }
-  | { type: "cancelled"; runId: string }
-  | { type: "error"; runId: string; error: AgentNativeError };
+  | { type: "event"; event: AgentEvent }
+  | { type: "toolExecutionRequested"; runId: string; call: AgentToolCall };
 
 export interface AgentChangeSet<TOperation = unknown> {
   id: string;

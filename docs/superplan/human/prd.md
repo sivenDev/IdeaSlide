@@ -45,19 +45,21 @@ IdeaNote 同时支持：
 10. 应用 Shell 使用左、中、右三栏：左侧 Workspace Explorer，中间为当前编辑器及其内部 Navigator，右侧为编辑器无关、可折叠且可调整宽度的 AI Agent；Agent 不嵌入任何具体编辑器的导航区域。
 11. 当前唯一支持的编辑器是 Excalidraw，文件格式为 `.is v1`。
 12. 未来文件格式为 `.it`（IdeaTable）、`.iwf`（IdeaWorkflow）和 `.md`（Markdown）。
-13. 当前阶段实现一个编辑器无关的 AI Agent Runtime；Runtime 不包含 `.is`、Markdown、IdeaTable 或 IdeaWorkflow 业务逻辑。
+13. 当前阶段实现一个编辑器无关的 AI Agent 架构：Rust Agent Core 负责 Runtime 选择、Turn 编排、流式输出、取消、重试、持久化和 Tool Broker；TypeScript 只负责活动编辑器的 Tool 执行、提案、Change Review、Apply/Undo 和 UI。两侧通用层都不包含 `.is`、Markdown、IdeaTable 或 IdeaWorkflow 业务逻辑。
 14. 当前阶段不实现 Workspace 导入导出。
-15. 新编辑器不需要等待 Agent 重构：它们通过 File Type Registry 关联自己的 Agent Extension，直接复用已存在的 Settings、Provider、会话和审核界面。
+15. 新编辑器不需要等待 Agent 重构：它们通过 File Type Registry 关联自己的 Agent Extension，直接复用 Rust Agent Core、Settings、Provider、会话、Tool Bridge 和审核界面。
 16. Workspace Explorer 始终显示可导航的真实目录，但文件只显示当前 File Type Registry 明确支持打开的类型；当前阶段即只显示 `.is`。
 17. Workspace Mode 产生的临时写入文件和其他应用内部临时产物统一放在 Workspace Root 的 `.ideanote/` 子目录中，不在用户文件旁生成 `.is.tmp` 等临时文件。
 18. Settings Center 同时从 Home 和编辑器打开，配置 General、AI Provider、Agent 和编辑器贡献的设置区段。
 19. AI 默认开启；关闭后不挂载 Agent UI、不初始化 Runtime、不发现 Skill、不暴露 Tool、不访问 Provider，也不保留后台 Agent 生命周期。
 20. AI 开启但 Provider Credential 未配置时，只显示配置引导，不发起模型请求。
 21. API Key 由 Rust 使用 AES-256-GCM 保存在应用配置目录的版本化加密凭据文件中，随机密钥单独保存并限制为当前用户访问；不读取、迁移或删除旧 Keychain 数据，也不触发 Keychain 授权。该边界防止明文落盘和仅复制凭据文件造成泄露，但不能抵御可同时读取密钥与密文的同一操作系统用户进程。
-22. 已保存 API Key 不返回前端；Settings 的显示/隐藏按钮只影响当前输入内容。自动重试默认开启、默认最多三次总尝试、可关闭并限制在一至五次，只允许发生在可重试错误且尚无文本、Reasoning Summary 或 Tool 进度时。
+22. 已保存 API Key 不返回前端；Settings 的显示/隐藏按钮只影响当前输入内容。自动重试默认开启、默认最多三次总尝试、可关闭并限制在一至五次，只允许发生在可重试错误且尚无文本、公开 Runtime Summary 或 Tool 进度时。
 23. API Key、密钥和明文不得进入 `.ideanote/`、文档、Recovery、日志、前端持久化设置或对话历史。
 24. 所有 Agent 修改都先形成绑定文档 revision、source fingerprint 和外部状态的 ChangeSet；用户明确批准后才通过现有 Editor/Document Session 应用，并提供一步 Undo。
 25. 旧 MCP stdio Server、`--mcp` 启动模式、隐藏 MCP Renderer 和前端 MCP Bridge 已退休；当前 AI 自动化只通过应用内 Agent Extension 架构提供。
+26. Rust 自动选择通过版本和编辑器 Tool 安全检查的 Codex `0.147.0` app-server；缺失、不兼容、初始化失败或尚未产生可见进度时崩溃，透明回退到 OpenAI-compatible Compatibility Runtime。已经产生文本、公开活动、Plan 或 Tool 进度后崩溃则明确失败并要求显式重试，避免重复副作用。Grok 继续作为已评估候选，不进入当前生产选择。
+27. Agent 只显示真实增量答案、确定性的 Preparing/Working/elapsed 活动，以及 Runtime 明确标记为公开的过程信息；不得展示或推断隐藏 chain-of-thought，也不得把完成文本回放成伪流式输出。
 
 ## 3. 产品目标
 
@@ -527,7 +529,7 @@ IdeaSketch (.is)
 
 ## 13. AI Agent 与 Settings
 
-AI Agent 是当前产品能力，但必须保持编辑器无关。通用 Runtime 负责 Provider、会话、流式输出、取消、Skill 加载和安全边界；文件类型 Extension 负责业务语义。
+AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Core 负责 Runtime 发现与自动选择、Turn 顺序、Provider/Codex 流式输出、取消、重试、Thread 持久化、Tool Broker 和安全边界；TypeScript 负责规范化事件投影、活动编辑器的实时模型 Tool 执行、提案构造、Change Review、Apply/Undo 和 UI。文件类型 Extension 只负责本格式的业务语义。
 
 每个 Agent Extension 可贡献：
 
@@ -541,8 +543,15 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。通用 Runtime
 - AI 默认开启，用户可在 Settings 中关闭；关闭后完整移除 Agent 生命周期。
 - Provider 使用 OpenAI-compatible Endpoint、Model 和 Rust 管理的本地加密 API Key；未配置时不请求，旧 Keychain 数据不自动读取或迁移。
 - Settings 只允许查看当前正在输入的 API Key，不返回已保存值；自动重试可关闭，总尝试次数限制为一至五次并在 Turn 开始时捕获。
+- Settings 显示自动 Runtime 选择状态；通过安全门的已安装 Codex `0.147.0` 优先，缺失、不兼容、初始化失败或 pre-progress crash 时回退 Compatibility，并显示有界诊断原因。
+- 本地 Thread 支持创建、恢复、重命名、归档和确认后的永久删除；运行中的 Thread 不允许删除，删除当前 Thread 前必须先建立有效替代 Thread。
+- Codex upstream Thread id 与有效 Runtime/model/fallback metadata 随本地 Thread 持久化，用于后续 Turn 恢复和历史解释。
+- 真正的文本 delta 必须在完成事件前可见；若上游缓冲，则显示 Preparing、Working、elapsed time 和诚实的诊断，不回放伪 token stream。
+- 可展开 Tool Activity 只显示经过 Rust Tool Broker 限界和脱敏的参数/结果；call id、schema、重复调用、超时和结果大小由 Rust 统一治理。
+- 只显示 Runtime 明确分类为公开的过程摘要；隐藏 chain-of-thought 不进入事件、UI 或持久化。缺少公开过程信息时不显示误导性提示。
 - Skill 先发现 metadata，只有活动编辑器 Extension 才加载完整指令和 Tool。
 - Runtime、Panel、Settings 不直接包含 `.is` 或未来编辑器的解析、验证、读写逻辑。
+- Rust 不从磁盘重建活动编辑器状态，也不直接写用户文件；TypeScript Tool executor 只返回读取结果或 proposal，不能绕过 Change Review 执行 Apply。
 - Mutation 只能返回 ChangeSet，不直接修改内存模型或磁盘；批准时复核文档 id、revision、source fingerprint、状态和外部修改标记。
 - Apply 复用现有 Editor、Document Session、Dirty、Auto-save、Recovery 和外部冲突保护；批准后的修改可一步 Undo。
 - 不提供任意本地文件、Shell、脚本、网络或自动执行工具。
@@ -703,6 +712,11 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。通用 Runtime
 
 - AI 默认开启；关闭后不显示 Agent UI，也不初始化任何 Agent 生命周期。
 - 未配置 Provider 时只显示配置引导，不发起请求。
+- 已安装且兼容的 Codex `0.147.0` 自动用于支持编辑器 Tool 的 Turn；不可用时回退 Compatibility，并在 Agent/Settings 显示有效 Runtime、Model、能力和诊断。
+- Agent 答案在上游提供增量时于完成前持续增长；上游缓冲时显示 Preparing、Working 和 elapsed activity，不伪造 token stream。
+- 本地 Thread 历史支持恢复、重命名、归档和确认永久删除；运行中的 Thread 不可删除，删除不会触及文档、Workspace、Recovery、凭据或其他 Thread。
+- Tool 请求通过 Rust ledger 与 TypeScript 活动编辑器 executor 往返；所有修改仍只生成 ChangeSet，必须经 Review 和显式 Apply，并可一步 Undo。
+- Hidden reasoning 不显示、不推断、不持久化；只有 Runtime 明确标记为公开的过程信息才可流式呈现。
 - IdeaSketch Agent 修改在批准前不改变文档或磁盘；陈旧、只读、冲突或外部修改目标拒绝 Apply。
 - 当前构建不提供 Workspace Import/Export。
 - New File 菜单当前只有 IdeaSketch 和 Folder。

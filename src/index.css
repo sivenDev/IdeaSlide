@@ -251,6 +251,21 @@ body,
     background: #e0a62b;
 }
 
+.ideanote-settings-readout {
+    display: grid;
+    max-width: 320px;
+    gap: 3px;
+    color: #747b88;
+    font-size: 11px;
+    line-height: 1.45;
+    text-align: right;
+}
+
+.ideanote-settings-readout strong {
+    color: #252932;
+    font-size: 12px;
+}
+
 @keyframes ideanote-settings-fade-in {
     from { opacity: 0; }
 }
@@ -434,7 +449,7 @@ body,
     font-size: 9px;
 }
 
-.ideanote-agent-history__heading > button,
+.ideanote-agent-history__heading-actions button,
 .ideanote-agent-history__actions button,
 .ideanote-agent-history__item form button {
     display: inline-flex;
@@ -444,6 +459,19 @@ body,
     justify-content: center;
     border-radius: 6px;
     color: #767d89;
+}
+
+.ideanote-agent-history__heading-actions {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.ideanote-agent-history__heading-actions button:first-child {
+    width: auto;
+    padding: 0 6px;
+    font-size: 8px;
+    font-weight: 650;
 }
 
 .ideanote-agent-history__list {
@@ -502,10 +530,63 @@ body,
 }
 
 .ideanote-agent-history__actions button:hover,
-.ideanote-agent-history__heading > button:hover,
+.ideanote-agent-history__heading-actions button:hover,
 .ideanote-agent-history__item form button:hover {
     color: #4e5460;
     background: #eceef2;
+}
+
+.ideanote-agent-history__delete-confirmation {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid #efc7c7;
+    border-radius: 7px;
+    background: #fff7f7;
+    padding: 7px;
+}
+
+.ideanote-agent-history__delete-confirmation > div {
+    min-width: 0;
+    flex: 1;
+}
+
+.ideanote-agent-history__delete-confirmation strong,
+.ideanote-agent-history__delete-confirmation small {
+    display: block;
+}
+
+.ideanote-agent-history__delete-confirmation strong {
+    overflow: hidden;
+    color: #7c2d2d;
+    font-size: 9px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ideanote-agent-history__delete-confirmation small {
+    margin-top: 2px;
+    color: #976565;
+    font-size: 8px;
+}
+
+.ideanote-agent-history__delete-confirmation small.is-error {
+    color: #b42318;
+}
+
+.ideanote-agent-history__delete-confirmation > button {
+    border-radius: 5px;
+    color: #5d626d;
+    background: #eef0f3;
+    font-size: 8px;
+    font-weight: 650;
+    padding: 5px 6px;
+}
+
+.ideanote-agent-history__delete-confirmation > button.is-danger {
+    color: white;
+    background: #c63f3f;
 }
 
 .ideanote-agent-history__item form {
@@ -798,19 +879,28 @@ body,
 }
 
 .ideanote-agent-tool-activity {
-    display: flex;
-    align-items: center;
-    gap: 7px;
     margin-left: 21px;
     border: 1px solid #e2e5ea;
     border-radius: 8px;
     color: #777e8a;
     background: #fff;
     font-size: 10px;
+}
+
+.ideanote-agent-tool-activity > summary {
+    display: flex;
+    cursor: pointer;
+    list-style: none;
+    align-items: center;
+    gap: 7px;
     padding: 7px 8px;
 }
 
-.ideanote-agent-tool-activity > svg:first-child {
+.ideanote-agent-tool-activity > summary::-webkit-details-marker {
+    display: none;
+}
+
+.ideanote-agent-tool-activity > summary > svg:first-child {
     color: #6965db;
 }
 
@@ -826,6 +916,33 @@ body,
     margin-top: 2px;
     color: #8a909b;
     line-height: 1.35;
+}
+
+.ideanote-agent-tool-activity__details {
+    display: grid;
+    gap: 6px;
+    border-top: 1px solid #eceef2;
+    padding: 7px 8px;
+}
+
+.ideanote-agent-tool-activity__details pre {
+    max-height: 160px;
+    overflow: auto;
+    border-radius: 6px;
+    color: #5c626e;
+    background: #f6f7f9;
+    font: 8px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+    white-space: pre-wrap;
+    word-break: break-word;
+    padding: 6px;
+}
+
+.ideanote-agent-tool-activity__details strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #7b818c;
+    font-family: inherit;
+    text-transform: uppercase;
 }
 
 .ideanote-agent-waiting {
@@ -850,6 +967,12 @@ body,
     margin-left: 21px;
     color: #9196a0;
     font-size: 9px;
+}
+
+.ideanote-agent-lifecycle time {
+    margin-left: auto;
+    color: #a0a5ae;
+    font-variant-numeric: tabular-nums;
 }
 
 .ideanote-agent-lifecycle.is-completed svg { color: #38a475; }

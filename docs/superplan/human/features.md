@@ -262,7 +262,7 @@ Replace the native OS Credential Vault path for the AI provider token with a sim
 
 ## F035: Complete Agent history, Codex runtime, and streaming activity
 
-- status: accepted
+- status: done
 - created: 2026-08-09
 
 Add permanent deletion for local Agent Threads with explicit confirmation and storage cleanup; make assistant Markdown visibly update from real text deltas before completion; provide a Teable-like activity stream with preparing/working state, elapsed time, public progress narration, and expandable Tool steps; and enable the pinned Codex app-server as the production rich runtime only after native editor Tool, lifecycle, fallback, packaging, and privacy acceptance. Stream only process text that the selected runtime explicitly marks as user-visible; do not require reasoning summaries, fabricate progress, or expose hidden chain-of-thought. Preserve the compatibility fallback, AI lifecycle gate, generic editor-extension boundary, proposal-only Change Sets, explicit Apply/Undo, and retired MCP surface.

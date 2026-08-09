@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   archiveAgentThread,
+  deleteAgentThread,
   getAgentThread,
   listAgentThreads,
   renameAgentThread,
@@ -44,14 +45,13 @@ function isDesktopRuntime(): boolean {
 
 function persistenceRecord(
   state: AgentThreadState,
-  runtime: AgentThreadRuntimeMetadata,
 ): AgentThreadRecord {
   const { compactedBeforeTurnId } = agentRuntimeMessagesFromState(state);
   return {
     schemaVersion: 1,
     thread: state.thread,
     capabilities: { ...state.capabilities, persistence: true },
-    runtime: { ...runtime, compactedBeforeTurnId },
+    runtime: { ...state.runtime, compactedBeforeTurnId },
   };
 }
 
@@ -73,15 +73,19 @@ export function useAgentThread({
     title: defaultsRef.current.title,
     welcome: defaultsRef.current.welcome,
     capabilities: { ...defaultsRef.current.capabilities, persistence: true },
+    runtime: defaultsRef.current.runtime,
   }), []);
   const [state, setState] = useState<AgentThreadState>(createState);
   const [history, setHistory] = useState<AgentThreadPage>(EMPTY_HISTORY);
   const [historyLoading, setHistoryLoading] = useState(isDesktopRuntime());
+  const [showArchivedHistory, setShowArchivedHistory] = useState(false);
   const [persistenceError, setPersistenceError] = useState<string>();
   const hydratedRef = useRef(!isDesktopRuntime());
   const persistTimerRef = useRef<number | undefined>(undefined);
   const queuedEventsRef = useRef<AgentEvent[]>([]);
   const animationFrameRef = useRef<number | undefined>(undefined);
+  const deletedThreadIdsRef = useRef(new Set<string>());
+  const showArchivedHistoryRef = useRef(false);
 
   const flushQueuedEvents = useCallback(() => {
     animationFrameRef.current = undefined;
@@ -93,7 +97,7 @@ export function useAgentThread({
 
   const refreshHistory = useCallback(async () => {
     if (!isDesktopRuntime()) return;
-    const page = await listAgentThreads();
+    const page = await listAgentThreads({ includeArchived: showArchivedHistoryRef.current });
     setHistory(page);
     if (page.recoveredCorruptEntries > 0) {
       setPersistenceError(`${page.recoveredCorruptEntries} corrupt Agent history entr${page.recoveredCorruptEntries === 1 ? "y was" : "ies were"} quarantined.`);
@@ -115,7 +119,7 @@ export function useAgentThread({
         } else {
           const initial = createState();
           setState(initial);
-          await saveAgentThread(persistenceRecord(initial, defaultsRef.current.runtime));
+          await saveAgentThread(persistenceRecord(initial));
           if (active) await refreshHistory();
         }
         if (page.recoveredCorruptEntries > 0 && active) {
@@ -142,7 +146,8 @@ export function useAgentThread({
     if (persistTimerRef.current !== undefined) window.clearTimeout(persistTimerRef.current);
     persistTimerRef.current = window.setTimeout(() => {
       persistTimerRef.current = undefined;
-      saveAgentThread(persistenceRecord(state, defaultsRef.current.runtime))
+      if (deletedThreadIdsRef.current.has(state.thread.id)) return;
+      saveAgentThread(persistenceRecord(state))
         .then(() => refreshHistory())
         .catch((cause) => setPersistenceError(cause instanceof Error ? cause.message : String(cause)));
     }, 150);
@@ -187,7 +192,7 @@ export function useAgentThread({
     setState(next);
     setPersistenceError(undefined);
     if (isDesktopRuntime()) {
-      await saveAgentThread(persistenceRecord(next, defaultsRef.current.runtime));
+      await saveAgentThread(persistenceRecord(next));
       await refreshHistory();
     }
   }, [createState, refreshHistory]);
@@ -217,11 +222,67 @@ export function useAgentThread({
     else await refreshHistory();
   }, [createThread, refreshHistory, state.thread.id]);
 
+  const deleteThread = useCallback(async (threadId: string) => {
+    if (state.activeTurnId) {
+      throw new Error("Stop the running Turn before deleting its Thread.");
+    }
+    if (!isDesktopRuntime()) return;
+
+    const deletingCurrent = state.thread.id === threadId;
+    let replacement: AgentThreadState | undefined;
+    if (deletingCurrent) {
+      deletedThreadIdsRef.current.add(threadId);
+      queuedEventsRef.current = [];
+      if (animationFrameRef.current !== undefined) {
+        window.cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = undefined;
+      }
+      if (persistTimerRef.current !== undefined) {
+        window.clearTimeout(persistTimerRef.current);
+        persistTimerRef.current = undefined;
+      }
+      replacement = createState();
+      setState(replacement);
+      try {
+        await saveAgentThread(persistenceRecord(replacement));
+      } catch (cause) {
+        deletedThreadIdsRef.current.delete(threadId);
+        setState(state);
+        throw cause;
+      }
+    }
+
+    try {
+      await deleteAgentThread(threadId);
+    } catch (cause) {
+      deletedThreadIdsRef.current.delete(threadId);
+      throw cause;
+    }
+    setPersistenceError(undefined);
+    await refreshHistory();
+  }, [createState, refreshHistory, state.activeTurnId, state.thread.id]);
+
+  const setArchivedHistoryVisible = useCallback(async (visible: boolean) => {
+    if (!isDesktopRuntime()) return;
+    setHistoryLoading(true);
+    try {
+      const page = await listAgentThreads({ includeArchived: visible });
+      showArchivedHistoryRef.current = visible;
+      setShowArchivedHistory(visible);
+      setHistory(page);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
   const loadMoreHistory = useCallback(async () => {
     if (!isDesktopRuntime() || !history.nextCursor) return;
     setHistoryLoading(true);
     try {
-      const page = await listAgentThreads({ cursor: history.nextCursor });
+      const page = await listAgentThreads({
+        cursor: history.nextCursor,
+        includeArchived: showArchivedHistory,
+      });
       setHistory((current) => ({
         threads: [...current.threads, ...page.threads],
         nextCursor: page.nextCursor,
@@ -230,7 +291,7 @@ export function useAgentThread({
     } finally {
       setHistoryLoading(false);
     }
-  }, [history.nextCursor]);
+  }, [history.nextCursor, showArchivedHistory]);
 
   const messages = useMemo(() => agentMessagesFromState(state), [state]);
   const runtimeMessages = useMemo(() => agentRuntimeMessagesFromState(state).messages, [state]);
@@ -250,11 +311,14 @@ export function useAgentThread({
     itemCount,
     history,
     historyLoading,
+    showArchivedHistory,
     persistenceError,
     createThread,
     resumeThread,
     renameThread,
     archiveThread,
+    deleteThread,
+    setArchivedHistoryVisible,
     loadMoreHistory,
   };
 }

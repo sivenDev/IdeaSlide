@@ -7,6 +7,7 @@ import type {
   AgentMessageItem,
   AgentThreadState,
   AgentThreadRecord,
+  AgentThreadRuntimeMetadata,
   AgentTurn,
 } from "./protocol";
 
@@ -15,12 +16,19 @@ export function createAgentThreadState({
   title,
   welcome,
   capabilities,
+  runtime = {
+    kind: "compatibility",
+    label: "Compatibility",
+    model: "",
+    degraded: true,
+  },
   now = Date.now(),
 }: {
   threadId: string;
   title: string;
   welcome: string;
   capabilities: AgentCapabilities;
+  runtime?: AgentThreadRuntimeMetadata;
   now?: number;
 }): AgentThreadState {
   const welcomeTurn: AgentTurn = {
@@ -49,6 +57,7 @@ export function createAgentThreadState({
   return {
     thread: { id: threadId, title, createdAt: now, updatedAt: now, turns: [welcomeTurn] },
     capabilities,
+    runtime,
     notices: [],
     processedEventIds: {},
     nextSequenceByTurn: {},
@@ -61,6 +70,7 @@ export function hydrateAgentThreadState(record: AgentThreadRecord): AgentThreadS
   return {
     thread: record.thread,
     capabilities: { ...record.capabilities, persistence: true },
+    runtime: record.runtime,
     notices: [],
     processedEventIds: {},
     nextSequenceByTurn: {},
@@ -146,10 +156,9 @@ function applyOrderedEvent(state: AgentThreadState, event: AgentEvent): AgentThr
             createdAt: event.at,
           },
           {
-            id: event.assistantItemId,
-            kind: "message",
-            role: "assistant",
-            content: "",
+            id: `${event.turnId}:activity`,
+            kind: "lifecycle",
+            label: "Preparing",
             status: "running",
             createdAt: event.at,
           },
@@ -167,6 +176,8 @@ function applyOrderedEvent(state: AgentThreadState, event: AgentEvent): AgentThr
     }
     case "capabilitiesUpdated":
       return { ...state, capabilities: event.capabilities };
+    case "runtimeUpdated":
+      return { ...state, runtime: event.runtime };
     case "itemAdded":
       return updateTurn(state, event.turnId, (turn) => (
         turn.items.some((item) => item.id === event.item.id)
@@ -228,25 +239,36 @@ function applyOrderedEvent(state: AgentThreadState, event: AgentEvent): AgentThr
     }
     case "turnCompleted": {
       const completed = updateTurn(state, event.turnId, (turn) => {
-        const withMessage = updateItem(turn, event.assistantItemId, (item) => (
-          item.kind === "message"
-            ? { ...item, content: event.finalText, status: "completed" }
-            : item
-        ));
+        const existingMessage = turn.items.find((item) => item.id === event.assistantItemId);
+        const withMessage = existingMessage
+          ? updateItem(turn, event.assistantItemId, (item) => {
+            if (item.kind !== "message") return item;
+            const finalText = event.finalText.startsWith(item.content) || !item.content
+              ? event.finalText
+              : item.content.startsWith(event.finalText)
+                ? item.content
+                : event.finalText;
+            return { ...item, content: finalText, status: "completed" };
+          })
+          : {
+            ...turn,
+            items: [...turn.items, {
+              id: event.assistantItemId,
+              kind: "message" as const,
+              role: "assistant" as const,
+              content: event.finalText,
+              status: "completed" as const,
+              createdAt: event.at,
+            }],
+          };
+        const elapsed = Math.max(0, event.at - turn.createdAt);
         return {
           ...withMessage,
           status: "completed",
           completedAt: event.at,
-          items: [
-            ...withMessage.items,
-            {
-              id: `${event.turnId}:lifecycle`,
-              kind: "lifecycle",
-              label: "Turn completed",
-              status: "completed",
-              createdAt: event.at,
-            },
-          ],
+          items: withMessage.items.map((item) => item.id === `${event.turnId}:activity`
+            ? { ...item, label: `Completed in ${(elapsed / 1000).toFixed(1)}s`, status: "completed" as const }
+            : item),
         };
       });
       return {
@@ -265,7 +287,9 @@ function applyOrderedEvent(state: AgentThreadState, event: AgentEvent): AgentThr
           status: "failed",
           completedAt: event.at,
           items: [
-            ...withMessage.items,
+            ...withMessage.items.map((item) => item.id === `${event.turnId}:activity`
+              ? { ...item, label: "Failed", status: "failed" as const }
+              : item),
             {
               id: `${event.turnId}:error`,
               kind: "error",
@@ -287,16 +311,11 @@ function applyOrderedEvent(state: AgentThreadState, event: AgentEvent): AgentThr
         ...turn,
         status: "cancelled",
         completedAt: event.at,
-        items: [
-          ...turn.items.map((item) => item.status === "running" ? { ...item, status: "cancelled" as const } : item),
-          {
-            id: `${event.turnId}:lifecycle`,
-            kind: "lifecycle",
-            label: event.label ?? "Turn cancelled",
-            status: "cancelled",
-            createdAt: event.at,
-          },
-        ],
+        items: turn.items.map((item) => item.id === `${event.turnId}:activity`
+          ? { ...item, label: event.label ?? "Turn cancelled", status: "cancelled" as const }
+          : item.status === "running"
+            ? { ...item, status: "cancelled" as const }
+            : item),
       }));
       return {
         ...cancelled,

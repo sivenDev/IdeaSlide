@@ -29,16 +29,17 @@ test('the public protocol remains owned by IdeaNote and transport-neutral', asyn
   assert.doesNotMatch(source, /@tauri|assistant-ui|\bRig\b|\bCodex\b|\bACP\b|OpenAI/);
 });
 
-test('the compatibility runtime normalizes provider capabilities, summaries, telemetry, and classified errors', async () => {
-  const source = await readFile(new URL('../src/lib/agent/agentRuntime.ts', import.meta.url), 'utf8');
-  assert.match(source, /case "capabilities"/);
-  assert.match(source, /type: "capabilitiesUpdated"/);
-  assert.match(source, /case "reasoningSummaryDelta"/);
-  assert.match(source, /kind: "reasoningSummary"/);
-  assert.match(source, /case "telemetry"/);
-  assert.match(source, /type: "telemetryUpdated"/);
-  assert.match(source, /case "error"/);
-  assert.match(source, /error: event\.error/);
+test('the native core normalizes provider capabilities, summaries, telemetry, and classified errors', async () => {
+  const runtime = await readFile(new URL('../src/lib/agent/agentRuntime.ts', import.meta.url), 'utf8');
+  const native = await readFile(new URL('../src-tauri/src/agent/mod.rs', import.meta.url), 'utf8');
+  assert.match(runtime, /emit\(event\.event\)/);
+  assert.match(native, /"capabilitiesUpdated"/);
+  assert.match(native, /ProviderProgress::ReasoningSummaryDelta/);
+  assert.match(native, /"reasoningSummary"/);
+  assert.match(native, /ProviderProgress::Telemetry/);
+  assert.match(native, /"telemetryUpdated"/);
+  assert.match(native, /"turnFailed"/);
+  assert.match(native, /failure\.diagnostic/);
 });
 
 test('the captured retry policy crosses the generic Agent request boundary', async () => {

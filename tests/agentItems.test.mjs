@@ -7,7 +7,8 @@ test('normalized items render as distinct message, reasoning, plan, tool, approv
   for (const kind of ['message', 'reasoningSummary', 'plan', 'tool', 'approval', 'changeReview', 'error', 'lifecycle']) {
     assert.match(source, new RegExp(`case "${kind}"`));
   }
-  assert.match(source, /Waiting for the model/);
+  assert.match(source, /AgentLifecycleActivity/);
+  assert.match(source, /\(elapsed \/ 1000\)\.toFixed\(1\)/);
   assert.match(source, /renderChangeReview\(item\)/);
   assert.match(source, /<AgentMarkdown content=\{item\.content\}/);
 });
@@ -20,4 +21,7 @@ test('reasoning UI shows only supplied summaries and tool activity preserves rea
   assert.match(tool, /is-\$\{item\.status\}/);
   assert.match(tool, /item\.status === "running"/);
   assert.match(tool, /item\.status === "completed"/);
+  assert.match(tool, /<details/);
+  assert.match(tool, /JSON\.stringify\(item\.input/);
+  assert.match(tool, /JSON\.stringify\(item\.output/);
 });

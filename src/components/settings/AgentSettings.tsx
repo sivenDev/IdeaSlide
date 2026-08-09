@@ -1,8 +1,32 @@
+import { useEffect, useMemo, useState } from "react";
 import { useSettings } from "../../hooks/useSettings";
+import { listAgentRuntimes } from "../../lib/agent/agentClient";
+import { selectAgentRuntime } from "../../lib/agent/runtimeSelection";
+import type { AgentRuntimeDescriptor } from "../../lib/agent/types";
 import { SettingsField, SettingsToggle } from "./SettingsField";
 
 export function AgentSettings() {
   const { settings, activationState, updateSettings } = useSettings();
+  const [runtimes, setRuntimes] = useState<AgentRuntimeDescriptor[]>([]);
+  const [runtimeDiagnostic, setRuntimeDiagnostic] = useState<string>();
+  const runtimeSelection = useMemo(
+    () => selectAgentRuntime(runtimes, { requiresEditorTools: true }),
+    [runtimes],
+  );
+  useEffect(() => {
+    if (!("__TAURI_INTERNALS__" in window) || activationState === "disabled") return;
+    let active = true;
+    listAgentRuntimes()
+      .then((descriptors) => {
+        if (!active) return;
+        setRuntimes(descriptors);
+        setRuntimeDiagnostic(undefined);
+      })
+      .catch((cause) => {
+        if (active) setRuntimeDiagnostic(cause instanceof Error ? cause.message : String(cause));
+      });
+    return () => { active = false; };
+  }, [activationState]);
   const status = activationState === "ready"
     ? "Ready"
     : activationState === "configuration-required"
@@ -31,6 +55,17 @@ export function AgentSettings() {
             ai: { ...current.ai, enabled },
           }))}
         />
+      </SettingsField>
+      <SettingsField
+        title="Runtime selection"
+        description="IdeaNote automatically uses the pinned Codex app-server when it passes compatibility and editor Tool safety checks, then falls back to the configured OpenAI-compatible provider."
+      >
+        <div className="ideanote-settings-readout" role="status">
+          <strong>{runtimeSelection.descriptor?.label ?? "Automatic selection"}</strong>
+          <span>{runtimeDiagnostic ?? (runtimes.length > 0
+            ? runtimeSelection.reason
+            : "Runtime availability is checked by the desktop app.")}</span>
+        </div>
       </SettingsField>
       <SettingsField title="Maximum steps" description="Bound each Agent run to prevent unbounded Tool activity.">
         <input

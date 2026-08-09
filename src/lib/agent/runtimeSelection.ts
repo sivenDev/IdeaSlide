@@ -10,7 +10,6 @@ export interface RuntimeSelectionDescriptor {
 }
 
 export interface AgentRuntimeSelectionOptions {
-  experimentalEnabled: boolean;
   requiresEditorTools: boolean;
 }
 
@@ -24,24 +23,16 @@ export function selectAgentRuntime<TDescriptor extends RuntimeSelectionDescripto
   options: AgentRuntimeSelectionOptions,
 ): AgentRuntimeSelection<TDescriptor> {
   const compatibility = descriptors.find((descriptor) => descriptor.kind === "compatibility");
-  if (!options.experimentalEnabled) {
-    return {
-      descriptor: compatibility,
-      reason: "Compatibility remains the default until a rich runtime is explicitly enabled.",
-    };
-  }
-  const eligible = descriptors.filter((descriptor) => (
-    descriptor.kind !== "compatibility"
+  const codex = descriptors.find((descriptor) => (
+    descriptor.kind === "codexAppServer"
     && descriptor.installed
     && descriptor.compatible
     && (!options.requiresEditorTools || descriptor.capabilities.editorTools)
   ));
-  const preferred = eligible.find((descriptor) => descriptor.kind === "codexAppServer")
-    ?? eligible.find((descriptor) => descriptor.kind === "grokAcp");
-  if (preferred) {
+  if (codex) {
     return {
-      descriptor: preferred,
-      reason: `${preferred.label} satisfies the required normalized capabilities.`,
+      descriptor: codex,
+      reason: `${codex.label} was selected automatically because it passed the pinned compatibility and editor Tool gates.`,
     };
   }
   return {

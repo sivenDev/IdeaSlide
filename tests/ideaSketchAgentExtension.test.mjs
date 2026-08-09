@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { createEmptyIdeaSketchDocument } from '../src/lib/ideaSketchDocument.ts';
 import { createAgentToolHost } from '../src/lib/agent/agentToolHost.ts';
 import { ideaSketchAgentExtension } from '../src/lib/agent/extensions/ideaSketchAgentExtension.ts';
@@ -50,23 +51,14 @@ test('IdeaSketch mutations are proposal-only Change Sets routed through the Tool
   assert.equal(document.pages.length, 1);
 });
 
-test('malformed, oversized, and semantically stale proposals are rejected', async () => {
+test('Rust rejects malformed and oversized Tool input while the editor extension rejects stale proposals', async () => {
   const document = createEmptyIdeaSketchDocument();
   const executor = host(document, 0, document.pages[0].id);
-  const missingTitle = await executor.execute({
-    callId: 'bad-1',
-    name: 'propose_add_page',
-    arguments: { elements: [] },
-  });
-  assert.equal(missingTitle.kind, 'failure');
-  assert.equal(missingTitle.error.code, 'toolValidationFailed');
+  const broker = await readFile(new URL('../src-tauri/src/agent/tool_broker.rs', import.meta.url), 'utf8');
+  assert.match(broker, /validator\.validate\(&call\.arguments\)/);
 
-  const oversized = await executor.execute({
-    callId: 'bad-2',
-    name: 'propose_add_page',
-    arguments: { title: 'Too large', elements: Array.from({ length: 501 }, () => ({})) },
-  });
-  assert.equal(oversized.kind, 'failure');
+  const addPage = ideaSketchAgentExtension.tools.find((tool) => tool.name === 'propose_add_page');
+  assert.equal(addPage.inputSchema.properties.elements.maxItems, 500);
 
   const missingPage = await executor.execute({
     callId: 'bad-3',

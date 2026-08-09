@@ -6,7 +6,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAgentThread } from "../hooks/useAgentThread";
 import { useSettings } from "../hooks/useSettings";
-import { createCompatibilityAgentRuntime } from "../lib/agent/agentRuntime";
+import { createNativeAgentRuntime } from "../lib/agent/agentRuntime";
 import { discoverAgentSkills } from "../lib/agent/agentClient";
 import { markAgentChangeSetApplied, markAgentChangeSetStale, rejectAgentChangeSet } from "../lib/agent/changeSet";
 import { promptFromAssistantUiMessage, toAssistantUiMessage } from "../lib/agent/assistantUiAdapter";
@@ -34,7 +34,7 @@ export function AgentPanel({
   onOpenSettings: () => void;
 }) {
   const { settings, activationState } = useSettings();
-  const runtime = useMemo(() => createCompatibilityAgentRuntime(), []);
+  const runtime = useMemo(() => createNativeAgentRuntime(), []);
   const [historyOpen, setHistoryOpen] = useState(false);
   const runGeneration = useRef(0);
   const activeRunId = useRef<string | undefined>(undefined);
@@ -54,11 +54,14 @@ export function AgentPanel({
     retryTurnId,
     history,
     historyLoading,
+    showArchivedHistory,
     persistenceError,
     createThread,
     resumeThread,
     renameThread,
     archiveThread,
+    deleteThread,
+    setArchivedHistoryVisible,
     loadMoreHistory,
   } = useAgentThread({
     title,
@@ -66,8 +69,9 @@ export function AgentPanel({
     capabilities: runtime.capabilities,
     runtime: {
       kind: "compatibility",
-      label: runtime.label,
+      label: "Compatibility",
       model: settings.ai.model,
+      diagnostic: "Codex app-server is selected automatically when the pinned runtime is available.",
       degraded: !runtime.capabilities.reasoningSummary || !runtime.capabilities.steering,
     },
   });
@@ -136,10 +140,13 @@ export function AgentPanel({
     const turnId = crypto.randomUUID();
     activeRunId.current = turnId;
     try {
-      const result = await runtime.startTurn({
+      await runtime.startTurn({
         threadId: state.thread.id,
         turnId,
         retryOfTurnId,
+        upstreamThreadId: state.runtime.kind === "codexAppServer"
+          ? state.runtime.upstreamThreadId
+          : undefined,
         prompt,
         binding: {
           documentId: capturedBinding.document.id,
@@ -160,18 +167,6 @@ export function AgentPanel({
         toolExecutor,
       }, emit);
       if (generation !== runGeneration.current || activeRunId.current !== turnId) return;
-      let sequence = result.nextSequence;
-      const responseText = result.text.trim() || "I completed the requested editor Tool activity.";
-      emit({
-        type: "turnCompleted",
-        eventId: createAgentEventId(turnId, sequence, "turnCompleted"),
-        threadId: state.thread.id,
-        turnId,
-        sequence,
-        at: Date.now(),
-        assistantItemId: result.assistantItemId,
-        finalText: responseText,
-      });
     } catch {
       // The runtime emits a normalized failure Item before rejecting.
     } finally {
@@ -343,8 +338,9 @@ export function AgentPanel({
       <ThreadPrimitive.Root className="ideanote-agent-panel">
         <AgentThreadHeader
           title={state.thread.title}
-          runtimeLabel={runtime.label}
-          modelLabel={settings.ai.model}
+          runtimeLabel={state.runtime.label}
+          runtimeDiagnostic={state.runtime.diagnostic}
+          modelLabel={state.runtime.model || settings.ai.model}
           capabilities={state.capabilities}
           running={running}
           historyOpen={historyOpen}
@@ -364,6 +360,9 @@ export function AgentPanel({
             })}
             onRename={(threadId, nextTitle) => handleHistoryAction(() => renameThread(threadId, nextTitle))}
             onArchive={(threadId) => handleHistoryAction(() => archiveThread(threadId))}
+            onDelete={deleteThread}
+            showArchived={showArchivedHistory}
+            onToggleArchived={(visible) => handleHistoryAction(() => setArchivedHistoryVisible(visible))}
             onLoadMore={() => handleHistoryAction(loadMoreHistory)}
             onClose={() => setHistoryOpen(false)}
           />

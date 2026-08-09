@@ -1,11 +1,36 @@
 import { CheckCircle2, CircleEllipsis, ShieldCheck, Sparkles } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { AgentChangeReviewItem, AgentItem as AgentItemModel } from "../../lib/agent/protocol";
 import { AgentErrorCard } from "./AgentErrorCard";
 import { AgentMarkdown } from "./AgentMarkdown";
 import { AgentPlan } from "./AgentPlan";
 import { AgentReasoningSummary } from "./AgentReasoningSummary";
 import { AgentToolActivity } from "./AgentToolActivity";
+
+function AgentLifecycleActivity({
+  label,
+  status,
+  createdAt,
+}: {
+  label: string;
+  status: AgentItemModel["status"];
+  createdAt: number;
+}) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (status !== "running") return undefined;
+    const timer = window.setInterval(() => setNow(Date.now()), 100);
+    return () => window.clearInterval(timer);
+  }, [status]);
+  const elapsed = Math.max(0, now - createdAt);
+  return (
+    <div className={`ideanote-agent-lifecycle is-${status}`} role={status === "running" ? "status" : undefined}>
+      {status === "running" ? <CircleEllipsis className="ideanote-agent-spin" aria-hidden size={11} /> : <CheckCircle2 aria-hidden size={11} />}
+      <span>{label}</span>
+      {status === "running" && <time>{(elapsed / 1000).toFixed(1)}s</time>}
+    </div>
+  );
+}
 
 export function AgentItem({
   item,
@@ -23,11 +48,7 @@ export function AgentItem({
   switch (item.kind) {
     case "message":
       if (!item.content && item.status === "running") {
-        return (
-          <div className="ideanote-agent-waiting" role="status">
-            <CircleEllipsis aria-hidden size={14} /> Waiting for the model
-          </div>
-        );
+        return null;
       }
       if (!item.content) return null;
       return item.role === "user" ? (
@@ -63,10 +84,6 @@ export function AgentItem({
     case "error":
       return <AgentErrorCard error={item.error} onRetry={onRetry} />;
     case "lifecycle":
-      return (
-        <div className={`ideanote-agent-lifecycle is-${item.status}`}>
-          <CheckCircle2 aria-hidden size={11} /> {item.label}
-        </div>
-      );
+      return <AgentLifecycleActivity label={item.label} status={item.status} createdAt={item.createdAt} />;
   }
 }

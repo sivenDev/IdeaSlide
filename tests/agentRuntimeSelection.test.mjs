@@ -25,7 +25,7 @@ const compatibility = {
   capabilities: capabilities(true),
 };
 
-test('compatibility remains the default until rich runtimes are explicitly enabled', () => {
+test('pinned Codex is selected automatically when it passes the editor Tool gate', () => {
   const codex = {
     ...compatibility,
     kind: 'codexAppServer',
@@ -33,11 +33,6 @@ test('compatibility remains the default until rich runtimes are explicitly enabl
     experimental: true,
   };
   assert.equal(selectAgentRuntime([compatibility, codex], {
-    experimentalEnabled: false,
-    requiresEditorTools: true,
-  }).descriptor?.kind, 'compatibility');
-  assert.equal(selectAgentRuntime([compatibility, codex], {
-    experimentalEnabled: true,
     requiresEditorTools: true,
   }).descriptor?.kind, 'codexAppServer');
 });
@@ -51,13 +46,11 @@ test('Grok degrades to compatibility when the editor Tool gate is required', () 
     capabilities: capabilities(false),
   };
   assert.equal(selectAgentRuntime([compatibility, grok], {
-    experimentalEnabled: true,
     requiresEditorTools: true,
   }).descriptor?.kind, 'compatibility');
   assert.equal(selectAgentRuntime([compatibility, grok], {
-    experimentalEnabled: true,
     requiresEditorTools: false,
-  }).descriptor?.kind, 'grokAcp');
+  }).descriptor?.kind, 'compatibility');
 });
 
 test('runtime discovery remains native-owned and transport brands stay out of the public protocol', async () => {

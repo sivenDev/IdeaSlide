@@ -17,13 +17,17 @@ test('persisted records hydrate only durable Thread state and reset transport bo
     schemaVersion: 1,
     thread: initial.thread,
     capabilities: initial.capabilities,
-    runtime: { kind: 'compatibility', label: 'Compatibility', model: 'test', degraded: true },
+    runtime: {
+      kind: 'codexAppServer', label: 'Codex app-server', model: 'test',
+      upstreamThreadId: 'upstream-1', degraded: false,
+    },
   });
   assert.deepEqual(hydrated.thread, initial.thread);
   assert.equal(hydrated.activeTurnId, undefined);
   assert.deepEqual(hydrated.processedEventIds, {});
   assert.deepEqual(hydrated.pendingEventsByTurn, {});
   assert.equal(hydrated.capabilities.persistence, true);
+  assert.equal(hydrated.runtime.upstreamThreadId, 'upstream-1');
 });
 
 test('model context compaction leaves visible history intact', () => {
@@ -56,7 +60,9 @@ test('native repository commands use application data and never Workspace metada
   assert.match(nativeSource, /safe_write::write_bytes/);
   assert.match(nativeSource, /quarantine/);
   assert.doesNotMatch(nativeSource, /\.ideanote|Workspace/);
-  for (const command of ['save_agent_thread', 'get_agent_thread', 'list_agent_threads', 'rename_agent_thread', 'archive_agent_thread']) {
+  assert.match(nativeSource, /pub\(crate\) fn delete\(&self, thread_id: &str\)/);
+  assert.match(nativeSource, /ErrorKind::NotFound/);
+  for (const command of ['save_agent_thread', 'get_agent_thread', 'list_agent_threads', 'rename_agent_thread', 'archive_agent_thread', 'delete_agent_thread']) {
     assert.match(clientSource, new RegExp(command));
   }
 });

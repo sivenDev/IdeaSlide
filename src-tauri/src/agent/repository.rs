@@ -205,6 +205,15 @@ impl AgentThreadRepository {
         self.save(record)
     }
 
+    pub(crate) fn delete(&self, thread_id: &str) -> Result<bool, String> {
+        let path = self.thread_path(thread_id)?;
+        match fs::remove_file(path) {
+            Ok(()) => Ok(true),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+            Err(error) => Err(format!("Agent Thread could not be deleted: {error}")),
+        }
+    }
+
     fn read_record(&self, path: &Path) -> Result<AgentThreadRecord, String> {
         let metadata = fs::metadata(path)
             .map_err(|error| format!("Agent Thread metadata could not be read: {error}"))?;
@@ -450,7 +459,7 @@ mod tests {
     }
 
     #[test]
-    fn saves_lists_loads_renames_archives_and_migrates_atomically() {
+    fn saves_lists_loads_renames_archives_deletes_and_migrates_atomically() {
         let root = TempDir::new().unwrap();
         let repository = AgentThreadRepository::new(root.path().join("agent"));
         let saved = repository.save(record("thread-1", 4)).unwrap();
@@ -480,6 +489,9 @@ mod tests {
         repository.archive("thread-1").unwrap();
         assert_eq!(repository.list(None, None, false).unwrap().threads.len(), 1);
         assert_eq!(repository.list(None, None, true).unwrap().threads.len(), 2);
+        assert!(repository.delete("thread-1").unwrap());
+        assert!(!repository.delete("thread-1").unwrap());
+        assert_eq!(repository.list(None, None, true).unwrap().threads.len(), 1);
         assert!(repository
             .staging_dir()
             .read_dir()
@@ -507,6 +519,7 @@ mod tests {
         let root = TempDir::new().unwrap();
         let repository = AgentThreadRepository::new(root.path().join("agent"));
         assert!(repository.load("../outside").is_err());
+        assert!(repository.delete("../outside").is_err());
         let mut future = record("future", 1);
         future.schema_version = THREAD_SCHEMA_VERSION + 1;
         assert!(repository.save(future).is_err());

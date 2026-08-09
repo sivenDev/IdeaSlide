@@ -12,21 +12,7 @@ pub(crate) async fn complete(
     cancelled: watch::Receiver<bool>,
     on_progress: impl FnMut(provider::ProviderProgress) -> Result<(), String>,
 ) -> Result<provider::ProviderCompletion, provider::ProviderFailure> {
-    let skill = request
-        .skill_id
-        .as_deref()
-        .map(skills::load_skill)
-        .transpose()
-        .map_err(runtime_failure)?
-        .unwrap_or("");
-    let tools = serde_json::to_string_pretty(&request.tools)
-        .map_err(|error| runtime_failure(format!("Agent tools could not be encoded: {error}")))?;
-    let context = serde_json::to_string_pretty(&request.context)
-        .map_err(|error| runtime_failure(format!("Agent context could not be encoded: {error}")))?;
-    let preamble = format!(
-        "{}\n\nACTIVE EDITOR SKILL:\n{}\n\nAVAILABLE EDITOR TOOLS:\n{}\n\nACTIVE DOCUMENT CONTEXT:\n{}\n\nNever write files directly. Use registered structured editor Tools for reads and proposals. Mutation Tools only create reviewable Change Sets and cannot Apply or save.",
-        request.system_prompt, skill, tools, context
-    );
+    let preamble = prompt_with_context(&request)?;
     provider::complete(
         provider::ProviderRequest {
             base_url: request.base_url,
@@ -43,6 +29,27 @@ pub(crate) async fn complete(
         on_progress,
     )
     .await
+}
+
+pub(crate) fn prompt_with_context(
+    request: &AgentRunRequest,
+) -> Result<String, provider::ProviderFailure> {
+    let skill = request
+        .skill_id
+        .as_deref()
+        .map(skills::load_skill)
+        .transpose()
+        .map_err(runtime_failure)?
+        .unwrap_or("");
+    let tools = serde_json::to_string_pretty(&request.tools)
+        .map_err(|error| runtime_failure(format!("Agent tools could not be encoded: {error}")))?;
+    let context = serde_json::to_string_pretty(&request.context)
+        .map_err(|error| runtime_failure(format!("Agent context could not be encoded: {error}")))?;
+    let preamble = format!(
+        "{}\n\nACTIVE EDITOR SKILL:\n{}\n\nAVAILABLE EDITOR TOOLS:\n{}\n\nACTIVE DOCUMENT CONTEXT:\n{}\n\nNever write files directly. Use registered structured editor Tools for reads and proposals. Mutation Tools only create reviewable Change Sets and cannot Apply or save.",
+        request.system_prompt, skill, tools, context
+    );
+    Ok(preamble)
 }
 
 fn runtime_failure(message: impl Into<String>) -> provider::ProviderFailure {
@@ -78,7 +85,11 @@ mod tests {
     fn request(base_url: String) -> AgentRunRequest {
         AgentRunRequest {
             run_id: "test-run".to_string(),
+            thread_id: "test-thread".to_string(),
+            retry_of_turn_id: None,
+            upstream_thread_id: None,
             prompt: "Current question".to_string(),
+            binding: serde_json::json!({"documentId": "doc", "revision": 1}),
             base_url,
             model: "test-model".to_string(),
             system_prompt: "Follow the editor contract".to_string(),

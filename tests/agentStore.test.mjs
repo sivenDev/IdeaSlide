@@ -47,19 +47,26 @@ const started = () => event('turnStarted', 0, {
   assistantItemId: 'turn-1:assistant',
 });
 
+const assistantAdded = (sequence = 1) => event('itemAdded', sequence, {
+  item: {
+    id: 'turn-1:assistant', kind: 'message', role: 'assistant', content: '', status: 'running', createdAt: 11,
+  },
+});
+
 test('ordered reducer buffers gaps and flushes incremental text without duplication', () => {
   let state = initial();
-  state = reduceAgentEvent(state, event('itemDelta', 2, { itemId: 'turn-1:assistant', text: 'world' }));
+  state = reduceAgentEvent(state, event('itemDelta', 3, { itemId: 'turn-1:assistant', text: 'world' }));
   assert.equal(state.thread.turns.length, 1);
   assert.equal(state.diagnostics.at(-1).code, 'missingSequence');
 
   state = reduceAgentEvent(state, started());
-  state = reduceAgentEvent(state, event('itemDelta', 1, { itemId: 'turn-1:assistant', text: 'Hello ' }));
+  state = reduceAgentEvent(state, assistantAdded());
+  state = reduceAgentEvent(state, event('itemDelta', 2, { itemId: 'turn-1:assistant', text: 'Hello ' }));
   const turn = state.thread.turns.at(-1);
   assert.equal(turn.items.find((item) => item.id === 'turn-1:assistant').content, 'Hello world');
-  assert.equal(state.nextSequenceByTurn['turn-1'], 3);
+  assert.equal(state.nextSequenceByTurn['turn-1'], 4);
 
-  state = reduceAgentEvent(state, event('itemDelta', 1, { itemId: 'turn-1:assistant', text: 'duplicate' }));
+  state = reduceAgentEvent(state, event('itemDelta', 2, { itemId: 'turn-1:assistant', text: 'duplicate' }));
   assert.equal(state.thread.turns.at(-1).items.find((item) => item.id === 'turn-1:assistant').content, 'Hello world');
   assert.equal(state.diagnostics.at(-1).code, 'duplicateEvent');
 });
@@ -74,10 +81,25 @@ test('cancellation is terminal and a later completion cannot corrupt the transcr
 
   const turn = state.thread.turns.at(-1);
   assert.equal(turn.status, 'cancelled');
-  assert.notEqual(turn.items.find((item) => item.id === 'turn-1:assistant').content, 'late output');
+  assert.equal(turn.items.find((item) => item.id === 'turn-1:assistant'), undefined);
   assert.equal(state.diagnostics.at(-1).code, 'terminalEvent');
   assert.equal(retryPromptFromState(state), 'Make a title');
   assert.equal(retryTurnIdFromState(state), 'turn-1');
+});
+
+test('assistant Markdown grows from genuine deltas before completion and reconciles without duplication', () => {
+  let state = reduceAgentEvent(initial(), started());
+  state = reduceAgentEvent(state, assistantAdded());
+  state = reduceAgentEvent(state, event('itemDelta', 2, { itemId: 'turn-1:assistant', text: '# Live\n\n' }));
+  assert.equal(state.thread.turns.at(-1).status, 'running');
+  assert.equal(state.thread.turns.at(-1).items.find((item) => item.id === 'turn-1:assistant').content, '# Live\n\n');
+  state = reduceAgentEvent(state, event('itemDelta', 3, { itemId: 'turn-1:assistant', text: '- first' }));
+  state = reduceAgentEvent(state, event('turnCompleted', 4, {
+    assistantItemId: 'turn-1:assistant', finalText: '# Live\n\n- first',
+  }));
+  const turn = state.thread.turns.at(-1);
+  assert.equal(turn.items.find((item) => item.id === 'turn-1:assistant').content, '# Live\n\n- first');
+  assert.match(turn.items.find((item) => item.id === 'turn-1:activity').label, /Completed in/);
 });
 
 test('a retried Turn retains explicit linkage to the failed Turn', () => {
@@ -100,14 +122,20 @@ test('a retried Turn retains explicit linkage to the failed Turn', () => {
 
 test('provider capabilities and honest streaming telemetry update normalized state', () => {
   let state = reduceAgentEvent(initial(), started());
-  state = reduceAgentEvent(state, event('capabilitiesUpdated', 1, {
+  state = reduceAgentEvent(state, event('runtimeUpdated', 1, {
+    runtime: {
+      kind: 'codexAppServer', label: 'Codex app-server', model: 'test',
+      upstreamThreadId: 'upstream-1', diagnostic: 'Pinned runtime selected.', degraded: false,
+    },
+  }));
+  state = reduceAgentEvent(state, event('capabilitiesUpdated', 2, {
     capabilities: {
       ...COMPATIBILITY_AGENT_CAPABILITIES,
       reasoningSummary: true,
       toolEvents: true,
     },
   }));
-  state = reduceAgentEvent(state, event('telemetryUpdated', 2, {
+  state = reduceAgentEvent(state, event('telemetryUpdated', 3, {
     telemetry: {
       strategy: 'responses',
       attempts: 2,
@@ -124,6 +152,8 @@ test('provider capabilities and honest streaming telemetry update normalized sta
   const turn = state.thread.turns.at(-1);
   assert.equal(state.capabilities.reasoningSummary, true);
   assert.equal(state.capabilities.toolEvents, true);
+  assert.equal(state.runtime.kind, 'codexAppServer');
+  assert.equal(state.runtime.upstreamThreadId, 'upstream-1');
   assert.equal(turn.telemetry.behavior, 'buffered');
   assert.match(turn.items.find((item) => item.id === 'turn-1:streaming').label, /Buffered gateway delivery/);
 });

@@ -28,13 +28,17 @@ test('stream deltas are frame-batched while lifecycle events flush immediately',
   assert.match(source, /events\.reduce\(reduceAgentEvent, current\)/);
 });
 
-test('compatibility runtime emits cancellation and only provider-evidenced rich activity', async () => {
-  const source = await readFile(new URL('../src/lib/agent/agentRuntime.ts', import.meta.url), 'utf8');
-  assert.match(source, /type: "turnCancelled"/);
-  assert.match(source, /cancelled \? "Agent run cancelled" : "Turn stopped locally"/);
-  assert.match(source, /if \(!activeTurns\.has\(input\.turnId\)\) return/);
-  assert.match(source, /case "reasoningSummaryDelta"/);
-  assert.match(source, /reasoningSummary: capabilities\.reasoningSummary/);
-  assert.match(source, /case "toolStarted"/);
-  assert.doesNotMatch(source, /type: "approval"|type: "plan"/);
+test('native Agent Core owns lifecycle activity while TypeScript only forwards events and executes editor Tools', async () => {
+  const runtime = await readFile(new URL('../src/lib/agent/agentRuntime.ts', import.meta.url), 'utf8');
+  const native = await readFile(new URL('../src-tauri/src/agent/mod.rs', import.meta.url), 'utf8');
+  assert.match(runtime, /if \(event\.type === "event"\)/);
+  assert.match(runtime, /emit\(event\.event\)/);
+  assert.match(runtime, /submitAgentToolResult\(input\.turnId, result\)/);
+  assert.match(runtime, /if \(!activeTurns\.has\(input\.turnId\)\) return/);
+  assert.match(native, /"turnCancelled"/);
+  assert.match(native, /ProviderProgress::ReasoningSummaryDelta/);
+  assert.match(native, /ProviderProgress::ToolStarted/);
+  assert.match(native, /"label": "Working"/);
+  assert.match(native, /turn\.ensure_assistant\(\)/);
+  assert.match(native, /emit_tool_result/);
 });

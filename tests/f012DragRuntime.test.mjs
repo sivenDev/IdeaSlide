@@ -97,6 +97,7 @@ async function installTauriMock(page) {
         if (cmd === 'save_agent_thread') return args.record;
         if (cmd === 'get_agent_thread') return null;
         if (cmd === 'rename_agent_thread' || cmd === 'archive_agent_thread') return null;
+        if (cmd === 'delete_agent_thread') return true;
         if (cmd === 'plugin:dialog|open') return '/mock-workspace';
         if (cmd === 'open_workspace') {
           return {
