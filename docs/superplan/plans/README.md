@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Complete |
-| --- | --- | --- |
-| `required` | 6 | 6 |
-| `feature` | 41 | 41 |
-| `bugfix` | 29 | 29 |
+| Type | Plans | Draft | Complete |
+| --- | --- | --- | --- |
+| `required` | 6 | 0 | 6 |
+| `feature` | 43 | 2 | 41 |
+| `bugfix` | 29 | 0 | 29 |
 
 ## Execution Order
 
@@ -77,6 +77,8 @@
 | `F034` | [Store the AI Token in Encrypted Application Configuration](features/F034-encrypted-ai-token-configuration.md) | `complete` | 2026-08-09 |
 | `F035` | [Complete Agent History, Codex Runtime, and Streaming Activity](features/F035-agent-history-codex-runtime-and-streaming-activity.md) | `complete` | 2026-08-09 |
 | `F036` | [Apply Agent Editor Edits Directly with Undo](features/F036-direct-agent-editor-edits-with-undo.md) | `complete` | 2026-08-09 |
+| `F037-01` | [Add Runtime Diagnostics and Configurable Agent Policy](features/F037-agent-runtime-visibility-and-custom-skills/F037-01-runtime-diagnostics-and-configurable-policy.md) | `draft` | 2026-08-10 |
+| `F037-02` | [Add Managed Custom Agent Skills](features/F037-agent-runtime-visibility-and-custom-skills/F037-02-managed-custom-agent-skills.md) | `draft` | 2026-08-10 |
 
 ### Bugfix Plans
 
