@@ -1,6 +1,6 @@
 import { CheckCircle2, CircleEllipsis, ShieldCheck, Sparkles } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
-import type { AgentChangeReviewItem, AgentItem as AgentItemModel } from "../../lib/agent/protocol";
+import { useEffect, useState } from "react";
+import type { AgentItem as AgentItemModel } from "../../lib/agent/protocol";
 import { AgentErrorCard } from "./AgentErrorCard";
 import { AgentMarkdown } from "./AgentMarkdown";
 import { AgentPlan } from "./AgentPlan";
@@ -35,13 +35,11 @@ export function AgentItem({
   item,
   showToolActivity,
   onRetry,
-  renderChangeReview,
   onApprovalDecision,
 }: {
   item: AgentItemModel;
   showToolActivity: boolean;
   onRetry?: () => void;
-  renderChangeReview: (item: AgentChangeReviewItem) => ReactNode;
   onApprovalDecision?: (itemId: string, approved: boolean) => void;
 }) {
   switch (item.kind) {
@@ -77,14 +75,12 @@ export function AgentItem({
           {item.decision && <span className="ideanote-agent-approval__decision">{item.decision}</span>}
           {!item.decision && onApprovalDecision && (
             <div className="mt-2 flex gap-2">
-              <button type="button" className="ideanote-agent-review__secondary" onClick={() => onApprovalDecision(item.id, false)}>Reject</button>
-              <button type="button" className="ideanote-agent-review__primary" onClick={() => onApprovalDecision(item.id, true)}>Approve</button>
+              <button type="button" className="ideanote-agent-approval__secondary" onClick={() => onApprovalDecision(item.id, false)}>Reject</button>
+              <button type="button" className="ideanote-agent-approval__primary" onClick={() => onApprovalDecision(item.id, true)}>Approve</button>
             </div>
           )}
         </section>
       );
-    case "changeReview":
-      return <>{renderChangeReview(item)}</>;
     case "error":
       return <AgentErrorCard error={item.error} onRetry={onRetry} />;
     case "lifecycle":

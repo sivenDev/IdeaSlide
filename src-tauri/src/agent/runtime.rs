@@ -46,7 +46,7 @@ pub(crate) fn prompt_with_context(
     let context = serde_json::to_string_pretty(&request.context)
         .map_err(|error| runtime_failure(format!("Agent context could not be encoded: {error}")))?;
     let preamble = format!(
-        "{}\n\nACTIVE EDITOR SKILL:\n{}\n\nAVAILABLE EDITOR TOOLS:\n{}\n\nACTIVE DOCUMENT CONTEXT:\n{}\n\nNever write files directly. Use registered structured editor Tools for reads and proposals. Mutation Tools only create reviewable Change Sets and cannot Apply or save.",
+        "{}\n\nACTIVE EDITOR SKILL:\n{}\n\nAVAILABLE EDITOR TOOLS:\n{}\n\nACTIVE DOCUMENT CONTEXT:\n{}\n\nNever write files directly. Use registered structured editor Tools for reads and mutations. Mutation Tools apply through the active editor as reversible transactions and cannot save or bypass editor safety checks.",
         request.system_prompt, skill, tools, context
     );
     Ok(preamble)
@@ -97,8 +97,8 @@ mod tests {
             skill_id: None,
             context: serde_json::json!({"documentType": "test"}),
             tools: vec![AgentToolDescriptor {
-                name: "propose_change".to_string(),
-                description: "Create a reviewable proposal".to_string(),
+                name: "edit_document".to_string(),
+                description: "Apply a reversible editor mutation".to_string(),
                 input_schema: serde_json::json!({
                     "type": "object",
                     "properties": {"title": {"type": "string"}},
@@ -281,7 +281,7 @@ mod tests {
         assert!(request_text.starts_with("POST /v1/responses"));
         assert!(request_text.contains("Earlier question"));
         assert!(request_text.contains("Earlier answer"));
-        assert!(request_text.contains("propose_change"));
+        assert!(request_text.contains("edit_document"));
         assert!(request_text
             .to_ascii_lowercase()
             .contains("authorization: bearer test-key"));
@@ -429,20 +429,20 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn duplicate_tool_call_ids_emit_one_proposal_activity() {
+    async fn duplicate_tool_call_ids_emit_one_mutation_activity() {
         let tool = serde_json::json!({
             "type": "response.output_item.added",
-            "item": {"type": "function_call", "call_id": "call-1", "name": "propose_change", "arguments": "{\"title\":\"New\"}"}
+            "item": {"type": "function_call", "call_id": "call-1", "name": "edit_document", "arguments": "{\"title\":\"New\"}"}
         });
         let tool_done = serde_json::json!({
             "type": "response.output_item.done",
-            "item": {"type": "function_call", "call_id": "call-1", "name": "propose_change", "arguments": "{\"title\":\"New\"}"}
+            "item": {"type": "function_call", "call_id": "call-1", "name": "edit_document", "arguments": "{\"title\":\"New\"}"}
         });
         let (base_url, _) = provider_server(vec![TestResponse::sse(vec![
             (0, tool.clone()),
             (0, tool),
             (0, tool_done),
-            (0, responses_text("Proposal ready")),
+            (0, responses_text("Mutation applied")),
         ])])
         .await;
         let (_cancel_sender, cancel_receiver) = watch::channel(false);

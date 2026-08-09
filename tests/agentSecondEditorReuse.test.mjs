@@ -18,8 +18,8 @@ test('a Markdown-like extension reuses the generic registry and Tool host withou
         inputSchema: { type: 'object', properties: {}, additionalProperties: false },
       },
       {
-        name: 'propose_append_section',
-        description: 'Propose appending a section.',
+        name: 'append_section',
+        description: 'Append a section through the active editor.',
         inputSchema: {
           type: 'object',
           properties: { heading: { type: 'string' }, body: { type: 'string' } },
@@ -40,7 +40,7 @@ test('a Markdown-like extension reuses the generic registry and Tool host withou
         };
       }
       return {
-        kind: 'proposal', callId: call.callId, name: call.name, success: true,
+        kind: 'mutation', callId: call.callId, name: call.name, success: true,
         summary: `Append ${call.arguments.heading}`,
         changeSet: {
           id: `md-${call.callId}`,
@@ -77,13 +77,13 @@ test('a Markdown-like extension reuses the generic registry and Tool host withou
       },
     });
     const read = await executor.execute({ callId: 'read', name: 'read_headings', arguments: {} });
-    const proposal = await executor.execute({
-      callId: 'proposal', name: 'propose_append_section', arguments: { heading: 'API', body: 'Details' },
+    const mutation = await executor.execute({
+      callId: 'mutation', name: 'append_section', arguments: { heading: 'API', body: 'Details' },
     });
     assert.equal(read.kind, 'read');
-    assert.equal(proposal.kind, 'proposal');
-    assert.equal(proposal.changeSet.extensionId, 'synthetic-markdown-agent');
-    assert.deepEqual(markdownExtension.describeChangeSet(proposal.changeSet), ['Append Markdown section · API']);
+    assert.equal(mutation.kind, 'mutation');
+    assert.equal(mutation.changeSet.extensionId, 'synthetic-markdown-agent');
+    assert.deepEqual(markdownExtension.describeChangeSet(mutation.changeSet), ['Append Markdown section · API']);
   } finally {
     unregister();
   }

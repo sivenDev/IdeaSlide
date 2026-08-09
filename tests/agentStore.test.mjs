@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createAgentThreadState,
+  hydrateAgentThreadState,
   reconcileSettledAgentTurn,
   reduceAgentEvent,
   retryPromptFromState,
@@ -197,6 +198,29 @@ test('completed turns accept review updates at the next sequence and retain the 
   assert.equal(turn.status, 'completed');
   assert.equal(turn.items.find((item) => item.id === review.id).changeSet.status, 'applied');
   assert.equal(state.nextSequenceByTurn['turn-1'], 4);
+});
+
+test('legacy persisted Change Review items are removed during hydration', () => {
+  const state = hydrateAgentThreadState({
+    schemaVersion: 1,
+    thread: {
+      id: 'legacy', title: 'Legacy', createdAt: 1, updatedAt: 2,
+      turns: [{
+        id: 'legacy-turn', threadId: 'legacy', status: 'completed', createdAt: 1, completedAt: 2,
+        binding,
+        items: [{
+          id: 'legacy-review', kind: 'changeReview', status: 'completed', createdAt: 1,
+          changeSet: {
+            id: 'legacy-change', extensionId: 'ideasketch-agent', documentId: 'doc-a', baseRevision: 7,
+            sourceFingerprint: 'source-a', summary: 'Legacy', operations: [], status: 'stale',
+          },
+        }],
+      }],
+    },
+    capabilities: COMPATIBILITY_AGENT_CAPABILITIES,
+    runtime: { kind: 'compatibility', label: 'Compatibility', model: 'test', degraded: true },
+  });
+  assert.deepEqual(state.thread.turns[0].items, []);
 });
 
 test('events for another thread are diagnosed and ignored', () => {

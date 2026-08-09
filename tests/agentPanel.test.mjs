@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-test('Agent panel uses the normalized runtime/store, captured editor binding, review, cancel, and no-write boundaries', async () => {
+test('Agent panel uses the normalized runtime/store, captured direct editor binding, cancel, and no-write boundaries', async () => {
   const source = await readFile(new URL('../src/components/AgentPanel.tsx', import.meta.url), 'utf8');
   assert.match(source, /activationState === "configuration-required"/);
   assert.match(source, /discoverAgentSkills\(\)/);
@@ -13,11 +13,12 @@ test('Agent panel uses the normalized runtime/store, captured editor binding, re
   assert.match(source, /upstreamThreadId: state\.runtime\.kind === "codexAppServer"/);
   assert.match(source, /const capturedBinding = binding/);
   assert.match(source, /capturedBinding\.createToolExecutor/);
+  assert.match(source, /createDirectApplyToolExecutor/);
   assert.match(source, /const turnId = state\.activeTurnId/);
   assert.match(source, /settleTurn\(turnId, "cancelled"/);
   assert.match(source, /runtime\.cancelTurn\(turnId\)/);
   assert.doesNotMatch(source, /activeRunId/);
-  assert.match(source, /AgentChangeReview/);
+  assert.doesNotMatch(source, /AgentChangeReview/);
   assert.match(source, /AgentThreadHistory/);
   assert.match(source, /useExternalStoreRuntime/);
   assert.match(source, /AssistantRuntimeProvider/);
@@ -25,7 +26,7 @@ test('Agent panel uses the normalized runtime/store, captured editor binding, re
   assert.match(source, /<AgentThreadHeader/);
   assert.doesNotMatch(source, /ideanote-change/);
   assert.doesNotMatch(source, /IdeaSketchAgentOperation/);
-  assert.match(source, /turn\?\.binding\.documentId === binding\.document\.id/);
+  assert.match(source, /getActiveBinding/);
   assert.doesNotMatch(source, /ThreadPrimitive\.Messages/);
   assert.doesNotMatch(source, /save_file|saveWorkspaceDocument|saveStandaloneDocument/);
 });

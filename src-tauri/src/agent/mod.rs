@@ -223,9 +223,10 @@ fn tool_failure(call: &AgentToolCall, message: impl Into<String>) -> Value {
 fn tool_output(result: &Value) -> Value {
     match result.get("kind").and_then(Value::as_str) {
         Some("read") => result.get("content").cloned().unwrap_or(Value::Null),
-        Some("proposal") => json!({
+        Some("mutation") => json!({
             "changeSetId": result.pointer("/changeSet/id").cloned().unwrap_or(Value::Null),
             "summary": result.pointer("/changeSet/summary").cloned().unwrap_or(Value::Null),
+            "status": result.pointer("/changeSet/status").cloned().unwrap_or(Value::Null),
         }),
         _ => json!({
             "error": result.pointer("/error/message").cloned().unwrap_or(Value::Null),
@@ -314,21 +315,7 @@ fn emit_tool_result(
             "createdAt": now_millis(),
         }}),
     )?;
-    if kind == "proposal" {
-        if let Some(change_set) = result.get("changeSet") {
-            let review_id = format!("{}:change-review:{}", turn.turn_id, call.call_id);
-            turn.send(
-                "itemAdded",
-                json!({"item": {
-                    "id": review_id,
-                    "kind": "changeReview",
-                    "changeSet": change_set,
-                    "status": "pending",
-                    "createdAt": now_millis(),
-                }}),
-            )?;
-        }
-    } else if kind == "failure" {
+    if kind == "failure" {
         let error_id = format!("{}:tool-error:{}", turn.turn_id, call.call_id);
         turn.send(
             "itemAdded",

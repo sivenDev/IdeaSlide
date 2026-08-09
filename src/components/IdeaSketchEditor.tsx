@@ -33,6 +33,7 @@ import {
 const DEFAULT_RIGHT_SIDEBAR_WIDTH = 260;
 const MIN_RIGHT_SIDEBAR_WIDTH = 220;
 const MAX_RIGHT_SIDEBAR_WIDTH = 420;
+const AGENT_HISTORY_LIMIT = 50;
 
 interface IdeaSketchEditorProps {
   document: DocumentSession<IdeaSketchDocument>;
@@ -92,6 +93,8 @@ export function IdeaSketchEditor({
   const [cameraDrawingRequestToken, setCameraDrawingRequestToken] = useState(0);
   const [selectedCameraId, setSelectedCameraId] = useState<string>();
   const [canvasInteractionActive, setCanvasInteractionActive] = useState(false);
+  const canvasInteractionActiveRef = useRef(false);
+  const manualCanvasMutationPendingRef = useRef(false);
   const excalidrawApiRef = useRef<any>(null);
   const excalidrawSlideIdRef = useRef<string | undefined>(undefined);
   const pendingConversionFeedbackRef = useRef<{
@@ -99,19 +102,38 @@ export function IdeaSketchEditor({
     message: string;
     selectedElementIds: Record<string, boolean>;
   } | undefined>(undefined);
-  const agentUndoRef = useRef<IdeaSketchEditorState | undefined>(undefined);
+  const agentHistoryRef = useRef<{
+    undo: IdeaSketchEditorState[];
+    redo: IdeaSketchEditorState[];
+  }>({ undo: [], redo: [] });
+  const [agentHistoryVersion, setAgentHistoryVersion] = useState(0);
+  const notifyAgentHistoryChanged = useCallback(() => {
+    setAgentHistoryVersion((version) => version + 1);
+  }, []);
+  const clearAgentHistory = useCallback(() => {
+    const history = agentHistoryRef.current;
+    if (history.undo.length === 0 && history.redo.length === 0) return;
+    agentHistoryRef.current = { undo: [], redo: [] };
+    notifyAgentHistoryChanged();
+  }, [notifyAgentHistoryChanged]);
 
   useEffect(() => {
     if (!document.model || document.model === emittedModelRef.current) return;
     const next = createIdeaSketchEditorState(document.model, document.editorState?.activePageId);
+    clearAgentHistory();
     editorStateRef.current = next;
     setEditorState(next);
-  }, [document.editorState?.activePageId, document.model]);
+  }, [clearAgentHistory, document.editorState?.activePageId, document.model]);
 
-  const applyAction = useCallback((action: IdeaSketchAction, persistModel = true) => {
+  const applyAction = useCallback((
+    action: IdeaSketchAction,
+    persistModel = true,
+    preserveAgentHistory = false,
+  ) => {
     const previous = editorStateRef.current;
     const next = ideaSketchReducer(previous, action);
     if (next === previous) return next;
+    if (!preserveAgentHistory && next.document !== previous.document) clearAgentHistory();
     editorStateRef.current = next;
     setEditorState(next);
     if (next.activePageId !== previous.activePageId) {
@@ -123,18 +145,30 @@ export function IdeaSketchEditor({
       onModelChange(document.id, next.document);
     }
     return next;
-  }, [document.id, onEditorStateChange, onModelChange]);
+  }, [clearAgentHistory, document.id, onEditorStateChange, onModelChange]);
 
   const activePage = editorState.document.pages.find((page) => page.id === editorState.activePageId)
     ?? editorState.document.pages[0]!;
 
   const handleCommit = useCallback((sessionId: string, pageId: string, payload: { slide: any }) => {
     if (sessionId !== document.id || payload.slide.id !== pageId) return;
-    applyAction({ type: "UPDATE_PAGE_SCENE", pageId, page: payload.slide as IdeaSketchPage });
+    const preserveAgentHistory = !manualCanvasMutationPendingRef.current;
+    manualCanvasMutationPendingRef.current = false;
+    applyAction(
+      { type: "UPDATE_PAGE_SCENE", pageId, page: payload.slide as IdeaSketchPage },
+      true,
+      preserveAgentHistory,
+    );
   }, [applyAction, document.id]);
   const handleDirty = useCallback(() => {
-    if (!readOnly) onDirty(document.id);
-  }, [document.id, onDirty, readOnly]);
+    if (!readOnly) {
+      if (canvasInteractionActiveRef.current) {
+        manualCanvasMutationPendingRef.current = true;
+        clearAgentHistory();
+      }
+      onDirty(document.id);
+    }
+  }, [clearAgentHistory, document.id, onDirty, readOnly]);
   const { autoSaveVersion, draft, flushDraft, getEditVersion, hasPendingCommit, updateDraft } = useEditorSession({
     documentSessionId: document.id,
     page: activePage,
@@ -213,15 +247,18 @@ export function IdeaSketchEditor({
   const deleteCamera = useCallback((cameraId: string) => {
     const api = excalidrawApiRef.current;
     if (!api || readOnly) return;
+    clearAgentHistory();
     api.updateScene({
       elements: draft.elements.filter((element: any) => element.id !== cameraId),
       ...(activeCameraId === cameraId ? { appState: { selectedElementIds: {} } } : {}),
     });
     if (activeCameraId === cameraId) setSelectedCameraId(undefined);
-  }, [activeCameraId, draft.elements, readOnly]);
+  }, [activeCameraId, clearAgentHistory, draft.elements, readOnly]);
   const reorderCameraList = useCallback((orderedCameraIds: string[]) => {
-    if (!readOnly) excalidrawApiRef.current?.updateScene({ elements: reorderCameras(draft.elements, orderedCameraIds) });
-  }, [draft.elements, readOnly]);
+    if (readOnly) return;
+    clearAgentHistory();
+    excalidrawApiRef.current?.updateScene({ elements: reorderCameras(draft.elements, orderedCameraIds) });
+  }, [clearAgentHistory, draft.elements, readOnly]);
   const startPresentation = useCallback((mode: "preview" | "fullscreen") => {
     const model = flushAndGetDocument();
     const page = model.pages.find((candidate) => candidate.id === editorStateRef.current.activePageId);
@@ -265,6 +302,7 @@ export function IdeaSketchEditor({
     if (target === "current-page") {
       const result = buildCurrentPageStyleConversion(sceneElements, selectedElementIds);
       if (result.summary.converted === 0) return;
+      clearAgentHistory();
       api.updateScene({
         elements: refreshConvertedTextDimensions(
           result.elements,
@@ -308,7 +346,7 @@ export function IdeaSketchEditor({
       selectedElementIds: result.selectedElementIds,
     };
     applyAction({ type: "ADD_PAGE", page: newPage });
-  }, [applyAction, flushDraft, readOnly]);
+  }, [applyAction, clearAgentHistory, flushDraft, readOnly]);
   const openNavigator = useCallback((tab: IdeaSketchNavigatorTab) => {
     setNavigatorTab(tab);
     setShowNavigator(true);
@@ -320,6 +358,7 @@ export function IdeaSketchEditor({
     setCameraDrawingRequestToken((token) => token + 1);
   }, [openNavigator, readOnly]);
   const handleCanvasInteractionChange = useCallback((active: boolean) => {
+    canvasInteractionActiveRef.current = active;
     setCanvasInteractionActive((current) => current === active ? current : active);
   }, []);
   const handleApplyAgentChangeSet = useCallback((changeSet: AgentChangeSet): boolean => {
@@ -337,7 +376,12 @@ export function IdeaSketchEditor({
     if (changeSet.sourceFingerprint !== getIdeaSketchSourceFingerprint(current.document)) return false;
     const operations = changeSet.operations as IdeaSketchAgentOperation[];
     if (operations.length !== 1) return false;
-    agentUndoRef.current = current;
+    const previousHistory = agentHistoryRef.current;
+    agentHistoryRef.current = {
+      undo: [...previousHistory.undo, current].slice(-AGENT_HISTORY_LIMIT),
+      redo: [],
+    };
+    notifyAgentHistoryChanged();
     try {
       for (const operation of operations) {
         if (operation.kind === "add-page") {
@@ -349,15 +393,15 @@ export function IdeaSketchEditor({
           applyAction({
             type: "ADD_PAGE",
             page: { ...base, title: operation.title, elements: restored as any[] },
-          });
+          }, true, true);
         } else if (operation.kind === "delete-page") {
           if (editorStateRef.current.document.pages.length <= 1) throw new Error("IdeaSketch must keep one Page");
-          applyAction({ type: "DELETE_PAGE", pageId: operation.pageId });
+          applyAction({ type: "DELETE_PAGE", pageId: operation.pageId }, true, true);
         } else if (operation.kind === "reorder-page") {
-          applyAction({ type: "REORDER_PAGE", pageId: operation.pageId, toIndex: operation.toIndex });
+          applyAction({ type: "REORDER_PAGE", pageId: operation.pageId, toIndex: operation.toIndex }, true, true);
         } else {
           const page = editorStateRef.current.document.pages.find((candidate) => candidate.id === operation.pageId);
-          if (!page) throw new Error("The proposed Page no longer exists");
+          if (!page) throw new Error("The target Page no longer exists");
           const restored = restoreElements(operation.elements as any[], null, {
             refreshDimensions: true,
             repairBindings: true,
@@ -366,31 +410,58 @@ export function IdeaSketchEditor({
             type: "UPDATE_PAGE_SCENE",
             pageId: operation.pageId,
             page: { ...page, elements: restored as any[] },
-          });
+          }, true, true);
         }
       }
       return true;
     } catch {
-      agentUndoRef.current = undefined;
+      agentHistoryRef.current = previousHistory;
+      editorStateRef.current = current;
+      setEditorState(current);
+      emittedModelRef.current = current.document;
+      onModelChange(document.id, current.document);
+      onEditorStateChange(document.id, current.activePageId);
+      notifyAgentHistoryChanged();
       return false;
     }
-  }, [applyAction, document.id, document.revision, document.sourceModified, document.status, flushDraft, readOnly]);
+  }, [applyAction, document.id, document.revision, document.sourceModified, document.status, flushDraft, notifyAgentHistoryChanged, onEditorStateChange, onModelChange, readOnly]);
+  const restoreAgentSnapshot = useCallback((snapshot: IdeaSketchEditorState) => {
+    editorStateRef.current = snapshot;
+    setEditorState(snapshot);
+    emittedModelRef.current = snapshot.document;
+    setSelectedCameraId(undefined);
+    onModelChange(document.id, snapshot.document);
+    onEditorStateChange(document.id, snapshot.activePageId);
+  }, [document.id, onEditorStateChange, onModelChange]);
   const handleUndoAgentChange = useCallback(() => {
-    const previous = agentUndoRef.current;
+    const history = agentHistoryRef.current;
+    const previous = history.undo[history.undo.length - 1];
     if (!previous || readOnly) return;
-    agentUndoRef.current = undefined;
-    editorStateRef.current = previous;
-    setEditorState(previous);
-    emittedModelRef.current = previous.document;
-    onModelChange(document.id, previous.document);
-    onEditorStateChange(document.id, previous.activePageId);
-  }, [document.id, onEditorStateChange, onModelChange, readOnly]);
+    agentHistoryRef.current = {
+      undo: history.undo.slice(0, -1),
+      redo: [...history.redo, editorStateRef.current].slice(-AGENT_HISTORY_LIMIT),
+    };
+    restoreAgentSnapshot(previous);
+    notifyAgentHistoryChanged();
+  }, [notifyAgentHistoryChanged, readOnly, restoreAgentSnapshot]);
+  const handleRedoAgentChange = useCallback(() => {
+    const history = agentHistoryRef.current;
+    const next = history.redo[history.redo.length - 1];
+    if (!next || readOnly) return;
+    agentHistoryRef.current = {
+      undo: [...history.undo, editorStateRef.current].slice(-AGENT_HISTORY_LIMIT),
+      redo: history.redo.slice(0, -1),
+    };
+    restoreAgentSnapshot(next);
+    notifyAgentHistoryChanged();
+  }, [notifyAgentHistoryChanged, readOnly, restoreAgentSnapshot]);
   const agentBindingStateRef = useRef({
     document,
     activeContextId: editorState.activePageId,
     readOnly,
     applyChangeSet: handleApplyAgentChangeSet,
     undo: handleUndoAgentChange,
+    redo: handleRedoAgentChange,
   });
   agentBindingStateRef.current = {
     document,
@@ -398,6 +469,7 @@ export function IdeaSketchEditor({
     readOnly,
     applyChangeSet: handleApplyAgentChangeSet,
     undo: handleUndoAgentChange,
+    redo: handleRedoAgentChange,
   };
   const agentBinding = useMemo<ActiveAgentEditorBinding>(() => ({
     get document() { return agentBindingStateRef.current.document; },
@@ -428,8 +500,10 @@ export function IdeaSketchEditor({
     ),
     applyChangeSet: (changeSet) => agentBindingStateRef.current.applyChangeSet(changeSet),
     undo: () => agentBindingStateRef.current.undo(),
-    get canUndo() { return Boolean(agentUndoRef.current); },
-  }), [document.id]);
+    redo: () => agentBindingStateRef.current.redo(),
+    get canUndo() { return agentHistoryRef.current.undo.length > 0; },
+    get canRedo() { return agentHistoryRef.current.redo.length > 0; },
+  }), [agentHistoryVersion, document.id]);
 
   useEffect(() => {
     onAgentBindingChange(agentBinding, document.id);

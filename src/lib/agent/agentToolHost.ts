@@ -5,6 +5,7 @@ import type {
   AgentToolExecutor,
   AgentToolFailureResult,
   AgentToolResult,
+  ActiveAgentEditorBinding,
 } from "./types";
 
 function failure(
@@ -54,7 +55,7 @@ export function createAgentToolHost<TModel>({
       if (result.callId !== call.callId || result.name !== call.name) {
         return failure(call, "Editor Tool returned a mismatched call identity.", "toolExecutionFailed");
       }
-      if (result.kind === "proposal") {
+      if (result.kind === "mutation") {
         const changeSet = result.changeSet;
         if (
           changeSet.status !== "proposed"
@@ -62,7 +63,7 @@ export function createAgentToolHost<TModel>({
           || changeSet.documentId !== context.documentId
           || changeSet.baseRevision !== context.revision
         ) {
-          return failure(call, "Proposal Tool returned an unsafe or retargeted Change Set.", "toolExecutionFailed");
+          return failure(call, "Mutation Tool returned an unsafe or retargeted Change Set.", "toolExecutionFailed");
         }
         return result;
       }
@@ -76,6 +77,63 @@ export function createAgentToolHost<TModel>({
     execute,
     cancel(callId) {
       cancelled.add(callId);
+    },
+  };
+}
+
+export function createDirectApplyToolExecutor({
+  executor,
+  capturedTarget,
+  getActiveBinding,
+  isActive,
+}: {
+  executor: AgentToolExecutor;
+  capturedTarget: {
+    documentId: string;
+    extensionId: string;
+    revision: number;
+    documentStatus: ActiveAgentEditorBinding["document"]["status"];
+    sourceModified?: string;
+  };
+  getActiveBinding: () => Pick<ActiveAgentEditorBinding, "document" | "extensionId" | "readOnly" | "applyChangeSet"> | undefined;
+  isActive: () => boolean;
+}): AgentToolExecutor {
+  const cancelled = new Set<string>();
+  return {
+    async execute(call, signal) {
+      const result = await executor.execute(call, signal);
+      if (result.kind !== "mutation") return result;
+      const binding = getActiveBinding();
+      const changeSet = result.changeSet;
+      if (
+        signal?.aborted
+        || cancelled.has(call.callId)
+        || !isActive()
+        || !binding
+        || binding.readOnly
+        || binding.extensionId !== capturedTarget.extensionId
+        || binding.document.id !== capturedTarget.documentId
+        || binding.document.status !== "editable"
+        || binding.document.status !== capturedTarget.documentStatus
+        || binding.document.revision !== capturedTarget.revision
+        || binding.document.revision !== changeSet.baseRevision
+        || binding.document.sourceModified !== capturedTarget.sourceModified
+        || binding.document.sourceModified !== changeSet.baseSourceModified
+      ) {
+        return failure(call, "The active editor changed before the mutation could be applied.", "toolExecutionFailed");
+      }
+      if (!binding.applyChangeSet(changeSet)) {
+        return failure(call, "The active editor rejected the mutation as stale or unsafe.", "toolExecutionFailed");
+      }
+      return {
+        ...result,
+        summary: `Applied: ${result.summary}`,
+        changeSet: { ...changeSet, status: "applied" },
+      };
+    },
+    cancel(callId) {
+      cancelled.add(callId);
+      executor.cancel(callId);
     },
   };
 }

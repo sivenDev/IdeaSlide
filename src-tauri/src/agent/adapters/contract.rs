@@ -23,8 +23,8 @@ mod tests {
             model: "test-model".to_string(),
             cwd: PathBuf::from("/tmp/ideanote-contract"),
             tools: vec![crate::agent::types::AgentToolDescriptor {
-                name: "propose_change".to_string(),
-                description: "Return a reviewable proposal".to_string(),
+                name: "edit_document".to_string(),
+                description: "Apply a reversible editor mutation".to_string(),
                 input_schema: json!({"type": "object"}),
             }],
         }
@@ -55,7 +55,7 @@ mod tests {
         ));
         let tool_result = adapter.tool_result(
             &JsonRpcId::String("request-1".to_string()),
-            json!({"proposalId": "proposal-1"}),
+            json!({"mutationId": "mutation-1"}),
             true,
         );
         assert!(matches!(tool_result, JsonRpcMessage::Response { .. }));

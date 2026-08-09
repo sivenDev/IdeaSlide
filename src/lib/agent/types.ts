@@ -25,8 +25,8 @@ export interface AgentToolReadResult {
   persistable: boolean;
 }
 
-export interface AgentToolProposalResult<TOperation = unknown> {
-  kind: "proposal";
+export interface AgentToolMutationResult<TOperation = unknown> {
+  kind: "mutation";
   callId: string;
   name: string;
   success: true;
@@ -49,7 +49,7 @@ export interface AgentToolFailureResult {
 
 export type AgentToolResult<TOperation = unknown> =
   | AgentToolReadResult
-  | AgentToolProposalResult<TOperation>
+  | AgentToolMutationResult<TOperation>
   | AgentToolFailureResult;
 
 export interface AgentToolExecutionContext<TModel = unknown> {
@@ -212,5 +212,7 @@ export interface ActiveAgentEditorBinding {
   describeChangeSet: (changeSet: AgentChangeSet) => string[];
   applyChangeSet: (changeSet: AgentChangeSet) => boolean;
   undo: () => void;
+  redo: () => void;
   canUndo: boolean;
+  canRedo: boolean;
 }

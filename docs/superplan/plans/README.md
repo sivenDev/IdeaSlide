@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Complete |
-| --- | --- | --- |
-| `required` | 6 | 6 |
-| `feature` | 40 | 40 |
-| `bugfix` | 25 | 25 |
+| Type | Plans | Approved | Complete |
+| --- | --- | --- | --- |
+| `required` | 6 | 0 | 6 |
+| `feature` | 41 | 0 | 41 |
+| `bugfix` | 26 | 1 | 25 |
 
 ## Execution Order
 
@@ -76,6 +76,7 @@
 | `F033-04` | [Complete Persistent Threads and Editor Tool Integration](features/F033-codex-style-agent-implementation/F033-04-persistent-threads-and-editor-tools.md) | `complete` | 2026-08-08 |
 | `F034` | [Store the AI Token in Encrypted Application Configuration](features/F034-encrypted-ai-token-configuration.md) | `complete` | 2026-08-09 |
 | `F035` | [Complete Agent History, Codex Runtime, and Streaming Activity](features/F035-agent-history-codex-runtime-and-streaming-activity.md) | `complete` | 2026-08-09 |
+| `F036` | [Apply Agent Editor Edits Directly with Undo](features/F036-direct-agent-editor-edits-with-undo.md) | `complete` | 2026-08-09 |
 
 ### Bugfix Plans
 
@@ -106,3 +107,4 @@
 | `B023` | [Move Agent to the App-level Right Column](bugs/B023-separate-agent-right-column.md) | `complete` | 2026-08-08 |
 | `B024` | [Align Tauri Versions and Verify Agent Editing](bugs/B024-align-tauri-versions-and-verify-agent-editing.md) | `complete` | 2026-08-08 |
 | `B025` | [Fix Agent Fallback Hangs, Cancellation, and Activity Presentation](bugs/B025-fix-agent-fallback-hangs-cancellation-and-activity-presentation.md) | `complete` | 2026-08-09 |
+| `B026` | [Validate Agent Editing of Saved IdeaSketch Files](bugs/B026-validate-agent-editing-of-saved-ideasketch-files.md) | `approved` | 2026-08-09 |

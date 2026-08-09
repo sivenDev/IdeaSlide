@@ -110,17 +110,17 @@ impl AgentToolBroker {
             .get("kind")
             .and_then(Value::as_str)
             .unwrap_or_default();
-        if !matches!(kind, "read" | "proposal" | "failure") {
+        if !matches!(kind, "read" | "mutation" | "failure") {
             return Err("Editor Tool returned an unsupported result kind.".to_string());
         }
-        if kind == "proposal"
+        if kind == "mutation"
             && object
                 .get("changeSet")
                 .and_then(|change_set| change_set.get("status"))
                 .and_then(Value::as_str)
-                != Some("proposed")
+                != Some("applied")
         {
-            return Err("Proposal Tool returned a non-proposed Change Set.".to_string());
+            return Err("Mutation Tool returned a Change Set that was not applied.".to_string());
         }
         let result = redact_value(&result);
         let encoded = serde_json::to_vec(&result)
@@ -260,5 +260,35 @@ mod tests {
             )
             .unwrap();
         assert!(bounded["content"].as_str().unwrap().len() < MAX_TOOL_RESULT_BYTES);
+    }
+
+    #[test]
+    fn accepts_only_editor_applied_mutation_results() {
+        let mut broker = AgentToolBroker::new(&tools()).unwrap();
+        let call = AgentToolCall {
+            call_id: "mutation-1".to_string(),
+            name: "read_outline".to_string(),
+            arguments: json!({"pageId": "page-1"}),
+        };
+        broker.begin(&call).unwrap();
+        assert!(broker
+            .complete(
+                &call,
+                json!({
+                    "kind": "mutation", "callId": "mutation-1", "name": "read_outline",
+                    "success": true, "summary": "Applied", "changeSet": {"status": "proposed"}
+                }),
+            )
+            .is_err());
+        let applied = broker
+            .complete(
+                &call,
+                json!({
+                    "kind": "mutation", "callId": "mutation-1", "name": "read_outline",
+                    "success": true, "summary": "Applied", "changeSet": {"status": "applied"}
+                }),
+            )
+            .unwrap();
+        assert_eq!(applied["changeSet"]["status"], "applied");
     }
 }

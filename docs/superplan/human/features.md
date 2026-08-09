@@ -266,3 +266,10 @@ Replace the native OS Credential Vault path for the AI provider token with a sim
 - created: 2026-08-09
 
 Add permanent deletion for local Agent Threads with explicit confirmation and storage cleanup; make assistant Markdown visibly update from real text deltas before completion; provide a Teable-like activity stream with preparing/working state, elapsed time, public progress narration, and expandable Tool steps; and enable the pinned Codex app-server as the production rich runtime only after native editor Tool, lifecycle, fallback, packaging, and privacy acceptance. Stream only process text that the selected runtime explicitly marks as user-visible; do not require reasoning summaries, fabricate progress, or expose hidden chain-of-thought. Preserve the compatibility fallback, AI lifecycle gate, generic editor-extension boundary, proposal-only Change Sets, explicit Apply/Undo, and retired MCP surface.
+
+## F036: Apply Agent edits directly with editor Undo
+
+- status: done
+- created: 2026-08-09
+
+Remove the user-facing Change Review gate for editor content. Registered Agent mutation Tools should validate and apply directly through the active editor model, remain atomic and revision/fingerprint safe, never write files directly, enter the editor's Undo/Redo history as one transaction, and persist only through the normal dirty/autosave/safe-write pipeline. Keep approval for future irreversible non-editor operations.

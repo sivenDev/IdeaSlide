@@ -24,7 +24,7 @@ export function AgentComposer({
       </div>
       <ComposerPrimitive.Input
         aria-label="Message Agent"
-        placeholder={running && steeringAvailable ? "Add direction to the current Turn…" : "Ask about this file or propose a change…"}
+        placeholder={running && steeringAvailable ? "Add direction to the current Turn…" : "Ask about or edit this file…"}
         rows={3}
         disabled={disabled || (running && !steeringAvailable)}
         submitMode="enter"

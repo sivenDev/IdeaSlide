@@ -222,3 +222,10 @@ The standard Tauri debug bundle build fails because @tauri-apps/api resolves to 
 - created: 2026-08-09
 
 The Agent transcript still renders Reasoning summary cards instead of a Teable-style continuous activity stream. A Codex Turn can report 'Codex stopped before producing output; using Compatibility', then remain Working indefinitely after Compatibility Tool activity; the composer Stop button does not terminate it. Diagnose the Codex timeout/fallback path, ensure fallback reaches one terminal state, make cancellation interrupt runtime and pending editor Tool waits, and replace reasoning-summary cards with concise public activity while never exposing hidden chain-of-thought.
+
+## B026: Validate Agent editing of saved IdeaSketch files
+
+- status: accepted
+- created: 2026-08-09
+
+The previous Agent verification did not prove editing a real saved .is file end to end. Build an explicit capability checklist and exercise every supported IdeaSketch Agent read and proposal Tool against disposable saved files, including review-only behavior, Apply, Undo, autosave/manual save where applicable, close/reopen persistence, stale-target rejection, cancellation safety, and file integrity. Reproduce and repair every discovered failure, then repeat the complete matrix until clean.

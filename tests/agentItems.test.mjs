@@ -4,13 +4,13 @@ import { readFile } from 'node:fs/promises';
 
 test('normalized items render continuous public activity without a reasoning-summary card', async () => {
   const source = await readFile(new URL('../src/components/agent/AgentItem.tsx', import.meta.url), 'utf8');
-  for (const kind of ['message', 'activity', 'plan', 'tool', 'approval', 'changeReview', 'error', 'lifecycle']) {
+  for (const kind of ['message', 'activity', 'plan', 'tool', 'approval', 'error', 'lifecycle']) {
     assert.match(source, new RegExp(`case "${kind}"`));
   }
   assert.doesNotMatch(source, /AgentReasoningSummary|case "reasoningSummary"/);
   assert.match(source, /AgentLifecycleActivity/);
   assert.match(source, /\(elapsed \/ 1000\)\.toFixed\(1\)/);
-  assert.match(source, /renderChangeReview\(item\)/);
+  assert.doesNotMatch(source, /renderChangeReview|AgentChangeReview/);
   assert.match(source, /<AgentMarkdown content=\{item\.content\}/);
 });
 

@@ -208,7 +208,7 @@ impl AgentRuntimeAdapter for CodexAppServerAdapter {
                         call_id: call_id.to_string(),
                         name: name.to_string(),
                         arguments,
-                        proposal_only: true,
+                        editor_only: true,
                     }]
                 })
                 .unwrap_or_default(),
@@ -283,8 +283,8 @@ mod tests {
             model: "gpt-5.6-terra".to_string(),
             cwd: PathBuf::from("/tmp/project"),
             tools: vec![super::super::super::types::AgentToolDescriptor {
-                name: "propose_change".to_string(),
-                description: "Return a proposal".to_string(),
+                name: "edit_document".to_string(),
+                description: "Apply a reversible editor mutation".to_string(),
                 input_schema: json!({"type": "object"}),
             }],
         };
@@ -292,7 +292,7 @@ mod tests {
         let params = message.params().expect("request should have params");
         assert_eq!(params["sandbox"], "read-only");
         assert_eq!(params["approvalPolicy"], "never");
-        assert_eq!(params["dynamicTools"][0]["name"], "propose_change");
+        assert_eq!(params["dynamicTools"][0]["name"], "edit_document");
         assert!(params.get("mcpServers").is_none());
     }
 
@@ -314,7 +314,7 @@ mod tests {
             method: "item/tool/call".to_string(),
             params: json!({
                 "callId": "call-1",
-                "tool": "propose_change",
+                "tool": "edit_document",
                 "arguments": {"title": "New"}
             }),
         };
@@ -324,7 +324,7 @@ mod tests {
                 .expect("tool should map")
                 .as_slice(),
             [RuntimeEvent::ToolStarted {
-                proposal_only: true,
+                editor_only: true,
                 ..
             }]
         ));

@@ -519,6 +519,7 @@ function SlideCanvasInner({
       ref={containerRef}
       style={{ width: "100%", height: "100%", position: "relative" }}
       onPointerDownCapture={beginCanvasInteraction}
+      onKeyDownCapture={pulseCanvasInteraction}
       onWheelCapture={pulseCanvasInteraction}
     >
       <Excalidraw

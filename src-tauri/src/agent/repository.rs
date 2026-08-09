@@ -286,20 +286,12 @@ fn retain_persistable_turns(thread: &mut Value) -> Result<(), String> {
         let Some(items) = turn.get_mut("items").and_then(Value::as_array_mut) else {
             continue;
         };
-        items.retain(|item| item.get("kind").and_then(Value::as_str) != Some("reasoningSummary"));
-        for item in items.iter_mut() {
-            if item.get("kind").and_then(Value::as_str) == Some("changeReview") {
-                if let Some(change_set) = item.get_mut("changeSet").and_then(Value::as_object_mut) {
-                    change_set.insert("operations".to_string(), Value::Array(Vec::new()));
-                    if change_set.get("status").and_then(Value::as_str) == Some("proposed") {
-                        change_set.insert("status".to_string(), Value::String("stale".to_string()));
-                        item.as_object_mut()
-                            .expect("item was an object")
-                            .insert("status".to_string(), Value::String("completed".to_string()));
-                    }
-                }
-            }
-        }
+        items.retain(|item| {
+            !matches!(
+                item.get("kind").and_then(Value::as_str),
+                Some("reasoningSummary" | "changeReview")
+            )
+        });
         if items.len() > MAX_ARRAY_ITEMS {
             let keep_from = items.len() - MAX_ARRAY_ITEMS;
             items.drain(..keep_from);
@@ -465,14 +457,10 @@ mod tests {
         let saved = repository.save(record("thread-1", 4)).unwrap();
         assert_eq!(saved.schema_version, THREAD_SCHEMA_VERSION);
         assert_eq!(saved.thread["turns"].as_array().unwrap().len(), 2);
-        assert_eq!(
-            saved.thread["turns"][1]["items"].as_array().unwrap().len(),
-            1
-        );
-        assert_eq!(
-            saved.thread["turns"][1]["items"][0]["changeSet"]["status"],
-            "stale"
-        );
+        assert!(saved.thread["turns"][1]["items"]
+            .as_array()
+            .unwrap()
+            .is_empty());
         assert!(saved.capabilities.get("apiKey").is_none());
 
         repository.save(record("thread-2", 9)).unwrap();

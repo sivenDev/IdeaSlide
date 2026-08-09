@@ -7,24 +7,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useAgentThread } from "../hooks/useAgentThread";
 import { useSettings } from "../hooks/useSettings";
 import { createNativeAgentRuntime } from "../lib/agent/agentRuntime";
+import { createDirectApplyToolExecutor } from "../lib/agent/agentToolHost";
 import { discoverAgentSkills } from "../lib/agent/agentClient";
-import { markAgentChangeSetApplied, markAgentChangeSetStale, rejectAgentChangeSet } from "../lib/agent/changeSet";
 import { promptFromAssistantUiMessage, toAssistantUiMessage } from "../lib/agent/assistantUiAdapter";
-import type { AgentChangeSet, ActiveAgentEditorBinding } from "../lib/agent/types";
-import {
-  createAgentEventId,
-  type AgentChangeReviewItem,
-  type AgentTurn,
-} from "../lib/agent/protocol";
+import type { ActiveAgentEditorBinding } from "../lib/agent/types";
+import { createAgentEventId } from "../lib/agent/protocol";
 import { AgentComposer } from "./agent/AgentComposer";
 import { AgentThreadHistory } from "./agent/AgentThreadHistory";
 import { AgentThreadHeader } from "./agent/AgentThreadHeader";
 import { AgentTranscript } from "./agent/AgentTranscript";
-import { AgentChangeReview } from "./agent/AgentChangeReview";
-
-function turnForReview(turns: AgentTurn[], itemId: string): AgentTurn | undefined {
-  return turns.find((turn) => turn.items.some((item) => item.id === itemId));
-}
 
 export function AgentPanel({
   binding,
@@ -38,10 +29,12 @@ export function AgentPanel({
   const [historyOpen, setHistoryOpen] = useState(false);
   const currentTurnIdRef = useRef<string | undefined>(undefined);
   const cancelledTurnIdsRef = useRef(new Set<string>());
+  const bindingRef = useRef(binding);
+  bindingRef.current = binding;
   const title = binding?.document.displayName ?? "Current file";
   const bindingSkillId = binding?.skillId;
   const welcome = binding
-    ? `I can inspect **${binding.document.displayName}** and prepare reviewable changes.`
+    ? `I can inspect and edit **${binding.document.displayName}**. Editor changes apply directly and remain available through Undo.`
     : "Open a supported file to give the Agent editor context.";
   const {
     state,
@@ -138,8 +131,21 @@ export function AgentPanel({
   const submit = async (prompt: string, retryOfTurnId?: string) => {
     if (!binding?.document.model || activationState !== "ready" || running) return;
     const capturedBinding = binding;
-    const toolExecutor = capturedBinding.createToolExecutor();
+    const capturedDocument = capturedBinding.document;
     const turnId = crypto.randomUUID();
+    let turnOpen = true;
+    const toolExecutor = createDirectApplyToolExecutor({
+      executor: capturedBinding.createToolExecutor(),
+      capturedTarget: {
+        documentId: capturedDocument.id,
+        extensionId: capturedBinding.extensionId,
+        revision: capturedDocument.revision,
+        documentStatus: capturedDocument.status,
+        sourceModified: capturedDocument.sourceModified,
+      },
+      getActiveBinding: () => bindingRef.current,
+      isActive: () => turnOpen && !cancelledTurnIdsRef.current.has(turnId),
+    });
     let failure: unknown;
     try {
       await runtime.startTurn({
@@ -151,13 +157,13 @@ export function AgentPanel({
           : undefined,
         prompt,
         binding: {
-          documentId: capturedBinding.document.id,
-          documentName: capturedBinding.document.displayName ?? "Untitled",
+          documentId: capturedDocument.id,
+          documentName: capturedDocument.displayName ?? "Untitled",
           extensionId: capturedBinding.extensionId,
           fileType: capturedBinding.fileType,
           skillId: capturedBinding.skillId,
-          revision: capturedBinding.document.revision,
-          sourceModified: capturedBinding.document.sourceModified,
+          revision: capturedDocument.revision,
+          sourceModified: capturedDocument.sourceModified,
         },
         baseUrl: settings.ai.baseUrl,
         model: settings.ai.model,
@@ -171,6 +177,7 @@ export function AgentPanel({
     } catch (cause) {
       failure = cause;
     } finally {
+      turnOpen = false;
       if (cancelledTurnIdsRef.current.delete(turnId)) {
         settleTurn(turnId, "cancelled");
       } else {
@@ -255,25 +262,6 @@ export function AgentPanel({
     }));
   };
 
-  const updateReview = (item: AgentChangeReviewItem, changeSet: AgentChangeSet) => {
-    const turn = turnForReview(state.thread.turns, item.id);
-    if (!turn) return;
-    const sequence = state.nextSequenceByTurn[turn.id] ?? 0;
-    emit({
-      type: "itemUpdated",
-      eventId: createAgentEventId(turn.id, sequence, "itemUpdated"),
-      threadId: state.thread.id,
-      turnId: turn.id,
-      sequence,
-      at: Date.now(),
-      item: {
-        ...item,
-        changeSet,
-        status: changeSet.status === "proposed" ? "pending" : "completed",
-      },
-    });
-  };
-
   const resolveApproval = async (itemId: string, approved: boolean) => {
     const turn = state.thread.turns.find((candidate) => candidate.items.some((item) => item.id === itemId));
     const item = turn?.items.find((candidate) => candidate.id === itemId);
@@ -291,47 +279,6 @@ export function AgentPanel({
       itemId,
       decision: approved ? "approved" : "rejected",
     });
-  };
-
-  const renderChangeReview = (item: AgentChangeReviewItem) => {
-    if (!binding || item.changeSet.extensionId !== binding.extensionId) {
-      return <div className="ideanote-agent-review is-stale">The original editor is not active. Reopen it to review this proposal.</div>;
-    }
-    const turn = turnForReview(state.thread.turns, item.id);
-    const capturedTargetMatches = turn?.binding.documentId === binding.document.id
-      && turn.binding.extensionId === binding.extensionId;
-    const approve = () => {
-      const { document } = binding;
-      const changeSet = item.changeSet;
-      if (
-        !capturedTargetMatches
-        || binding.readOnly
-        || document.status !== "editable"
-        || document.revision !== changeSet.baseRevision
-        || changeSet.baseDocumentStatus !== document.status
-        || changeSet.baseSourceModified !== document.sourceModified
-      ) {
-        updateReview(item, markAgentChangeSetStale(changeSet));
-        return;
-      }
-      updateReview(
-        item,
-        binding.applyChangeSet(changeSet)
-          ? markAgentChangeSetApplied(changeSet)
-          : markAgentChangeSetStale(changeSet),
-      );
-    };
-    return (
-      <AgentChangeReview
-        changeSet={item.changeSet}
-        operationLabels={binding.describeChangeSet(item.changeSet)}
-        readOnly={binding.readOnly || !capturedTargetMatches}
-        onApprove={approve}
-        onReject={() => updateReview(item, rejectAgentChangeSet(item.changeSet))}
-        onUndo={binding.undo}
-        canUndo={binding.canUndo}
-      />
-    );
   };
 
   const assistantRuntime = useExternalStoreRuntime({
@@ -397,7 +344,6 @@ export function AgentPanel({
           state={state}
           showToolActivity={settings.agent.showToolActivity}
           onRetry={retryPrompt ? () => void submit(retryPrompt, retryTurnId) : undefined}
-          renderChangeReview={renderChangeReview}
           onApprovalDecision={runtime.resolveApproval ? (itemId, approved) => void resolveApproval(itemId, approved) : undefined}
         />
         <AgentComposer

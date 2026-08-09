@@ -71,13 +71,13 @@ mod tests {
             "item": {
                 "type": "dynamicToolCall",
                 "id": "call-1",
-                "tool": "propose_change",
+                "tool": "edit_document",
                 "arguments": {"title": "Example"}
             }
         });
         let (call_id, name, arguments) = dynamic_tool(&value).expect("tool should parse");
         assert_eq!(call_id, "call-1");
-        assert_eq!(name, "propose_change");
+        assert_eq!(name, "edit_document");
         assert_eq!(arguments["title"], "Example");
 
         let direct = serde_json::json!({

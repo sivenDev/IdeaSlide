@@ -35,14 +35,14 @@ test('IdeaSketch context and read Tools are bounded and identify the active Page
   assert.equal(result.persistable, false);
 });
 
-test('IdeaSketch mutations are proposal-only Change Sets routed through the Tool host', async () => {
+test('IdeaSketch mutations are direct-action transactions routed through the Tool host', async () => {
   const document = createEmptyIdeaSketchDocument({ pageId: 'page-1', now: '2026-08-08T00:00:00Z' });
   const result = await host(document).execute({
     callId: 'add-1',
-    name: 'propose_add_page',
+    name: 'add_page',
     arguments: { title: 'Architecture', elements: [] },
   });
-  assert.equal(result.kind, 'proposal');
+  assert.equal(result.kind, 'mutation');
   assert.equal(result.changeSet.status, 'proposed');
   assert.equal(result.changeSet.documentId, 'doc-1');
   assert.equal(result.changeSet.baseRevision, 3);
@@ -51,50 +51,50 @@ test('IdeaSketch mutations are proposal-only Change Sets routed through the Tool
   assert.equal(document.pages.length, 1);
 });
 
-test('Rust rejects malformed and oversized Tool input while the editor extension rejects stale proposals', async () => {
+test('Rust rejects malformed and oversized Tool input while the editor extension rejects invalid mutations', async () => {
   const document = createEmptyIdeaSketchDocument();
   const executor = host(document, 0, document.pages[0].id);
   const broker = await readFile(new URL('../src-tauri/src/agent/tool_broker.rs', import.meta.url), 'utf8');
   assert.match(broker, /validator\.validate\(&call\.arguments\)/);
 
-  const addPage = ideaSketchAgentExtension.tools.find((tool) => tool.name === 'propose_add_page');
+  const addPage = ideaSketchAgentExtension.tools.find((tool) => tool.name === 'add_page');
   assert.equal(addPage.inputSchema.properties.elements.maxItems, 500);
 
   const missingPage = await executor.execute({
     callId: 'bad-3',
-    name: 'propose_delete_page',
+    name: 'delete_page',
     arguments: { pageId: 'missing' },
   });
   assert.equal(missingPage.kind, 'failure');
   assert.equal(missingPage.error.code, 'toolExecutionFailed');
 });
 
-test('IdeaSketch Page delete, reorder, and content Tools remain review-only', async () => {
+test('IdeaSketch Page delete, reorder, and content Tools produce bounded direct transactions', async () => {
   const document = createEmptyIdeaSketchDocument({ pageId: 'page-1', now: '2026-08-08T00:00:00Z' });
   document.pages.push({ id: 'page-2', title: 'Second', elements: [], appState: {}, files: {} });
   const executor = host(document);
   const calls = [
-    { callId: 'delete', name: 'propose_delete_page', arguments: { pageId: 'page-2' } },
-    { callId: 'reorder', name: 'propose_reorder_page', arguments: { pageId: 'page-2', toIndex: 0 } },
-    { callId: 'replace', name: 'propose_replace_page_elements', arguments: { pageId: 'page-1', elements: [{ id: 'shape', type: 'rectangle' }] } },
+    { callId: 'delete', name: 'delete_page', arguments: { pageId: 'page-2' } },
+    { callId: 'reorder', name: 'reorder_page', arguments: { pageId: 'page-2', toIndex: 0 } },
+    { callId: 'replace', name: 'replace_page_elements', arguments: { pageId: 'page-1', elements: [{ id: 'shape', type: 'rectangle' }] } },
   ];
 
   for (const call of calls) {
     const result = await executor.execute(call);
-    assert.equal(result.kind, 'proposal');
-    assert.equal(result.changeSet.operations[0].kind, call.name.replace('propose_', '').replaceAll('_', '-'));
+    assert.equal(result.kind, 'mutation');
+    assert.equal(result.changeSet.operations[0].kind, call.name.replaceAll('_', '-'));
   }
   assert.deepEqual(document.pages.map((page) => page.id), ['page-1', 'page-2']);
   assert.equal(document.pages[0].elements.length, 0);
 });
 
-test('IdeaSketch Tool contract covers outline, Page reads, and reviewed mutations', () => {
+test('IdeaSketch Tool contract covers outline, Page reads, and direct mutations', () => {
   assert.deepEqual(ideaSketchAgentExtension.tools.map((tool) => tool.name), [
     'read_document_outline',
     'read_active_page',
-    'propose_add_page',
-    'propose_delete_page',
-    'propose_reorder_page',
-    'propose_replace_page_elements',
+    'add_page',
+    'delete_page',
+    'reorder_page',
+    'replace_page_elements',
   ]);
 });

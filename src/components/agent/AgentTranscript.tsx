@@ -1,6 +1,6 @@
 import { ArrowDown } from "lucide-react";
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import type { AgentChangeReviewItem, AgentItem as AgentItemModel, AgentThreadState } from "../../lib/agent/protocol";
+import { useLayoutEffect, useRef, useState } from "react";
+import type { AgentItem as AgentItemModel, AgentThreadState } from "../../lib/agent/protocol";
 import { AgentItem } from "./AgentItem";
 
 const MAX_VISIBLE_ITEMS = 300;
@@ -9,18 +9,17 @@ export function AgentTranscript({
   state,
   showToolActivity,
   onRetry,
-  renderChangeReview,
   onApprovalDecision,
 }: {
   state: AgentThreadState;
   showToolActivity: boolean;
   onRetry?: () => void;
-  renderChangeReview: (item: AgentChangeReviewItem) => ReactNode;
   onApprovalDecision?: (itemId: string, approved: boolean) => void;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [anchored, setAnchored] = useState(true);
-  const allItems = [...state.notices, ...state.thread.turns.flatMap((turn) => turn.items)];
+  const allItems = [...state.notices, ...state.thread.turns.flatMap((turn) => turn.items)]
+    .filter((item) => item.kind !== "changeReview");
   const hiddenCount = Math.max(0, allItems.length - MAX_VISIBLE_ITEMS);
   const items = hiddenCount ? allItems.slice(-MAX_VISIBLE_ITEMS) : allItems;
   const contentSignal = items.map((item) => `${item.id}:${item.status}:${item.kind === "message" || item.kind === "activity" ? item.content.length : 0}`).join("|");
@@ -56,7 +55,6 @@ export function AgentTranscript({
               item={item}
               showToolActivity={showToolActivity}
               onRetry={onRetry}
-              renderChangeReview={renderChangeReview}
               onApprovalDecision={onApprovalDecision}
             />
           ))}

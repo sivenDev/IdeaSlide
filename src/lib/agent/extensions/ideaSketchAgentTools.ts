@@ -21,8 +21,8 @@ export const IDEA_SKETCH_AGENT_TOOLS: AgentToolDescriptor[] = [
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
-    name: "propose_add_page",
-    description: "Propose a new editable IdeaSketch Page for user review. This never writes or mutates the document.",
+    name: "add_page",
+    description: "Add a new editable IdeaSketch Page through the active editor. The editor applies this atomically and handles persistence.",
     inputSchema: {
       type: "object",
       properties: {
@@ -34,8 +34,8 @@ export const IDEA_SKETCH_AGENT_TOOLS: AgentToolDescriptor[] = [
     },
   },
   {
-    name: "propose_delete_page",
-    description: "Propose deleting one existing Page. The document must retain at least one Page.",
+    name: "delete_page",
+    description: "Delete one existing Page through the active editor. The document must retain at least one Page.",
     inputSchema: {
       type: "object",
       properties: { pageId: { type: "string", minLength: 1 } },
@@ -44,8 +44,8 @@ export const IDEA_SKETCH_AGENT_TOOLS: AgentToolDescriptor[] = [
     },
   },
   {
-    name: "propose_reorder_page",
-    description: "Propose moving an existing Page to a zero-based position in the document.",
+    name: "reorder_page",
+    description: "Move an existing Page to a zero-based position through the active editor.",
     inputSchema: {
       type: "object",
       properties: { pageId: { type: "string", minLength: 1 }, toIndex: { type: "integer", minimum: 0 } },
@@ -54,8 +54,8 @@ export const IDEA_SKETCH_AGENT_TOOLS: AgentToolDescriptor[] = [
     },
   },
   {
-    name: "propose_replace_page_elements",
-    description: "Propose replacing the editable elements of one Page while preserving its identity and metadata.",
+    name: "replace_page_elements",
+    description: "Replace the editable elements of one Page through the active editor while preserving its identity and metadata.",
     inputSchema: {
       type: "object",
       properties: {
@@ -78,7 +78,7 @@ export function getIdeaSketchSourceFingerprint(model: IdeaSketchDocument): strin
   })));
 }
 
-function proposalResult(
+function mutationResult(
   call: AgentToolCall,
   context: AgentToolExecutionContext<IdeaSketchDocument>,
   operation: IdeaSketchAgentOperation,
@@ -97,7 +97,7 @@ function proposalResult(
     status: "proposed",
   };
   return {
-    kind: "proposal",
+    kind: "mutation",
     callId: call.callId,
     name: call.name,
     success: true,
@@ -155,33 +155,33 @@ export function executeIdeaSketchAgentTool(
         truncated: Boolean(activePage && activePage.elements.length > 80),
         persistable: false,
       };
-    case "propose_add_page": {
+    case "add_page": {
       const title = String(args.title).trim();
       const elements = args.elements as unknown[];
-      return proposalResult(call, context, { kind: "add-page", title, elements }, `Add a new Page named “${title}”`);
+      return mutationResult(call, context, { kind: "add-page", title, elements }, `Add a new Page named “${title}”`);
     }
-    case "propose_delete_page": {
+    case "delete_page": {
       const pageId = String(args.pageId);
       if (model.pages.length <= 1 || !model.pages.some((page) => page.id === pageId)) {
         throw new Error("The requested Page cannot be deleted from the captured document.");
       }
-      return proposalResult(call, context, { kind: "delete-page", pageId }, `Delete Page ${pageId}`);
+      return mutationResult(call, context, { kind: "delete-page", pageId }, `Delete Page ${pageId}`);
     }
-    case "propose_reorder_page": {
+    case "reorder_page": {
       const pageId = String(args.pageId);
       const toIndex = Number(args.toIndex);
       if (!model.pages.some((page) => page.id === pageId) || toIndex >= model.pages.length) {
         throw new Error("The requested Page order is outside the captured document.");
       }
-      return proposalResult(call, context, { kind: "reorder-page", pageId, toIndex }, `Move Page ${pageId} to position ${toIndex + 1}`);
+      return mutationResult(call, context, { kind: "reorder-page", pageId, toIndex }, `Move Page ${pageId} to position ${toIndex + 1}`);
     }
-    case "propose_replace_page_elements": {
+    case "replace_page_elements": {
       const pageId = String(args.pageId);
       const elements = args.elements as unknown[];
       if (!model.pages.some((page) => page.id === pageId)) {
         throw new Error("The requested Page is not present in the captured document.");
       }
-      return proposalResult(
+      return mutationResult(
         call,
         context,
         { kind: "replace-page-elements", pageId, elements },

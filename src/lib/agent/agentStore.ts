@@ -68,8 +68,15 @@ export function createAgentThreadState({
 }
 
 export function hydrateAgentThreadState(record: AgentThreadRecord): AgentThreadState {
+  const thread = {
+    ...record.thread,
+    turns: record.thread.turns.map((turn) => ({
+      ...turn,
+      items: turn.items.filter((item) => item.kind !== "changeReview"),
+    })),
+  };
   return {
-    thread: record.thread,
+    thread,
     capabilities: { ...record.capabilities, persistence: true },
     runtime: record.runtime,
     notices: [],

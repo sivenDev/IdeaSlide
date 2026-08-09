@@ -219,7 +219,7 @@ impl AgentRuntimeAdapter for GrokAcpAdapter {
                             call_id: call_id.to_string(),
                             name: name.to_string(),
                             arguments,
-                            proposal_only: false,
+                            editor_only: false,
                         }]
                     })
                     .unwrap_or_default(),
@@ -334,7 +334,7 @@ mod tests {
                 .expect("tool should map")
                 .as_slice(),
             [RuntimeEvent::ToolStarted {
-                proposal_only: false,
+                editor_only: false,
                 ..
             }]
         ));

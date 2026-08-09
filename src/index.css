@@ -1112,28 +1112,8 @@ body,
     padding: 8px 11px;
 }
 
-.ideanote-agent-review {
-    margin-left: 21px;
-    border: 1px solid #dcdcf3;
-    border-radius: 10px;
-    background: #f4f3ff;
-    padding: 10px;
-}
-
-.ideanote-agent-review__icon {
-    display: inline-flex;
-    width: 28px;
-    height: 28px;
-    flex: 0 0 28px;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    color: #5d58c8;
-    background: #e7e5ff;
-}
-
-.ideanote-agent-review__primary,
-.ideanote-agent-review__secondary {
+.ideanote-agent-approval__primary,
+.ideanote-agent-approval__secondary {
     display: inline-flex;
     align-items: center;
     gap: 5px;
@@ -1143,29 +1123,19 @@ body,
     padding: 6px 8px;
 }
 
-.ideanote-agent-review__primary {
+.ideanote-agent-approval__primary {
     color: #fff;
     background: #625dd6;
 }
 
-.ideanote-agent-review__primary:disabled {
+.ideanote-agent-approval__primary:disabled {
     opacity: 0.45;
 }
 
-.ideanote-agent-review__secondary {
+.ideanote-agent-approval__secondary {
     color: #5e6470;
     border: 1px solid #d9dce3;
     background: #fff;
-}
-
-.ideanote-agent-review.is-applied {
-    border-color: #cfe8dc;
-    background: #effaf5;
-}
-
-.ideanote-agent-review.is-stale,
-.ideanote-agent-review.is-rejected {
-    opacity: 0.78;
 }
 
 .ideanote-agent-error {

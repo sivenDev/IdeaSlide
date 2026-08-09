@@ -52,7 +52,7 @@ pub(crate) enum RuntimeEvent {
         call_id: String,
         name: String,
         arguments: Value,
-        proposal_only: bool,
+        editor_only: bool,
     },
     ToolCompleted {
         call_id: String,
@@ -238,7 +238,7 @@ impl CodexTurnDriver {
                         call_id,
                         name,
                         arguments,
-                        proposal_only: true,
+                        editor_only: true,
                     } = event
                     {
                         return Ok(RuntimeDriverEvent::ToolRequest {
