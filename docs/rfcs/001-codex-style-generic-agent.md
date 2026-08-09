@@ -4,7 +4,7 @@
 - Date: 2026-08-08
 - Amended: 2026-08-09 by RFC Addendum 002
 - Source: F032
-- Delivered through: F035
+- Delivered through: F035, B029
 - Audience: IdeaNote product and engineering
 
 ## 1. Summary
@@ -644,10 +644,9 @@ A stream is considered effectively burst-delivered when a long first-text delay 
 While waiting, the UI shows deterministic statuses such as:
 
 - `Preparing`;
-- `Working` with elapsed time;
-- `Provider is buffering the response` when sufficient evidence exists.
+- `Working` with elapsed time.
 
-IdeaNote does not synthesize source events or claim that a paced display is token generation. For burst or atomic assistant answers, the frontend may use the bounded presentation queue defined by RFC Addendum 002. Source completion, Tool activity, cancellation, errors, and telemetry remain immediate and authoritative.
+IdeaNote does not synthesize source events or claim that a paced display is token generation. For burst or atomic assistant answers, the frontend uses the bounded presentation controller defined by RFC Addendum 002. Source completion, Tool activity, cancellation, errors, and telemetry remain immediate and authoritative.
 
 ### 11.3 Presentation pacing
 
@@ -969,7 +968,7 @@ The comparison selected Codex for production editor-capable Turns after its dyna
 - Register the Markdown Agent Extension without changing the Agent Runtime, Protocol, React SDK, or generic UI.
 - Use the result to decide whether the internal frontend SDK is ready to become a separately versioned package.
 
-### Phase 7: Perceived streaming optimization — proposed in RFC Addendum 002
+### Phase 7: Perceived streaming optimization — delivered through B029
 
 - Instrument Codex and Compatibility with the same delivery telemetry.
 - Classify incremental, burst, atomic, and unknown source delivery.

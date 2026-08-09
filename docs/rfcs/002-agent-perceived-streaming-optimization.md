@@ -1,15 +1,15 @@
 # RFC Addendum 002: Agent Perceived Streaming Optimization
 
-- Status: Proposed
+- Status: Implemented
 - Date: 2026-08-09
 - Related: RFC 001, B029, F035, B025, B028
-- Scope: Diagnosis and optimization design only; no runtime or UI implementation is included
+- Scope: Implemented runtime telemetry, authoritative frontend state, ephemeral answer presentation, transcript integration, and native acceptance
 
 ## 1. Decision summary
 
 IdeaNote's Agent pipeline is structurally capable of forwarding text deltas, but the production Codex path does not currently provide a visibly progressive answer. The installed Codex app-server emitted many small deltas in a single narrow burst, and the frontend correctly combined that burst into one animation-frame render. The result is transport-level streaming without user-perceived streaming.
 
-To provide the Teable-like interaction requested for IdeaNote, adopt a two-clock design:
+To provide the Teable-like interaction requested for IdeaNote, IdeaNote adopts a two-clock design:
 
 1. **Source clock:** preserve the exact runtime event order, timestamps, lifecycle, cancellation, Tool activity, completion, and error state.
 2. **Presentation clock:** render assistant answer text directly when delivery is genuinely incremental, but pace burst or atomic delivery through a bounded, Markdown-aware presentation queue.
@@ -96,13 +96,12 @@ ReactMarkdown renders a complete-looking answer
 
 Removing animation-frame batching alone is not sufficient. Browsers cannot paint 149 updates received within roughly 4 ms as a readable five-second sequence, and React may still coalesce synchronous work. A presentation policy is required when the source cadence is burst or atomic.
 
-## 5. Proposed architecture
+## 5. Implemented architecture
 
 ### 5.1 Delivery telemetry at every runtime boundary
 
-Add one runtime-neutral telemetry collector before UI pacing. For each assistant segment, record bounded metrics only:
+One runtime-neutral telemetry collector observes normalized answer delivery before UI pacing. For each Turn, it records bounded metrics only:
 
-- runtime kind and model label;
 - request start, first event, first text, last text, and completion times;
 - text delta count and character count;
 - first-to-last delta span;
@@ -115,15 +114,15 @@ Do not persist raw prompts, answer payloads, credentials, headers, or provider f
 Initial classification thresholds should be testable configuration constants, not protocol semantics:
 
 - `atomic`: one non-empty text delta;
-- `burst`: at least two deltas and at least 90% of characters arrive within 120 ms;
+- `burst`: at least two deltas and at least 90% of characters arrive within the densest 100 ms window;
 - `incremental`: at least three visible text groups span at least 400 ms and do not satisfy the burst rule;
 - `unknown`: insufficient or contradictory evidence.
 
-Codex and Compatibility must produce the same normalized telemetry. The current Codex path advertises streaming but does not emit delivery timing, so that gap is part of B029.
+Codex and Compatibility produce the same normalized telemetry. The collector retains at most 4,096 timing samples, stores no answer content, and emits `firstEventMs`, `firstTextMs`, `textSpanMs`, delta and character counts, p50/p95 inter-delta gaps, densest-window percentage, and the normalized classification.
 
 ### 5.2 Assistant answer presentation queue
 
-Introduce an editor-agnostic `AgentTextPresentationQueue` between normalized answer deltas and rendered assistant content.
+The editor-agnostic `AgentTextPresentationController` projects normalized answer content into the rendered transcript.
 
 The queue owns only display projection. The normalized source Item remains authoritative and complete.
 
@@ -141,8 +140,8 @@ Rules:
 Recommended initial pacing envelope:
 
 - first visible paced chunk within 100 ms of the first burst/atomic text event;
-- one visible update every 40–100 ms while the queue is non-empty;
-- adaptive chunks of roughly 12–48 graphemes, preferring readable boundaries;
+- one visible update every 60 ms while the controller has a paced backlog;
+- adaptive grapheme chunks with up to eight-grapheme forward lookahead for readable punctuation or whitespace boundaries;
 - typical reveal duration of 0.8–2.5 seconds;
 - long answers accelerate to a maximum bounded duration rather than delaying completion proportionally to length;
 - a user action to reveal the remainder immediately can be added if testing shows the pacing feels slow.
@@ -214,30 +213,30 @@ Presentation pacing applies only to assistant answer text and must not generate 
 | Performance | Transcript pacing does not rerender the editor Canvas and stays responsive on long answers. |
 | Persistence | Reloaded history contains only settled final content and safe telemetry, never presentation queue state. |
 
-## 8. Delivery phases
+## 8. Delivered phases
 
-### Phase A: Instrument and classify
+### Phase A: Instrument and classify — delivered
 
 - add Codex delivery telemetry equivalent to Compatibility telemetry;
 - retain bounded raw timestamps in tests, not production transcript payloads;
 - add deterministic incremental, burst, and atomic fixtures;
 - expose a diagnostic classification without changing visible pacing yet.
 
-### Phase B: Add the presentation queue
+### Phase B: Add the presentation controller — delivered
 
 - implement the generic queue in the frontend Agent SDK/store layer;
 - keep editor extensions and runtime adapters unchanged;
 - add chronological barriers for Tool and terminal events;
 - add reduced-motion behavior and exact final reconciliation.
 
-### Phase C: Tune against native evidence
+### Phase C: Tune against native evidence — delivered
 
 - repeat the installed Codex trace;
 - verify the configured gateway separately through Compatibility;
 - compare screen recordings and DOM samples with the observed Teable cadence;
 - tune chunk size and duration from user testing rather than copying Teable timing blindly.
 
-### Phase D: Product verification
+### Phase D: Product verification — delivered
 
 - exercise text-only, Tool-using, cancelled, failed, retried, and persisted Turns;
 - verify IdeaSketch Tool execution and native editor Undo/Redo remain unchanged;
@@ -276,6 +275,20 @@ No new framework is required for the first implementation:
 
 Adopt an additional dependency only if measurement proves the small presentation scheduler cannot be implemented reliably with browser animation/timer primitives.
 
-## 11. Outcome required before implementation is complete
+## 11. Delivered outcome
 
-IdeaNote should no longer treat `textStreaming: true` as proof of a streamed experience. Completion requires evidence for all four layers: source delivery, normalized event delivery, browser-paint cadence, and final content reconciliation. The product target is Teable-like readability with Codex-like Tool capability, while preserving truthful lifecycle, no hidden reasoning, and editor-agnostic architecture.
+IdeaNote no longer treats `textStreaming: true` as proof of a streamed experience. B029 delivers evidence for all four layers: source delivery, normalized event delivery, browser-paint cadence, and final content reconciliation. The result provides Teable-like readability with Codex-like Tool capability while preserving truthful lifecycle, no hidden reasoning, and editor-agnostic architecture.
+
+## 12. Implementation and acceptance evidence
+
+The implementation is divided into three explicit planes:
+
+1. Rust immediately emits authoritative normalized Events and shared safe delivery telemetry.
+2. The frontend store reduces and persists exact source Items, Tool order, terminal state, and telemetry.
+3. The ephemeral presentation controller owns only displayed assistant prefixes and timers; it is reset for cancellation, history hydration, Thread changes, AI disable, and unmount.
+
+Final constants are a 60 ms presentation Tick, a 32-grapheme minimum paced answer, an 80-grapheme heuristic for large `unknown` additions inside 120 ms, and an adaptive 800–2,500 ms reveal envelope. Incremental delivery remains direct. Semantic Items are chronological barriers and never wait behind answer pacing.
+
+Native acceptance against the Debug Tauri build and installed pinned Codex observed seven distinct visible answer sizes over approximately 1.8 seconds (`1050`, `1411`, `1751`, `2022`, `2368`, `2647`, and `2882` accessibility-tree characters). Stop removed the active source state immediately, produced the normalized cancelled boundary, and showed no queued answer text during the following 5.9 seconds. A real `read active page` Tool row appeared before the final answer, and reopening the file restored the settled answer and Tool history immediately with no active Stop state.
+
+Automated evidence includes 327 frontend tests, 129 Rust tests, deterministic burst/atomic/incremental/barrier/cancellation/failure/hydration/reduced-motion presentation tests, installed-Codex smoke tests, TypeScript/Vite production build, Rust formatting and Clippy checks, and Debug Tauri application/DMG packaging.

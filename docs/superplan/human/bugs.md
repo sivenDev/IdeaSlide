@@ -246,7 +246,7 @@ Agent editing Turns can skip read_active_page because the full active Page scene
 
 ## B029: Make Burst-delivered Agent Answers Visibly Progressive
 
-- status: accepted
+- status: done
 - created: 2026-08-09
 
 The Agent answer still appears as one complete block instead of growing visibly like Teable. A direct Codex app-server trace reproduced 149 genuine `item/agentMessage/delta` events arriving within roughly 4 ms, followed by Turn completion about 63 ms later; the frontend then frame-batches the burst into one visible React update. A Teable comparison showed answer text growing over roughly 5.3 seconds in repeated visible increments after its Preparing/Working state. Preserve authoritative source events and chronology, add Codex delivery telemetry, and introduce bounded answer-only presentation pacing for burst or atomic delivery without presenting it as hidden reasoning or live model-token generation. Tool, lifecycle, cancellation, error, and terminal state must remain immediate and authoritative.

@@ -5,6 +5,7 @@ import {
 } from "@assistant-ui/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAgentThread } from "../hooks/useAgentThread";
+import { useAgentPresentation } from "../hooks/useAgentPresentation";
 import { useSettings } from "../hooks/useSettings";
 import { createNativeAgentRuntime } from "../lib/agent/agentRuntime";
 import { createDirectApplyToolExecutor } from "../lib/agent/agentToolHost";
@@ -70,6 +71,7 @@ export function AgentPanel({
     },
   });
   const running = Boolean(state.activeTurnId);
+  const presentation = useAgentPresentation(state);
   currentTurnIdRef.current = state.activeTurnId;
 
   useEffect(() => {
@@ -342,6 +344,7 @@ export function AgentPanel({
         )}
         <AgentTranscript
           state={state}
+          presentation={presentation}
           showToolActivity={settings.agent.showToolActivity}
           onRetry={retryPrompt ? () => void submit(retryPrompt, retryTurnId) : undefined}
           onApprovalDecision={runtime.resolveApproval ? (itemId, approved) => void resolveApproval(itemId, approved) : undefined}

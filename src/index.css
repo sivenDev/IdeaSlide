@@ -666,6 +666,30 @@ body,
     padding-left: 1px;
 }
 
+.ideanote-agent-message.is-presentation-revealing .ideanote-agent-markdown::after {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-left: 4px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.45;
+  animation: ideanote-agent-reveal-pulse 900ms ease-in-out infinite;
+  vertical-align: 0.1em;
+}
+
+@keyframes ideanote-agent-reveal-pulse {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.65; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ideanote-agent-message.is-presentation-revealing .ideanote-agent-markdown::after {
+    animation: none;
+  }
+}
+
 .ideanote-agent-message__marker {
     position: relative;
     z-index: 1;

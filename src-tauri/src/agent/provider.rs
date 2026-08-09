@@ -6,10 +6,13 @@ use serde_json::{json, Value};
 use tokio::sync::watch;
 use uuid::Uuid;
 
+use super::telemetry::{
+    build_streaming_telemetry, TextDeliveryMetrics, TextDeliveryTelemetryCollector,
+};
 use super::types::{
     AgentErrorCode, AgentErrorDiagnostic, AgentMessageInput, AgentMessageRole,
     AgentProviderCapabilities, AgentProviderStrategy, AgentRetryPolicy, AgentStreamingTelemetry,
-    AgentToolCall, AgentToolDescriptor, StreamingBehavior,
+    AgentToolCall, AgentToolDescriptor,
 };
 
 const MAX_ERROR_BODY_BYTES: usize = 8 * 1024;
@@ -98,10 +101,7 @@ struct AttemptSuccess {
     text: String,
     capabilities: AgentProviderCapabilities,
     request_ms: u64,
-    first_event_ms: Option<u64>,
-    first_text_ms: Option<u64>,
-    event_span_ms: u64,
-    event_count: u32,
+    delivery: TextDeliveryMetrics,
     tool_calls: Vec<AgentToolCall>,
 }
 
@@ -150,22 +150,13 @@ pub(crate) async fn complete(
         {
             Ok(success) => {
                 let total_ms = elapsed_ms(total_started);
-                let behavior = classify_streaming_behavior(
-                    success.first_event_ms.unwrap_or_default(),
-                    success.event_span_ms,
-                    success.event_count,
-                );
-                let telemetry = AgentStreamingTelemetry {
+                let telemetry = build_streaming_telemetry(
                     strategy,
-                    attempts: attempt,
-                    request_ms: success.request_ms,
-                    first_event_ms: success.first_event_ms,
-                    first_text_ms: success.first_text_ms,
-                    event_span_ms: success.event_span_ms,
+                    attempt,
+                    success.request_ms,
                     total_ms,
-                    event_count: success.event_count,
-                    behavior,
-                };
+                    success.delivery,
+                );
                 emit(ProviderProgress::Telemetry(telemetry.clone())).map_err(|message| {
                     ProviderFailure {
                         diagnostic: runtime_diagnostic(message),
@@ -288,10 +279,7 @@ async fn execute_attempt(
     let mut byte_stream = response.bytes_stream();
     let mut buffer = Vec::<u8>::new();
     let mut text = String::new();
-    let mut first_event_ms = None;
-    let mut first_text_ms = None;
-    let mut last_event_ms = None;
-    let mut event_count = 0_u32;
+    let mut delivery = TextDeliveryTelemetryCollector::default();
     let mut visible_progress = false;
     let mut active_tools = HashMap::<String, (String, String)>::new();
     let mut chat_tool_ids = HashMap::<u64, String>::new();
@@ -339,12 +327,10 @@ async fn execute_attempt(
             })?;
             let Some(event) = parsed else { continue };
             let event_ms = elapsed_ms(started);
-            first_event_ms.get_or_insert(event_ms);
-            last_event_ms = Some(event_ms);
-            event_count = event_count.saturating_add(1);
+            delivery.observe_event(event_ms);
             match event {
                 ProviderStreamEvent::TextDelta(delta) if !delta.is_empty() => {
-                    first_text_ms.get_or_insert(event_ms);
+                    delivery.observe_text(event_ms, &delta);
                     visible_progress = true;
                     text.push_str(&delta);
                     emit(ProviderProgress::TextDelta(delta))
@@ -456,16 +442,11 @@ async fn execute_attempt(
             visible_progress,
         });
     }
-    let first = first_event_ms.unwrap_or_default();
-    let event_span_ms = last_event_ms.unwrap_or(first).saturating_sub(first);
     Ok(AttemptSuccess {
         text,
         capabilities,
         request_ms,
-        first_event_ms,
-        first_text_ms,
-        event_span_ms,
-        event_count,
+        delivery: delivery.metrics(),
         tool_calls,
     })
 }
@@ -1042,22 +1023,6 @@ fn elapsed_ms(started: std::time::Instant) -> u64 {
     started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64
 }
 
-fn classify_streaming_behavior(
-    first_event_ms: u64,
-    event_span_ms: u64,
-    event_count: u32,
-) -> StreamingBehavior {
-    if event_count < 2 {
-        StreamingBehavior::Indeterminate
-    } else if event_span_ms >= 75 {
-        StreamingBehavior::Incremental
-    } else if first_event_ms >= 150 && event_span_ms <= 50 {
-        StreamingBehavior::Buffered
-    } else {
-        StreamingBehavior::Indeterminate
-    }
-}
-
 fn contains_any(value: &str, needles: &[&str]) -> bool {
     needles.iter().any(|needle| value.contains(needle))
 }
@@ -1253,22 +1218,6 @@ mod contract_tests {
                 max_attempts: 9,
             }),
             5
-        );
-    }
-
-    #[test]
-    fn streaming_timing_distinguishes_incremental_and_buffered_delivery() {
-        assert_eq!(
-            classify_streaming_behavior(180, 620, 3),
-            StreamingBehavior::Incremental
-        );
-        assert_eq!(
-            classify_streaming_behavior(520, 12, 8),
-            StreamingBehavior::Buffered
-        );
-        assert_eq!(
-            classify_streaming_behavior(20, 0, 1),
-            StreamingBehavior::Indeterminate
         );
     }
 }

@@ -4,6 +4,7 @@ mod repository;
 mod runtime;
 mod session;
 mod skills;
+mod telemetry;
 mod tool_broker;
 mod types;
 
@@ -18,6 +19,7 @@ use repository::{AgentThreadPage, AgentThreadRecord, AgentThreadRepository};
 use serde_json::{json, Value};
 use session::AgentSessionState;
 use tauri::{ipc::Channel, Manager};
+use telemetry::TextDeliveryTelemetryCollector;
 use tool_broker::{AgentToolBroker, BrokerDecision};
 use types::{
     AgentErrorCode, AgentProviderCapabilities, AgentRunEvent, AgentRunRequest, AgentRunResponse,
@@ -502,14 +504,27 @@ async fn receive_tool_result(
     }
 }
 
+struct CodexDeliveryTiming {
+    started: std::time::Instant,
+    request_ms: u64,
+}
+
 async fn run_codex_driver(
     mut driver: adapters::CodexTurnDriver,
     state: &AgentSessionState,
     emitter: &Arc<Mutex<NativeTurnEmitter>>,
     tools: &[types::AgentToolDescriptor],
     model: &str,
+    timing: CodexDeliveryTiming,
     mut cancellation: tokio::sync::watch::Receiver<bool>,
-) -> Result<(String, AgentProviderCapabilities), String> {
+) -> Result<
+    (
+        String,
+        AgentProviderCapabilities,
+        types::AgentStreamingTelemetry,
+    ),
+    String,
+> {
     let capabilities = driver.capabilities();
     let upstream_thread_id = driver.conversation_id().to_string();
     {
@@ -555,6 +570,7 @@ async fn run_codex_driver(
     }
     let mut broker = AgentToolBroker::new(tools)?;
     let mut text = String::new();
+    let mut delivery = TextDeliveryTelemetryCollector::default();
     loop {
         let event = tokio::select! {
             changed = cancellation.changed() => {
@@ -566,6 +582,8 @@ async fn run_codex_driver(
             }
             event = driver.next_event() => event.map_err(|error| error.message)?,
         };
+        let event_ms = elapsed_millis(timing.started);
+        delivery.observe_event(event_ms);
         match event {
             adapters::RuntimeDriverEvent::ToolRequest { request_id, call } => {
                 {
@@ -593,6 +611,7 @@ async fn run_codex_driver(
             }
             adapters::RuntimeDriverEvent::Event(event) => match event {
                 adapters::RuntimeEvent::TextDelta(delta) => {
+                    delivery.observe_text(event_ms, &delta);
                     text.push_str(&delta);
                     let mut turn = emitter
                         .lock()
@@ -666,6 +685,13 @@ async fn run_codex_driver(
         }
     }
     let _ = driver.shutdown().await;
+    let total_ms = elapsed_millis(timing.started);
+    let telemetry = delivery.finish(
+        types::AgentProviderStrategy::Responses,
+        1,
+        timing.request_ms,
+        total_ms,
+    );
     Ok((
         text,
         AgentProviderCapabilities {
@@ -675,9 +701,14 @@ async fn run_codex_driver(
             tool_events: capabilities.tool_events,
             cancellation: capabilities.cancellation,
             retry: capabilities.retry,
-            timing: false,
+            timing: true,
         },
+        telemetry,
     ))
+}
+
+fn elapsed_millis(started: std::time::Instant) -> u64 {
+    started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64
 }
 
 struct ActiveRunGuard<'a> {
@@ -814,19 +845,29 @@ pub(crate) async fn run_agent(
             cwd: runtime_root,
             tools: tool_definitions.clone(),
         };
+        let codex_started = std::time::Instant::now();
         match adapters::CodexTurnDriver::start(&rich_input).await {
             Ok(driver) => {
+                let request_ms = elapsed_millis(codex_started);
                 match run_codex_driver(
                     driver,
                     &state,
                     &emitter,
                     &tool_definitions,
                     &request.model,
+                    CodexDeliveryTiming {
+                        started: codex_started,
+                        request_ms,
+                    },
                     tool_cancellation.clone(),
                 )
                 .await
                 {
-                    Ok((text, capabilities)) => {
+                    Ok((text, capabilities, telemetry)) => {
+                        emitter
+                            .lock()
+                            .map_err(|_| "Agent Turn event state is unavailable")?
+                            .send("telemetryUpdated", json!({"telemetry": telemetry.clone()}))?;
                         let response_text = if text.trim().is_empty() {
                             "I completed the requested editor Tool activity.".to_string()
                         } else {
@@ -841,17 +882,7 @@ pub(crate) async fn run_agent(
                             assistant_item_id,
                             skill_id,
                             capabilities,
-                            telemetry: types::AgentStreamingTelemetry {
-                                strategy: types::AgentProviderStrategy::Responses,
-                                attempts: 1,
-                                request_ms: 0,
-                                first_event_ms: None,
-                                first_text_ms: None,
-                                event_span_ms: 0,
-                                total_ms: 0,
-                                event_count: 0,
-                                behavior: types::StreamingBehavior::Indeterminate,
-                            },
+                            telemetry,
                             tool_calls: Vec::new(),
                         };
                         return Ok(response);

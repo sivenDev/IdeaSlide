@@ -137,8 +137,9 @@ pub(crate) struct AgentErrorDiagnostic {
 #[serde(rename_all = "camelCase")]
 pub(crate) enum StreamingBehavior {
     Incremental,
-    Buffered,
-    Indeterminate,
+    Burst,
+    Atomic,
+    Unknown,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -149,9 +150,13 @@ pub(crate) struct AgentStreamingTelemetry {
     pub request_ms: u64,
     pub first_event_ms: Option<u64>,
     pub first_text_ms: Option<u64>,
-    pub event_span_ms: u64,
+    pub text_span_ms: u64,
     pub total_ms: u64,
-    pub event_count: u32,
+    pub text_delta_count: u32,
+    pub text_character_count: u32,
+    pub p50_inter_delta_ms: Option<u64>,
+    pub p95_inter_delta_ms: Option<u64>,
+    pub densest_window_percent: u8,
     pub behavior: StreamingBehavior,
 }
 

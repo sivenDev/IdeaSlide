@@ -12,4 +12,6 @@ test('Agent Markdown uses maintained GFM rendering with safe links and no raw HT
   assert.match(source, /target="_blank" rel="noreferrer noopener"/);
   assert.match(source, /aria-label="Copy code"/);
   assert.doesNotMatch(source, /rehypeRaw|dangerouslySetInnerHTML/);
+  assert.match(source, /disabled=\{!copyEnabled\}/);
+  assert.match(source, /settled = true/);
 });

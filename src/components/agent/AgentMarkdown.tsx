@@ -12,7 +12,7 @@ function plainText(children: ReactNode): string {
   return "";
 }
 
-function AgentCodeBlock({ children }: { children: ReactNode }) {
+function AgentCodeBlock({ children, copyEnabled }: { children: ReactNode; copyEnabled: boolean }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     await navigator.clipboard.writeText(plainText(children).replace(/\n$/, ""));
@@ -21,7 +21,7 @@ function AgentCodeBlock({ children }: { children: ReactNode }) {
   };
   return (
     <div className="ideanote-agent-markdown__code-block">
-      <button type="button" onClick={() => void copy()} aria-label="Copy code">
+      <button type="button" disabled={!copyEnabled} onClick={() => void copy()} aria-label="Copy code">
         {copied ? <Check aria-hidden size={11} /> : <Copy aria-hidden size={11} />}
         {copied ? "Copied" : "Copy"}
       </button>
@@ -30,7 +30,7 @@ function AgentCodeBlock({ children }: { children: ReactNode }) {
   );
 }
 
-export function AgentMarkdown({ content }: { content: string }) {
+export function AgentMarkdown({ content, settled = true }: { content: string; settled?: boolean }) {
   return (
     <div className="ideanote-agent-markdown">
       <ReactMarkdown
@@ -39,7 +39,7 @@ export function AgentMarkdown({ content }: { content: string }) {
           a: ({ href, children }) => (
             <a href={href} target="_blank" rel="noreferrer noopener">{children}</a>
           ),
-          pre: ({ children }) => <AgentCodeBlock>{children}</AgentCodeBlock>,
+          pre: ({ children }) => <AgentCodeBlock copyEnabled={settled}>{children}</AgentCodeBlock>,
         }}
       >
         {content}

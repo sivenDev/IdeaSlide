@@ -1,6 +1,7 @@
 import { CheckCircle2, CircleEllipsis, ShieldCheck, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AgentItem as AgentItemModel } from "../../lib/agent/protocol";
+import type { AgentTextDeliveryState } from "../../lib/agent/agentTextPresentation";
 import { AgentErrorCard } from "./AgentErrorCard";
 import { AgentMarkdown } from "./AgentMarkdown";
 import { AgentPlan } from "./AgentPlan";
@@ -33,27 +34,39 @@ function AgentLifecycleActivity({
 
 export function AgentItem({
   item,
+  displayedContent,
+  presentationStatus,
   showToolActivity,
   onRetry,
   onApprovalDecision,
 }: {
   item: AgentItemModel;
+  displayedContent?: string;
+  presentationStatus?: AgentTextDeliveryState["presentationStatus"];
   showToolActivity: boolean;
   onRetry?: () => void;
   onApprovalDecision?: (itemId: string, approved: boolean) => void;
 }) {
   switch (item.kind) {
     case "message":
-      if (!item.content && item.status === "running") {
+      const content = item.role === "assistant" && displayedContent !== undefined
+        ? displayedContent
+        : item.content;
+      if (!content && item.status === "running") {
         return null;
       }
-      if (!item.content) return null;
+      if (!content) return null;
       return item.role === "user" ? (
-        <div className="ideanote-agent-message is-user">{item.content}</div>
+        <div className="ideanote-agent-message is-user">{content}</div>
       ) : (
-        <article className={`ideanote-agent-message is-assistant is-${item.status}`}>
+        <article
+          className={`ideanote-agent-message is-assistant is-${item.status} is-presentation-${presentationStatus ?? "settled"}`}
+          aria-busy={presentationStatus === "revealing"}
+        >
           <span className="ideanote-agent-message__marker"><Sparkles aria-hidden size={12} /></span>
-          <div className="min-w-0 flex-1"><AgentMarkdown content={item.content} /></div>
+          <div className="min-w-0 flex-1">
+            <AgentMarkdown content={content} settled={presentationStatus !== "revealing"} />
+          </div>
         </article>
       );
     case "activity":

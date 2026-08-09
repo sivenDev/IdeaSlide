@@ -239,10 +239,14 @@ test('provider capabilities and honest streaming telemetry update normalized sta
       requestMs: 31,
       firstEventMs: 520,
       firstTextMs: 526,
-      eventSpanMs: 12,
+      textSpanMs: 12,
       totalMs: 544,
-      eventCount: 8,
-      behavior: 'buffered',
+      textDeltaCount: 8,
+      textCharacterCount: 256,
+      p50InterDeltaMs: 1,
+      p95InterDeltaMs: 2,
+      densestWindowPercent: 100,
+      behavior: 'burst',
     },
   }));
 
@@ -251,8 +255,8 @@ test('provider capabilities and honest streaming telemetry update normalized sta
   assert.equal(state.capabilities.toolEvents, true);
   assert.equal(state.runtime.kind, 'codexAppServer');
   assert.equal(state.runtime.upstreamThreadId, 'upstream-1');
-  assert.equal(turn.telemetry.behavior, 'buffered');
-  assert.match(turn.items.find((item) => item.id === 'turn-1:streaming').label, /Buffered gateway delivery/);
+  assert.equal(turn.telemetry.behavior, 'burst');
+  assert.equal(turn.items.find((item) => item.id === 'turn-1:streaming'), undefined);
 });
 
 test('completed turns accept review updates at the next sequence and retain the captured binding', () => {
@@ -291,6 +295,10 @@ test('legacy persisted Change Review items are removed during hydration', () => 
       turns: [{
         id: 'legacy-turn', threadId: 'legacy', status: 'completed', createdAt: 1, completedAt: 2,
         binding,
+        telemetry: {
+          strategy: 'responses', attempts: 1, requestMs: 5, firstEventMs: 10, firstTextMs: 10,
+          eventSpanMs: 4, totalMs: 20, eventCount: 8, behavior: 'buffered',
+        },
         items: [{
           id: 'legacy-review', kind: 'changeReview', status: 'completed', createdAt: 1,
           changeSet: {
@@ -304,6 +312,9 @@ test('legacy persisted Change Review items are removed during hydration', () => 
     runtime: { kind: 'compatibility', label: 'Compatibility', model: 'test', degraded: true },
   });
   assert.deepEqual(state.thread.turns[0].items, []);
+  assert.equal(state.thread.turns[0].telemetry.behavior, 'burst');
+  assert.equal(state.thread.turns[0].telemetry.textSpanMs, 4);
+  assert.equal(state.thread.turns[0].telemetry.textDeltaCount, 8);
 });
 
 test('events for another thread are diagnosed and ignored', () => {

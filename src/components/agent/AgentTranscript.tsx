@@ -1,17 +1,20 @@
 import { ArrowDown } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import type { AgentItem as AgentItemModel, AgentThreadState } from "../../lib/agent/protocol";
+import type { AgentPresentationSnapshot } from "../../lib/agent/agentTextPresentation";
 import { AgentItem } from "./AgentItem";
 
 const MAX_VISIBLE_ITEMS = 300;
 
 export function AgentTranscript({
   state,
+  presentation,
   showToolActivity,
   onRetry,
   onApprovalDecision,
 }: {
   state: AgentThreadState;
+  presentation: AgentPresentationSnapshot;
   showToolActivity: boolean;
   onRetry?: () => void;
   onApprovalDecision?: (itemId: string, approved: boolean) => void;
@@ -22,7 +25,14 @@ export function AgentTranscript({
     .filter((item) => item.kind !== "changeReview");
   const hiddenCount = Math.max(0, allItems.length - MAX_VISIBLE_ITEMS);
   const items = hiddenCount ? allItems.slice(-MAX_VISIBLE_ITEMS) : allItems;
-  const contentSignal = items.map((item) => `${item.id}:${item.status}:${item.kind === "message" || item.kind === "activity" ? item.content.length : 0}`).join("|");
+  const contentSignal = items.map((item) => {
+    const presentedContent = item.kind === "message" && item.role === "assistant"
+      ? presentation.items[item.id]?.displayedContent ?? item.content
+      : item.kind === "message" || item.kind === "activity"
+        ? item.content
+        : "";
+    return `${item.id}:${item.status}:${presentedContent.length}`;
+  }).join("|");
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
@@ -53,6 +63,12 @@ export function AgentTranscript({
             <AgentItem
               key={item.id}
               item={item}
+              displayedContent={item.kind === "message" && item.role === "assistant"
+                ? presentation.items[item.id]?.displayedContent
+                : undefined}
+              presentationStatus={item.kind === "message" && item.role === "assistant"
+                ? presentation.items[item.id]?.presentationStatus
+                : undefined}
               showToolActivity={showToolActivity}
               onRetry={onRetry}
               onApprovalDecision={onApprovalDecision}

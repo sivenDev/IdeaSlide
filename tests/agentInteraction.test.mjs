@@ -20,12 +20,21 @@ test('transcript stays anchored, offers Jump to latest, and bounds long historie
   assert.match(source, /allItems\.slice\(-MAX_VISIBLE_ITEMS\)/);
 });
 
-test('stream deltas are frame-batched while lifecycle events flush immediately', async () => {
+test('source deltas remain frame-batched while a separate presentation clock owns visible pacing', async () => {
   const source = await readFile(new URL('../src/hooks/useAgentThread.ts', import.meta.url), 'utf8');
+  const presentationHook = await readFile(new URL('../src/hooks/useAgentPresentation.ts', import.meta.url), 'utf8');
+  const presentation = await readFile(new URL('../src/lib/agent/agentTextPresentation.ts', import.meta.url), 'utf8');
   assert.match(source, /event\.type !== "itemDelta"/);
   assert.match(source, /window\.requestAnimationFrame\(flushQueuedEvents\)/);
   assert.match(source, /window\.cancelAnimationFrame/);
   assert.match(source, /events\.reduce\(reduceAgentEvent, current\)/);
+  assert.match(presentationHook, /AgentTextPresentationController/);
+  assert.match(presentationHook, /prefers-reduced-motion: reduce/);
+  assert.match(presentationHook, /controller\.reset\(false\)/);
+  assert.match(presentation, /presentationStatus: "idle" \| "revealing" \| "settled"/);
+  assert.match(presentation, /Intl as typeof Intl/);
+  assert.match(presentation, /isChronologicalBarrier/);
+  assert.doesNotMatch(presentation, /codexAppServer|compatibility|ideasketch/);
 });
 
 test('native Agent Core owns lifecycle activity while TypeScript only forwards events and executes editor Tools', async () => {

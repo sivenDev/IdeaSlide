@@ -141,7 +141,7 @@ export interface AgentProviderCapabilities {
   timing: boolean;
 }
 
-export type AgentStreamingBehavior = "incremental" | "buffered" | "indeterminate";
+export type AgentStreamingBehavior = "incremental" | "burst" | "atomic" | "unknown";
 
 export interface AgentStreamingTelemetry {
   strategy: AgentProviderStrategy;
@@ -149,9 +149,13 @@ export interface AgentStreamingTelemetry {
   requestMs: number;
   firstEventMs?: number;
   firstTextMs?: number;
-  eventSpanMs: number;
+  textSpanMs: number;
   totalMs: number;
-  eventCount: number;
+  textDeltaCount: number;
+  textCharacterCount: number;
+  p50InterDeltaMs?: number;
+  p95InterDeltaMs?: number;
+  densestWindowPercent: number;
   behavior: AgentStreamingBehavior;
 }
 

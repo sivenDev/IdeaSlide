@@ -1,4 +1,4 @@
-import type { AgentMessage } from "./types";
+import type { AgentMessage, AgentStreamingTelemetry } from "./types";
 import type {
   AgentCapabilities,
   AgentDiagnostic,
@@ -72,6 +72,7 @@ export function hydrateAgentThreadState(record: AgentThreadRecord): AgentThreadS
     ...record.thread,
     turns: record.thread.turns.map((turn) => ({
       ...turn,
+      ...(turn.telemetry ? { telemetry: normalizeStreamingTelemetry(turn.telemetry) } : {}),
       items: turn.items.filter((item) => item.kind !== "changeReview"),
     })),
   };
@@ -84,6 +85,34 @@ export function hydrateAgentThreadState(record: AgentThreadRecord): AgentThreadS
     nextSequenceByTurn: {},
     pendingEventsByTurn: {},
     diagnostics: [],
+  };
+}
+
+function normalizeStreamingTelemetry(telemetry: AgentStreamingTelemetry): AgentStreamingTelemetry {
+  const legacy = telemetry as unknown as Omit<AgentStreamingTelemetry, "behavior"> & {
+    eventSpanMs?: number;
+    eventCount?: number;
+    behavior: AgentStreamingTelemetry["behavior"] | "buffered" | "indeterminate";
+  };
+  const behavior = legacy.behavior === "buffered"
+    ? "burst"
+    : legacy.behavior === "indeterminate"
+      ? "unknown"
+      : legacy.behavior;
+  return {
+    strategy: legacy.strategy,
+    attempts: legacy.attempts,
+    requestMs: legacy.requestMs,
+    firstEventMs: legacy.firstEventMs,
+    firstTextMs: legacy.firstTextMs,
+    textSpanMs: legacy.textSpanMs ?? legacy.eventSpanMs ?? 0,
+    totalMs: legacy.totalMs,
+    textDeltaCount: legacy.textDeltaCount ?? legacy.eventCount ?? 0,
+    textCharacterCount: legacy.textCharacterCount ?? 0,
+    p50InterDeltaMs: legacy.p50InterDeltaMs,
+    p95InterDeltaMs: legacy.p95InterDeltaMs,
+    densestWindowPercent: legacy.densestWindowPercent ?? (behavior === "burst" ? 100 : 0),
+    behavior,
   };
 }
 
@@ -222,27 +251,9 @@ function applyOrderedEvent(state: AgentThreadState, event: AgentEvent): AgentThr
           : item
       )));
     case "telemetryUpdated": {
-      const firstText = event.telemetry.firstTextMs === undefined
-        ? "no text timing"
-        : `first text ${event.telemetry.firstTextMs} ms`;
-      const label = event.telemetry.behavior === "buffered"
-        ? `Buffered gateway delivery · ${firstText}`
-        : event.telemetry.behavior === "incremental"
-          ? `Live streaming · ${firstText}`
-          : `Provider delivery timing · ${firstText}`;
       return updateTurn(state, event.turnId, (turn) => ({
         ...turn,
         telemetry: event.telemetry,
-        items: [
-          ...turn.items.filter((item) => item.id !== `${event.turnId}:streaming`),
-          {
-            id: `${event.turnId}:streaming`,
-            kind: "lifecycle",
-            label,
-            status: "completed",
-            createdAt: event.at,
-          },
-        ],
       }));
     }
     case "turnCompleted": {

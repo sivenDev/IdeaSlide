@@ -23,6 +23,8 @@ test('Agent panel uses the normalized runtime/store, captured direct editor bind
   assert.match(source, /useExternalStoreRuntime/);
   assert.match(source, /AssistantRuntimeProvider/);
   assert.match(source, /<AgentTranscript/);
+  assert.match(source, /useAgentPresentation\(state\)/);
+  assert.match(source, /presentation=\{presentation\}/);
   assert.match(source, /<AgentThreadHeader/);
   assert.doesNotMatch(source, /ideanote-change/);
   assert.doesNotMatch(source, /IdeaSketchAgentOperation/);

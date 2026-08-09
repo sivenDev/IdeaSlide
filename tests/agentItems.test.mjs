@@ -12,6 +12,8 @@ test('normalized items render continuous public activity without a reasoning-sum
   assert.match(source, /\(elapsed \/ 1000\)\.toFixed\(1\)/);
   assert.doesNotMatch(source, /renderChangeReview|AgentChangeReview/);
   assert.match(source, /<AgentMarkdown content=\{item\.content\}/);
+  assert.match(source, /is-presentation-\$\{presentationStatus \?\? "settled"\}/);
+  assert.match(source, /aria-busy=\{presentationStatus === "revealing"\}/);
 });
 
 test('public activity is inline and tool activity preserves real status', async () => {

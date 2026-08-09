@@ -254,7 +254,8 @@ mod tests {
                 }),
             ),
             (90, responses_text("Hello")),
-            (90, responses_text(" world")),
+            (220, responses_text(" ")),
+            (220, responses_text("world")),
             (0, serde_json::json!({"type": "response.completed"})),
         ])])
         .await;
@@ -525,7 +526,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn delayed_burst_is_reported_as_buffered_without_fake_deltas() {
+    async fn delayed_dense_delivery_is_reported_as_burst_without_fake_deltas() {
         let batch = format!(
             "data: {}\n\ndata: {}\n\ndata: {}\n\n",
             responses_text("One"),
@@ -556,8 +557,8 @@ mod tests {
             },
         )
         .await
-        .expect("buffered response should complete");
-        assert_eq!(completion.telemetry.behavior, StreamingBehavior::Buffered);
+        .expect("burst response should complete");
+        assert_eq!(completion.telemetry.behavior, StreamingBehavior::Burst);
         assert_eq!(*deltas.lock().expect("deltas should lock"), ["One", " two"]);
     }
 }

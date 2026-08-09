@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `required` | 6 | 6 |
 | `feature` | 41 | 41 |
-| `bugfix` | 28 | 28 |
+| `bugfix` | 29 | 29 |
 
 ## Execution Order
 
@@ -110,3 +110,4 @@
 | `B026` | [Validate Agent Editing of Saved IdeaSketch Files](bugs/B026-validate-agent-editing-of-saved-ideasketch-files.md) | `complete` | 2026-08-09 |
 | `B027` | [Use IdeaSketch Native Undo for Agent Canvas Edits](bugs/B027-use-ideasketch-native-undo-for-agent-canvas-edits.md) | `complete` | 2026-08-09 |
 | `B028` | [Show Real Agent Read Tools in Execution Order](bugs/B028-show-real-agent-read-tools-in-execution-order.md) | `complete` | 2026-08-09 |
+| `B029` | [Make Burst Agent Answers Visibly Progressive](bugs/B029-make-burst-agent-answers-visibly-progressive.md) | `complete` | 2026-08-09 |
