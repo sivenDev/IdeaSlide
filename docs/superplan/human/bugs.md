@@ -229,3 +229,10 @@ The Agent transcript still renders Reasoning summary cards instead of a Teable-s
 - created: 2026-08-09
 
 The previous Agent verification did not prove editing a real saved .is file end to end. Build an explicit capability checklist and exercise every supported IdeaSketch Agent read and direct mutation Tool against disposable saved files, including immediate editor application, Undo/Redo, autosave/manual save where applicable, close/reopen persistence, stale-target rejection, cancellation safety, and file integrity. Reproduce and repair every discovered failure, then repeat the complete matrix until clean.
+
+## B027: Use IdeaSketch Native Undo for Agent Canvas Edits
+
+- status: done
+- created: 2026-08-09
+
+Agent current-Page element edits currently mutate the IdeaSketch document model and maintain a separate Agent-only history instead of entering Excalidraw's native edit history. Route current-Page canvas operations through the mounted IdeaSketch/Excalidraw frontend SDK as one captured editor transaction, remove the application-level Agent Undo/Redo controls and snapshot stack, and let the normal editor change/autosave pipeline persist the result. Page add, delete, reorder, and non-mounted Page operations must not falsely claim Excalidraw-native Undo support.

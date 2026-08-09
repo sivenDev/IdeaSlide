@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `required` | 6 | 6 |
 | `feature` | 41 | 41 |
-| `bugfix` | 26 | 26 |
+| `bugfix` | 27 | 27 |
 
 ## Execution Order
 
@@ -108,3 +108,4 @@
 | `B024` | [Align Tauri Versions and Verify Agent Editing](bugs/B024-align-tauri-versions-and-verify-agent-editing.md) | `complete` | 2026-08-08 |
 | `B025` | [Fix Agent Fallback Hangs, Cancellation, and Activity Presentation](bugs/B025-fix-agent-fallback-hangs-cancellation-and-activity-presentation.md) | `complete` | 2026-08-09 |
 | `B026` | [Validate Agent Editing of Saved IdeaSketch Files](bugs/B026-validate-agent-editing-of-saved-ideasketch-files.md) | `complete` | 2026-08-09 |
+| `B027` | [Use IdeaSketch Native Undo for Agent Canvas Edits](bugs/B027-use-ideasketch-native-undo-for-agent-canvas-edits.md) | `complete` | 2026-08-09 |

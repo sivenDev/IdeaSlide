@@ -97,4 +97,6 @@ test('IdeaSketch Tool contract covers outline, Page reads, and direct mutations'
     'reorder_page',
     'replace_page_elements',
   ]);
+  const replace = ideaSketchAgentExtension.tools.find((tool) => tool.name === 'replace_page_elements');
+  assert.match(replace.description, /active Page/);
 });

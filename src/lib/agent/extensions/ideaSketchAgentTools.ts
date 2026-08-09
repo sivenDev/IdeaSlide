@@ -55,7 +55,7 @@ export const IDEA_SKETCH_AGENT_TOOLS: AgentToolDescriptor[] = [
   },
   {
     name: "replace_page_elements",
-    description: "Replace the editable elements of one Page through the active editor while preserving its identity and metadata.",
+    description: "Replace the editable elements of the active Page through its mounted canvas editor while preserving Page identity and metadata.",
     inputSchema: {
       type: "object",
       properties: {

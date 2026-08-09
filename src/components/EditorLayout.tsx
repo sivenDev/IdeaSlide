@@ -787,28 +787,6 @@ export function EditorLayout({
     return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [handleSave, handleSaveAs]);
 
-  useEffect(() => {
-    const isMac = navigator.platform.toUpperCase().includes("MAC");
-    const handleAgentHistoryKeyDown = (event: KeyboardEvent) => {
-      if (!(isMac ? event.metaKey : event.ctrlKey)) return;
-      if (event.key.toLowerCase() !== "z" && event.key.toLowerCase() !== "y") return;
-      const undoRequested = event.key.toLowerCase() === "z" && !event.shiftKey;
-      const redoRequested = (event.key.toLowerCase() === "z" && event.shiftKey)
-        || (!isMac && event.key.toLowerCase() === "y" && !event.shiftKey);
-      if (undoRequested && agentBinding?.canUndo) {
-        event.preventDefault();
-        event.stopPropagation();
-        agentBinding.undo();
-      } else if (redoRequested && agentBinding?.canRedo) {
-        event.preventDefault();
-        event.stopPropagation();
-        agentBinding.redo();
-      }
-    };
-    window.addEventListener("keydown", handleAgentHistoryKeyDown, true);
-    return () => window.removeEventListener("keydown", handleAgentHistoryKeyDown, true);
-  }, [agentBinding]);
-
   const activeFullPath = activeDocument?.mode === "workspace" && state.workspace
     ? joinWorkspacePath(state.workspace.root, activeDocument.filePath)
     : activeDocument?.filePath;
@@ -837,10 +815,6 @@ export function EditorLayout({
         onSaveAs={() => void handleSaveAs()}
         onGoHome={() => void handleGoHome()}
         onOpenSettings={onOpenSettings}
-        onUndoAgentEdit={() => agentBinding?.undo()}
-        onRedoAgentEdit={() => agentBinding?.redo()}
-        canUndoAgentEdit={agentBinding?.canUndo}
-        canRedoAgentEdit={agentBinding?.canRedo}
       />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {state.workspace && (

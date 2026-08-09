@@ -2,46 +2,29 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-test('IdeaSketch editor owns bounded atomic Agent undo and redo history', async () => {
+test('IdeaSketch Agent canvas edits use native Excalidraw history without a custom history stack', async () => {
   const source = await readFile(new URL('../src/components/IdeaSketchEditor.tsx', import.meta.url), 'utf8');
-  assert.match(source, /AGENT_HISTORY_LIMIT/);
-  assert.match(source, /agentHistoryRef/);
-  assert.match(source, /undo: IdeaSketchEditorState\[\]/);
-  assert.match(source, /redo: IdeaSketchEditorState\[\]/);
-  assert.match(source, /handleUndoAgentChange/);
-  assert.match(source, /handleRedoAgentChange/);
-  assert.match(source, /preserveAgentHistory/);
-  assert.match(source, /clearAgentHistory/);
-  assert.match(source, /manualCanvasMutationPendingRef/);
-  assert.match(source, /const preserveAgentHistory = !manualCanvasMutationPendingRef\.current/);
-  assert.match(source, /if \(canvasInteractionActiveRef\.current\)/);
-  assert.doesNotMatch(source, /agentUndoRef/);
+  const types = await readFile(new URL('../src/lib/agent/types.ts', import.meta.url), 'utf8');
+  assert.match(source, /operation\.kind === "replace-page-elements"/);
+  assert.match(source, /excalidrawApiRef\.current/);
+  assert.match(source, /excalidrawSlideIdRef\.current !== operation\.pageId/);
+  assert.match(source, /captureUpdate: CaptureUpdateAction\.IMMEDIATELY/);
+  assert.doesNotMatch(source, /AGENT_HISTORY_LIMIT|agentHistoryRef|handleUndoAgentChange|handleRedoAgentChange/);
+  assert.doesNotMatch(source, /preserveAgentHistory|clearAgentHistory|manualCanvasMutationPendingRef/);
+  assert.doesNotMatch(types, /\bundo: \(\) => void|\bredo: \(\) => void|\bcanUndo: boolean|\bcanRedo: boolean/);
 });
 
-test('programmatic canvas synchronization preserves Agent document history while user edits invalidate it', async () => {
-  const editor = await readFile(new URL('../src/components/IdeaSketchEditor.tsx', import.meta.url), 'utf8');
-  const canvas = await readFile(new URL('../src/components/SlideCanvas.tsx', import.meta.url), 'utf8');
-  assert.match(editor, /manualCanvasMutationPendingRef\.current = true;\s*clearAgentHistory\(\);/);
-  assert.match(editor, /UPDATE_PAGE_SCENE[\s\S]*preserveAgentHistory/);
-  assert.match(canvas, /onPointerDownCapture=\{beginCanvasInteraction\}/);
-  assert.match(canvas, /onKeyDownCapture=\{pulseCanvasInteraction\}/);
-});
-
-test('same-Page Agent replacement and history restoration synchronize the mounted Excalidraw scene', async () => {
+test('document synchronization stays non-captured while Agent replacement is captured natively', async () => {
   const editor = await readFile(new URL('../src/components/IdeaSketchEditor.tsx', import.meta.url), 'utf8');
   assert.match(editor, /const syncMountedCanvasToPage = useCallback/);
   assert.match(editor, /captureUpdate: CaptureUpdateAction\.NEVER/);
-  assert.match(editor, /page: nextPage,[\s\S]*syncMountedCanvasToPage\(nextPage\)/);
-  assert.match(editor, /activeSnapshotPage[\s\S]*syncMountedCanvasToPage\(activeSnapshotPage\)/);
+  assert.match(editor, /operation\.kind === "replace-page-elements"[\s\S]*captureUpdate: CaptureUpdateAction\.IMMEDIATELY/);
+  assert.doesNotMatch(editor, /UPDATE_PAGE_SCENE[\s\S]*syncMountedCanvasToPage\(nextPage\)/);
 });
 
-test('editor shell exposes Agent undo and redo without stealing native history when unavailable', async () => {
+test('editor shell leaves Undo and Redo entirely to the active editor', async () => {
   const layout = await readFile(new URL('../src/components/EditorLayout.tsx', import.meta.url), 'utf8');
   const toolbar = await readFile(new URL('../src/components/Toolbar.tsx', import.meta.url), 'utf8');
-  assert.match(layout, /agentBinding\?\.canUndo/);
-  assert.match(layout, /agentBinding\?\.canRedo/);
-  assert.match(layout, /event\.key\.toLowerCase\(\) !== "z"/);
-  assert.match(layout, /event\.preventDefault\(\)/);
-  assert.match(toolbar, /aria-label="Undo Agent edit"/);
-  assert.match(toolbar, /aria-label="Redo Agent edit"/);
+  assert.doesNotMatch(layout, /handleAgentHistoryKeyDown|agentBinding\?\.canUndo|agentBinding\?\.canRedo|agentBinding\.undo\(|agentBinding\.redo\(/);
+  assert.doesNotMatch(toolbar, /Undo Agent edit|Redo Agent edit|onUndoAgentEdit|onRedoAgentEdit|canUndoAgentEdit|canRedoAgentEdit/);
 });

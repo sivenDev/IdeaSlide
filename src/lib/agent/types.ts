@@ -211,8 +211,4 @@ export interface ActiveAgentEditorBinding {
   createToolExecutor: () => AgentToolExecutor;
   describeChangeSet: (changeSet: AgentChangeSet) => string[];
   applyChangeSet: (changeSet: AgentChangeSet) => boolean;
-  undo: () => void;
-  redo: () => void;
-  canUndo: boolean;
-  canRedo: boolean;
 }

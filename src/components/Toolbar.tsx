@@ -6,10 +6,8 @@ import {
   FilePenLine,
   FolderOpen,
   House,
-  Redo2,
   Save,
   Settings,
-  Undo2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SaveIndicator } from "./SaveIndicator";
@@ -37,10 +35,6 @@ interface ToolbarProps {
   onSaveAs: () => void;
   onGoHome: () => void;
   onOpenSettings: () => void;
-  onUndoAgentEdit?: () => void;
-  onRedoAgentEdit?: () => void;
-  canUndoAgentEdit?: boolean;
-  canRedoAgentEdit?: boolean;
 }
 
 export function Toolbar({
@@ -54,10 +48,6 @@ export function Toolbar({
   onSaveAs,
   onGoHome,
   onOpenSettings,
-  onUndoAgentEdit,
-  onRedoAgentEdit,
-  canUndoAgentEdit = false,
-  canRedoAgentEdit = false,
 }: ToolbarProps) {
   const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
   const isWindows = /Windows/.test(navigator.userAgent);
@@ -149,23 +139,6 @@ export function Toolbar({
             </DropdownMenuContent>
           </DropdownMenu>
           <SaveIndicator isDirty={isDirty} isSaving={isSaving} />
-          <Separator orientation="vertical" className="idea-slide-window-toolbar__separator" />
-          <ToolbarAction
-            tooltip="Undo Agent edit"
-            aria-label="Undo Agent edit"
-            disabled={!canUndoAgentEdit}
-            onClick={onUndoAgentEdit}
-          >
-            <Undo2 {...toolbarIconProps} />
-          </ToolbarAction>
-          <ToolbarAction
-            tooltip="Redo Agent edit"
-            aria-label="Redo Agent edit"
-            disabled={!canRedoAgentEdit}
-            onClick={onRedoAgentEdit}
-          >
-            <Redo2 {...toolbarIconProps} />
-          </ToolbarAction>
           <Separator orientation="vertical" className="idea-slide-window-toolbar__separator" />
           <ToolbarAction tooltip="Settings" aria-label="Settings" onClick={onOpenSettings}>
             <Settings {...toolbarIconProps} />

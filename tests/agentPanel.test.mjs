@@ -29,4 +29,5 @@ test('Agent panel uses the normalized runtime/store, captured direct editor bind
   assert.match(source, /getActiveBinding/);
   assert.doesNotMatch(source, /ThreadPrimitive\.Messages/);
   assert.doesNotMatch(source, /save_file|saveWorkspaceDocument|saveStandaloneDocument/);
+  assert.doesNotMatch(source, /remain available through Undo/);
 });
