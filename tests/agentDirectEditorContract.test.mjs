@@ -27,6 +27,14 @@ test('programmatic canvas synchronization preserves Agent document history while
   assert.match(canvas, /onKeyDownCapture=\{pulseCanvasInteraction\}/);
 });
 
+test('same-Page Agent replacement and history restoration synchronize the mounted Excalidraw scene', async () => {
+  const editor = await readFile(new URL('../src/components/IdeaSketchEditor.tsx', import.meta.url), 'utf8');
+  assert.match(editor, /const syncMountedCanvasToPage = useCallback/);
+  assert.match(editor, /captureUpdate: CaptureUpdateAction\.NEVER/);
+  assert.match(editor, /page: nextPage,[\s\S]*syncMountedCanvasToPage\(nextPage\)/);
+  assert.match(editor, /activeSnapshotPage[\s\S]*syncMountedCanvasToPage\(activeSnapshotPage\)/);
+});
+
 test('editor shell exposes Agent undo and redo without stealing native history when unavailable', async () => {
   const layout = await readFile(new URL('../src/components/EditorLayout.tsx', import.meta.url), 'utf8');
   const toolbar = await readFile(new URL('../src/components/Toolbar.tsx', import.meta.url), 'utf8');

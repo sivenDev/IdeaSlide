@@ -182,6 +182,63 @@ test('direct-apply adapter fails closed after cancellation', async () => {
   assert.equal(applied, 0);
 });
 
+test('direct-apply adapter rejects read-only, stale, externally changed, and switched targets', async () => {
+  const sourceBound = extension({
+    executeTool(call) {
+      return {
+        kind: 'mutation', callId: call.callId, name: call.name, success: true, summary: 'Replace heading',
+        changeSet: {
+          id: `change-${call.callId}`, extensionId: 'markdown-agent', documentId: 'md-1', baseRevision: 4,
+          baseDocumentStatus: 'editable', baseSourceModified: 'source-a', sourceFingerprint: 'fingerprint',
+          summary: 'Replace heading', operations: [{ kind: 'replace-heading', heading: call.arguments.heading }],
+          status: 'proposed',
+        },
+        truncated: false, persistable: true,
+      };
+    },
+  });
+  const scenarios = [
+    {
+      name: 'read-only',
+      binding: { document: { id: 'md-1', revision: 4, status: 'editable', sourceModified: 'source-a' }, readOnly: true },
+    },
+    {
+      name: 'stale revision',
+      binding: { document: { id: 'md-1', revision: 5, status: 'editable', sourceModified: 'source-a' }, readOnly: false },
+    },
+    {
+      name: 'external source change',
+      binding: { document: { id: 'md-1', revision: 4, status: 'editable', sourceModified: 'source-b' }, readOnly: false },
+    },
+    {
+      name: 'document switch',
+      binding: { document: { id: 'md-2', revision: 4, status: 'editable', sourceModified: 'source-a' }, readOnly: false },
+    },
+  ];
+
+  for (const scenario of scenarios) {
+    let applied = 0;
+    const executor = createDirectApplyToolExecutor({
+      executor: host(sourceBound.value),
+      capturedTarget: {
+        documentId: 'md-1', extensionId: 'markdown-agent', revision: 4,
+        documentStatus: 'editable', sourceModified: 'source-a',
+      },
+      getActiveBinding: () => ({
+        ...scenario.binding,
+        extensionId: 'markdown-agent',
+        applyChangeSet() { applied += 1; return true; },
+      }),
+      isActive: () => true,
+    });
+    const result = await executor.execute({
+      callId: scenario.name, name: 'replace_heading', arguments: { heading: 'After' },
+    });
+    assert.equal(result.kind, 'failure', scenario.name);
+    assert.equal(applied, 0, scenario.name);
+  }
+});
+
 test('read results preserve editor persistence policy and are bounded by the Rust Tool Broker', async () => {
   const readExtension = extension({
     tools: [{

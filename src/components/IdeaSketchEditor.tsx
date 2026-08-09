@@ -97,6 +97,17 @@ export function IdeaSketchEditor({
   const manualCanvasMutationPendingRef = useRef(false);
   const excalidrawApiRef = useRef<any>(null);
   const excalidrawSlideIdRef = useRef<string | undefined>(undefined);
+  const syncMountedCanvasToPage = useCallback((page: IdeaSketchPage) => {
+    const api = excalidrawApiRef.current;
+    if (!api || excalidrawSlideIdRef.current !== page.id) return;
+    const files = Object.values(page.files ?? {});
+    if (files.length > 0) api.addFiles(files);
+    api.updateScene({
+      elements: page.elements,
+      appState: page.appState,
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
+  }, []);
   const pendingConversionFeedbackRef = useRef<{
     pageId: string;
     message: string;
@@ -123,7 +134,9 @@ export function IdeaSketchEditor({
     clearAgentHistory();
     editorStateRef.current = next;
     setEditorState(next);
-  }, [clearAgentHistory, document.editorState?.activePageId, document.model]);
+    const nextActivePage = next.document.pages.find((page) => page.id === next.activePageId);
+    if (nextActivePage) syncMountedCanvasToPage(nextActivePage);
+  }, [clearAgentHistory, document.editorState?.activePageId, document.model, syncMountedCanvasToPage]);
 
   const applyAction = useCallback((
     action: IdeaSketchAction,
@@ -406,11 +419,13 @@ export function IdeaSketchEditor({
             refreshDimensions: true,
             repairBindings: true,
           });
+          const nextPage = { ...page, elements: restored as any[] };
           applyAction({
             type: "UPDATE_PAGE_SCENE",
             pageId: operation.pageId,
-            page: { ...page, elements: restored as any[] },
+            page: nextPage,
           }, true, true);
+          syncMountedCanvasToPage(nextPage);
         }
       }
       return true;
@@ -424,7 +439,7 @@ export function IdeaSketchEditor({
       notifyAgentHistoryChanged();
       return false;
     }
-  }, [applyAction, document.id, document.revision, document.sourceModified, document.status, flushDraft, notifyAgentHistoryChanged, onEditorStateChange, onModelChange, readOnly]);
+  }, [applyAction, document.id, document.revision, document.sourceModified, document.status, flushDraft, notifyAgentHistoryChanged, onEditorStateChange, onModelChange, readOnly, syncMountedCanvasToPage]);
   const restoreAgentSnapshot = useCallback((snapshot: IdeaSketchEditorState) => {
     editorStateRef.current = snapshot;
     setEditorState(snapshot);
@@ -432,7 +447,9 @@ export function IdeaSketchEditor({
     setSelectedCameraId(undefined);
     onModelChange(document.id, snapshot.document);
     onEditorStateChange(document.id, snapshot.activePageId);
-  }, [document.id, onEditorStateChange, onModelChange]);
+    const activeSnapshotPage = snapshot.document.pages.find((page) => page.id === snapshot.activePageId);
+    if (activeSnapshotPage) syncMountedCanvasToPage(activeSnapshotPage);
+  }, [document.id, onEditorStateChange, onModelChange, syncMountedCanvasToPage]);
   const handleUndoAgentChange = useCallback(() => {
     const history = agentHistoryRef.current;
     const previous = history.undo[history.undo.length - 1];

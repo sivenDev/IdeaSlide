@@ -11,6 +11,7 @@ import type {
 export { selectAgentRuntime } from "./runtimeSelection";
 import {
   COMPATIBILITY_AGENT_CAPABILITIES,
+  createSettledTurnCompletedEvent,
   type AgentCapabilities,
   type AgentEvent,
   type AgentTurnBindingSnapshot,
@@ -123,6 +124,13 @@ export function createNativeAgentRuntime(): AgentRuntime {
             })
             .finally(() => current.activeCallIds.delete(call.callId));
         });
+        emit(createSettledTurnCompletedEvent({
+          threadId: input.threadId,
+          turnId: input.turnId,
+          nextSequence: response.nextSequence,
+          assistantItemId: response.assistantItemId,
+          finalText: response.text,
+        }));
         return {
           runId: response.runId,
           text: response.text,

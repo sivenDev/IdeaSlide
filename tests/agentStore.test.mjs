@@ -8,7 +8,11 @@ import {
   retryPromptFromState,
   retryTurnIdFromState,
 } from '../src/lib/agent/agentStore.ts';
-import { COMPATIBILITY_AGENT_CAPABILITIES, createAgentEventId } from '../src/lib/agent/protocol.ts';
+import {
+  COMPATIBILITY_AGENT_CAPABILITIES,
+  createAgentEventId,
+  createSettledTurnCompletedEvent,
+} from '../src/lib/agent/protocol.ts';
 
 const binding = {
   documentId: 'doc-a',
@@ -99,6 +103,27 @@ test('a settled runtime without a terminal event is reconciled and cannot leave 
 
   const unchanged = reconcileSettledAgentTurn(state, 'turn-1', 'cancelled', undefined, 60);
   assert.equal(unchanged, state);
+});
+
+test('native command completion closes the Turn before a delayed duplicate Channel terminal event', () => {
+  let state = reduceAgentEvent(initial(), started());
+  const completed = createSettledTurnCompletedEvent({
+    threadId: 'thread-1',
+    turnId: 'turn-1',
+    finalText: 'Applied.',
+    nextSequence: 2,
+    assistantItemId: 'turn-1:assistant',
+    at: 50,
+  });
+
+  state = reduceAgentEvent(state, completed);
+  assert.equal(state.activeTurnId, undefined);
+  assert.equal(state.thread.turns.at(-1).status, 'completed');
+  assert.equal(state.thread.turns.at(-1).items.find((item) => item.id === 'turn-1:assistant').content, 'Applied.');
+
+  state = reduceAgentEvent(state, completed);
+  assert.equal(state.thread.turns.at(-1).status, 'completed');
+  assert.equal(state.diagnostics.at(-1).code, 'duplicateEvent');
 });
 
 test('assistant Markdown grows from genuine deltas before completion and reconciles without duplication', () => {

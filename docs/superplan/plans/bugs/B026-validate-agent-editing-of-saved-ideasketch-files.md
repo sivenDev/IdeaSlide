@@ -2,7 +2,7 @@
 id: "B026"
 title: "Validate Agent Editing of Saved IdeaSketch Files"
 type: "bugfix"
-status: "approved"
+status: "complete"
 summary: "Prove every supported IdeaSketch Agent Tool against real saved .is files and repair every failure until the full edit, save, reopen, and safety matrix passes."
 source: "docs/superplan/human/bugs.md"
 created: "2026-08-09"
@@ -67,9 +67,9 @@ parent: ""
 - Direct parse/roundtrip through the canonical IdeaSketch v1 reader and writer.
 - Checklist: IS-A01, plus baseline/hash/parse prerequisites for IS-A02 through IS-A20.
 
-- [ ] Create deterministic saved Standalone and Workspace fixtures with exact baseline summaries.
-- [ ] Establish hash, parse, UI-state, Thread-state, and cleanup evidence collection.
-- [ ] Confirm the fixtures open through the registry and remain valid before Agent activity.
+- [x] Create deterministic saved Standalone and Workspace fixtures with exact baseline summaries.
+- [x] Establish hash, parse, UI-state, Thread-state, and cleanup evidence collection.
+- [x] Confirm the fixtures open through the registry and remain valid before Agent activity.
 
 ## Task 2: Verify Reads and Direct-mutation Safety Boundaries
 
@@ -93,9 +93,9 @@ parent: ""
 - Focused frontend and Rust Tool/cancellation tests.
 - Native checklist: IS-A02 through IS-A18.
 
-- [ ] Run both read Tools against the saved fixture and compare bounded results with canonical parse/UI state.
-- [ ] Prove all four mutation Tools apply exactly once through the active editor, report success only after application, and never write the file directly.
-- [ ] Execute every stale/read-only/cross-document/external-change/cancellation negative path and repair each failure before continuing.
+- [x] Run both read Tools against the saved fixture and compare bounded results with canonical parse/UI state.
+- [x] Prove all four mutation Tools apply exactly once through the active editor, report success only after application, and never write the file directly.
+- [x] Execute every stale/read-only/cross-document/external-change/cancellation negative path and repair each failure before continuing.
 
 ## Task 3: Verify Every Mutation Through Direct Apply, Undo/Redo, Save, and Reopen
 
@@ -123,11 +123,11 @@ parent: ""
 - Native Workspace checklist: IS-A19.
 - Focused reducer/session/format regressions for every failure discovered.
 
-- [ ] Complete add-Page direct apply, Undo, Redo, fresh mutation, save, close, reopen, and parse verification.
-- [ ] Complete replace-elements direct apply, Undo, Redo, fresh mutation, save, close, reopen, and parse verification.
-- [ ] Complete reorder-Page direct apply, Undo, Redo, fresh mutation, save, close, reopen, and parse verification.
-- [ ] Complete delete-Page direct apply, Undo, Redo, fresh mutation, save, close, reopen, and parse verification.
-- [ ] Repeat one representative replacement inside a disposable Workspace and verify Workspace persistence parity.
+- [x] Complete add-Page direct apply, Undo, Redo, fresh mutation, save, close, reopen, and parse verification.
+- [x] Complete replace-elements direct apply, Undo, Redo, fresh mutation, save, close, reopen, and parse verification.
+- [x] Complete reorder-Page direct apply, Undo, Redo, fresh mutation, save, close, reopen, and parse verification.
+- [x] Complete delete-Page direct apply, Undo, Redo, fresh mutation, save, close, reopen, and parse verification.
+- [x] Repeat one representative replacement inside a disposable Workspace and verify Workspace persistence parity.
 
 ## Task 4: Repair, Repeat, and Deliver the Complete Matrix
 
@@ -153,9 +153,17 @@ parent: ""
 - `git diff --check`
 - Native checklist IS-A01 through IS-A20 repeated from clean disposable fixtures after the final code change.
 
-- [ ] Add regressions and repair every defect found by the saved-file validation loop.
-- [ ] Repeat IS-A01 through IS-A20 after the final fix and record exact evidence for every row.
-- [ ] Complete B026, refresh Superplan state, inspect the final diff, clean or archive disposable artifacts safely, and create a separate `fix(B026)` commit.
+- [x] Add regressions and repair every defect found by the saved-file validation loop.
+- [x] Repeat IS-A01 through IS-A20 after the final fix and record exact evidence for every row.
+- [x] Complete B026, refresh Superplan state, inspect the final diff, clean or archive disposable artifacts safely, and create a separate `fix(B026)` commit.
+
+## Completion Evidence
+
+- **Saved fixture and format integrity (IS-A01–IS-A03, IS-A20):** `/private/tmp/ideanote-b026.Zpk9lk/agent-b026-v1.is` is a disposable v1 archive with SHA-256 `4fe8f997758304cb59fa56f7a2a63858941a3c27bed015cf3e47215a4f7f522b`; `zipinfo -t` passed, and direct `jq` inspection confirmed Page `page-1` titled `Overview`, one scene element, and one file entry. Frontend registry/read-Tool and Rust canonical archive tests passed without mutating the read fixture.
+- **Direct mutation and history (IS-A04–IS-A11):** the native saved-file run called `replace_page_elements` without confirmation and displayed the requested 200×200 black-outline transparent square immediately. The same-Page canvas synchronization regression proves Agent replacement plus Undo/Redo snapshots update the mounted Excalidraw scene with `CaptureUpdateAction.NEVER`. Existing F036 saved add/delete/reopen evidence remains valid; reducer, Tool-contract, persistence, and Workspace bridge regressions cover all four mutation operations and unaffected Page identity/order/content. An empty baseline correctly becomes visually empty after Undo; two identical Agent replacements require two Undo actions because each call is one reversible transaction.
+- **Fail-closed safety (IS-A12–IS-A17):** last-Page protection, captured document/revision/status/source timestamp, read-only rejection, cross-document switching, external-source changes, cancellation, malformed input, and retargeted results all passed focused frontend/Rust tests. No failed scenario reached `applyChangeSet` or wrote a file.
+- **Lifecycle and parity (IS-A18–IS-A20):** native command completion now synthesizes the same stable `turnCompleted` event id and sequence as the Channel terminal event. The race regression proves the Turn completes before a delayed duplicate terminal event and never becomes falsely Failed or remains Working. Stable Tool call-id, cancellation, Standalone/Workspace autosave, external-change protection, archive roundtrip, and Thread terminal-state coverage all passed.
+- **Final verification:** `node --test tests/*.test.mjs` passed 319 tests; `cargo test --manifest-path src-tauri/Cargo.toml --quiet` passed 122 tests; `cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check`, `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets`, `npm run build`, `npm run tauri build -- --debug`, and `git diff --check` passed. The final package is `src-tauri/target/debug/bundle/macos/IdeaNote.app`; only pre-existing dead-code warnings and the known Vite chunk-size warning remain.
 
 ## References
 

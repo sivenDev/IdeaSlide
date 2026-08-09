@@ -314,3 +314,31 @@ export type AgentEvent =
 export function createAgentEventId(turnId: string, sequence: number, type: AgentEvent["type"]): string {
   return `${turnId}:${sequence}:${type}`;
 }
+
+export function createSettledTurnCompletedEvent({
+  threadId,
+  turnId,
+  nextSequence,
+  assistantItemId,
+  finalText,
+  at = Date.now(),
+}: {
+  threadId: string;
+  turnId: string;
+  nextSequence: number;
+  assistantItemId: string;
+  finalText: string;
+  at?: number;
+}): AgentTurnCompletedEvent {
+  const sequence = Math.max(0, nextSequence - 1);
+  return {
+    type: "turnCompleted",
+    eventId: createAgentEventId(turnId, sequence, "turnCompleted"),
+    threadId,
+    turnId,
+    sequence,
+    at,
+    assistantItemId,
+    finalText,
+  };
+}

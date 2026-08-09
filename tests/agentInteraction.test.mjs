@@ -35,6 +35,7 @@ test('native Agent Core owns lifecycle activity while TypeScript only forwards e
   assert.match(runtime, /emit\(event\.event\)/);
   assert.match(runtime, /submitAgentToolResult\(input\.turnId, result\)/);
   assert.match(runtime, /if \(!activeTurns\.has\(input\.turnId\)\) return/);
+  assert.match(runtime, /createSettledTurnCompletedEvent/);
   assert.match(native, /"turnCancelled"/);
   assert.match(native, /ProviderProgress::PublicActivityDelta/);
   assert.match(native, /ProviderProgress::ToolStarted/);

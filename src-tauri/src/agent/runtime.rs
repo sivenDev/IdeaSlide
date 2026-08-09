@@ -46,7 +46,7 @@ pub(crate) fn prompt_with_context(
     let context = serde_json::to_string_pretty(&request.context)
         .map_err(|error| runtime_failure(format!("Agent context could not be encoded: {error}")))?;
     let preamble = format!(
-        "{}\n\nACTIVE EDITOR SKILL:\n{}\n\nAVAILABLE EDITOR TOOLS:\n{}\n\nACTIVE DOCUMENT CONTEXT:\n{}\n\nNever write files directly. Use registered structured editor Tools for reads and mutations. Mutation Tools apply through the active editor as reversible transactions and cannot save or bypass editor safety checks.",
+        "{}\n\nACTIVE EDITOR SKILL:\n{}\n\nAVAILABLE EDITOR TOOLS:\n{}\n\nACTIVE DOCUMENT CONTEXT:\n{}\n\nNever write files directly. Use registered structured editor Tools for reads and mutations. Mutation Tools apply through the active editor as reversible transactions and cannot save or bypass editor safety checks. When the user requests a supported reversible editor mutation, do not ask for approval, confirmation, or review; call exactly one matching mutation Tool immediately.",
         request.system_prompt, skill, tools, context
     );
     Ok(preamble)
@@ -116,6 +116,14 @@ mod tests {
                 },
             ],
         }
+    }
+
+    #[test]
+    fn direct_editor_mutation_prompt_forbids_a_confirmation_gate() {
+        let prompt = prompt_with_context(&request("http://localhost".to_string()))
+            .expect("prompt should be assembled");
+        assert!(prompt.contains("do not ask for approval, confirmation, or review"));
+        assert!(prompt.contains("call exactly one matching mutation Tool immediately"));
     }
 
     struct TestResponse {

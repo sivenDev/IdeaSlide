@@ -225,7 +225,7 @@ The Agent transcript still renders Reasoning summary cards instead of a Teable-s
 
 ## B026: Validate Agent editing of saved IdeaSketch files
 
-- status: accepted
+- status: done
 - created: 2026-08-09
 
-The previous Agent verification did not prove editing a real saved .is file end to end. Build an explicit capability checklist and exercise every supported IdeaSketch Agent read and proposal Tool against disposable saved files, including review-only behavior, Apply, Undo, autosave/manual save where applicable, close/reopen persistence, stale-target rejection, cancellation safety, and file integrity. Reproduce and repair every discovered failure, then repeat the complete matrix until clean.
+The previous Agent verification did not prove editing a real saved .is file end to end. Build an explicit capability checklist and exercise every supported IdeaSketch Agent read and direct mutation Tool against disposable saved files, including immediate editor application, Undo/Redo, autosave/manual save where applicable, close/reopen persistence, stale-target rejection, cancellation safety, and file integrity. Reproduce and repair every discovered failure, then repeat the complete matrix until clean.
