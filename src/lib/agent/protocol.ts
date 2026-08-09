@@ -49,8 +49,8 @@ export interface AgentMessageItem extends AgentItemBase {
   content: string;
 }
 
-export interface AgentReasoningSummaryItem extends AgentItemBase {
-  kind: "reasoningSummary";
+export interface AgentActivityItem extends AgentItemBase {
+  kind: "activity";
   content: string;
 }
 
@@ -127,7 +127,7 @@ export interface AgentLifecycleItem extends AgentItemBase {
 
 export type AgentItem =
   | AgentMessageItem
-  | AgentReasoningSummaryItem
+  | AgentActivityItem
   | AgentPlanItem
   | AgentToolItem
   | AgentApprovalItem

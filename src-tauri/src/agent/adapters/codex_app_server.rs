@@ -58,6 +58,7 @@ impl AgentRuntimeAdapter for CodexAppServerAdapter {
             expected_version: Some(PINNED_CODEX_VERSION.to_string()),
             version_args: vec!["--version".to_string()],
             request_timeout: Duration::from_secs(30),
+            turn_event_timeout: Duration::from_secs(300),
             max_frame_bytes: DEFAULT_MAX_FRAME_BYTES,
         }
     }
@@ -193,7 +194,7 @@ impl AgentRuntimeAdapter for CodexAppServerAdapter {
                 .map(|text| vec![RuntimeEvent::TextDelta(text.to_string())])
                 .unwrap_or_default(),
             "item/reasoning/summaryTextDelta" => codex_schema::string_at(&params, &["delta"])
-                .map(|text| vec![RuntimeEvent::ReasoningSummaryDelta(text.to_string())])
+                .map(|text| vec![RuntimeEvent::PublicActivityDelta(text.to_string())])
                 .unwrap_or_default(),
             "turn/plan/updated" => vec![RuntimeEvent::PlanUpdated {
                 title: codex_schema::string_at(&params, &["explanation"])
@@ -304,7 +305,7 @@ mod tests {
         );
         assert_eq!(
             adapter.map_message(&reasoning).expect("message should map"),
-            [RuntimeEvent::ReasoningSummaryDelta(
+            [RuntimeEvent::PublicActivityDelta(
                 "Inspected the document".to_string()
             )]
         );

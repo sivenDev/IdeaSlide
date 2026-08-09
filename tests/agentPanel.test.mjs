@@ -13,8 +13,10 @@ test('Agent panel uses the normalized runtime/store, captured editor binding, re
   assert.match(source, /upstreamThreadId: state\.runtime\.kind === "codexAppServer"/);
   assert.match(source, /const capturedBinding = binding/);
   assert.match(source, /capturedBinding\.createToolExecutor/);
-  assert.match(source, /runGeneration\.current \+= 1/);
+  assert.match(source, /const turnId = state\.activeTurnId/);
+  assert.match(source, /settleTurn\(turnId, "cancelled"/);
   assert.match(source, /runtime\.cancelTurn\(turnId\)/);
+  assert.doesNotMatch(source, /activeRunId/);
   assert.match(source, /AgentChangeReview/);
   assert.match(source, /AgentThreadHistory/);
   assert.match(source, /useExternalStoreRuntime/);

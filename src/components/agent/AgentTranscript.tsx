@@ -23,7 +23,7 @@ export function AgentTranscript({
   const allItems = [...state.notices, ...state.thread.turns.flatMap((turn) => turn.items)];
   const hiddenCount = Math.max(0, allItems.length - MAX_VISIBLE_ITEMS);
   const items = hiddenCount ? allItems.slice(-MAX_VISIBLE_ITEMS) : allItems;
-  const contentSignal = items.map((item) => `${item.id}:${item.status}:${item.kind === "message" || item.kind === "reasoningSummary" ? item.content.length : 0}`).join("|");
+  const contentSignal = items.map((item) => `${item.id}:${item.status}:${item.kind === "message" || item.kind === "activity" ? item.content.length : 0}`).join("|");
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current;

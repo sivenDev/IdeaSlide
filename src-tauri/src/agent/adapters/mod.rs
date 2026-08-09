@@ -43,7 +43,7 @@ pub(crate) struct RuntimeCapabilities {
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum RuntimeEvent {
     TextDelta(String),
-    ReasoningSummaryDelta(String),
+    PublicActivityDelta(String),
     PlanUpdated {
         title: String,
         steps: Vec<String>,
@@ -85,6 +85,7 @@ pub(crate) struct RuntimeCommandSpec {
     pub expected_version: Option<String>,
     pub version_args: Vec<String>,
     pub request_timeout: Duration,
+    pub turn_event_timeout: Duration,
     pub max_frame_bytes: usize,
 }
 

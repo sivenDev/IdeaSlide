@@ -68,6 +68,7 @@ impl AgentRuntimeAdapter for GrokAcpAdapter {
             expected_version: None,
             version_args: vec!["--version".to_string()],
             request_timeout: Duration::from_secs(30),
+            turn_event_timeout: Duration::from_secs(300),
             max_frame_bytes: DEFAULT_MAX_FRAME_BYTES,
         }
     }
@@ -206,7 +207,7 @@ impl AgentRuntimeAdapter for GrokAcpAdapter {
                     .map(|text| vec![RuntimeEvent::TextDelta(text.to_string())])
                     .unwrap_or_default(),
                 Some("agent_thought_summary_chunk") => acp_schema::text_chunk(&params)
-                    .map(|text| vec![RuntimeEvent::ReasoningSummaryDelta(text.to_string())])
+                    .map(|text| vec![RuntimeEvent::PublicActivityDelta(text.to_string())])
                     .unwrap_or_default(),
                 Some("plan") => vec![RuntimeEvent::PlanUpdated {
                     title: "Plan".to_string(),

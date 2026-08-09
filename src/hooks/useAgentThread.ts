@@ -12,6 +12,7 @@ import {
   agentRuntimeMessagesFromState,
   createAgentThreadState,
   hydrateAgentThreadState,
+  reconcileSettledAgentTurn,
   reduceAgentEvent,
   removeAgentNotice,
   renameAgentThreadState,
@@ -187,6 +188,14 @@ export function useAgentThread({
     setState((current) => removeAgentNotice(current, itemId));
   }, []);
 
+  const settleTurn = useCallback((
+    turnId: string,
+    outcome: "failed" | "cancelled",
+    error?: Parameters<typeof reconcileSettledAgentTurn>[3],
+  ) => {
+    setState((current) => reconcileSettledAgentTurn(current, turnId, outcome, error));
+  }, []);
+
   const createThread = useCallback(async () => {
     const next = createState();
     setState(next);
@@ -304,6 +313,7 @@ export function useAgentThread({
     emit,
     setNotice,
     removeNotice,
+    settleTurn,
     messages,
     runtimeMessages,
     retryPrompt,

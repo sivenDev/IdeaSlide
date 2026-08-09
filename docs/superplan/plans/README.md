@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `required` | 6 | 6 |
 | `feature` | 40 | 40 |
-| `bugfix` | 24 | 24 |
+| `bugfix` | 25 | 25 |
 
 ## Execution Order
 
@@ -105,3 +105,4 @@
 | `B022` | [Keep Portrait Page Thumbnails Visible](bugs/B022-keep-portrait-page-thumbnails-visible.md) | `complete` | 2026-08-07 |
 | `B023` | [Move Agent to the App-level Right Column](bugs/B023-separate-agent-right-column.md) | `complete` | 2026-08-08 |
 | `B024` | [Align Tauri Versions and Verify Agent Editing](bugs/B024-align-tauri-versions-and-verify-agent-editing.md) | `complete` | 2026-08-08 |
+| `B025` | [Fix Agent Fallback Hangs, Cancellation, and Activity Presentation](bugs/B025-fix-agent-fallback-hangs-cancellation-and-activity-presentation.md) | `complete` | 2026-08-09 |

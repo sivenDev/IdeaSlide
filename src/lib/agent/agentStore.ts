@@ -2,6 +2,7 @@ import type { AgentMessage } from "./types";
 import type {
   AgentCapabilities,
   AgentDiagnostic,
+  AgentError,
   AgentEvent,
   AgentItem,
   AgentMessageItem,
@@ -187,7 +188,7 @@ function applyOrderedEvent(state: AgentThreadState, event: AgentEvent): AgentThr
     case "itemDelta": {
       let valid = false;
       const next = updateTurn(state, event.turnId, (turn) => updateItem(turn, event.itemId, (item) => {
-        if (item.kind !== "message" && item.kind !== "reasoningSummary") return item;
+        if (item.kind !== "message" && item.kind !== "activity") return item;
         valid = true;
         return { ...item, content: `${item.content}${event.text}` };
       }));
@@ -386,6 +387,44 @@ export function reduceAgentEvent(state: AgentThreadState, event: AgentEvent): Ag
     }, event, "missingSequence", `Buffered sequence ${event.sequence}; waiting for ${expected}.`);
   }
   return applyAndFlush(state, event);
+}
+
+export function reconcileSettledAgentTurn(
+  state: AgentThreadState,
+  turnId: string,
+  outcome: "failed" | "cancelled",
+  error?: AgentError,
+  at = Date.now(),
+): AgentThreadState {
+  const turn = state.thread.turns.find((candidate) => candidate.id === turnId);
+  if (state.activeTurnId !== turnId || turn?.status !== "running") return state;
+  const sequence = state.nextSequenceByTurn[turnId] ?? 0;
+  if (outcome === "cancelled") {
+    return reduceAgentEvent(state, {
+      type: "turnCancelled",
+      eventId: `${turnId}:${sequence}:turnCancelled`,
+      threadId: state.thread.id,
+      turnId,
+      sequence,
+      at,
+      label: "Agent run cancelled",
+    });
+  }
+  return reduceAgentEvent(state, {
+    type: "turnFailed",
+    eventId: `${turnId}:${sequence}:turnFailed`,
+    threadId: state.thread.id,
+    turnId,
+    sequence,
+    at,
+    assistantItemId: `${turnId}:assistant`,
+    error: error ?? {
+      code: "runtimeUnavailable",
+      message: "Agent runtime ended before producing a terminal result.",
+      recovery: "Retry the Turn. If the problem persists, restart the Agent.",
+      retryable: true,
+    },
+  });
 }
 
 export function upsertAgentNotice(state: AgentThreadState, item: AgentItem): AgentThreadState {

@@ -24,14 +24,11 @@ impl AgentSessionState {
     }
 
     pub(crate) fn cancel_run(&self, run_id: &str) -> bool {
-        let cancelled = self
-            .runs
+        self.runs
             .lock()
             .ok()
             .and_then(|runs| runs.get(run_id).cloned())
-            .is_some_and(|sender| sender.send(true).is_ok());
-        self.clear_tool_results(run_id);
-        cancelled
+            .is_some_and(|sender| sender.send(true).is_ok())
     }
 
     pub(crate) fn finish_run(&self, run_id: &str) {
@@ -99,7 +96,7 @@ mod tests {
     #[tokio::test]
     async fn tool_results_are_correlated_and_cleared_with_the_run() {
         let state = AgentSessionState::default();
-        state.start_run("run-1").unwrap();
+        let _cancellation = state.start_run("run-1").unwrap();
         let receiver = state.await_tool_result("run-1", "call-1").unwrap();
         assert!(state.resolve_tool_result(
             "run-1",
@@ -108,6 +105,23 @@ mod tests {
         assert_eq!(receiver.await.unwrap()["callId"], "call-1");
 
         let receiver = state.await_tool_result("run-1", "call-2").unwrap();
+        state.finish_run("run-1");
+        assert!(receiver.await.is_err());
+    }
+
+    #[tokio::test]
+    async fn cancellation_signals_before_tool_waiters_are_retired() {
+        let state = AgentSessionState::default();
+        let _cancellation = state.start_run("run-1").unwrap();
+        let mut receiver = state.await_tool_result("run-1", "call-1").unwrap();
+
+        assert!(state.cancel_run("run-1"));
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(20), &mut receiver,)
+                .await
+                .is_err()
+        );
+
         state.finish_run("run-1");
         assert!(receiver.await.is_err());
     }

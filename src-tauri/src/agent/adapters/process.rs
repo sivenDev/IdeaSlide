@@ -151,20 +151,22 @@ impl LocalRuntimeProcess {
     }
 
     async fn read_transport_message(&mut self) -> Result<JsonRpcMessage, RuntimeAdapterError> {
-        let deadline = tokio::time::Instant::now() + self.spec.request_timeout;
-        self.read_transport_message_until(deadline).await
+        let deadline = tokio::time::Instant::now() + self.spec.turn_event_timeout;
+        self.read_transport_message_until(deadline, "Local Agent runtime Turn became inactive.")
+            .await
     }
 
     async fn read_transport_message_until(
         &mut self,
         deadline: tokio::time::Instant,
+        timeout_message: &'static str,
     ) -> Result<JsonRpcMessage, RuntimeAdapterError> {
         let line = tokio::time::timeout_at(
             deadline,
             read_bounded_line(&mut self.stdout, self.spec.max_frame_bytes),
         )
         .await
-        .map_err(|_| RuntimeAdapterError::unavailable("Local Agent runtime timed out."))?
+        .map_err(|_| RuntimeAdapterError::unavailable(timeout_message))?
         .map_err(|_| RuntimeAdapterError::unavailable("Local Agent runtime stream failed."))?
         .ok_or_else(|| RuntimeAdapterError::unavailable("Local Agent runtime closed stdout."))?;
         decode_line(&line, self.spec.max_frame_bytes)
@@ -181,7 +183,9 @@ impl LocalRuntimeProcess {
         self.send(message).await?;
         let deadline = tokio::time::Instant::now() + self.spec.request_timeout;
         loop {
-            let response = self.read_transport_message_until(deadline).await?;
+            let response = self
+                .read_transport_message_until(deadline, "Local Agent runtime request timed out.")
+                .await?;
             if matches!(response.id(), Some(id) if *id == expected)
                 && matches!(response, JsonRpcMessage::Response { .. })
             {
@@ -311,6 +315,7 @@ mod tests {
             expected_version: None,
             version_args: Vec::new(),
             request_timeout: std::time::Duration::from_secs(2),
+            turn_event_timeout: std::time::Duration::from_secs(2),
             max_frame_bytes: 1024,
         };
         let mut process = LocalRuntimeProcess::spawn(spec)
@@ -327,5 +332,31 @@ mod tests {
         assert!(matches!(response, JsonRpcMessage::Response { .. }));
         let stderr = process.shutdown().await.expect("runtime should stop");
         assert!(stderr.is_empty());
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn active_turn_messages_can_arrive_after_the_request_timeout() {
+        let spec = RuntimeCommandSpec {
+            executable: std::path::PathBuf::from("/bin/sh"),
+            args: vec![
+                "-c".to_string(),
+                "sleep 0.12; printf '{\"method\":\"turn/completed\",\"params\":{}}\\n'".to_string(),
+            ],
+            expected_version: None,
+            version_args: Vec::new(),
+            request_timeout: std::time::Duration::from_millis(40),
+            turn_event_timeout: std::time::Duration::from_millis(250),
+            max_frame_bytes: 1024,
+        };
+        let mut process = LocalRuntimeProcess::spawn(spec)
+            .await
+            .expect("fake runtime should start");
+        let message = process
+            .next_message()
+            .await
+            .expect("active Turn event waiting must not reuse the request timeout");
+        assert_eq!(message.method(), Some("turn/completed"));
+        let _ = process.shutdown().await;
     }
 }

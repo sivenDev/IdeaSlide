@@ -150,9 +150,14 @@ fn validate_tool_name(name: &str) -> Result<(), String> {
 }
 
 fn validate_call_id(call_id: &str) -> Result<(), String> {
-    if call_id.is_empty()
+    let normalized = call_id.trim();
+    if normalized.is_empty()
         || call_id.len() > MAX_CALL_ID_BYTES
         || call_id.contains(['\n', '\r', '\0'])
+        || matches!(
+            normalized.to_ascii_lowercase().as_str(),
+            "undefined" | "null"
+        )
     {
         return Err("Agent Tool call id is invalid.".to_string());
     }
@@ -225,6 +230,13 @@ mod tests {
             arguments: json!({}),
         };
         assert!(broker.begin(&unknown).is_err());
+
+        let invalid_identity = AgentToolCall {
+            call_id: "undefined".to_string(),
+            name: "read_outline".to_string(),
+            arguments: json!({"pageId": "page-1"}),
+        };
+        assert!(broker.begin(&invalid_identity).is_err());
 
         let call = AgentToolCall {
             call_id: "call-2".to_string(),

@@ -805,7 +805,6 @@ body,
     font-weight: 680;
 }
 
-.ideanote-agent-reasoning,
 .ideanote-agent-plan,
 .ideanote-agent-approval {
     margin-left: 21px;
@@ -816,33 +815,15 @@ body,
     font-size: 10px;
 }
 
-.ideanote-agent-reasoning summary {
-    display: flex;
-    cursor: pointer;
-    list-style: none;
-    align-items: center;
-    gap: 6px;
-    color: #626977;
-    font-weight: 650;
-    padding: 7px 8px;
+.ideanote-agent-public-activity {
+    margin-left: 21px;
+    color: #69707c;
+    font-size: 10px;
+    line-height: 1.55;
 }
 
-.ideanote-agent-reasoning summary::-webkit-details-marker {
-    display: none;
-}
-
-.ideanote-agent-disclosure-chevron {
-    margin-left: auto;
-    transition: transform 120ms ease;
-}
-
-.ideanote-agent-reasoning[open] .ideanote-agent-disclosure-chevron {
-    transform: rotate(180deg);
-}
-
-.ideanote-agent-reasoning__content {
-    border-top: 1px solid #ececf0;
-    padding: 8px;
+.ideanote-agent-public-activity.is-running {
+    color: #555d69;
 }
 
 .ideanote-agent-plan,
@@ -1232,7 +1213,6 @@ body,
 }
 
 .ideanote-agent-panel button:focus-visible,
-.ideanote-agent-reasoning summary:focus-visible,
 .ideanote-agent-markdown a:focus-visible {
     outline: 2px solid rgb(105 101 219 / 48%);
     outline-offset: 2px;

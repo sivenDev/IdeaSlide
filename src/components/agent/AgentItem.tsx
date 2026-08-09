@@ -4,7 +4,6 @@ import type { AgentChangeReviewItem, AgentItem as AgentItemModel } from "../../l
 import { AgentErrorCard } from "./AgentErrorCard";
 import { AgentMarkdown } from "./AgentMarkdown";
 import { AgentPlan } from "./AgentPlan";
-import { AgentReasoningSummary } from "./AgentReasoningSummary";
 import { AgentToolActivity } from "./AgentToolActivity";
 
 function AgentLifecycleActivity({
@@ -59,8 +58,13 @@ export function AgentItem({
           <div className="min-w-0 flex-1"><AgentMarkdown content={item.content} /></div>
         </article>
       );
-    case "reasoningSummary":
-      return <AgentReasoningSummary content={item.content} running={item.status === "running"} />;
+    case "activity":
+      if (!item.content) return null;
+      return (
+        <div className={`ideanote-agent-public-activity is-${item.status}`}>
+          <AgentMarkdown content={item.content} />
+        </div>
+      );
     case "plan":
       return <AgentPlan item={item} />;
     case "tool":

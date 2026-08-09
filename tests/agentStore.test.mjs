@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createAgentThreadState,
+  reconcileSettledAgentTurn,
   reduceAgentEvent,
   retryPromptFromState,
   retryTurnIdFromState,
@@ -85,6 +86,18 @@ test('cancellation is terminal and a later completion cannot corrupt the transcr
   assert.equal(state.diagnostics.at(-1).code, 'terminalEvent');
   assert.equal(retryPromptFromState(state), 'Make a title');
   assert.equal(retryTurnIdFromState(state), 'turn-1');
+});
+
+test('a settled runtime without a terminal event is reconciled and cannot leave Working stuck', () => {
+  let state = reduceAgentEvent(initial(), started());
+  state = reconcileSettledAgentTurn(state, 'turn-1', 'failed', {
+    code: 'runtimeUnavailable', message: 'Runtime ended unexpectedly.', retryable: true,
+  }, 50);
+  assert.equal(state.activeTurnId, undefined);
+  assert.equal(state.thread.turns.at(-1).status, 'failed');
+
+  const unchanged = reconcileSettledAgentTurn(state, 'turn-1', 'cancelled', undefined, 60);
+  assert.equal(unchanged, state);
 });
 
 test('assistant Markdown grows from genuine deltas before completion and reconciles without duplication', () => {

@@ -51,7 +51,7 @@ pub(crate) enum ProviderProgress {
         delay_ms: u64,
         diagnostic: AgentErrorDiagnostic,
     },
-    ReasoningSummaryDelta(String),
+    PublicActivityDelta(String),
     TextDelta(String),
     ToolStarted {
         call_id: String,
@@ -68,7 +68,7 @@ pub(crate) enum ProviderProgress {
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum ProviderStreamEvent {
     TextDelta(String),
-    ReasoningSummaryDelta(String),
+    PublicActivityDelta(String),
     ToolStarted {
         call_id: String,
         name: String,
@@ -350,9 +350,9 @@ async fn execute_attempt(
                     emit(ProviderProgress::TextDelta(delta))
                         .map_err(|message| runtime_attempt_failure(&message))?;
                 }
-                ProviderStreamEvent::ReasoningSummaryDelta(delta) if !delta.is_empty() => {
+                ProviderStreamEvent::PublicActivityDelta(delta) if !delta.is_empty() => {
                     visible_progress = true;
-                    emit(ProviderProgress::ReasoningSummaryDelta(delta))
+                    emit(ProviderProgress::PublicActivityDelta(delta))
                         .map_err(|message| runtime_attempt_failure(&message))?;
                 }
                 ProviderStreamEvent::ToolStarted { call_id, name } => {
@@ -425,7 +425,7 @@ async fn execute_attempt(
                 }
                 ProviderStreamEvent::Completed
                 | ProviderStreamEvent::TextDelta(_)
-                | ProviderStreamEvent::ReasoningSummaryDelta(_) => {}
+                | ProviderStreamEvent::PublicActivityDelta(_) => {}
             }
         }
     }
@@ -589,7 +589,7 @@ fn parse_responses_event(data: &str) -> Result<Option<ProviderStreamEvent>, Stri
         "response.reasoning_summary_text.delta" => value
             .get("delta")
             .and_then(Value::as_str)
-            .map(|text| ProviderStreamEvent::ReasoningSummaryDelta(text.to_string())),
+            .map(|text| ProviderStreamEvent::PublicActivityDelta(text.to_string())),
         "response.output_item.added" => function_call_event(&value, false),
         "response.output_item.done" => function_call_event(&value, true),
         "response.completed" => Some(ProviderStreamEvent::Completed),
@@ -607,9 +607,20 @@ fn function_call_event(value: &Value, completed: bool) -> Option<ProviderStreamE
     }
     let call_id = item
         .get("call_id")
-        .or_else(|| item.get("id"))
-        .and_then(Value::as_str)?
-        .to_string();
+        .and_then(Value::as_str)
+        .filter(|value| valid_tool_call_id(value))
+        .or_else(|| {
+            item.get("id")
+                .and_then(Value::as_str)
+                .filter(|value| valid_tool_call_id(value))
+        })
+        .map(str::to_string)
+        .or_else(|| {
+            value
+                .get("output_index")
+                .and_then(Value::as_u64)
+                .map(|index| format!("responses-tool-{index}"))
+        })?;
     let name = item
         .get("name")
         .and_then(Value::as_str)
@@ -658,7 +669,11 @@ fn parse_chat_event(data: &str) -> Result<Option<ProviderStreamEvent>, String> {
         .and_then(Value::as_array)
         .and_then(|calls| calls.first());
     if let Some(tool) = tool {
-        let call_id = tool.get("id").and_then(Value::as_str).map(str::to_string);
+        let call_id = tool
+            .get("id")
+            .and_then(Value::as_str)
+            .filter(|value| valid_tool_call_id(value))
+            .map(str::to_string);
         let index = tool.get("index").and_then(Value::as_u64).unwrap_or(0);
         let name = tool
             .get("function")
@@ -680,6 +695,13 @@ fn parse_chat_event(data: &str) -> Result<Option<ProviderStreamEvent>, String> {
         }));
     }
     Ok(None)
+}
+
+fn valid_tool_call_id(value: &str) -> bool {
+    let value = value.trim();
+    !value.is_empty()
+        && !matches!(value.to_ascii_lowercase().as_str(), "undefined" | "null")
+        && !value.contains(['\n', '\r', '\0'])
 }
 
 fn next_sse_frame(buffer: &[u8]) -> Option<(usize, usize)> {
@@ -1056,7 +1078,7 @@ mod contract_tests {
                 r#"{"type":"response.reasoning_summary_text.delta","delta":"Checked the document"}"#,
             )
             .expect("summary event should parse"),
-            Some(ProviderStreamEvent::ReasoningSummaryDelta(
+            Some(ProviderStreamEvent::PublicActivityDelta(
                 "Checked the document".to_string(),
             ))
         );
@@ -1066,6 +1088,26 @@ mod contract_tests {
             )
             .expect("raw reasoning event should be safely ignored"),
             None
+        );
+    }
+
+    #[test]
+    fn response_tool_events_normalize_missing_or_invalid_call_ids() {
+        let started = parse_responses_event(
+            r#"{"type":"response.output_item.added","output_index":2,"item":{"type":"function_call","call_id":"undefined","id":"item-2","name":"read_active_page"}}"#,
+        )
+        .unwrap()
+        .unwrap();
+        let completed = parse_responses_event(
+            r#"{"type":"response.output_item.done","output_index":2,"item":{"type":"function_call","call_id":"undefined","id":"item-2","name":"read_active_page","arguments":"{}"}}"#,
+        )
+        .unwrap()
+        .unwrap();
+        assert!(
+            matches!(started, ProviderStreamEvent::ToolStarted { call_id, .. } if call_id == "item-2")
+        );
+        assert!(
+            matches!(completed, ProviderStreamEvent::ToolCompleted { call_id, .. } if call_id == "item-2")
         );
     }
 

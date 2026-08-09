@@ -101,10 +101,11 @@ struct NativeTurnEmitter {
     sequence: u64,
     assistant_item_id: String,
     assistant_added: bool,
-    reasoning_added: bool,
-    reasoning_content: String,
+    activity_added: bool,
+    activity_content: String,
     tool_items: HashMap<String, String>,
     runtime_progressed: bool,
+    terminal: bool,
 }
 
 impl NativeTurnEmitter {
@@ -117,10 +118,11 @@ impl NativeTurnEmitter {
             sequence: 0,
             assistant_item_id,
             assistant_added: false,
-            reasoning_added: false,
-            reasoning_content: String::new(),
+            activity_added: false,
+            activity_content: String::new(),
             tool_items: HashMap::new(),
             runtime_progressed: false,
+            terminal: false,
         }
     }
 
@@ -168,6 +170,15 @@ impl NativeTurnEmitter {
                 }
             }),
         )
+    }
+
+    fn send_terminal(&mut self, event_type: &str, payload: Value) -> Result<bool, String> {
+        if self.terminal {
+            return Ok(false);
+        }
+        self.terminal = true;
+        self.send(event_type, payload)?;
+        Ok(true)
     }
 }
 
@@ -228,23 +239,43 @@ async fn execute_editor_tool(
     broker: &mut AgentToolBroker,
     call: &AgentToolCall,
     cancellation: tokio::sync::watch::Receiver<bool>,
-) -> Value {
+) -> Result<Value, String> {
     match broker.begin(call) {
-        Ok(BrokerDecision::Cached(result)) => result,
+        Ok(BrokerDecision::Cached(result)) => Ok(result),
         Ok(BrokerDecision::Execute) => {
             let (run_id, channel) = match emitter.lock() {
                 Ok(turn) => (turn.turn_id.clone(), turn.channel.clone()),
-                Err(_) => return tool_failure(call, "Agent Turn event state is unavailable"),
+                Err(_) => return Ok(tool_failure(call, "Agent Turn event state is unavailable")),
             };
             match receive_tool_result(state, &run_id, channel, call, cancellation).await {
-                Ok(result) => broker
+                Ok(result) => Ok(broker
                     .complete(call, result)
-                    .unwrap_or_else(|message| tool_failure(call, message)),
-                Err(message) => tool_failure(call, message),
+                    .unwrap_or_else(|message| tool_failure(call, message))),
+                Err(message) if message.to_ascii_lowercase().contains("cancel") => Err(message),
+                Err(message) => Ok(tool_failure(call, message)),
             }
         }
-        Err(message) => tool_failure(call, message),
+        Err(message) => Ok(tool_failure(call, message)),
     }
+}
+
+fn emit_public_activity_delta(turn: &mut NativeTurnEmitter, delta: String) -> Result<(), String> {
+    let item_id = format!("{}:public-activity", turn.turn_id);
+    turn.activity_content.push_str(&delta);
+    if !turn.activity_added {
+        turn.activity_added = true;
+        turn.send(
+            "itemAdded",
+            json!({"item": {
+                "id": item_id,
+                "kind": "activity",
+                "content": "",
+                "status": "running",
+                "createdAt": now_millis(),
+            }}),
+        )?;
+    }
+    turn.send("itemDelta", json!({"itemId": item_id, "text": delta}))
 }
 
 fn emit_tool_result(
@@ -323,14 +354,14 @@ fn finalize_turn(
     let mut turn = emitter
         .lock()
         .map_err(|_| "Agent Turn event state is unavailable")?;
-    if turn.reasoning_added {
-        let content = turn.reasoning_content.clone();
-        let reasoning_id = format!("{}:reasoning", turn.turn_id);
+    if turn.activity_added {
+        let content = turn.activity_content.clone();
+        let activity_id = format!("{}:public-activity", turn.turn_id);
         turn.send(
             "itemUpdated",
             json!({"item": {
-                "id": reasoning_id,
-                "kind": "reasoningSummary",
+                "id": activity_id,
+                "kind": "activity",
                 "content": content,
                 "status": "completed",
                 "createdAt": now_millis(),
@@ -338,7 +369,7 @@ fn finalize_turn(
         )?;
     }
     let assistant_item_id = turn.assistant_item_id.clone();
-    turn.send(
+    turn.send_terminal(
         "turnCompleted",
         json!({"assistantItemId": assistant_item_id, "finalText": response_text}),
     )?;
@@ -352,6 +383,9 @@ async fn receive_tool_result(
     call: &AgentToolCall,
     mut cancelled: tokio::sync::watch::Receiver<bool>,
 ) -> Result<Value, String> {
+    if *cancelled.borrow() {
+        return Err("Editor Tool call was cancelled.".to_string());
+    }
     let receiver = state.await_tool_result(run_id, &call.call_id)?;
     channel
         .send(AgentRunEvent::ToolExecutionRequested {
@@ -360,6 +394,7 @@ async fn receive_tool_result(
         })
         .map_err(|error| format!("Agent Tool request could not be delivered: {error}"))?;
     tokio::select! {
+        biased;
         changed = cancelled.changed() => {
             if changed.is_ok() && *cancelled.borrow() {
                 Err("Editor Tool call was cancelled.".to_string())
@@ -469,7 +504,7 @@ async fn run_codex_driver(
                 }
                 let result =
                     execute_editor_tool(state, emitter, &mut broker, &call, cancellation.clone())
-                        .await;
+                        .await?;
                 let success = result
                     .get("success")
                     .and_then(Value::as_bool)
@@ -494,27 +529,12 @@ async fn run_codex_driver(
                     let item_id = turn.assistant_item_id.clone();
                     turn.send("itemDelta", json!({"itemId": item_id, "text": delta}))?;
                 }
-                adapters::RuntimeEvent::ReasoningSummaryDelta(delta) => {
+                adapters::RuntimeEvent::PublicActivityDelta(delta) => {
                     let mut turn = emitter
                         .lock()
                         .map_err(|_| "Agent Turn event state is unavailable")?;
                     turn.runtime_progressed = true;
-                    let item_id = format!("{}:reasoning", turn.turn_id);
-                    turn.reasoning_content.push_str(&delta);
-                    if !turn.reasoning_added {
-                        turn.reasoning_added = true;
-                        turn.send(
-                            "itemAdded",
-                            json!({"item": {
-                                "id": item_id,
-                                "kind": "reasoningSummary",
-                                "content": "",
-                                "status": "running",
-                                "createdAt": now_millis(),
-                            }}),
-                        )?;
-                    }
-                    turn.send("itemDelta", json!({"itemId": item_id, "text": delta}))?;
+                    emit_public_activity_delta(&mut turn, delta)?;
                 }
                 adapters::RuntimeEvent::PlanUpdated { title, steps } => {
                     let mut turn = emitter
@@ -594,6 +614,30 @@ struct ActiveRunGuard<'a> {
     run_id: &'a str,
 }
 
+struct TerminalTurnGuard {
+    emitter: Arc<Mutex<NativeTurnEmitter>>,
+}
+
+impl Drop for TerminalTurnGuard {
+    fn drop(&mut self) {
+        if let Ok(mut turn) = self.emitter.lock() {
+            let assistant_item_id = turn.assistant_item_id.clone();
+            let _ = turn.send_terminal(
+                "turnFailed",
+                json!({
+                    "assistantItemId": assistant_item_id,
+                    "error": {
+                        "code": "runtimeUnavailable",
+                        "message": "Agent runtime ended before producing a terminal result.",
+                        "recovery": "Retry the Turn. If the problem persists, restart the Agent.",
+                        "retryable": true,
+                    }
+                }),
+            );
+        }
+    }
+}
+
 impl Drop for ActiveRunGuard<'_> {
     fn drop(&mut self) {
         self.state.finish_run(self.run_id);
@@ -664,6 +708,9 @@ pub(crate) async fn run_agent(
             }),
         )?;
     }
+    let _terminal_turn = TerminalTurnGuard {
+        emitter: emitter.clone(),
+    };
     let skill_id = request.skill_id.clone();
     let runtime_catalog = adapters::discover_runtime_catalog().await;
     let codex_runtime = runtime_catalog
@@ -741,8 +788,10 @@ pub(crate) async fn run_agent(
                     Err(message) => {
                         if message.to_ascii_lowercase().contains("cancel") {
                             if let Ok(mut turn) = emitter.lock() {
-                                let _ = turn
-                                    .send("turnCancelled", json!({"label": "Agent run cancelled"}));
+                                let _ = turn.send_terminal(
+                                    "turnCancelled",
+                                    json!({"label": "Agent run cancelled"}),
+                                );
                             }
                             return Err(message);
                         }
@@ -769,7 +818,7 @@ pub(crate) async fn run_agent(
                         } else {
                             if let Ok(mut turn) = emitter.lock() {
                                 let assistant_item_id = turn.assistant_item_id.clone();
-                                let _ = turn.send("turnFailed", json!({
+                                let _ = turn.send_terminal("turnFailed", json!({
                                     "assistantItemId": assistant_item_id,
                                     "error": {
                                         "code": "runtimeUnavailable",
@@ -851,20 +900,8 @@ pub(crate) async fn run_agent(
                     "createdAt": now_millis(),
                 }}))
             }
-            provider::ProviderProgress::ReasoningSummaryDelta(text) => {
-                let item_id = format!("{}:reasoning", turn.turn_id);
-                turn.reasoning_content.push_str(&text);
-                if !turn.reasoning_added {
-                    turn.reasoning_added = true;
-                    turn.send("itemAdded", json!({"item": {
-                        "id": item_id,
-                        "kind": "reasoningSummary",
-                        "content": "",
-                        "status": "running",
-                        "createdAt": now_millis(),
-                    }}))?;
-                }
-                turn.send("itemDelta", json!({"itemId": item_id, "text": text}))
+            provider::ProviderProgress::PublicActivityDelta(text) => {
+                emit_public_activity_delta(&mut turn, text)
             }
             provider::ProviderProgress::TextDelta(text) => {
                 turn.ensure_assistant()?;
@@ -919,14 +956,26 @@ pub(crate) async fn run_agent(
         Ok(completion) => {
             let mut broker = AgentToolBroker::new(&tool_definitions)?;
             for tool_call in &completion.tool_calls {
-                let raw_result = execute_editor_tool(
+                let raw_result = match execute_editor_tool(
                     &state,
                     &emitter,
                     &mut broker,
                     tool_call,
                     tool_cancellation.clone(),
                 )
-                .await;
+                .await
+                {
+                    Ok(result) => result,
+                    Err(message) => {
+                        if let Ok(mut turn) = emitter.lock() {
+                            let _ = turn.send_terminal(
+                                "turnCancelled",
+                                json!({"label": "Agent run cancelled"}),
+                            );
+                        }
+                        return Err(message);
+                    }
+                };
                 let mut turn = emitter
                     .lock()
                     .map_err(|_| "Agent Turn event state is unavailable")?;
@@ -952,7 +1001,8 @@ pub(crate) async fn run_agent(
         }
         Err(failure) if failure.diagnostic.code == AgentErrorCode::Cancelled => {
             if let Ok(mut turn) = emitter.lock() {
-                let _ = turn.send("turnCancelled", json!({"label": "Agent run cancelled"}));
+                let _ =
+                    turn.send_terminal("turnCancelled", json!({"label": "Agent run cancelled"}));
             }
             Err(failure.diagnostic.message)
         }
@@ -965,7 +1015,7 @@ pub(crate) async fn run_agent(
                         "code": "unknown", "message": message, "retryable": false,
                     })
                 });
-                let _ = turn.send(
+                let _ = turn.send_terminal(
                     "turnFailed",
                     json!({
                         "assistantItemId": assistant_item_id,

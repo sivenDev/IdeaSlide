@@ -29,13 +29,14 @@ test('the public protocol remains owned by IdeaNote and transport-neutral', asyn
   assert.doesNotMatch(source, /@tauri|assistant-ui|\bRig\b|\bCodex\b|\bACP\b|OpenAI/);
 });
 
-test('the native core normalizes provider capabilities, summaries, telemetry, and classified errors', async () => {
+test('the native core normalizes provider capabilities, public activity, telemetry, and classified errors', async () => {
   const runtime = await readFile(new URL('../src/lib/agent/agentRuntime.ts', import.meta.url), 'utf8');
   const native = await readFile(new URL('../src-tauri/src/agent/mod.rs', import.meta.url), 'utf8');
   assert.match(runtime, /emit\(event\.event\)/);
   assert.match(native, /"capabilitiesUpdated"/);
-  assert.match(native, /ProviderProgress::ReasoningSummaryDelta/);
-  assert.match(native, /"reasoningSummary"/);
+  assert.match(native, /ProviderProgress::PublicActivityDelta/);
+  assert.match(native, /"kind": "activity"/);
+  assert.doesNotMatch(native, /"kind": "reasoningSummary"/);
   assert.match(native, /ProviderProgress::Telemetry/);
   assert.match(native, /"telemetryUpdated"/);
   assert.match(native, /"turnFailed"/);

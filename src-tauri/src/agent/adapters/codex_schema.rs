@@ -45,13 +45,20 @@ pub(crate) fn dynamic_tool(params: &Value) -> Option<(&str, &str, Value)> {
     if string_at(item, &["type"]).is_some_and(|kind| kind != "dynamicToolCall") {
         return None;
     }
-    let call_id = string_at(item, &["id"]).or_else(|| string_at(item, &["callId"]))?;
+    let call_id = string_at(item, &["id"])
+        .filter(|value| valid_call_id(value))
+        .or_else(|| string_at(item, &["callId"]).filter(|value| valid_call_id(value)))?;
     let name = string_at(item, &["tool"]).or_else(|| string_at(item, &["name"]))?;
     let arguments = item
         .get("arguments")
         .cloned()
         .unwrap_or_else(|| serde_json::json!({}));
     Some((call_id, name, arguments))
+}
+
+fn valid_call_id(value: &str) -> bool {
+    let value = value.trim();
+    !value.is_empty() && !matches!(value.to_ascii_lowercase().as_str(), "undefined" | "null")
 }
 
 #[cfg(test)]

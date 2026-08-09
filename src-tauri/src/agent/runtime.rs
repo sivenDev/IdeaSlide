@@ -275,7 +275,7 @@ mod tests {
             StreamingBehavior::Incremental
         );
         assert!(progress.lock().expect("progress should lock").iter().any(|event| {
-            matches!(event, ProviderProgress::ReasoningSummaryDelta(text) if text == "Checked the document")
+            matches!(event, ProviderProgress::PublicActivityDelta(text) if text == "Checked the document")
         }));
         let request_text = captured_requests.lock().expect("requests should lock")[0].clone();
         assert!(request_text.starts_with("POST /v1/responses"));

@@ -36,8 +36,8 @@ export function AgentPanel({
   const { settings, activationState } = useSettings();
   const runtime = useMemo(() => createNativeAgentRuntime(), []);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const runGeneration = useRef(0);
-  const activeRunId = useRef<string | undefined>(undefined);
+  const currentTurnIdRef = useRef<string | undefined>(undefined);
+  const cancelledTurnIdsRef = useRef(new Set<string>());
   const title = binding?.document.displayName ?? "Current file";
   const bindingSkillId = binding?.skillId;
   const welcome = binding
@@ -48,6 +48,7 @@ export function AgentPanel({
     emit,
     setNotice,
     removeNotice,
+    settleTurn,
     messages,
     runtimeMessages,
     retryPrompt,
@@ -72,10 +73,11 @@ export function AgentPanel({
       label: "Compatibility",
       model: settings.ai.model,
       diagnostic: "Codex app-server is selected automatically when the pinned runtime is available.",
-      degraded: !runtime.capabilities.reasoningSummary || !runtime.capabilities.steering,
+      degraded: !runtime.capabilities.steering,
     },
   });
   const running = Boolean(state.activeTurnId);
+  currentTurnIdRef.current = state.activeTurnId;
 
   useEffect(() => {
     if (activationState !== "ready" || !bindingSkillId) return;
@@ -120,15 +122,16 @@ export function AgentPanel({
 
   useEffect(() => {
     if (activationState === "ready") return;
-    runGeneration.current += 1;
-    const turnId = activeRunId.current;
-    activeRunId.current = undefined;
-    if (turnId) void runtime.cancelTurn(turnId).catch(() => undefined);
-  }, [activationState, runtime]);
+    const turnId = state.activeTurnId;
+    if (!turnId) return;
+    cancelledTurnIdsRef.current.add(turnId);
+    void runtime.cancelTurn(turnId)
+      .catch(() => false)
+      .finally(() => settleTurn(turnId, "cancelled"));
+  }, [activationState, runtime, settleTurn, state.activeTurnId]);
 
   useEffect(() => () => {
-    const turnId = activeRunId.current;
-    activeRunId.current = undefined;
+    const turnId = currentTurnIdRef.current;
     if (turnId) void runtime.cancelTurn(turnId).catch(() => undefined);
   }, [runtime]);
 
@@ -136,9 +139,8 @@ export function AgentPanel({
     if (!binding?.document.model || activationState !== "ready" || running) return;
     const capturedBinding = binding;
     const toolExecutor = capturedBinding.createToolExecutor();
-    const generation = ++runGeneration.current;
     const turnId = crypto.randomUUID();
-    activeRunId.current = turnId;
+    let failure: unknown;
     try {
       await runtime.startTurn({
         threadId: state.thread.id,
@@ -166,24 +168,40 @@ export function AgentPanel({
         messages: runtimeMessages,
         toolExecutor,
       }, emit);
-      if (generation !== runGeneration.current || activeRunId.current !== turnId) return;
-    } catch {
-      // The runtime emits a normalized failure Item before rejecting.
+    } catch (cause) {
+      failure = cause;
     } finally {
-      if (activeRunId.current === turnId) activeRunId.current = undefined;
+      if (cancelledTurnIdsRef.current.delete(turnId)) {
+        settleTurn(turnId, "cancelled");
+      } else {
+        settleTurn(turnId, "failed", {
+          code: "runtimeUnavailable",
+          message: failure instanceof Error
+            ? failure.message
+            : failure === undefined
+              ? "Agent runtime completed without a terminal event."
+              : String(failure),
+          recovery: "Retry the Turn. If the problem persists, restart the Agent.",
+          retryable: true,
+        });
+      }
     }
   };
 
   const cancel = async () => {
-    const turnId = activeRunId.current;
+    const turnId = state.activeTurnId;
     if (!turnId) return;
-    const activeGeneration = runGeneration.current;
-    runGeneration.current += 1;
+    cancelledTurnIdsRef.current.add(turnId);
     try {
       await runtime.cancelTurn(turnId);
-      if (activeRunId.current === turnId) activeRunId.current = undefined;
+      settleTurn(turnId, "cancelled");
     } catch (cause) {
-      if (activeRunId.current === turnId) runGeneration.current = activeGeneration;
+      settleTurn(turnId, "failed", {
+        code: "runtimeUnavailable",
+        message: cause instanceof Error ? cause.message : String(cause),
+        recovery: "Restart the Agent before starting another Turn.",
+        retryable: true,
+      });
       setNotice({
         id: "cancel-error",
         kind: "error",
@@ -200,7 +218,7 @@ export function AgentPanel({
   };
 
   const steer = async (prompt: string) => {
-    const turnId = activeRunId.current;
+    const turnId = state.activeTurnId;
     if (!turnId || !runtime.steerTurn || !state.capabilities.steering) return;
     const accepted = await runtime.steerTurn(turnId, prompt);
     if (!accepted) return;
