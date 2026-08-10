@@ -7,7 +7,7 @@
 | Type | Plans | Complete |
 | --- | --- | --- |
 | `required` | 6 | 6 |
-| `feature` | 48 | 48 |
+| `feature` | 49 | 49 |
 | `bugfix` | 29 | 29 |
 
 ## Execution Order
@@ -84,6 +84,7 @@
 | `F039` | [Explore Workspace-first AI Agent Layout Concepts](features/F039-workspace-first-ai-agent-layout-concepts.md) | `complete` | 2026-08-10 |
 | `F040` | [Implement Workspace Loom as the Production Shell](features/F040-implement-workspace-loom-production-shell.md) | `complete` | 2026-08-10 |
 | `F041` | [Prototype a Redesigned Native Workspace Shell Before Production Migration](features/F041-prototype-native-workbench-before-migration.md) | `complete` | 2026-08-10 |
+| `F042` | [Use Codex-style Workspace and Agent Panel Toggles in the Review Prototype](features/F042-codex-style-workspace-agent-panel-toggles.md) | `complete` | 2026-08-10 |
 
 ### Bugfix Plans
 

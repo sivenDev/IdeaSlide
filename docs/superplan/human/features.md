@@ -308,3 +308,10 @@ Replace the Home-first startup with the selected Workspace Loom production direc
 - created: 2026-08-10
 
 Reject the current F040 production presentation because the full title bar and save controls remain visible and the visual language feels generic and AI-generated. Revert the F040 production implementation while preserving the earlier Cursor, Kition, and Teable research trail. Build a realistic, interactive Tauri desktop shell prototype under `.temp` only, with no production imports or migration. Design only the outer client architecture: left Workspace, center generic Editor Host boundary, right Agent, native window integration, panel behavior, settings, and themes. Do not design or simulate table, IdeaSketch, Markdown, Workflow, or any other editor-owned interface. Present the shell prototype for human review; migrate it into the Tauri application only after separate approval.
+
+## F042: Use Codex-style Workspace and Agent panel toggles in the review prototype
+
+- status: done
+- created: 2026-08-10
+
+Refine the isolated F041 review prototype so the left Workspace and right Agent follow Codex-client-style panel interaction. Replace seam-mounted collapse controls and persistent collapsed rails with clear panel toggle buttons integrated into the top chrome. Each panel must fully close to return its width to the generic Editor Host, remain independently restorable from an always-available control, preserve macOS window-control placement, maintain Light/Dark/System and responsive behavior, and stay under .temp with no production migration or editor-owned UI changes.

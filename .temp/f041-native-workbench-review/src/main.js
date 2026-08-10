@@ -64,9 +64,15 @@ const treeFile = (name) => {
 
 document.querySelector("#app").innerHTML = `
   <main class="app-shell" data-workspace="open" data-agent="open">
+    <div class="window-controls" aria-label="Window and Workspace controls">
+      <div class="traffic-lights" aria-hidden="true"><span></span><span></span><span></span></div>
+      <button class="panel-toggle panel-toggle--workspace" id="workspace-toggle" type="button" aria-label="Hide Workspace" aria-pressed="true" data-tooltip="Hide Workspace">${icon("panelLeft", 16)}</button>
+    </div>
+
+    <button class="panel-toggle panel-toggle--agent" id="agent-toggle" type="button" aria-label="Hide Agent" aria-pressed="true" data-tooltip="Hide Agent">${icon("panelRight", 16)}</button>
+
     <aside class="workspace-region" aria-label="Workspace">
       <div class="workspace-crown" data-tauri-drag-region>
-        <div class="traffic-lights" aria-hidden="true"><span></span><span></span><span></span></div>
         <button class="workspace-switcher" type="button" aria-label="Switch Workspace">
           <span class="workspace-mark">IN</span>
           <span class="workspace-switcher__copy"><strong>IdeaNote Lab</strong><small>Local Workspace</small></span>
@@ -107,15 +113,7 @@ document.querySelector("#app").innerHTML = `
         <div class="sync-state"><span></span><span>Local files up to date</span></div>
         <button class="foot-action" id="theme-trigger" type="button">${icon("settings", 15)}<span>Preferences</span><kbd>⌘,</kbd></button>
       </div>
-
-      <div class="workspace-rail" aria-hidden="true">
-        <div class="traffic-lights traffic-lights--compact"><span></span><span></span><span></span></div>
-        <span class="workspace-mark workspace-mark--rail">IN</span>
-        <div class="rail-stack">${icon("folder", 17)}${icon("search", 17)}${icon("settings", 17)}</div>
-      </div>
     </aside>
-
-    <button class="seam seam--workspace" id="workspace-toggle" type="button" aria-label="Collapse Workspace">${icon("chevron", 13)}</button>
 
     <section class="editor-region" aria-label="Editor Host">
       <header class="editor-crown" data-tauri-drag-region>
@@ -141,8 +139,6 @@ document.querySelector("#app").innerHTML = `
         </div>
       </div>
     </section>
-
-    <button class="seam seam--agent" id="agent-toggle" type="button" aria-label="Collapse Agent">${icon("chevron", 13)}</button>
 
     <aside class="agent-region" aria-label="Agent">
       <header class="agent-crown" data-tauri-drag-region>
@@ -186,11 +182,6 @@ document.querySelector("#app").innerHTML = `
           <textarea aria-label="Ask Agent" rows="3" placeholder="Ask about the active document…"></textarea>
           <div class="composer-foot"><span>Agent uses the active editor tools</span><button type="button" aria-label="Send message">${icon("send", 15)}</button></div>
         </div>
-      </div>
-
-      <div class="agent-rail" aria-hidden="true">
-        <span class="agent-mark agent-mark--rail">${icon("sparkle", 16)}</span>
-        <span class="rail-label">AGENT</span>
       </div>
     </aside>
   </main>
@@ -249,32 +240,35 @@ function closeCommand() {
   commandBackdrop.hidden = true;
 }
 
+function setPanelState(panel, open) {
+  const label = panel === "workspace" ? "Workspace" : "Agent";
+  const toggle = document.querySelector(`#${panel}-toggle`);
+  const action = open ? "Hide" : "Show";
+  shell.dataset[panel] = open ? "open" : "closed";
+  toggle.setAttribute("aria-label", `${action} ${label}`);
+  toggle.setAttribute("aria-pressed", String(open));
+  toggle.dataset.tooltip = `${action} ${label}`;
+}
+
+function togglePanel(panel) {
+  setPanelState(panel, shell.dataset[panel] === "closed");
+}
+
 let responsiveBucket;
 
 function syncResponsivePanels() {
   const nextBucket = window.innerWidth < 960 ? "minimum" : window.innerWidth < 1180 ? "compact" : "desktop";
   if (nextBucket === responsiveBucket) return;
   responsiveBucket = nextBucket;
-  shell.dataset.workspace = nextBucket === "desktop" ? "open" : "closed";
-  shell.dataset.agent = nextBucket === "minimum" ? "closed" : "open";
-  document.querySelector("#workspace-toggle").setAttribute("aria-label", shell.dataset.workspace === "open" ? "Collapse Workspace" : "Restore Workspace");
-  document.querySelector("#agent-toggle").setAttribute("aria-label", shell.dataset.agent === "open" ? "Collapse Agent" : "Restore Agent");
+  setPanelState("workspace", nextBucket === "desktop");
+  setPanelState("agent", nextBucket !== "minimum");
 }
 
 document.querySelectorAll(".tree-file").forEach((button) => button.addEventListener("click", () => setFile(button.dataset.file)));
 document.querySelectorAll(".tree-folder").forEach((button) => button.addEventListener("click", () => button.classList.toggle("is-open")));
 
-document.querySelector("#workspace-toggle").addEventListener("click", (event) => {
-  const closed = shell.dataset.workspace === "closed";
-  shell.dataset.workspace = closed ? "open" : "closed";
-  event.currentTarget.setAttribute("aria-label", closed ? "Collapse Workspace" : "Restore Workspace");
-});
-
-document.querySelector("#agent-toggle").addEventListener("click", (event) => {
-  const closed = shell.dataset.agent === "closed";
-  shell.dataset.agent = closed ? "open" : "closed";
-  event.currentTarget.setAttribute("aria-label", closed ? "Collapse Agent" : "Restore Agent");
-});
+document.querySelector("#workspace-toggle").addEventListener("click", () => togglePanel("workspace"));
+document.querySelector("#agent-toggle").addEventListener("click", () => togglePanel("agent"));
 
 document.querySelector("#theme-trigger").addEventListener("click", (event) => {
   const box = event.currentTarget.getBoundingClientRect();
