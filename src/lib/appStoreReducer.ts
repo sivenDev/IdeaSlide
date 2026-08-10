@@ -33,7 +33,7 @@ const IN_MEMORY_EDITABLE_STATUSES: DocumentStatus[] = [
 ];
 
 export type AppStoreAction =
-  | { type: "GO_HOME" }
+  | { type: "RESET_SESSION" }
   | { type: "OPEN_WORKSPACE"; workspace: WorkspaceSession; restoredDocuments?: DocumentSession[]; activePath?: string }
   | { type: "REPLACE_WORKSPACE"; workspace: WorkspaceSession; reloadDocuments?: boolean }
   | { type: "OPEN_DOCUMENT"; document: DocumentSession }
@@ -59,7 +59,7 @@ export type AppStoreAction =
 
 export function createInitialAppState(): ApplicationState {
   return {
-    mode: "launch",
+    mode: "empty",
     documents: [],
     presentationMode: "none",
     editorRefreshToken: 0,
@@ -108,7 +108,7 @@ export function appStoreReducer(
   action: AppStoreAction,
 ): ApplicationState {
   switch (action.type) {
-    case "GO_HOME":
+    case "RESET_SESSION":
       return createInitialAppState();
     case "OPEN_WORKSPACE": {
       const documents = (action.restoredDocuments ?? []).map((document) =>
@@ -303,6 +303,7 @@ export function appStoreReducer(
     case "CLOSE_DOCUMENT": {
       if (!state.documents.some((document) => document.id === action.sessionId)) return state;
       const documents = state.documents.filter((document) => document.id !== action.sessionId);
+      if (state.mode === "standalone" && documents.length === 0) return createInitialAppState();
       return {
         ...state,
         documents,

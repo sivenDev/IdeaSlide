@@ -5,7 +5,6 @@ import {
   FileOutput,
   FilePenLine,
   FolderOpen,
-  House,
   Save,
   Settings,
 } from "lucide-react";
@@ -33,7 +32,6 @@ interface ToolbarProps {
   onOpenWorkspace: () => void;
   onSave: () => void;
   onSaveAs: () => void;
-  onGoHome: () => void;
   onOpenSettings: () => void;
 }
 
@@ -46,7 +44,6 @@ export function Toolbar({
   onOpenWorkspace,
   onSave,
   onSaveAs,
-  onGoHome,
   onOpenSettings,
 }: ToolbarProps) {
   const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
@@ -97,10 +94,6 @@ export function Toolbar({
         }}
       >
         <div className="idea-slide-window-toolbar__commands">
-          <ToolbarAction tooltip="Back to Home" aria-label="Back to Home" onClick={onGoHome}>
-            <House {...toolbarIconProps} />
-          </ToolbarAction>
-          <Separator orientation="vertical" className="idea-slide-window-toolbar__separator" />
           <DropdownMenu open={openMenuOpen} onOpenChange={setOpenMenuOpen}>
             <DropdownMenuTrigger asChild>
               <span>

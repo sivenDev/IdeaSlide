@@ -396,12 +396,14 @@ export function IdeaSketchEditor({
   const agentBindingStateRef = useRef({
     document,
     activeContextId: editorState.activePageId,
+    activeContextLabel: activePage.title,
     readOnly,
     applyChangeSet: handleApplyAgentChangeSet,
   });
   agentBindingStateRef.current = {
     document,
     activeContextId: editorState.activePageId,
+    activeContextLabel: activePage.title,
     readOnly,
     applyChangeSet: handleApplyAgentChangeSet,
   };
@@ -412,6 +414,13 @@ export function IdeaSketchEditor({
     skillId: ideaSketchAgentExtension.skillId,
     tools: ideaSketchAgentExtension.tools,
     get activeContextId() { return agentBindingStateRef.current.activeContextId; },
+    get contextPresentation() {
+      return {
+        documentLabel: agentBindingStateRef.current.document.displayName || "Untitled IdeaSketch",
+        pathLabel: agentBindingStateRef.current.document.filePath || undefined,
+        focusLabel: `Page · ${agentBindingStateRef.current.activeContextLabel}`,
+      };
+    },
     get readOnly() { return agentBindingStateRef.current.readOnly; },
     buildContext: () => ideaSketchAgentExtension.buildContext(
       editorStateRef.current.document,
@@ -433,7 +442,7 @@ export function IdeaSketchEditor({
       changeSet as AgentChangeSet<IdeaSketchAgentOperation>,
     ),
     applyChangeSet: (changeSet) => agentBindingStateRef.current.applyChangeSet(changeSet),
-  }), [document.id]);
+  }), [activePage.title, document.id, editorState.activePageId]);
 
   useEffect(() => {
     onAgentBindingChange(agentBinding, document.id);

@@ -2,10 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-test('Settings Center is registry-driven and reachable from Home and editor chrome', async () => {
+test('Settings Center is registry-driven and reachable from the Workspace shell and editor chrome', async () => {
   const registry = await readFile(new URL('../src/lib/settingsSectionRegistry.ts', import.meta.url), 'utf8');
   const center = await readFile(new URL('../src/components/SettingsCenter.tsx', import.meta.url), 'utf8');
-  const home = await readFile(new URL('../src/components/LaunchScreen.tsx', import.meta.url), 'utf8');
+  const workspace = await readFile(new URL('../src/components/WorkspaceSidebar.tsx', import.meta.url), 'utf8');
+  const workspaceStart = await readFile(new URL('../src/components/WorkspaceStart.tsx', import.meta.url), 'utf8');
   const toolbar = await readFile(new URL('../src/components/Toolbar.tsx', import.meta.url), 'utf8');
   assert.match(registry, /registerSettingsSection/);
   assert.match(registry, /id: "general"/);
@@ -14,7 +15,8 @@ test('Settings Center is registry-driven and reachable from Home and editor chro
   assert.match(registry, /id: "ideasketch"/);
   assert.match(center, /getSettingsSections\(\)/);
   assert.match(center, /Configure IdeaNote, AI, and editor extensions/);
-  assert.match(home, /onOpenSettings/);
+  assert.match(workspace, /onOpenSettings/);
+  assert.match(workspaceStart, /aria-label="Open Settings"/);
   assert.match(toolbar, /tooltip="Settings"/);
 });
 

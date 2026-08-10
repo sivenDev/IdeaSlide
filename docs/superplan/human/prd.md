@@ -3,7 +3,7 @@
 - status: accepted
 - document_version: 1.0
 - created: 2026-08-03
-- last_updated: 2026-08-08
+- last_updated: 2026-08-10
 - product: IdeaNote
 - predecessor: IdeaSlide
 - implementation_authorized: true
@@ -25,11 +25,11 @@ IdeaNote 同时支持：
 
 长期产品布局为左、中、右三栏：
 
-- 左侧：Workspace Explorer。
+- 左侧：始终存在的 Workspace 命令栏；有 Workspace 时显示 Explorer，无会话或 Single File Mode 时显示 New、Open、Settings 与 Recent 入口。
 - 中间：当前文件的单一 Editor。
 - 右侧：AI Agent。
 
-当前阶段已实现左侧 Workspace Explorer、中间单一 Editor、IdeaSketch 与 Markdown 编辑器、全局 Settings Center 和可配置的通用 AI Agent。IdeaTable、IdeaWorkflow 以及 Workspace 导入导出在后续阶段开发；新增编辑器复用同一 Agent Runtime，并通过注册表注入自己的 Skill、Tools 和 Context。
+当前阶段已实现直接启动的 Workspace Loom 产品 Shell、左侧持久 Workspace 区域、中间单一 Editor、IdeaSketch 与 Markdown 编辑器、全局 Settings Center、Light/Dark/System 主题和可配置的通用 AI Agent。IdeaTable、IdeaWorkflow 以及 Workspace 导入导出在后续阶段开发；新增编辑器复用同一 Agent Runtime，并通过注册表注入自己的 Skill、Tools 和 Context。
 
 ## 2. 已确认产品决定
 
@@ -42,7 +42,7 @@ IdeaNote 同时支持：
 7. Workspace Mode 和 Single File Mode 使用同一套 Editor、Parser、Serializer 和 Save Pipeline。
 8. 中间编辑区不显示文件 Tabs，同时只呈现一个当前文件编辑器；文件切换由 Workspace Explorer 驱动。
 9. 从左侧新建文件后，新文件立即成为当前文件并在中间编辑器打开。
-10. 应用 Shell 使用左、中、右三栏：左侧 Workspace Explorer，中间为当前编辑器及其内部 Navigator，右侧为编辑器无关、可折叠且可调整宽度的 AI Agent；Agent 不嵌入任何具体编辑器的导航区域。
+10. 应用不再经过 Home 路由，启动后直接进入左、中、右三栏 Shell：左侧持久 Workspace 命令栏及可折叠详情，中间为当前编辑器及其内部 Navigator，右侧为编辑器无关、可折叠且可调整宽度的 AI Agent；Agent 不嵌入任何具体编辑器的导航区域。
 11. 当前支持 IdeaSketch (`.is v1`) 和 Markdown (`.md`) 两个编辑器。
 12. 未来文件格式为 `.it`（IdeaTable）和 `.iwf`（IdeaWorkflow）。
 13. 当前阶段实现一个编辑器无关的 AI Agent 架构：Rust Agent Core 负责 Runtime 选择、Turn 编排、流式输出、取消、重试、持久化和 Tool Broker；TypeScript 只负责活动编辑器的 Tool 执行、格式感知 ChangeSet、编辑器 SDK 直连事务和 UI。两侧通用层都不包含 `.is`、Markdown、IdeaTable 或 IdeaWorkflow 业务逻辑。
@@ -50,7 +50,7 @@ IdeaNote 同时支持：
 15. 新编辑器不需要等待 Agent 重构：它们通过 File Type Registry 关联自己的 Agent Extension，直接复用 Rust Agent Core、Settings、Provider、会话、Tool Bridge 和通用 Tool Activity 界面。
 16. Workspace Explorer 始终显示可导航的真实目录，但文件只显示当前 File Type Registry 明确支持打开的类型；当前阶段显示 `.is` 和 `.md`。
 17. Workspace Mode 产生的临时写入文件和其他应用内部临时产物统一放在 Workspace Root 的 `.ideanote/` 子目录中，不在用户文件旁生成 `.is.tmp` 等临时文件。
-18. Settings Center 同时从 Home 和编辑器打开，配置 General、AI Provider、Agent 和编辑器贡献的设置区段。
+18. Settings Center 同时从 Workspace 命令栏和编辑器 Toolbar 打开，配置 General、AI Provider、Agent 和编辑器贡献的设置区段。
 19. AI 默认开启；关闭后不挂载 Agent UI、不初始化 Runtime、不发现 Skill、不暴露 Tool、不访问 Provider，也不保留后台 Agent 生命周期。
 20. AI 开启但 Provider Credential 未配置时，只显示配置引导，不发起模型请求。
 21. API Key 由 Rust 使用 AES-256-GCM 保存在应用配置目录的版本化加密凭据文件中，随机密钥单独保存并限制为当前用户访问；不读取、迁移或删除旧 Keychain 数据，也不触发 Keychain 授权。该边界防止明文落盘和仅复制凭据文件造成泄露，但不能抵御可同时读取密钥与密文的同一操作系统用户进程。
@@ -60,6 +60,7 @@ IdeaNote 同时支持：
 25. 旧 MCP stdio Server、`--mcp` 启动模式、隐藏 MCP Renderer 和前端 MCP Bridge 已退休；当前 AI 自动化只通过应用内 Agent Extension 架构提供。
 26. Rust 自动选择通过版本和编辑器 Tool 安全检查的 Codex `0.147.0` app-server；缺失、不兼容、初始化失败或尚未产生可见进度时崩溃，透明回退到 OpenAI-compatible Compatibility Runtime。已经产生文本、公开活动、Plan 或 Tool 进度后崩溃则明确失败并要求显式重试，避免重复副作用。Grok 继续作为已评估候选，不进入当前生产选择。
 27. Agent 保留真实增量答案、确定性的 Preparing/Working/elapsed 活动，以及 Runtime 明确标记为公开的过程信息。对于上游在极短时间内突发或原子交付的 assistant answer，可以使用有界的展示节奏让内容可感知地逐步出现，但必须保留并区分真实来源时序，不得把展示节奏描述为模型仍在生成、token 直播或隐藏思考；不得展示或推断 hidden chain-of-thought。
+28. General → Appearance 提供 Light、Dark 和 System。主题选择持久化并即时作用于应用拥有的 Shell、Settings、Markdown chrome、Agent 与 Excalidraw UI；System 实时跟随操作系统，文档自有画布和内容颜色不被主题重写。
 
 ## 3. 产品目标
 
@@ -324,12 +325,12 @@ New Folder
 
 ### 8.3 目标布局
 
-AI 关闭或 Agent 栏折叠时：
+AI 关闭或 Agent 栏折叠时，左侧仍保留 Workspace 命令栏：
 
 ```text
 ┌──────────────────┬────────────────────────────────────────┐
-│ Workspace        │ Current File Editor                    │
-│ Explorer         │                                        │
+│ Workspace rail   │ Current File Editor                    │
+│ + Explorer/start │                                        │
 │                  │ drawing.is                             │
 │ Folders          │                                        │
 │ Files            │                                        │
@@ -340,8 +341,8 @@ AI 开启并打开应用级 Agent 栏时：
 
 ```text
 ┌──────────────────┬──────────────────────────────────────┬──────────────────┐
-│ Workspace        │ Current File Editor                  │ AI Agent         │
-│ Explorer         │                                      │                  │
+│ Workspace rail   │ Current File Editor                  │ AI Agent         │
+│ + Explorer/start │                                      │ Working context  │
 │                  │ Canvas / editor-owned Navigator      │ Conversation     │
 │                  │                                      │ Tool Activity    │
 └──────────────────┴──────────────────────────────────────┴──────────────────┘
@@ -355,7 +356,7 @@ AI 关闭时不挂载 Agent 入口或生命周期。AI 开启时，Agent 作为�
 
 用户可以通过以下方式直接打开受支持文件：
 
-- Home 中的 Open File。
+- Workspace 命令栏或 Start surface 中的 Open File。
 - 系统文件关联。
 - 双击文件。
 - Recent Files。
@@ -635,8 +636,10 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 - 当前文件 Dirty 状态必须在标题栏清晰显示；非活动受保护 Session 的状态必须在 Workspace Explorer 中可识别。
 - 左侧 Explorer 和中间 Editor 之间支持有最小、最大宽度限制的拖动调整。
 - 左侧 Explorer 可以折叠。
+- 在 1180px 及以上可同时展开 Workspace 与 Agent；960–1179px 默认收起 Workspace 详情；850–959px 默认收起两侧详情并保留独立的 48px 恢复栏，页面不得产生横向溢出。
 - AI 关闭时不显示 Agent 栏或空占位；AI 开启但未配置 Provider 时，独立 Agent 栏显示可进入 Settings 的配置状态。
 - 应用级右侧 Agent 栏可折叠、可调整宽度；编辑器内部 Navigator 与 Agent 分属不同布局区域并可独立控制。
+- Light、Dark、System 主题必须保持 Shell、Settings、菜单、Markdown 与 Agent 的文字、边界、焦点、禁用、警告和错误状态可读；System 跟随操作系统变化。
 - 从显式打开入口触发的 Unsupported File 页面必须说明当前不支持编辑，并提供安全的下一步操作；Workspace Explorer 本身不列出不支持的文件。
 
 ## 18. 当前阶段 MVP 范围
@@ -660,7 +663,7 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 15. Pages、Cameras 和 Present 现有能力适配。
 16. Save、Save As、Save All 和 Recovery。
 17. 受支持文件白名单过滤，以及显式打开入口的 Unsupported File 回退。
-18. Home/Editor 共用的 Settings Center、版本化非秘密设置和 Rust 管理的本地加密凭据。
+18. Workspace Shell/Editor 共用的 Settings Center、Light/Dark/System 外观、版本化非秘密设置和 Rust 管理的本地加密凭据。
 19. 默认开启但可完整关闭的 AI Gate。
 20. 编辑器无关的流式 Agent Runtime、取消、对话历史和应用级右侧 Agent 栏。
 21. IdeaSketch 与 Markdown 各自的 Skill、受限 Context、只读 Tool 和格式感知 Mutation Tool。
@@ -745,6 +748,7 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 
 ### Phase 1：Workspace Shell
 
+- 直接启动到持久 Workspace / Editor / Agent Shell，不保留 Home 路由。
 - Open Workspace。
 - Workspace Explorer。
 - 基于 File Type Registry 的 Explorer 文件可见性白名单。
@@ -764,7 +768,7 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 
 ### Phase 3：Settings 与 Generic AI Agent
 
-- Home/Editor 共用 Settings Center。
+- Workspace Shell/Editor 共用 Settings Center，并提供持久 Light/Dark/System 主题。
 - OpenAI-compatible Provider 配置、本地加密凭据与可配置安全重试。
 - 默认开启/完整关闭 AI Gate。
 - 通用 Agent Runtime、流式输出、取消和会话历史。

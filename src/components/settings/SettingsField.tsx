@@ -12,8 +12,8 @@ export function SettingsField({
   return (
     <div className="ideanote-settings-field">
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-semibold text-gray-900">{title}</div>
-        <div className="mt-1 max-w-xl text-xs leading-5 text-gray-500">{description}</div>
+        <div className="ideanote-settings-field__title">{title}</div>
+        <div className="ideanote-settings-field__description">{description}</div>
       </div>
       <div className="flex shrink-0 items-center">{children}</div>
     </div>

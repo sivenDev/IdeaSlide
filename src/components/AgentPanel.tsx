@@ -20,6 +20,29 @@ import { AgentThreadHistory } from "./agent/AgentThreadHistory";
 import { AgentThreadHeader } from "./agent/AgentThreadHeader";
 import { AgentTranscript } from "./agent/AgentTranscript";
 
+function AgentWorkingContext({ binding }: { binding?: ActiveAgentEditorBinding }) {
+  const context = binding?.contextPresentation;
+  return (
+    <section className="ideanote-agent-context" aria-label="Working context">
+      <div className="ideanote-agent-context__heading">
+        <span className="ideanote-agent-context__knot" aria-hidden />
+        <span>Working context</span>
+      </div>
+      {context ? (
+        <>
+          <div className="ideanote-agent-context__document" title={context.pathLabel}>{context.documentLabel}</div>
+          <div className="ideanote-agent-context__chips">
+            <span>Local file</span>
+            {context.focusLabel && <span className="is-focus">{context.focusLabel}</span>}
+          </div>
+        </>
+      ) : (
+        <p>No active editor context</p>
+      )}
+    </section>
+  );
+}
+
 export function AgentPanel({
   binding,
   onOpenSettings,
@@ -399,6 +422,7 @@ export function AgentPanel({
             Configure an AI Provider credential to start new Turns.
           </button>
         )}
+        <AgentWorkingContext binding={binding} />
         <AgentTranscript
           state={state}
           presentation={presentation}

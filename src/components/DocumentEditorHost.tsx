@@ -13,13 +13,15 @@ interface DocumentEditorHostProps {
 export function DocumentEditorHost({ document, fullPath, editorProps }: DocumentEditorHostProps) {
   if (!document) {
     return (
-      <div className="flex h-full items-center justify-center bg-[#f7f8fa] text-sm text-gray-400">
-        Open a file from the Workspace Explorer.
+      <div className="ideanote-editor-empty">
+        <div className="ideanote-editor-empty__mark" aria-hidden>IN</div>
+        <h1>Choose what to work on</h1>
+        <p>Open a local Workspace or file from the left. Your files remain the source of truth.</p>
       </div>
     );
   }
   if (document.status === "loading") {
-    return <div className="flex h-full items-center justify-center bg-[#f7f8fa] text-sm text-gray-500">Loading {document.displayName}…</div>;
+    return <div className="ideanote-editor-state">Loading {document.displayName}…</div>;
   }
   if (document.status === "unsupported" || document.status === "legacy-protected" || document.status === "invalid" || document.status === "error") {
     return <UnsupportedFileView fileName={document.displayName || "file"} fullPath={fullPath} message={document.message} />;
@@ -30,7 +32,7 @@ export function DocumentEditorHost({ document, fullPath, editorProps }: Document
   if (contribution && document.model) {
     const Editor = contribution.component;
     return (
-      <div className="relative h-full min-h-0 bg-[#f7f8fa]">
+      <div className="ideanote-editor-host relative h-full min-h-0">
         <div className="h-full min-h-0" hidden={isMissing} aria-hidden={isMissing}>
           <ErrorBoundary><Editor document={document} {...editorProps} /></ErrorBoundary>
         </div>
@@ -39,7 +41,7 @@ export function DocumentEditorHost({ document, fullPath, editorProps }: Document
   }
   if (contribution) {
     return (
-      <div className="flex h-full items-center justify-center bg-[#f7f8fa] text-sm text-gray-500">
+      <div className="ideanote-editor-state">
         {definition?.displayName} editor is ready for this document session.
       </div>
     );

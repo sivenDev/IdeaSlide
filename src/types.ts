@@ -193,7 +193,7 @@ export interface WorkspaceChangeEvent {
   readOnly?: boolean;
 }
 
-export type ApplicationMode = "launch" | "workspace" | "standalone";
+export type ApplicationMode = "empty" | "workspace" | "standalone";
 
 export interface ApplicationState {
   mode: ApplicationMode;

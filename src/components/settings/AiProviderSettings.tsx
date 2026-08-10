@@ -33,8 +33,8 @@ export function AiProviderSettings() {
         <div className="flex items-start gap-3">
           <ShieldCheck className="mt-0.5 text-emerald-600" aria-hidden size={18} />
           <div>
-            <div className="text-sm font-semibold text-gray-900">Encrypted local credential</div>
-            <div className="mt-1 text-xs leading-5 text-gray-500">
+            <div className="ideanote-settings-field__title">Encrypted local credential</div>
+            <div className="ideanote-settings-field__description">
               {credentialConfigured ? "A provider credential is configured." : "No credential is configured yet."}
             </div>
           </div>
@@ -93,13 +93,13 @@ export function AiProviderSettings() {
       </SettingsField>
       <div className="ideanote-settings-field items-start">
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold text-gray-900">API Key</div>
-          <div className="mt-1 text-xs leading-5 text-gray-500">Entering a new key replaces the existing credential.</div>
+          <div className="ideanote-settings-field__title">API Key</div>
+          <div className="ideanote-settings-field__description">Entering a new key replaces the existing credential.</div>
         </div>
         <div className="flex w-72 flex-col gap-2">
           <div className="flex gap-2">
             <div className="relative min-w-0 flex-1">
-              <KeyRound className="absolute left-2.5 top-2.5 text-gray-400" aria-hidden size={14} />
+              <KeyRound className="ideanote-settings-input-icon absolute left-2.5 top-2.5" aria-hidden size={14} />
               <input
                 type={apiKeyVisible ? "text" : "password"}
                 autoComplete="new-password"
@@ -111,7 +111,7 @@ export function AiProviderSettings() {
               />
               <button
                 type="button"
-                className="absolute right-2 top-2 text-gray-400 hover:text-gray-700"
+                className="ideanote-settings-input-action absolute right-2 top-2"
                 aria-label={apiKeyVisible ? "Hide API key" : "Show API key"}
                 aria-pressed={apiKeyVisible}
                 onClick={() => setApiKeyVisible((visible) => !visible)}

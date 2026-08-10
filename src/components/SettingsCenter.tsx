@@ -20,7 +20,7 @@ function SectionContent({ section }: { section: SettingsSectionId }) {
   if (section === "ai-provider") return <AiProviderSettings />;
   if (section === "agent") return <AgentSettings />;
   if (section === "ideasketch") return <IdeaSketchSettings />;
-  return <div className="text-sm text-gray-500">This settings section is not available.</div>;
+  return <div className="ideanote-settings-lead">This settings section is not available.</div>;
 }
 
 export function SettingsCenter({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -38,19 +38,19 @@ export function SettingsCenter({ open, onOpenChange }: { open: boolean; onOpenCh
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="ideanote-settings-overlay" />
-        <Dialog.Content className="ideanote-settings-dialog" aria-describedby="settings-description">
+        <Dialog.Content className="ideanote-settings-dialog">
           <header className="ideanote-settings-header">
             <div className="flex items-center gap-3">
               <div className="ideanote-settings-logo"><Settings2 aria-hidden size={18} /></div>
               <div>
-                <Dialog.Title className="text-base font-semibold text-gray-950">Settings</Dialog.Title>
-                <Dialog.Description id="settings-description" className="mt-0.5 text-xs text-gray-500">
+                <Dialog.Title className="ideanote-settings-dialog-title">Settings</Dialog.Title>
+                <Dialog.Description className="ideanote-settings-dialog-description">
                   Configure IdeaNote, AI, and editor extensions.
                 </Dialog.Description>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {saving && <span className="text-xs text-gray-400">Saving…</span>}
+              {saving && <span className="ideanote-settings-saving">Saving…</span>}
               <Dialog.Close className="ideanote-settings-close" aria-label="Close Settings"><X aria-hidden size={17} /></Dialog.Close>
             </div>
           </header>
@@ -72,7 +72,7 @@ export function SettingsCenter({ open, onOpenChange }: { open: boolean; onOpenCh
               })}
             </nav>
             <main className="ideanote-settings-content">
-              {error && <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
+              {error && <div className="ideanote-settings-error">{error}</div>}
               <SectionContent section={activeSection} />
             </main>
           </div>

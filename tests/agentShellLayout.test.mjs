@@ -15,7 +15,9 @@ test('Agent is an app-level right column outside the active editor', async () =>
   assert.match(shell, /side="right"[\s\S]*?showAgent/);
   assert.match(editor, /onAgentBindingChange/);
   assert.match(editor, /const agentBindingStateRef = useRef/);
-  assert.match(editor, /\}\), \[document\.id\]\);/);
+  assert.match(editor, /get contextPresentation\(\)/);
+  assert.match(editor, /focusLabel: `Page · \$\{agentBindingStateRef\.current\.activeContextLabel\}`/);
+  assert.match(editor, /\[activePage\.title, document\.id, editorState\.activePageId\]/);
   assert.match(editor, /<IdeaSketchNavigator/);
   assert.doesNotMatch(editor, /<AgentPanel|<RightSidebarHost|rightSidebarSurface|RightSidebarSurface/);
   assert.doesNotMatch(host, /navigator|onSurfaceChange|RightSidebarSurface/);
