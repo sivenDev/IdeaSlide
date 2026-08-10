@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bot } from "lucide-react";
 import { ask, message } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -54,7 +53,7 @@ import {
   type UnsavedDocumentResolution,
 } from "../lib/unsavedChanges";
 import { isProtectedDocumentSession } from "../lib/appStoreReducer";
-import { getFileTypeDefinition, getFileTypeDefinitionByPath } from "../lib/fileTypeRegistry";
+import { getFileTypeDefinitionByPath } from "../lib/fileTypeRegistry";
 import {
   projectWorkspaceEntryDrop,
   workspaceParentPath,
@@ -64,7 +63,6 @@ import type { DocumentEditorState, DocumentModel, DocumentSession, IdeaSketchPag
 import type { ActiveAgentEditorBinding } from "../lib/agent/types";
 import { Toolbar } from "./Toolbar";
 import { WorkspaceExplorer } from "./WorkspaceExplorer";
-import { WorkspaceSidebar, type WorkspaceSidebarSurface } from "./WorkspaceSidebar";
 import { DocumentEditorHost } from "./DocumentEditorHost";
 import { ResizableDivider } from "./ResizableDivider";
 import { ExternalChangeNotice } from "./ExternalChangeNotice";
@@ -74,20 +72,12 @@ import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 import { AgentPanel } from "./AgentPanel";
 import { RightSidebarHost } from "./RightSidebarHost";
 
-const AGENT_PANEL_DEFAULT_WIDTH = 360;
-const AGENT_PANEL_MIN_WIDTH = 300;
+const AGENT_PANEL_DEFAULT_WIDTH = 300;
+const AGENT_PANEL_MIN_WIDTH = 260;
 const AGENT_PANEL_MAX_WIDTH = 420;
-const COLLAPSED_PANEL_RAIL_WIDTH = 48;
-
-type ViewportBucket = "wide" | "compact" | "narrow";
-
-function getViewportBucket(width: number): ViewportBucket {
-  if (width < 960) return "narrow";
-  if (width < 1180) return "compact";
-  return "wide";
-}
 
 interface EditorLayoutProps {
+  onGoHome: () => void;
   onOpenSettings: () => void;
   readOnly?: boolean;
   pendingStandalonePath?: string;
@@ -136,6 +126,7 @@ function resolveRelativeDocumentPath(basePath: string, href: string): string | u
 }
 
 export function EditorLayout({
+  onGoHome,
   onOpenSettings,
   readOnly = false,
   pendingStandalonePath,
@@ -143,12 +134,10 @@ export function EditorLayout({
 }: EditorLayoutProps) {
   const { state, dispatch } = useAppStore();
   const { activationState } = useSettings();
-  const [viewportBucket, setViewportBucket] = useState<ViewportBucket>(() => getViewportBucket(window.innerWidth));
   const [isSaving, setIsSaving] = useState(false);
-  const [showWorkspace, setShowWorkspace] = useState(() => window.innerWidth >= 1180);
-  const [workspaceSurface, setWorkspaceSurface] = useState<WorkspaceSidebarSurface>(state.mode === "workspace" ? "workspace" : "start");
+  const [showWorkspace, setShowWorkspace] = useState(state.mode === "workspace");
   const [workspacePanelWidth, setWorkspacePanelWidth] = useState(WORKSPACE_PANEL_DEFAULT_WIDTH);
-  const [showAgent, setShowAgent] = useState(() => window.innerWidth >= 960);
+  const [showAgent, setShowAgent] = useState(true);
   const [agentPanelWidth, setAgentPanelWidth] = useState(AGENT_PANEL_DEFAULT_WIDTH);
   const [agentBinding, setAgentBinding] = useState<ActiveAgentEditorBinding>();
   const [isResizingWorkspace, setIsResizingWorkspace] = useState(false);
@@ -175,32 +164,16 @@ export function EditorLayout({
     || Boolean(activeDocument?.readOnly)
     || activeDocument?.status === "read-only";
 
-  useEffect(() => {
-    setWorkspaceSurface(state.mode === "workspace" ? "workspace" : "start");
-    if (viewportBucket === "wide") setShowWorkspace(true);
-  }, [state.mode, viewportBucket]);
-  useEffect(() => {
-    let currentBucket = viewportBucket;
-    const updateViewport = () => {
-      const nextBucket = getViewportBucket(window.innerWidth);
-      if (nextBucket === currentBucket) return;
-      currentBucket = nextBucket;
-      setViewportBucket(nextBucket);
-      setShowWorkspace(nextBucket === "wide");
-      setShowAgent(nextBucket !== "narrow" && activationState !== "disabled");
-    };
-    window.addEventListener("resize", updateViewport);
-    return () => window.removeEventListener("resize", updateViewport);
-  }, [activationState, viewportBucket]);
+  useEffect(() => setShowWorkspace(state.mode === "workspace"), [state.mode]);
   useEffect(() => setWorkspaceDiagnosticsHidden(false), [state.workspace?.root, state.workspace?.metadata.diagnostics]);
   useEffect(() => {
     if (activationState === "disabled") {
       setShowAgent(false);
       setAgentBinding(undefined);
-    } else if ((activationState === "ready" || activationState === "configuration-required") && viewportBucket !== "narrow") {
+    } else if (activationState === "ready" || activationState === "configuration-required") {
       setShowAgent(true);
     }
-  }, [activationState, viewportBucket]);
+  }, [activationState]);
   useEffect(() => {
     setAgentBinding((current) => current?.document.id === activeDocument?.id ? current : undefined);
   }, [activeDocument?.id]);
@@ -679,28 +652,6 @@ export function EditorLayout({
   const confirmSessionExitRef = useRef(confirmSessionExit);
   confirmSessionExitRef.current = confirmSessionExit;
 
-  const handleNewFile = useCallback(async (fileType: string) => {
-    if (!await confirmSessionExit()) return;
-    const definition = getFileTypeDefinition(fileType);
-    if (!definition?.creatable) throw new Error(`${fileType} is not registered for creation`);
-    const model = await definition.createEmpty();
-    const extension = definition.extensions[0] ?? "txt";
-    dispatch({
-      type: "OPEN_DOCUMENT",
-      document: {
-        id: crypto.randomUUID(),
-        mode: "standalone",
-        filePath: "",
-        displayName: `Untitled.${extension}`,
-        fileType: definition.type,
-        status: "editable",
-        model,
-        isDirty: true,
-        revision: 1,
-      },
-    });
-  }, [confirmSessionExit, dispatch]);
-
   const handleOpenFile = useCallback(async () => {
     if (!await confirmSessionExit()) return;
     const { path, document } = await chooseAndOpenStandaloneDocument();
@@ -708,23 +659,11 @@ export function EditorLayout({
     addRecentFile(path).catch(console.error);
   }, [confirmSessionExit, dispatch]);
 
-  const handleOpenRecentFile = useCallback(async (path: string) => {
+  const handleOpenWorkspace = useCallback(async () => {
     if (!await confirmSessionExit()) return;
-    const document = await openStandaloneDocument(path);
-    dispatch({ type: "OPEN_DOCUMENT", document: sessionFromOpened(path, "standalone", document) });
-    addRecentFile(path).catch(console.error);
-  }, [confirmSessionExit, dispatch]);
-
-  const handleOpenWorkspace = useCallback(async (root?: string) => {
-    if (!await confirmSessionExit()) return;
-    const workspace = await openWorkspace(root);
+    const workspace = await openWorkspace();
     const restored = restoreWorkspaceDocuments(workspace);
     dispatch({ type: "OPEN_WORKSPACE", workspace, restoredDocuments: restored.documents, activePath: restored.activePath });
-  }, [confirmSessionExit, dispatch]);
-
-  const handleResetSession = useCallback(async () => {
-    if (!await confirmSessionExit()) return;
-    dispatch({ type: "RESET_SESSION" });
   }, [confirmSessionExit, dispatch]);
 
   useEffect(() => {
@@ -834,6 +773,11 @@ export function EditorLayout({
     setRecoveryCandidate(undefined);
   }, [clearRecoveryForDocument, recoveryCandidate, state.documents]);
 
+  const handleGoHome = useCallback(async () => {
+    if (!await confirmSessionExit()) return;
+    onGoHome();
+  }, [confirmSessionExit, onGoHome]);
+
   useEffect(() => {
     if (!("__TAURI_INTERNALS__" in window)) return;
     let disposed = false;
@@ -898,11 +842,6 @@ export function EditorLayout({
       status: document.status,
     }));
   const agentAvailable = activationState === "ready" || activationState === "configuration-required";
-  const renderedAgentWidth = viewportBucket === "wide"
-    ? agentPanelWidth
-    : Math.min(agentPanelWidth, 330);
-  const workspaceRegionWidth = COLLAPSED_PANEL_RAIL_WIDTH + (showWorkspace ? workspacePanelWidth : 0);
-  const agentRegionWidth = showAgent ? renderedAgentWidth : COLLAPSED_PANEL_RAIL_WIDTH;
 
   return (
     <div className="idea-slide-editor-shell flex h-screen flex-col">
@@ -915,59 +854,45 @@ export function EditorLayout({
         onOpenWorkspace={() => void handleOpenWorkspace()}
         onSave={() => void handleSave()}
         onSaveAs={() => void handleSaveAs()}
+        onGoHome={() => void handleGoHome()}
         onOpenSettings={onOpenSettings}
       />
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div
-          className={`h-full flex-shrink-0 overflow-hidden ${isResizingWorkspace ? "" : "transition-[width] duration-200"}`}
-          style={{ width: workspaceRegionWidth }}
-        >
-          <WorkspaceSidebar
-            mode={state.mode}
-            detailVisible={showWorkspace}
-            surface={workspaceSurface}
-            onSurfaceChange={setWorkspaceSurface}
-            onShowDetail={() => setShowWorkspace(true)}
-            onNewFile={handleNewFile}
-            onOpenWorkspace={handleOpenWorkspace}
-            onOpenFile={handleOpenFile}
-            onOpenRecentWorkspace={handleOpenWorkspace}
-            onOpenRecentFile={handleOpenRecentFile}
-            onOpenSettings={onOpenSettings}
-            onResetSession={handleResetSession}
-          >
-            {state.workspace && (
-              <WorkspaceExplorer
-                entries={state.workspace.entries}
-                selectedPath={state.workspace.selectedPath}
-                expandedPaths={state.workspace.expandedPaths}
-                documentIndicators={documentIndicators}
-                readOnly={readOnly || state.workspace.readOnly}
-                onSelect={(path) => dispatch({ type: "SELECT_WORKSPACE_PATH", path })}
-                onOpen={openEntry}
-                onCreateFolder={handleCreateFolder}
-                onCreateDocument={handleCreateDocument}
-                onRename={handleRename}
-                onMove={handleMove}
-                onTrash={handleTrash}
-                onRefresh={refreshTree}
-                onExpandedPathsChange={(paths) => dispatch({ type: "SET_EXPANDED_PATHS", paths })}
-              />
-            )}
-          </WorkspaceSidebar>
-        </div>
-        <ResizableDivider
-          side="left"
-          panelLabel="Workspace"
-          isVisible={showWorkspace}
-          size={workspacePanelWidth}
-          minSize={WORKSPACE_PANEL_MIN_WIDTH}
-          maxSize={WORKSPACE_PANEL_MAX_WIDTH}
-          onResize={(width) => setWorkspacePanelWidth(clampWorkspacePanelWidth(width))}
-          onResizeStart={() => setIsResizingWorkspace(true)}
-          onResizeEnd={() => setIsResizingWorkspace(false)}
-          onToggle={() => setShowWorkspace((visible) => !visible)}
-        />
+        {state.workspace && (
+          <>
+            <div className={`h-full flex-shrink-0 overflow-hidden ${isResizingWorkspace ? "" : "transition-[width] duration-200"}`} style={{ width: showWorkspace ? workspacePanelWidth : 0 }}>
+              <div className="h-full" style={{ width: workspacePanelWidth }}>
+                <WorkspaceExplorer
+                  entries={state.workspace.entries}
+                  selectedPath={state.workspace.selectedPath}
+                  expandedPaths={state.workspace.expandedPaths}
+                  documentIndicators={documentIndicators}
+                  readOnly={readOnly || state.workspace.readOnly}
+                  onSelect={(path) => dispatch({ type: "SELECT_WORKSPACE_PATH", path })}
+                  onOpen={openEntry}
+                  onCreateFolder={handleCreateFolder}
+                  onCreateDocument={handleCreateDocument}
+                  onRename={handleRename}
+                  onMove={handleMove}
+                  onTrash={handleTrash}
+                  onRefresh={refreshTree}
+                  onExpandedPathsChange={(paths) => dispatch({ type: "SET_EXPANDED_PATHS", paths })}
+                />
+              </div>
+            </div>
+            <ResizableDivider
+              side="left"
+              isVisible={showWorkspace}
+              size={workspacePanelWidth}
+              minSize={WORKSPACE_PANEL_MIN_WIDTH}
+              maxSize={WORKSPACE_PANEL_MAX_WIDTH}
+              onResize={(width) => setWorkspacePanelWidth(clampWorkspacePanelWidth(width))}
+              onResizeStart={() => setIsResizingWorkspace(true)}
+              onResizeEnd={() => setIsResizingWorkspace(false)}
+              onToggle={() => setShowWorkspace((visible) => !visible)}
+            />
+          </>
+        )}
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
           {state.workspace && (
             <WorkspaceStatusNotice
@@ -1041,19 +966,12 @@ export function EditorLayout({
               maxSize={AGENT_PANEL_MAX_WIDTH}
               onResize={(nextSize) => setAgentPanelWidth(Math.max(AGENT_PANEL_MIN_WIDTH, Math.min(AGENT_PANEL_MAX_WIDTH, nextSize)))}
             />
-            <div className="h-full flex-shrink-0 overflow-hidden transition-[width] duration-200" style={{ width: agentRegionWidth }}>
-              {showAgent ? (
-                <div className="h-full" style={{ width: renderedAgentWidth }}>
-                  <RightSidebarHost>
-                    <AgentPanel binding={agentBinding} onOpenSettings={onOpenSettings} />
-                  </RightSidebarHost>
-                </div>
-              ) : (
-                <button type="button" className="ideanote-agent-restore-rail" onClick={() => setShowAgent(true)} aria-label="Show Agent">
-                  <Bot aria-hidden size={17} />
-                  <span>Agent</span>
-                </button>
-              )}
+            <div className="h-full flex-shrink-0 overflow-hidden transition-[width] duration-200" style={{ width: showAgent ? agentPanelWidth : 0 }}>
+              <div className="h-full" style={{ width: agentPanelWidth }}>
+                <RightSidebarHost>
+                  <AgentPanel binding={agentBinding} onOpenSettings={onOpenSettings} />
+                </RightSidebarHost>
+              </div>
             </div>
           </>
         )}

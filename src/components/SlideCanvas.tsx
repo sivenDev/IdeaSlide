@@ -15,7 +15,6 @@ import {
 import { exportExcalidrawToDrawio } from "../lib/drawioExport";
 import { CanvasSelectionActions } from "./CanvasSelectionActions";
 import { CameraBadgeOverlay } from "./CameraBadgeOverlay";
-import { useSettings } from "../hooks/useSettings";
 
 function getScenePointerFromEvent(api: any, event: PointerEvent) {
   const appState = api.getAppState();
@@ -72,7 +71,6 @@ function SlideCanvasInner({
   editorRefreshToken,
   cameraDrawingRequestToken = 0,
 }: SlideCanvasProps) {
-  const { resolvedTheme } = useSettings();
   // Use a ref to always have the latest onChange without causing re-renders
   const containerRef = useRef<HTMLDivElement>(null);
   const onChangeRef = useRef(onChange);
@@ -503,6 +501,7 @@ function SlideCanvasInner({
         Export as draw.io
       </MainMenu.Item>
       <MainMenu.DefaultItems.SaveAsImage />
+      <MainMenu.DefaultItems.ToggleTheme />
       <MainMenu.DefaultItems.ChangeCanvasBackground />
       <MainMenu.DefaultItems.ClearCanvas />
       <MainMenu.DefaultItems.Help />
@@ -525,12 +524,12 @@ function SlideCanvasInner({
     >
       <Excalidraw
         key={`excalidraw:${slideId}`}
-        theme={resolvedTheme}
         excalidrawAPI={handleApiReady}
         initialData={{
           elements: elements as any[],
           appState: {
             ...appState,
+            viewBackgroundColor: "#ffffff",
             // Ensure collaborators is always a Map to prevent errors
             collaborators: new Map(),
             ...(viewMode && {

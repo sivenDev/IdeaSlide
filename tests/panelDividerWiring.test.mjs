@@ -37,8 +37,8 @@ test('divider supports independently bounded resizing for Workspace, Agent, and 
   assert.match(editor, /WORKSPACE_PANEL_MAX_WIDTH/);
   assert.match(editor, /clampWorkspacePanelWidth/);
   assert.match(editor, /side="left"[\s\S]*onResize=/);
-  assert.match(editor, /const AGENT_PANEL_DEFAULT_WIDTH = 360/);
-  assert.match(editor, /const AGENT_PANEL_MIN_WIDTH = 300/);
+  assert.match(editor, /const AGENT_PANEL_DEFAULT_WIDTH = 300/);
+  assert.match(editor, /const AGENT_PANEL_MIN_WIDTH = 260/);
   assert.match(editor, /const AGENT_PANEL_MAX_WIDTH = 420/);
   assert.match(editor, /side="right"[\s\S]*panelLabel="Agent"[\s\S]*onResize=/);
   assert.match(ideaSketchEditor, /const DEFAULT_RIGHT_SIDEBAR_WIDTH = 260/);
@@ -47,15 +47,11 @@ test('divider supports independently bounded resizing for Workspace, Agent, and 
   assert.match(ideaSketchEditor, /side="right"[\s\S]*onResize=/);
 });
 
-test('Workspace and Agent detail regions derive responsive defaults and remain independently collapsible', async () => {
+test('Workspace Explorer is visible by default in Workspace mode and remains collapsible', async () => {
   const editor = await readFile(new URL('../src/components/EditorLayout.tsx', import.meta.url), 'utf8');
 
-  assert.match(editor, /window\.innerWidth >= 1180/);
-  assert.match(editor, /window\.innerWidth >= 960/);
-  assert.match(editor, /if \(width < 960\) return "narrow"/);
-  assert.match(editor, /if \(width < 1180\) return "compact"/);
-  assert.match(editor, /setShowWorkspace\(nextBucket === "wide"\)/);
-  assert.match(editor, /setShowAgent\(nextBucket !== "narrow"/);
+  assert.match(editor, /useState\(state\.mode === "workspace"\)/);
+  assert.match(editor, /setShowWorkspace\(state\.mode === "workspace"\)/);
   assert.match(editor, /<ResizableDivider[\s\S]*side="left"[\s\S]*isVisible=\{showWorkspace\}/);
   assert.match(editor, /<ResizableDivider[\s\S]*side="right"[\s\S]*isVisible=\{showAgent\}/);
   assert.match(editor, /onToggle=\{\(\) => setShowWorkspace/);

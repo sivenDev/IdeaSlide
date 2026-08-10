@@ -17,9 +17,9 @@ export function GeneralSettings() {
             general: { ...current.general, theme: event.target.value as "system" | "light" | "dark" },
           }))}
         >
+          <option value="system">System</option>
           <option value="light">Light</option>
           <option value="dark">Dark</option>
-          <option value="system">System</option>
         </select>
       </SettingsField>
     </section>

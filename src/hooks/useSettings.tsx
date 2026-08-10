@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   DEFAULT_SETTINGS,
   deleteAiCredential,
@@ -11,7 +11,6 @@ import {
   type AgentActivationState,
   type AppSettings,
 } from "../lib/settings";
-import { applyResolvedTheme, observeTheme, resolveTheme, type ResolvedTheme } from "../lib/theme";
 
 interface SettingsContextValue {
   settings: AppSettings;
@@ -20,7 +19,6 @@ interface SettingsContextValue {
   error?: string;
   credentialConfigured: boolean;
   activationState: AgentActivationState;
-  resolvedTheme: ResolvedTheme;
   updateSettings: (updater: (current: AppSettings) => AppSettings) => Promise<void>;
   storeCredential: (apiKey: string) => Promise<void>;
   removeCredential: () => Promise<void>;
@@ -34,15 +32,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>();
   const [credentialConfigured, setCredentialConfigured] = useState(false);
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => resolveTheme(
-    DEFAULT_SETTINGS.general.theme,
-    window.matchMedia("(prefers-color-scheme: dark)").matches,
-  ));
-
-  useLayoutEffect(() => observeTheme(settings.general.theme, (theme) => {
-    applyResolvedTheme(theme);
-    setResolvedTheme(theme);
-  }), [settings.general.theme]);
 
   useEffect(() => {
     let active = true;
@@ -110,11 +99,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     error,
     credentialConfigured,
     activationState: getAgentActivationState(hydrated, settings, credentialConfigured),
-    resolvedTheme,
     updateSettings,
     storeCredential,
     removeCredential,
-  }), [credentialConfigured, error, hydrated, removeCredential, resolvedTheme, saving, settings, storeCredential, updateSettings]);
+  }), [credentialConfigured, error, hydrated, removeCredential, saving, settings, storeCredential, updateSettings]);
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 }

@@ -35,7 +35,7 @@ const ThumbnailCard = memo(function ThumbnailCard({
 
   return (
     <button
-      aria-label={`Go to slide ${index + 1}`}
+      aria-label={`跳转到第 ${index + 1} 张幻灯片`}
       className="relative rounded-lg overflow-hidden cursor-pointer transition-colors duration-150 outline-none focus:ring-2 focus:ring-blue-500"
       style={{
         border: `2px solid ${isCurrent ? '#3b82f6' : 'transparent'}`,
@@ -89,7 +89,7 @@ export function ThumbnailNavigator({ slides, currentIndex, onSelect, onClose }: 
       ref={containerRef}
       tabIndex={0}
       role="dialog"
-      aria-label="Slide navigation"
+      aria-label="幻灯片导航"
       className="fixed inset-0 z-[60] flex items-center justify-center outline-none"
       style={{
         backgroundColor: 'rgba(0, 0, 0, 0.85)',

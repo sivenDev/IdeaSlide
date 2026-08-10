@@ -244,11 +244,6 @@ export interface ActiveAgentEditorBinding {
   skillId: string;
   tools: AgentToolDescriptor[];
   activeContextId?: string;
-  contextPresentation: {
-    documentLabel: string;
-    pathLabel?: string;
-    focusLabel?: string;
-  };
   readOnly: boolean;
   buildContext: () => Record<string, unknown>;
   createToolExecutor: () => AgentToolExecutor;

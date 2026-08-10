@@ -301,3 +301,10 @@ Remove the home-screen concept from the proposed product direction and explore a
 - created: 2026-08-10
 
 Replace the Home-first startup with the selected Workspace Loom production direction. Open directly into a left Workspace, center active editor, and independent right AI Agent shell; preserve real local-file authority, registry-driven editors, current Agent runtime and safe editor mutations, and provide a useful shell state when no Workspace or file is open. Adapt the approved F039 visual hierarchy and responsive behavior to the existing Tauri application rather than copying the standalone mockup verbatim. In the same delivery, make the existing Appearance preference fully functional with persistent Light, Dark, and System modes across the application shell and supported editor chrome.
+
+## F041: Prototype a redesigned native workspace shell before production migration
+
+- status: done
+- created: 2026-08-10
+
+Reject the current F040 production presentation because the full title bar and save controls remain visible and the visual language feels generic and AI-generated. Revert the F040 production implementation while preserving the earlier Cursor, Kition, and Teable research trail. Build a realistic, interactive Tauri desktop shell prototype under `.temp` only, with no production imports or migration. Design only the outer client architecture: left Workspace, center generic Editor Host boundary, right Agent, native window integration, panel behavior, settings, and themes. Do not design or simulate table, IdeaSketch, Markdown, Workflow, or any other editor-owned interface. Present the shell prototype for human review; migrate it into the Tauri application only after separate approval.

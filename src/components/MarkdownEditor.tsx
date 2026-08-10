@@ -28,7 +28,6 @@ import type {
 } from "../types";
 import { useAutoSave } from "../hooks/useAutoSave";
 import { useCodeMirrorEditor } from "../hooks/useCodeMirrorEditor";
-import { useSettings } from "../hooks/useSettings";
 import { normalizeMarkdownLineEndings, updateMarkdownText } from "../lib/markdownDocument";
 import { readDocumentImage } from "../lib/tauriCommands";
 import { createAgentToolHost } from "../lib/agent/agentToolHost";
@@ -62,17 +61,6 @@ function markdownSelectionContext(view: EditorView | undefined): string | undefi
   const anchorLine = view.state.doc.lineAt(anchor);
   const headLine = view.state.doc.lineAt(head);
   return `${anchorLine.number}:${anchor - anchorLine.from}-${headLine.number}:${head - headLine.from}`;
-}
-
-function markdownSelectionLabel(view: EditorView | undefined): string | undefined {
-  if (!view) return undefined;
-  const { anchor, head } = view.state.selection.main;
-  const anchorLine = view.state.doc.lineAt(anchor).number;
-  const headLine = view.state.doc.lineAt(head).number;
-  if (anchor === head) return `Cursor · line ${anchorLine}`;
-  const first = Math.min(anchorLine, headLine);
-  const last = Math.max(anchorLine, headLine);
-  return first === last ? `Selection · line ${first}` : `Selection · lines ${first}–${last}`;
 }
 
 interface MarkdownHeading {
@@ -176,7 +164,6 @@ export function MarkdownEditor({
   onOpenDocumentLink,
   documentFullPath,
 }: MarkdownEditorProps) {
-  const { resolvedTheme } = useSettings();
   const model = document.model;
   if (!model) throw new Error("Markdown document model is missing");
   const modelRef = useRef(model);
@@ -193,7 +180,6 @@ export function MarkdownEditor({
   const [resizingSplit, setResizingSplit] = useState(false);
   const [previewStale, setPreviewStale] = useState(false);
   const [previewText, setPreviewText] = useState(model.text);
-  const [selectionLabel, setSelectionLabel] = useState<string>();
 
   useEffect(() => {
     modelRef.current = document.model!;
@@ -265,14 +251,7 @@ export function MarkdownEditor({
     readOnly,
     onChange: handleTextChange,
     onScroll: handleSourceScroll,
-    onSelectionChange: (view) => setSelectionLabel(markdownSelectionLabel(view)),
-    theme: resolvedTheme,
   });
-
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => setSelectionLabel(markdownSelectionLabel(editor.getView())));
-    return () => cancelAnimationFrame(frame);
-  }, [document.id]);
 
   useEffect(() => {
     onRegisterSnapshot(document.id, () => modelRef.current);
@@ -342,13 +321,6 @@ export function MarkdownEditor({
     skillId: markdownAgentExtension.skillId,
     tools: markdownAgentExtension.tools,
     get activeContextId() { return markdownSelectionContext(editor.getView()); },
-    get contextPresentation() {
-      return {
-        documentLabel: agentBindingStateRef.current.document.displayName || "Untitled Markdown",
-        pathLabel: agentBindingStateRef.current.document.filePath || undefined,
-        focusLabel: markdownSelectionLabel(editor.getView()),
-      };
-    },
     get readOnly() { return agentBindingStateRef.current.readOnly; },
     buildContext: () => markdownAgentExtension.buildContext(
       modelRef.current,
@@ -370,7 +342,7 @@ export function MarkdownEditor({
       changeSet as AgentChangeSet<MarkdownAgentOperation>,
     ),
     applyChangeSet: (changeSet) => agentBindingStateRef.current.applyChangeSet(changeSet),
-  }), [document.id, selectionLabel]);
+  }), [document.id]);
 
   useEffect(() => {
     onAgentBindingChange(agentBinding, document.id);

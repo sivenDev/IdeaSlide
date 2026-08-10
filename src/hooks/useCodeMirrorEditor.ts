@@ -18,8 +18,6 @@ interface UseCodeMirrorEditorOptions {
   readOnly: boolean;
   onChange: (value: string) => void;
   onScroll?: (ratio: number) => void;
-  onSelectionChange?: (view: EditorView) => void;
-  theme: "light" | "dark";
 }
 
 export interface CodeMirrorEditorHandle {
@@ -38,20 +36,15 @@ export function useCodeMirrorEditor({
   readOnly,
   onChange,
   onScroll,
-  onSelectionChange,
-  theme,
 }: UseCodeMirrorEditorOptions): CodeMirrorEditorHandle {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | undefined>(undefined);
   const readOnlyCompartment = useRef(new Compartment());
-  const themeCompartment = useRef(new Compartment());
   const onChangeRef = useRef(onChange);
   const onScrollRef = useRef(onScroll);
-  const onSelectionChangeRef = useRef(onSelectionChange);
   const applyingExternalValue = useRef(false);
   onChangeRef.current = onChange;
   onScrollRef.current = onScroll;
-  onSelectionChangeRef.current = onSelectionChange;
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -74,7 +67,6 @@ export function useCodeMirrorEditor({
             if (update.docChanged && !applyingExternalValue.current) {
               onChangeRef.current(update.state.doc.toString());
             }
-            if (update.selectionSet) onSelectionChangeRef.current?.(update.view);
           }),
           EditorView.domEventHandlers({
             scroll: (_event, mountedView) => {
@@ -83,16 +75,16 @@ export function useCodeMirrorEditor({
               onScrollRef.current?.(range > 0 ? element.scrollTop / range : 0);
             },
           }),
-          themeCompartment.current.of(EditorView.theme({
-            "&": { height: "100%", backgroundColor: theme === "dark" ? "#151d28" : "#fbfbfc", color: theme === "dark" ? "#e7edf5" : "#22242b" },
+          EditorView.theme({
+            "&": { height: "100%", backgroundColor: "#fbfbfc", color: "#22242b" },
             ".cm-scroller": { fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", fontSize: "13px", lineHeight: "1.72" },
             ".cm-content": { padding: "24px 20px 96px" },
-            ".cm-gutters": { backgroundColor: theme === "dark" ? "#111822" : "#f4f5f7", color: theme === "dark" ? "#6f7f91" : "#a0a5ae", borderRight: `1px solid ${theme === "dark" ? "#293341" : "#e4e6eb"}` },
-            ".cm-activeLine": { backgroundColor: theme === "dark" ? "#23304a70" : "#f0efff70" },
-            ".cm-activeLineGutter": { backgroundColor: theme === "dark" ? "#253149" : "#e8e7fb", color: theme === "dark" ? "#91a9ff" : "#625dd6" },
-            ".cm-selectionBackground, ::selection": { backgroundColor: `${theme === "dark" ? "#35508c" : "#d9d7ff"} !important` },
+            ".cm-gutters": { backgroundColor: "#f4f5f7", color: "#a0a5ae", borderRight: "1px solid #e4e6eb" },
+            ".cm-activeLine": { backgroundColor: "#f0efff70" },
+            ".cm-activeLineGutter": { backgroundColor: "#e8e7fb", color: "#625dd6" },
+            ".cm-selectionBackground, ::selection": { backgroundColor: "#d9d7ff !important" },
             ".cm-focused": { outline: "none" },
-          })),
+          }),
         ],
       }),
     });
@@ -108,18 +100,6 @@ export function useCodeMirrorEditor({
     if (!view) return;
     view.dispatch({ effects: readOnlyCompartment.current.reconfigure(EditorState.readOnly.of(readOnly)) });
   }, [readOnly]);
-
-  useEffect(() => {
-    const view = viewRef.current;
-    if (!view) return;
-    view.dispatch({ effects: themeCompartment.current.reconfigure(EditorView.theme({
-      "&": { backgroundColor: theme === "dark" ? "#151d28" : "#fbfbfc", color: theme === "dark" ? "#e7edf5" : "#22242b" },
-      ".cm-gutters": { backgroundColor: theme === "dark" ? "#111822" : "#f4f5f7", color: theme === "dark" ? "#6f7f91" : "#a0a5ae", borderRight: `1px solid ${theme === "dark" ? "#293341" : "#e4e6eb"}` },
-      ".cm-activeLine": { backgroundColor: theme === "dark" ? "#23304a70" : "#f0efff70" },
-      ".cm-activeLineGutter": { backgroundColor: theme === "dark" ? "#253149" : "#e8e7fb", color: theme === "dark" ? "#91a9ff" : "#625dd6" },
-      ".cm-selectionBackground, ::selection": { backgroundColor: `${theme === "dark" ? "#35508c" : "#d9d7ff"} !important` },
-    })) });
-  }, [theme]);
 
   useEffect(() => {
     const view = viewRef.current;
