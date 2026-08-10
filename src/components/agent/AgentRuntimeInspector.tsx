@@ -85,6 +85,20 @@ export function AgentRuntimeInspector({
         </dl>
       </section>
 
+      <section>
+        <h3>Activated Skills</h3>
+        {latestTurn?.skillProvenance.length ? (
+          <ul className="ideanote-agent-inspector__skills">
+            {latestTurn.skillProvenance.map((skill) => (
+              <li key={`${skill.id}:${skill.digest}`}>
+                <strong>{skill.name}</strong>
+                <span>{skill.activationMode} · {skill.origin} · {skill.digest.slice(0, 12)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="ideanote-agent-inspector__empty">No Skill provenance recorded.</p>}
+      </section>
+
       {effectivePolicy.showDeliveryTelemetry && telemetry && (
         <section>
           <h3>Source delivery</h3>

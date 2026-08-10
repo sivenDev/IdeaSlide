@@ -24,10 +24,12 @@ export function SettingsToggle({
   checked,
   onChange,
   label,
+  disabled = false,
 }: {
   checked: boolean;
   onChange: (checked: boolean) => void;
   label: string;
+  disabled?: boolean;
 }) {
   return (
     <button
@@ -35,6 +37,7 @@ export function SettingsToggle({
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      disabled={disabled}
       className={`ideanote-settings-toggle ${checked ? "is-on" : ""}`}
       onClick={() => onChange(!checked)}
     >

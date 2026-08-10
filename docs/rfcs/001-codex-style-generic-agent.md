@@ -633,6 +633,23 @@ The policy is normalized in TypeScript and Rust. A Turn captures its effective v
 
 The right-column Runtime Inspector keeps this evidence out of the transcript. It shows effective Runtime, model, capabilities, health, exact usage or an explicit unavailable state, upstream compaction, local replay truncation, effective Turn policy, optional source-delivery telemetry, and classified diagnostics. Warning and New Thread guidance appear only at configured thresholds backed by an exact context window. Tool Activity remains a separate chronological transcript surface. Hidden chain-of-thought is neither requested nor displayed.
 
+### 10.2 Managed custom Skills
+
+IdeaNote owns one normalized Skill registry with origin-qualified identities. Bundled editor Skills remain read-only, mandatory, and selected by the active editor extension. Imported Skills use stable `custom:<slug>` ids and are additive instructions only. They cannot replace the editor Skill, register Tool descriptors, declare MCP, install dependencies, execute scripts, or gain shell, filesystem, network, browser, process, or editor permissions.
+
+Settings imports a standard `SKILL.md` directory into an application-data managed copy. The native repository validates required YAML frontmatter, reserved and duplicate names, sensitive declarations, canonical relative paths, symbolic links, scripts and dependency manifests, UTF-8 references, and all size/depth/count limits before using a staging-directory plus rename transaction. The source directory is never watched or modified. Current bounds are 64 managed Skills, 64 files per Skill, four directory levels, 256 KiB per file, 2 MiB total, 64 KiB for `SKILL.md`, and 32 KiB per readable text reference. Restart hydration revalidates the manifest id, normalized metadata, exact file set, SHA-256 digest, resource paths, and managed-directory symlink boundary; corruption becomes a disabled diagnostic entry rather than executable state.
+
+Skill disclosure is progressive:
+
+1. A Turn captures a compatible metadata catalog bounded to 32 entries and 8 KiB. Omitted entries produce a normalized diagnostic and remain available for explicit selection only through a new Turn.
+2. Composer-selected Skills load immutable instructions before model work and record `explicit` provenance alongside the mandatory editor Skill.
+3. An eligible implicit Skill loads only after the model calls the host-owned `activate_skill` Tool. The captured digest must still match; a refresh between catalog capture and activation is rejected with new-Turn guidance.
+4. The host-owned `read_skill_reference` Tool accepts only an activated Skill id and opaque `ref-N` handle. It returns bounded captured UTF-8 text and never exposes an absolute or relative filesystem path.
+
+Host Skill Tools are separate from editor Tools but share the Rust Tool Broker's schema, call-id, replay, maximum-step, cancellation, chronology, and result-size rules. Codex receives them as client-owned dynamic Tools. Compatibility processes Skill host calls in a bounded follow-up loop; when one provider response mixes Skill host calls and editor calls, IdeaNote executes only the host calls, injects the newly activated instructions or reference results, and asks the model again before any editor mutation. This prevents an editor Tool generated under stale instructions from being applied.
+
+Turn history and the Runtime Inspector persist only safe provenance: Skill id, name, origin, digest, activation mode, and editor scope. Full instructions and reference bodies use ephemeral non-persistable Tool results. Disabling AI prevents Turn discovery, activation, reference service, and model injection, while Settings may still manage already imported files without starting a Runtime.
+
 ## 11. Streaming behavior
 
 ### 11.1 Source delivery

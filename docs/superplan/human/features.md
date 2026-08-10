@@ -276,7 +276,7 @@ Remove the user-facing Change Review gate for editor content. Registered Agent m
 
 ## F037: Add Agent Runtime Visibility, Configurable Policies, and Custom Skills
 
-- status: accepted
+- status: done
 - created: 2026-08-10
 
 Expose truthful per-Thread Agent runtime health and memory visibility: current runtime/model/effective capabilities, classified startup/provider/fallback/retry diagnostics, source-delivery telemetry, and context-window or compaction status when the selected runtime supplies it. Show an explicit unavailable/unknown state instead of estimating unsupported token counts and provide actionable new-Thread guidance as context pressure grows. Make user-meaningful Agent policy values configurable, including context-warning and new-Thread thresholds, diagnostic retention, Compatibility replay depth, delivery-telemetry visibility, and the existing maximum-step limit; validate their relationships and capture effective Turn policy so active work does not change unexpectedly. Add application-level custom Skills based on the standard `SKILL.md` format with progressive disclosure, safe local import, enable/disable and invocation controls, bounded references, validation diagnostics, and Turn-level version provenance. Custom Skills may guide use of already registered editor Tools but cannot register Tools, MCP, shell, filesystem, network, scripts, or otherwise widen capabilities. Keep credentials, raw provider payloads, hidden reasoning, editor-format logic, and presentation timers out of diagnostics and persistence. Preserve automatic runtime selection and the existing editor Tool safety boundary.

@@ -71,6 +71,28 @@ export interface AgentSkillMetadata {
   id: string;
   name: string;
   description: string;
+  origin: "bundled" | "custom";
+  sourceLabel: string;
+  enabled: boolean;
+  implicitInvocation: boolean;
+  editorScopes: string[];
+  digest: string;
+  valid: boolean;
+  validationMessage?: string;
+  lastRefreshedAt?: number;
+  resources: Array<{ id: string; label: string }>;
+  requiredTools: string[];
+}
+
+export type AgentSkillActivationMode = "mandatory" | "explicit" | "implicit";
+
+export interface AgentSkillProvenance {
+  id: string;
+  name: string;
+  origin: AgentSkillMetadata["origin"];
+  digest: string;
+  activationMode: AgentSkillActivationMode;
+  editorScope: string;
 }
 
 export type AgentRuntimeKind = "compatibility" | "codexAppServer" | "grokAcp";
@@ -109,6 +131,7 @@ export interface AgentRunRequest {
   retry: AgentRetryPolicy;
   policy: AgentPolicySettings;
   skillId?: string;
+  selectedSkillIds: string[];
   context: Record<string, unknown>;
   tools: AgentToolDescriptor[];
   messages: Array<Pick<AgentMessage, "role" | "content">>;

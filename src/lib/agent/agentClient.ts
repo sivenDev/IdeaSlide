@@ -19,6 +19,24 @@ export async function discoverAgentSkills(): Promise<AgentSkillMetadata[]> {
   return invoke<AgentSkillMetadata[]>("discover_agent_skills");
 }
 
+export async function importAgentSkill(sourcePath: string, replaceId?: string): Promise<AgentSkillMetadata> {
+  requireTauri();
+  return invoke<AgentSkillMetadata>("import_agent_skill", { sourcePath, replaceId });
+}
+
+export async function updateAgentSkill(
+  id: string,
+  change: Pick<AgentSkillMetadata, "enabled" | "implicitInvocation" | "editorScopes">,
+): Promise<AgentSkillMetadata> {
+  requireTauri();
+  return invoke<AgentSkillMetadata>("update_agent_skill", { id, ...change });
+}
+
+export async function removeAgentSkill(id: string): Promise<boolean> {
+  requireTauri();
+  return invoke<boolean>("remove_agent_skill", { id });
+}
+
 export async function listAgentRuntimes(): Promise<AgentRuntimeDescriptor[]> {
   requireTauri();
   return invoke<AgentRuntimeDescriptor[]>("list_agent_runtimes");

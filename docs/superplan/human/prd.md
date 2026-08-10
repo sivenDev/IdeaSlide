@@ -554,7 +554,12 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 - 真正的文本 delta 必须立即进入规范化事件链；若上游增量交付，则在有界渲染延迟内直接显示；若上游缓冲、突发或原子交付，则允许只对 assistant answer 使用有界展示节奏，同时保留来源时序诊断，且不得将其表述为实时 token 生成或 reasoning。
 - 可展开 Tool Activity 只显示经过 Rust Tool Broker 限界和脱敏的参数/结果；call id、schema、重复调用、超时和结果大小由 Rust 统一治理。
 - 只显示 Runtime 明确分类为公开的过程摘要；隐藏 chain-of-thought 不进入事件、UI 或持久化。缺少公开过程信息时不显示误导性提示。
-- Skill 先发现 metadata，只有活动编辑器 Extension 才加载完整指令和 Tool。
+- Bundled editor Skill 与 managed custom Skill 共享同一 Rust registry contract。活动编辑器 Extension 的 bundled Skill 必须始终加载且不可关闭；custom Skill 只能作为附加指令，不能替换 editor Skill、注册 Tool 或扩大权限。
+- Settings > Agent 支持从标准 `SKILL.md` 目录导入 managed copy、查看来源/版本/校验结果/引用、启用或关闭、配置自主激活、限制兼容 editor scope、显式刷新和确认后删除。AI 关闭时仍可管理已有 copy，但不得进入 Turn discovery、激活、reference serving 或模型注入。
+- Custom Skill import 必须拒绝 symlink、路径穿越、脚本、依赖 manifest、MCP、Tool/permission/command 声明和 reserved/duplicate identity；使用 staging + rename 原子提交，不监视或修改原始导入目录。每个 copy 最多 64 个文件、4 层目录、单文件 256 KiB、总计 2 MiB，`SKILL.md` 最多 64 KiB，单个可读取文本 reference 最多 32 KiB，最多保留 64 个 managed Skills。
+- Turn 开始时只向模型提供最多 32 项且 8 KiB 的兼容 custom Skill metadata catalog，超出时记录安全诊断；composer 显式选择的 Skill 在模型工作前加载，允许自主调用的 Skill 只有在模型调用 `activate_skill` 后才加载完整指令。`read_skill_reference` 只能读取已激活 immutable snapshot 中的 opaque `ref-N` 文本资源。
+- Explicit、implicit 和 mandatory activation 都记录 id、name、origin、digest、activation mode 与 editor scope。刷新、关闭或删除不会改变已激活的 Turn snapshot；尚未激活但版本已变化的 catalog entry 必须拒绝并要求新 Turn。完整指令与 reference 内容不进入 Thread、Inspector、诊断或可持久化 Tool output。
+- Codex dynamic Tools 与 Compatibility Tool loop 使用同一 host Skill Tool contract、Tool Broker step/cancellation 约束和 chronology。Compatibility 同一模型响应若混合 Skill host Tool 与 editor Tool，必须先只处理 Skill host Tool，再以新指令重新请求模型，不能执行基于旧指令生成的 editor mutation。
 - Runtime、Panel、Settings 不直接包含 `.is` 或未来编辑器的解析、验证、读写逻辑。
 - Rust 不从磁盘重建活动编辑器状态，也不直接写用户文件；TypeScript Tool executor 返回读取结果或目标绑定的 ChangeSet，并只允许可信活动编辑器通过其前端 SDK 应用。
 - Mutation 不直接写磁盘或先改 reducer 模型；应用前复核文档 id、revision、source fingerprint、状态、外部修改标记、取消状态和编辑器挂载状态。

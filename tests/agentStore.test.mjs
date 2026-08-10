@@ -415,3 +415,22 @@ test('legacy compaction marker hydrates only as a local Compatibility replay bou
   assert.equal(hydrated.context.localReplayTruncatedBeforeTurnId, 'legacy-turn');
   assert.equal(hydrated.context.runtimeCompactedAt, undefined);
 });
+
+test('Skill provenance is captured at Turn start and implicit activation is idempotent', () => {
+  let state = reduceAgentEvent(initial(), {
+    ...started(),
+    skillProvenance: [{
+      id: 'ideasketch', name: 'IdeaSketch', origin: 'bundled', digest: 'built-in',
+      activationMode: 'mandatory', editorScope: 'ideasketch',
+    }],
+  });
+  const activation = event('skillActivated', 1, {
+    provenance: {
+      id: 'custom:polish', name: 'Polish', origin: 'custom', digest: 'abc',
+      activationMode: 'implicit', editorScope: 'ideasketch',
+    },
+  });
+  state = reduceAgentEvent(state, activation);
+  state = reduceAgentEvent(state, { ...activation, eventId: createAgentEventId('turn-1', 2, 'skillActivated'), sequence: 2 });
+  assert.deepEqual(state.thread.turns.at(-1).skillProvenance.map((skill) => skill.id), ['ideasketch', 'custom:polish']);
+});

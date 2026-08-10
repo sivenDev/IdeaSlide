@@ -96,6 +96,7 @@ mod tests {
             retry: Default::default(),
             policy: Default::default(),
             skill_id: None,
+            selected_skill_ids: Vec::new(),
             context: serde_json::json!({"documentType": "test"}),
             tools: vec![AgentToolDescriptor {
                 name: "edit_document".to_string(),

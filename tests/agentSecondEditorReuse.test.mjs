@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { createAgentToolHost } from '../src/lib/agent/agentToolHost.ts';
 import {
   getAgentExtension,
@@ -103,5 +104,19 @@ test('a Markdown-like extension reuses the generic registry and Tool host withou
     assert.deepEqual(markdownExtension.describeChangeSet(mutation.changeSet), ['Append Markdown section · API']);
   } finally {
     unregister();
+  }
+});
+
+test('managed Skill runtime and UI remain free of editor-format branches', async () => {
+  const sources = await Promise.all([
+    '../src-tauri/src/agent/mod.rs',
+    '../src/lib/agent/agentRuntime.ts',
+    '../src/lib/agent/agentStore.ts',
+    '../src/components/AgentPanel.tsx',
+    '../src/components/agent/AgentSkillPicker.tsx',
+    '../src/components/settings/AgentSkillManager.tsx',
+  ].map((path) => readFile(new URL(path, import.meta.url), 'utf8')));
+  for (const source of sources) {
+    assert.doesNotMatch(source, /\bideasketch\b|\.is\b|markdownAgentExtension|\.md\b/i);
   }
 });

@@ -12,7 +12,7 @@ import { selectAgentDiagnosticView } from "../lib/agent/agentDiagnostics";
 import { createDirectApplyToolExecutor } from "../lib/agent/agentToolHost";
 import { discoverAgentSkills } from "../lib/agent/agentClient";
 import { promptFromAssistantUiMessage, toAssistantUiMessage } from "../lib/agent/assistantUiAdapter";
-import type { ActiveAgentEditorBinding } from "../lib/agent/types";
+import type { ActiveAgentEditorBinding, AgentSkillMetadata } from "../lib/agent/types";
 import { createAgentEventId } from "../lib/agent/protocol";
 import { AgentComposer } from "./agent/AgentComposer";
 import { AgentRuntimeInspector } from "./agent/AgentRuntimeInspector";
@@ -39,6 +39,8 @@ export function AgentPanel({
   }), [settings.agent]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [skills, setSkills] = useState<AgentSkillMetadata[]>([]);
+  const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
   const currentTurnIdRef = useRef<string | undefined>(undefined);
   const cancelledTurnIdsRef = useRef(new Set<string>());
   const bindingRef = useRef(binding);
@@ -98,6 +100,7 @@ export function AgentPanel({
     discoverAgentSkills()
       .then((skills) => {
         if (!active) return;
+        setSkills(skills);
         if (skills.some((skill) => skill.id === bindingSkillId)) {
           removeNotice("skill-discovery-error");
         } else {
@@ -132,6 +135,20 @@ export function AgentPanel({
       });
     return () => { active = false; };
   }, [activationState, bindingSkillId, removeNotice, setNotice]);
+
+  useEffect(() => {
+    if (activationState !== "ready") {
+      setSelectedSkillIds([]);
+      return;
+    }
+    setSelectedSkillIds((current) => current.filter((id) => skills.some((skill) => (
+      skill.id === id
+      && skill.origin === "custom"
+      && skill.enabled
+      && skill.valid
+      && (!bindingSkillId || skill.editorScopes.length === 0 || skill.editorScopes.includes(bindingSkillId))
+    ))));
+  }, [activationState, bindingSkillId, skills]);
 
   useEffect(() => {
     if (activationState === "ready") return;
@@ -190,6 +207,7 @@ export function AgentPanel({
         systemPrompt: settings.ai.systemPrompt,
         retry: settings.ai.retry,
         policy: agentPolicy,
+        selectedSkillIds: [...selectedSkillIds],
         context: capturedBinding.buildContext(),
         tools: capturedBinding.tools,
         messages: runtimeMessages,
@@ -394,6 +412,10 @@ export function AgentPanel({
           steeringAvailable={state.capabilities.steering}
           retryAvailable={Boolean(retryPrompt)}
           targetLabel={binding?.document.displayName ?? "No active editor"}
+          skills={skills}
+          editorSkillId={bindingSkillId}
+          selectedSkillIds={selectedSkillIds}
+          onSelectedSkillIdsChange={setSelectedSkillIds}
           onRetry={() => { if (retryPrompt) void submit(retryPrompt, retryTurnId); }}
         />
       </ThreadPrimitive.Root>

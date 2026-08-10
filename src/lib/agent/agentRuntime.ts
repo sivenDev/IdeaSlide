@@ -30,6 +30,7 @@ export interface StartAgentTurnInput {
   systemPrompt: string;
   retry: AgentRetryPolicy;
   policy: AgentPolicySettings;
+  selectedSkillIds: string[];
   context: Record<string, unknown>;
   tools: AgentToolDescriptor[];
   messages: AgentMessage[];
@@ -104,6 +105,7 @@ export function createNativeAgentRuntime(): AgentRuntime {
         retry: input.retry,
         policy: input.policy,
         skillId: input.binding.skillId,
+        selectedSkillIds: input.selectedSkillIds,
         context: input.context,
         tools: input.tools,
         messages: input.messages.map(({ role, content }) => ({ role, content })),

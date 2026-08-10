@@ -5,6 +5,7 @@ import { selectAgentRuntime } from "../../lib/agent/runtimeSelection";
 import type { AgentRuntimeDescriptor } from "../../lib/agent/types";
 import { DEFAULT_SETTINGS, type AppSettings } from "../../lib/settings";
 import { SettingsField, SettingsToggle } from "./SettingsField";
+import { AgentSkillManager } from "./AgentSkillManager";
 
 function AgentNumberInput({
   label,
@@ -168,6 +169,9 @@ export function AgentSettings() {
           checked={settings.agent.showToolActivity}
           onChange={(showToolActivity) => updateAgent({ showToolActivity })}
         />
+      </SettingsField>
+      <SettingsField title="Custom Skills" description="Import and manage standard instruction-only Skill folders. Managed Skills cannot add Tools, scripts, MCP, or system permissions.">
+        <AgentSkillManager activationState={activationState} />
       </SettingsField>
       <SettingsField title="Reset Agent policy" description="Restore the maximum-step, context, diagnostics, replay, and delivery-visibility defaults.">
         <button

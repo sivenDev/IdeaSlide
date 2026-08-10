@@ -2,7 +2,7 @@
 id: "F037-02"
 title: "Add Managed Custom Agent Skills"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Let users safely import, manage, and invoke standard custom Skills without allowing Skills to widen Agent or editor capabilities."
 source: "docs/superplan/human/features.md"
 created: "2026-08-10"
@@ -44,9 +44,9 @@ parent: "F037"
 - `node --test tests/agentProtocol.test.mjs tests/agentExtensionRegistry.test.mjs tests/settings.test.mjs`
 - Rust serialization/validation tests for origins, duplicate names/ids, invocation modes, provenance, unsupported metadata, and missing resources.
 
-- [ ] Add failing normalized contracts for built-in/custom origins, additive editor Skills, invocation, resource handles, validation, and Turn provenance.
-- [ ] Update PRD/RFC authority using the open Agent Skills standard while documenting IdeaNote's intentionally narrower executable boundary.
-- [ ] Keep runtime brands, editor formats, filesystem paths, and framework types out of the public frontend contract.
+- [x] Add failing normalized contracts for built-in/custom origins, additive editor Skills, invocation, resource handles, validation, and Turn provenance.
+- [x] Update PRD/RFC authority using the open Agent Skills standard while documenting IdeaNote's intentionally narrower executable boundary.
+- [x] Keep runtime brands, editor formats, filesystem paths, and framework types out of the public frontend contract.
 
 ## Task 2: Build the Native Managed Skill Repository and Safe Import Pipeline
 
@@ -78,9 +78,9 @@ parent: "F037"
 - `node --test tests/agentSkillRepository.test.mjs tests/settings.test.mjs`
 - Fixtures: valid minimal/reference/assets folders; duplicate/reserved names; malformed YAML; scripts/dependencies; symlink file/folder; traversal; too many/deep/large files; interrupted import; corrupt manifest; refresh; remove; restart; AI-disabled management without runtime activation.
 
-- [ ] Add failing repository/import tests including interrupted and adversarial filesystem cases.
-- [ ] Implement atomic managed copies and normalized metadata without watching or trusting external source folders.
-- [ ] Expose only bounded opaque resources and safe management commands.
+- [x] Add failing repository/import tests including interrupted and adversarial filesystem cases.
+- [x] Implement atomic managed copies and normalized metadata without watching or trusting external source folders.
+- [x] Expose only bounded opaque resources and safe management commands.
 
 ## Task 3: Add Progressive Explicit and Autonomous Skill Activation
 
@@ -114,9 +114,9 @@ parent: "F037"
 - `node --test tests/agentInteraction.test.mjs tests/agentStore.test.mjs tests/agentItems.test.mjs tests/agentSecondEditorReuse.test.mjs`
 - Cases: mandatory IdeaSketch Skill; mandatory Markdown Skill; explicit custom Skill; model-chosen implicit Skill; implicit disabled; same Skill twice; reference read; incompatible Tool requirement; change during Turn; cancellation; max-step boundary; Codex/Compatibility parity; unsupported editor; cross-editor scope isolation; no generic format branch.
 
-- [ ] Add failing cross-runtime activation/resource/immutability fixtures before changing prompt or Tool routing.
-- [ ] Implement host-owned Skill Tools separately from editor Tool descriptors and executors.
-- [ ] Persist only safe Skill provenance while keeping full instructions/resources out of Thread history and diagnostics.
+- [x] Add failing cross-runtime activation/resource/immutability fixtures before changing prompt or Tool routing.
+- [x] Implement host-owned Skill Tools separately from editor Tool descriptors and executors.
+- [x] Persist only safe Skill provenance while keeping full instructions/resources out of Thread history and diagnostics.
 
 ## Task 4: Add Skill Management and Selection UI, Then Complete Acceptance
 
@@ -153,9 +153,17 @@ parent: "F037"
 - `git diff --check`
 - Native matrix: import/enable/explicit/implicit/reference/restart/refresh/remove; invalid and adversarial folders; Codex and Compatibility; IdeaSketch and Markdown read/mutation with Excalidraw/CodeMirror native Undo/Redo; cross-editor compatible/incompatible scopes; unsupported editor; AI disable/enable; no scripts/MCP/new Tools/arbitrary paths/secrets/instruction bodies in history.
 
-- [ ] Build accessible Settings management and composer selection against the normalized registry.
-- [ ] Run focused failure/fix loops for every import, activation, lifecycle, and Tool-safety scenario until clean.
-- [ ] Complete F037-02, mark F037 done only after both child plans complete, refresh Superplan, inspect the final diff, and create the separate `feat(F037)` task commit.
+- [x] Build accessible Settings management and composer selection against the normalized registry.
+- [x] Run focused failure/fix loops for every import, activation, lifecycle, and Tool-safety scenario until clean.
+- [x] Complete F037-02, mark F037 done only after both child plans complete, refresh Superplan, inspect the final diff, and create the separate `feat(F037)` task commit.
+
+## Verification Evidence
+
+- Frontend regression: `node --test tests/*.test.mjs` passed (354 tests).
+- Native regression: `cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture` passed (145 tests), including focused Agent (66), Skill registry (6), and real Codex smoke (3) coverage.
+- Build and quality: `npm run build`, `cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check`, `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets`, and `git diff --check` passed; Clippy retained only pre-existing warnings.
+- Packaging: `npm run tauri build -- --debug` produced the macOS application bundle and arm64 DMG.
+- UI acceptance: browser Settings management and composer interaction passed visual/semantic inspection. Desktop visual automation could not acquire the native macOS window, so no desktop visual-pass claim is recorded; native, package, protocol, and browser evidence cover the delivered behavior.
 
 ## References
 

@@ -2,6 +2,7 @@ import type {
   AgentChangeSet,
   AgentPolicySettings,
   AgentRuntimeKind,
+  AgentSkillProvenance,
   AgentStreamingTelemetry,
 } from "./types";
 
@@ -151,6 +152,7 @@ export interface AgentTurn {
   items: AgentItem[];
   telemetry?: AgentStreamingTelemetry;
   effectivePolicy?: AgentEffectivePolicy;
+  skillProvenance: AgentSkillProvenance[];
 }
 
 export interface AgentThread {
@@ -294,7 +296,13 @@ export interface AgentTurnStartedEvent extends AgentEventBase {
   binding: AgentTurnBindingSnapshot;
   userItemId: string;
   assistantItemId: string;
+  skillProvenance: AgentSkillProvenance[];
   effectivePolicy: AgentEffectivePolicy;
+}
+
+export interface AgentSkillActivatedEvent extends AgentEventBase {
+  type: "skillActivated";
+  provenance: AgentSkillProvenance;
 }
 
 export interface AgentCapabilitiesUpdatedEvent extends AgentEventBase {
@@ -377,6 +385,7 @@ export type AgentEvent =
   | AgentRuntimeUpdatedEvent
   | AgentRuntimeDiagnosticRecordedEvent
   | AgentContextUpdatedEvent
+  | AgentSkillActivatedEvent
   | AgentItemAddedEvent
   | AgentItemDeltaEvent
   | AgentItemUpdatedEvent

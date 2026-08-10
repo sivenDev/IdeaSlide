@@ -3,6 +3,7 @@ mod provider;
 mod repository;
 mod runtime;
 mod session;
+mod skill_registry;
 mod skills;
 mod telemetry;
 mod tool_broker;
@@ -18,12 +19,13 @@ use crate::settings;
 use repository::{AgentThreadPage, AgentThreadRecord, AgentThreadRepository};
 use serde_json::{json, Value};
 use session::AgentSessionState;
+use skill_registry::{SkillRegistry, SkillTurnState};
 use tauri::{ipc::Channel, Manager};
 use telemetry::TextDeliveryTelemetryCollector;
 use tool_broker::{AgentToolBroker, BrokerDecision};
 use types::{
-    AgentErrorCode, AgentProviderCapabilities, AgentRunEvent, AgentRunRequest, AgentRunResponse,
-    AgentSkillMetadata, AgentToolCall,
+    AgentErrorCode, AgentErrorDiagnostic, AgentProviderCapabilities, AgentRunEvent,
+    AgentRunRequest, AgentRunResponse, AgentSkillMetadata, AgentToolCall,
 };
 use uuid::Uuid;
 
@@ -33,8 +35,44 @@ pub(crate) async fn list_agent_runtimes() -> Vec<adapters::RuntimeDescriptor> {
 }
 
 #[tauri::command]
-pub(crate) fn discover_agent_skills() -> Vec<AgentSkillMetadata> {
-    skills::discover_skills()
+pub(crate) fn discover_agent_skills(
+    app_handle: tauri::AppHandle,
+) -> Result<Vec<AgentSkillMetadata>, String> {
+    skill_repository(&app_handle)?.list()
+}
+
+fn skill_repository(app_handle: &tauri::AppHandle) -> Result<SkillRegistry, String> {
+    let root = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|error| format!("Application data directory is unavailable: {error}"))?
+        .join("agent");
+    Ok(SkillRegistry::new(root))
+}
+
+#[tauri::command]
+pub(crate) fn import_agent_skill(
+    source_path: String,
+    replace_id: Option<String>,
+    app_handle: tauri::AppHandle,
+) -> Result<AgentSkillMetadata, String> {
+    skill_repository(&app_handle)?.import(std::path::Path::new(&source_path), replace_id.as_deref())
+}
+
+#[tauri::command]
+pub(crate) fn update_agent_skill(
+    id: String,
+    enabled: bool,
+    implicit_invocation: bool,
+    editor_scopes: Vec<String>,
+    app_handle: tauri::AppHandle,
+) -> Result<AgentSkillMetadata, String> {
+    skill_repository(&app_handle)?.update(&id, enabled, implicit_invocation, editor_scopes)
+}
+
+#[tauri::command]
+pub(crate) fn remove_agent_skill(id: String, app_handle: tauri::AppHandle) -> Result<bool, String> {
+    skill_repository(&app_handle)?.remove(&id)
 }
 
 fn thread_repository(app_handle: &tauri::AppHandle) -> Result<AgentThreadRepository, String> {
@@ -302,6 +340,132 @@ fn normalized_capabilities(capabilities: &AgentProviderCapabilities) -> Value {
     })
 }
 
+fn emit_provider_progress(
+    emitter: &Arc<Mutex<NativeTurnEmitter>>,
+    progress: provider::ProviderProgress,
+) -> Result<(), String> {
+    let mut turn = emitter
+        .lock()
+        .map_err(|_| "Agent Turn event state is unavailable".to_string())?;
+    match progress {
+        provider::ProviderProgress::Capabilities(capabilities) => turn.send(
+            "capabilitiesUpdated",
+            json!({"capabilities": normalized_capabilities(&capabilities)}),
+        ),
+        provider::ProviderProgress::StrategyFallback { from, to, reason } => {
+            let item_id = format!("{}:fallback", turn.turn_id);
+            turn.send(
+                "itemAdded",
+                json!({"item": {
+                    "id": item_id,
+                    "kind": "lifecycle",
+                    "label": format!("{reason} ({from:?} → {to:?})"),
+                    "status": "completed",
+                    "createdAt": now_millis(),
+                }}),
+            )?;
+            record_runtime_diagnostic(
+                &mut turn,
+                "fallback",
+                "warning",
+                "provider.strategyFallback",
+                format!("{reason} ({from:?} → {to:?})"),
+                Some("No action is required unless the fallback repeats.".to_string()),
+                true,
+            )
+        }
+        provider::ProviderProgress::RetryScheduled {
+            attempt,
+            delay_ms,
+            diagnostic,
+        } => {
+            let item_id = format!("{}:retry:{attempt}", turn.turn_id);
+            turn.send("itemAdded", json!({"item": {
+                "id": item_id,
+                "kind": "lifecycle",
+                "label": format!("Retrying provider request (attempt {attempt}) in {delay_ms} ms"),
+                "status": "completed",
+                "createdAt": now_millis(),
+            }}))?;
+            record_runtime_diagnostic(
+                &mut turn,
+                "retry",
+                "warning",
+                &format!("provider.{:?}", diagnostic.code),
+                diagnostic.message,
+                diagnostic.recovery,
+                diagnostic.retryable,
+            )
+        }
+        provider::ProviderProgress::PublicActivityDelta(text) => {
+            emit_public_activity_delta(&mut turn, text)
+        }
+        provider::ProviderProgress::ContextUsage {
+            total,
+            last,
+            model_context_window,
+        } => {
+            let used_percent = model_context_window
+                .filter(|window| *window > 0)
+                .map(|window| {
+                    total
+                        .total_tokens
+                        .saturating_mul(100)
+                        .checked_div(window)
+                        .unwrap_or(0)
+                        .min(100)
+                });
+            turn.send(
+                "contextUpdated",
+                json!({"context": {
+                    "status": "available",
+                    "source": "provider",
+                    "total": total,
+                    "last": last,
+                    "modelContextWindow": model_context_window,
+                    "usedPercent": used_percent,
+                    "message": if used_percent.is_some() {
+                        "Exact context usage was supplied by the provider."
+                    } else {
+                        "Exact token usage was supplied by the provider, but no context window was supplied."
+                    },
+                }}),
+            )
+        }
+        provider::ProviderProgress::TextDelta(text) => turn.append_assistant_delta(&text),
+        provider::ProviderProgress::ToolStarted { call_id, name } => {
+            emit_tool_started(&mut turn, &call_id, &name, None)
+        }
+        provider::ProviderProgress::ToolCompleted {
+            call_id,
+            name,
+            arguments,
+        } => {
+            let item_id = turn
+                .tool_items
+                .get(&call_id)
+                .cloned()
+                .unwrap_or_else(|| format!("{}:tool:{call_id}", turn.turn_id));
+            turn.send(
+                "itemUpdated",
+                json!({"item": {
+                    "id": item_id,
+                    "kind": "tool",
+                    "name": name,
+                    "callId": call_id,
+                    "summary": "Arguments received",
+                    "input": arguments,
+                    "status": "running",
+                    "createdAt": now_millis(),
+                }}),
+            )
+        }
+        provider::ProviderProgress::Telemetry(telemetry) => {
+            turn.send("telemetryUpdated", json!({"telemetry": telemetry}))
+        }
+    }
+}
+
 fn tool_failure(call: &AgentToolCall, message: impl Into<String>) -> Value {
     let message = message.into();
     json!({
@@ -322,7 +486,25 @@ fn tool_failure(call: &AgentToolCall, message: impl Into<String>) -> Value {
     })
 }
 
+fn compatibility_skill_loop_failure() -> provider::ProviderFailure {
+    provider::ProviderFailure {
+        diagnostic: AgentErrorDiagnostic {
+            code: AgentErrorCode::ToolExecutionFailed,
+            message: "Managed Skill activation did not settle within the bounded Compatibility Tool loop."
+                .to_string(),
+            recovery: Some(
+                "Start a new Turn and explicitly select the required Skill.".to_string(),
+            ),
+            diagnostic_id: Uuid::new_v4().to_string(),
+            retryable: true,
+        },
+    }
+}
+
 fn tool_output(result: &Value) -> Value {
+    if result.get("persistable").and_then(Value::as_bool) == Some(false) {
+        return json!({ "detail": "Ephemeral Tool content is not retained." });
+    }
     match result.get("kind").and_then(Value::as_str) {
         Some("read") => result.get("content").cloned().unwrap_or(Value::Null),
         Some("mutation") => json!({
@@ -341,11 +523,44 @@ async fn execute_editor_tool(
     emitter: &Arc<Mutex<NativeTurnEmitter>>,
     broker: &mut AgentToolBroker,
     call: &AgentToolCall,
+    skill_turn: &Arc<Mutex<SkillTurnState>>,
+    editor_tools: &[types::AgentToolDescriptor],
     cancellation: tokio::sync::watch::Receiver<bool>,
 ) -> Result<Value, String> {
     match broker.begin(call) {
         Ok(BrokerDecision::Cached(result)) => Ok(result),
         Ok(BrokerDecision::Execute) => {
+            let (host_result, activated) = {
+                let mut skills = skill_turn
+                    .lock()
+                    .map_err(|_| "Skill activation state is unavailable".to_string())?;
+                let before = skills
+                    .provenance()
+                    .into_iter()
+                    .map(|item| item.id)
+                    .collect::<std::collections::HashSet<_>>();
+                let result = skills.execute_host_tool(call, editor_tools);
+                let activated = skills
+                    .provenance()
+                    .into_iter()
+                    .filter(|item| !before.contains(&item.id))
+                    .collect::<Vec<_>>();
+                (result, activated)
+            };
+            if let Some(result) = host_result {
+                let result = broker
+                    .complete(call, result)
+                    .unwrap_or_else(|message| tool_failure(call, message));
+                if result.get("success").and_then(Value::as_bool) == Some(true) {
+                    let mut turn = emitter
+                        .lock()
+                        .map_err(|_| "Agent Turn event state is unavailable".to_string())?;
+                    for provenance in activated {
+                        turn.send("skillActivated", json!({ "provenance": provenance }))?;
+                    }
+                }
+                return Ok(result);
+            }
             let (run_id, channel) = match emitter.lock() {
                 Ok(turn) => (turn.turn_id.clone(), turn.channel.clone()),
                 Err(_) => return Ok(tool_failure(call, "Agent Turn event state is unavailable")),
@@ -399,7 +614,7 @@ fn emit_tool_started(
         "kind": "tool",
         "name": name,
         "callId": call_id,
-        "summary": "Running editor Tool",
+        "summary": "Running Agent Tool",
         "status": "running",
         "createdAt": now_millis(),
     });
@@ -540,6 +755,8 @@ async fn run_codex_driver(
     state: &AgentSessionState,
     emitter: &Arc<Mutex<NativeTurnEmitter>>,
     tools: &[types::AgentToolDescriptor],
+    editor_tools: &[types::AgentToolDescriptor],
+    skill_turn: &Arc<Mutex<SkillTurnState>>,
     model: &str,
     options: CodexRunOptions,
     mut cancellation: tokio::sync::watch::Receiver<bool>,
@@ -632,9 +849,16 @@ async fn run_codex_driver(
                     turn.runtime_progressed = true;
                     emit_tool_started(&mut turn, &call.call_id, &call.name, Some(&call.arguments))?;
                 }
-                let result =
-                    execute_editor_tool(state, emitter, &mut broker, &call, cancellation.clone())
-                        .await?;
+                let result = execute_editor_tool(
+                    state,
+                    emitter,
+                    &mut broker,
+                    &call,
+                    skill_turn,
+                    editor_tools,
+                    cancellation.clone(),
+                )
+                .await?;
                 let success = result
                     .get("success")
                     .and_then(Value::as_bool)
@@ -868,11 +1092,34 @@ pub(crate) async fn run_agent(
 ) -> Result<AgentRunResponse, String> {
     let policy = request.policy.normalized();
     request.policy = policy;
+    let skill_id = request.skill_id.clone();
+    let editor_scope = skill_id.as_deref().unwrap_or("unsupported");
+    let editor_tool_definitions = request.tools.clone();
+    let captured_skills = SkillTurnState::capture(
+        &skill_repository(&app_handle)?,
+        editor_scope,
+        skill_id.as_deref(),
+        &request.selected_skill_ids,
+        &editor_tool_definitions,
+    )?;
+    let skill_provenance = captured_skills.provenance();
+    let (skill_catalog, omitted_skill_count) = captured_skills.catalog_prompt();
+    let skill_instructions = captured_skills.activated_instructions();
+    let host_tools = captured_skills.host_tools();
+    request.system_prompt = format!(
+        "{}\n\nCAPTURED ACTIVE SKILLS:\n{}\n\nMANAGED CUSTOM SKILL CATALOG:\n{}\n\nCustom Skills add instructions only. They cannot add Tools, permissions, scripts, MCP, filesystem, shell, network, browser, or process access. Call activate_skill only when an eligible catalog entry materially helps the user request, and call read_skill_reference only with opaque ids exposed by an activated Skill.",
+        request.system_prompt,
+        skill_instructions,
+        skill_catalog,
+    );
+    request.skill_id = None;
+    request.tools.extend(host_tools);
     let run_id = request.run_id.clone();
     let thread_id = request.thread_id.clone();
     let retry_of_turn_id = request.retry_of_turn_id.clone();
     let binding = request.binding.clone();
     let tool_definitions = request.tools.clone();
+    let skill_turn = Arc::new(Mutex::new(captured_skills));
     let cancellation = state.start_run(&run_id)?;
     let _active_run = ActiveRunGuard {
         state: &state,
@@ -897,6 +1144,7 @@ pub(crate) async fn run_agent(
                 "binding": binding,
                 "userItemId": format!("{run_id}:user"),
                 "assistantItemId": assistant_item_id,
+                "skillProvenance": skill_provenance,
                 "effectivePolicy": {
                     "maxSteps": policy.max_steps,
                     "contextWarningPercent": policy.context_warning_percent,
@@ -925,14 +1173,31 @@ pub(crate) async fn run_agent(
             None,
             false,
         )?;
+        if omitted_skill_count > 0 {
+            record_runtime_diagnostic(
+                &mut turn,
+                "skills",
+                "warning",
+                "skills.catalogTruncated",
+                format!(
+                    "{} compatible managed Skills were omitted from the Turn catalog budget.",
+                    omitted_skill_count
+                ),
+                Some(
+                    "Narrow compatible editor scopes or explicitly select the required Skill."
+                        .to_string(),
+                ),
+                false,
+            )?;
+        }
         turn.send(
             "itemAdded",
             json!({
                 "item": {
                     "id": format!("{run_id}:skill"),
                     "kind": "tool",
-                    "name": format!("{} Skill", request.skill_id.clone().unwrap_or_else(|| "Editor".to_string())),
-                    "summary": format!("{} editor Tools available", tool_definitions.len()),
+                    "name": format!("{} Skill", skill_id.clone().unwrap_or_else(|| "Editor".to_string())),
+                    "summary": format!("{} editor Tools and {} host Tools available", editor_tool_definitions.len(), tool_definitions.len().saturating_sub(editor_tool_definitions.len())),
                     "status": "completed",
                     "createdAt": now_millis(),
                 }
@@ -954,7 +1219,6 @@ pub(crate) async fn run_agent(
     let _terminal_turn = TerminalTurnGuard {
         emitter: emitter.clone(),
     };
-    let skill_id = request.skill_id.clone();
     let runtime_catalog = adapters::discover_runtime_catalog().await;
     let codex_runtime = runtime_catalog
         .iter()
@@ -1009,6 +1273,8 @@ pub(crate) async fn run_agent(
                     &state,
                     &emitter,
                     &tool_definitions,
+                    &editor_tool_definitions,
+                    &skill_turn,
                     &request.model,
                     CodexRunOptions {
                         started: codex_started,
@@ -1173,165 +1439,108 @@ pub(crate) async fn run_agent(
     }
     let api_key = settings::read_provider_api_key(&app_handle)?
         .ok_or_else(|| "AI provider configuration is required".to_string())?;
-    let progress_emitter = emitter.clone();
-    let result = runtime::complete(request, api_key, cancellation, move |progress| {
-        let mut turn = progress_emitter
-            .lock()
-            .map_err(|_| "Agent Turn event state is unavailable".to_string())?;
-        match progress {
-            provider::ProviderProgress::Capabilities(capabilities) => turn.send(
-                "capabilitiesUpdated",
-                json!({"capabilities": normalized_capabilities(&capabilities)}),
-            ),
-            provider::ProviderProgress::StrategyFallback { from, to, reason } => {
-                let item_id = format!("{}:fallback", turn.turn_id);
-                turn.send("itemAdded", json!({"item": {
-                    "id": item_id,
-                    "kind": "lifecycle",
-                    "label": format!("{reason} ({from:?} → {to:?})"),
-                    "status": "completed",
-                    "createdAt": now_millis(),
-                }}))?;
-                record_runtime_diagnostic(
-                    &mut turn,
-                    "fallback",
-                    "warning",
-                    "provider.strategyFallback",
-                    format!("{reason} ({from:?} → {to:?})"),
-                    Some("No action is required unless the fallback repeats.".to_string()),
-                    true,
+    let mut compatibility_request = request;
+    let mut broker = AgentToolBroker::with_max_steps(&tool_definitions, policy.max_steps)?;
+    let mut compatibility_host_rounds = 0_u8;
+    let result = loop {
+        let progress_emitter = emitter.clone();
+        let round_result = runtime::complete(
+            compatibility_request.clone(),
+            api_key.clone(),
+            cancellation.clone(),
+            move |progress| emit_provider_progress(&progress_emitter, progress),
+        )
+        .await;
+        let Ok(completion) = round_result else {
+            break round_result;
+        };
+        let host_calls = completion
+            .tool_calls
+            .iter()
+            .filter(|tool_call| {
+                matches!(
+                    tool_call.name.as_str(),
+                    "activate_skill" | "read_skill_reference"
                 )
+            })
+            .collect::<Vec<_>>();
+        let has_host_calls = !host_calls.is_empty();
+        if has_host_calls {
+            compatibility_host_rounds = compatibility_host_rounds.saturating_add(1);
+            if compatibility_host_rounds > 3 {
+                break Err(compatibility_skill_loop_failure());
             }
-            provider::ProviderProgress::RetryScheduled {
-                attempt,
-                delay_ms,
-                diagnostic,
-            } => {
-                let item_id = format!("{}:retry:{attempt}", turn.turn_id);
-                turn.send("itemAdded", json!({"item": {
-                    "id": item_id,
-                    "kind": "lifecycle",
-                    "label": format!("Retrying provider request (attempt {attempt}) in {delay_ms} ms"),
-                    "status": "completed",
-                    "createdAt": now_millis(),
-                }}))?;
-                record_runtime_diagnostic(
-                    &mut turn,
-                    "retry",
-                    "warning",
-                    &format!("provider.{:?}", diagnostic.code),
-                    diagnostic.message,
-                    diagnostic.recovery,
-                    diagnostic.retryable,
-                )
-            }
-            provider::ProviderProgress::PublicActivityDelta(text) => {
-                emit_public_activity_delta(&mut turn, text)
-            }
-            provider::ProviderProgress::ContextUsage {
-                total,
-                last,
-                model_context_window,
-            } => {
-                let used_percent = model_context_window
-                    .filter(|window| *window > 0)
-                    .map(|window| {
-                        total
-                            .total_tokens
-                            .saturating_mul(100)
-                            .checked_div(window)
-                            .unwrap_or(0)
-                            .min(100)
-                    });
-                turn.send(
-                    "contextUpdated",
-                    json!({"context": {
-                        "status": "available",
-                        "source": "provider",
-                        "total": total,
-                        "last": last,
-                        "modelContextWindow": model_context_window,
-                        "usedPercent": used_percent,
-                        "message": if used_percent.is_some() {
-                            "Exact context usage was supplied by the provider."
-                        } else {
-                            "Exact token usage was supplied by the provider, but no context window was supplied."
-                        },
-                    }}),
-                )
-            }
-            provider::ProviderProgress::TextDelta(text) => {
-                turn.append_assistant_delta(&text)
-            }
-            provider::ProviderProgress::ToolStarted { call_id, name } => {
-                emit_tool_started(&mut turn, &call_id, &name, None)
-            }
-            provider::ProviderProgress::ToolCompleted {
-                call_id,
-                name,
-                arguments,
-            } => {
-                let item_id = turn
-                    .tool_items
-                    .get(&call_id)
-                    .cloned()
-                    .unwrap_or_else(|| format!("{}:tool:{call_id}", turn.turn_id));
-                turn.send("itemUpdated", json!({"item": {
-                    "id": item_id,
-                    "kind": "tool",
-                    "name": name,
-                    "callId": call_id,
-                    "summary": "Arguments received",
-                    "input": arguments,
-                    "status": "running",
-                    "createdAt": now_millis(),
-                }}))
-            }
-            provider::ProviderProgress::Telemetry(telemetry) => turn.send(
-                "telemetryUpdated",
-                json!({"telemetry": telemetry}),
-            ),
         }
-    })
-    .await;
+        let mut ephemeral_host_results = Vec::new();
+        let calls_to_execute = if has_host_calls {
+            host_calls
+        } else {
+            completion.tool_calls.iter().collect::<Vec<_>>()
+        };
+        for tool_call in calls_to_execute {
+            let raw_result = match execute_editor_tool(
+                &state,
+                &emitter,
+                &mut broker,
+                tool_call,
+                &skill_turn,
+                &editor_tool_definitions,
+                tool_cancellation.clone(),
+            )
+            .await
+            {
+                Ok(result) => result,
+                Err(message) => {
+                    if let Ok(mut turn) = emitter.lock() {
+                        let _ = record_runtime_diagnostic(
+                            &mut turn,
+                            "cancellation",
+                            "info",
+                            "runtime.cancelledDuringTool",
+                            "The running Turn was cancelled during Agent Tool activity.",
+                            None,
+                            false,
+                        );
+                        let _ = turn.send_terminal(
+                            "turnCancelled",
+                            json!({"label": "Agent run cancelled"}),
+                        );
+                    }
+                    return Err(message);
+                }
+            };
+            if has_host_calls {
+                ephemeral_host_results.push(raw_result.clone());
+            }
+            let mut turn = emitter
+                .lock()
+                .map_err(|_| "Agent Turn event state is unavailable")?;
+            emit_tool_result(&mut turn, tool_call, &raw_result)?;
+        }
+        if has_host_calls {
+            let activated = skill_turn
+                .lock()
+                .map_err(|_| "Skill activation state is unavailable")?
+                .activated_instructions();
+            let host_tools = skill_turn
+                .lock()
+                .map_err(|_| "Skill activation state is unavailable")?
+                .host_tools();
+            compatibility_request.tools = editor_tool_definitions.clone();
+            compatibility_request.tools.extend(host_tools);
+            compatibility_request.system_prompt = format!(
+                "{}\n\nCURRENT CAPTURED SKILL INSTRUCTIONS:\n{}\n\nEPHEMERAL HOST TOOL RESULTS FOR THIS TURN ONLY:\n{}",
+                compatibility_request.system_prompt,
+                activated,
+                serde_json::to_string(&ephemeral_host_results)
+                    .unwrap_or_else(|_| "[]".to_string()),
+            );
+            continue;
+        }
+        break Ok(completion);
+    };
     match result {
         Ok(completion) => {
-            let mut broker = AgentToolBroker::with_max_steps(&tool_definitions, policy.max_steps)?;
-            for tool_call in &completion.tool_calls {
-                let raw_result = match execute_editor_tool(
-                    &state,
-                    &emitter,
-                    &mut broker,
-                    tool_call,
-                    tool_cancellation.clone(),
-                )
-                .await
-                {
-                    Ok(result) => result,
-                    Err(message) => {
-                        if let Ok(mut turn) = emitter.lock() {
-                            let _ = record_runtime_diagnostic(
-                                &mut turn,
-                                "cancellation",
-                                "info",
-                                "runtime.cancelledDuringTool",
-                                "The running Turn was cancelled during editor Tool activity.",
-                                None,
-                                false,
-                            );
-                            let _ = turn.send_terminal(
-                                "turnCancelled",
-                                json!({"label": "Agent run cancelled"}),
-                            );
-                        }
-                        return Err(message);
-                    }
-                };
-                let mut turn = emitter
-                    .lock()
-                    .map_err(|_| "Agent Turn event state is unavailable")?;
-                emit_tool_result(&mut turn, tool_call, &raw_result)?;
-            }
             let response_text = if completion.text.trim().is_empty() {
                 "I completed the requested editor Tool activity.".to_string()
             } else {

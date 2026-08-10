@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Draft | Complete |
-| --- | --- | --- | --- |
-| `required` | 6 | 0 | 6 |
-| `feature` | 45 | 1 | 44 |
-| `bugfix` | 29 | 0 | 29 |
+| Type | Plans | Complete |
+| --- | --- | --- |
+| `required` | 6 | 6 |
+| `feature` | 45 | 45 |
+| `bugfix` | 29 | 29 |
 
 ## Execution Order
 
@@ -78,7 +78,7 @@
 | `F035` | [Complete Agent History, Codex Runtime, and Streaming Activity](features/F035-agent-history-codex-runtime-and-streaming-activity.md) | `complete` | 2026-08-09 |
 | `F036` | [Apply Agent Editor Edits Directly with Undo](features/F036-direct-agent-editor-edits-with-undo.md) | `complete` | 2026-08-09 |
 | `F037-01` | [Add Runtime Diagnostics and Configurable Agent Policy](features/F037-agent-runtime-visibility-and-custom-skills/F037-01-runtime-diagnostics-and-configurable-policy.md) | `complete` | 2026-08-10 |
-| `F037-02` | [Add Managed Custom Agent Skills](features/F037-agent-runtime-visibility-and-custom-skills/F037-02-managed-custom-agent-skills.md) | `draft` | 2026-08-10 |
+| `F037-02` | [Add Managed Custom Agent Skills](features/F037-agent-runtime-visibility-and-custom-skills/F037-02-managed-custom-agent-skills.md) | `complete` | 2026-08-10 |
 | `F038-01` | [Generalize the Document Kernel and Deliver the Markdown Editor](features/F038-markdown-editor-and-agent-extension/F038-01-generic-document-kernel-and-markdown-editor.md) | `complete` | 2026-08-10 |
 | `F038-02` | [Add the Markdown Agent Skill and Native Editor Tools](features/F038-markdown-editor-and-agent-extension/F038-02-markdown-agent-skill-and-tools.md) | `complete` | 2026-08-10 |
 

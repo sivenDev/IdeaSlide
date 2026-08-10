@@ -47,6 +47,7 @@ export function createAgentThreadState({
       skillId: "",
       revision: 0,
     },
+    skillProvenance: [],
     items: [{
       id: `${threadId}:welcome:message`,
       kind: "message",
@@ -75,6 +76,7 @@ export function hydrateAgentThreadState(record: AgentThreadRecord): AgentThreadS
     ...record.thread,
     turns: record.thread.turns.map((turn) => ({
       ...turn,
+      skillProvenance: turn.skillProvenance ?? [],
       ...(turn.telemetry ? { telemetry: normalizeStreamingTelemetry(turn.telemetry) } : {}),
       items: turn.items.filter((item) => item.kind !== "changeReview"),
     })),
@@ -215,6 +217,7 @@ function applyOrderedEvent(state: AgentThreadState, event: AgentEvent): AgentThr
         createdAt: event.at,
         binding: event.binding,
         effectivePolicy: event.effectivePolicy,
+        skillProvenance: event.skillProvenance ?? [],
         items: [
           {
             id: event.userItemId,
@@ -275,6 +278,10 @@ function applyOrderedEvent(state: AgentThreadState, event: AgentEvent): AgentThr
         },
       };
     }
+    case "skillActivated":
+      return updateTurn(state, event.turnId, (turn) => turn.skillProvenance.some((skill) => skill.id === event.provenance.id)
+        ? turn
+        : { ...turn, skillProvenance: [...turn.skillProvenance, event.provenance] });
     case "itemAdded":
       return updateTurn(state, event.turnId, (turn) => (
         turn.items.some((item) => item.id === event.item.id)

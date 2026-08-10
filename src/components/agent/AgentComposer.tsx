@@ -1,5 +1,7 @@
 import { ComposerPrimitive } from "@assistant-ui/react";
 import { CornerDownRight, RotateCcw, Send, Square } from "lucide-react";
+import type { AgentSkillMetadata } from "../../lib/agent/types";
+import { AgentSkillPicker } from "./AgentSkillPicker";
 
 export function AgentComposer({
   disabled,
@@ -7,6 +9,10 @@ export function AgentComposer({
   steeringAvailable,
   retryAvailable,
   targetLabel,
+  skills,
+  editorSkillId,
+  selectedSkillIds,
+  onSelectedSkillIdsChange,
   onRetry,
 }: {
   disabled: boolean;
@@ -14,6 +20,10 @@ export function AgentComposer({
   steeringAvailable: boolean;
   retryAvailable: boolean;
   targetLabel: string;
+  skills: AgentSkillMetadata[];
+  editorSkillId?: string;
+  selectedSkillIds: string[];
+  onSelectedSkillIdsChange: (ids: string[]) => void;
   onRetry: () => void;
 }) {
   return (
@@ -28,6 +38,13 @@ export function AgentComposer({
         rows={3}
         disabled={disabled || (running && !steeringAvailable)}
         submitMode="enter"
+      />
+      <AgentSkillPicker
+        skills={skills}
+        editorSkillId={editorSkillId}
+        selectedIds={selectedSkillIds}
+        disabled={disabled || running}
+        onChange={onSelectedSkillIdsChange}
       />
       <div className="flex items-center justify-between gap-2">
         {retryAvailable && !running ? (

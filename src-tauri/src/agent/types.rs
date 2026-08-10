@@ -19,6 +19,8 @@ pub(crate) struct AgentRunRequest {
     #[serde(default)]
     pub policy: AgentPolicySettings,
     pub skill_id: Option<String>,
+    #[serde(default)]
+    pub selected_skill_ids: Vec<String>,
     pub context: serde_json::Value,
     pub tools: Vec<AgentToolDescriptor>,
     pub messages: Vec<AgentMessageInput>,
@@ -231,4 +233,50 @@ pub(crate) struct AgentSkillMetadata {
     pub id: String,
     pub name: String,
     pub description: String,
+    pub origin: AgentSkillOrigin,
+    pub source_label: String,
+    pub enabled: bool,
+    pub implicit_invocation: bool,
+    pub editor_scopes: Vec<String>,
+    pub digest: String,
+    pub valid: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub validation_message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_refreshed_at: Option<u64>,
+    pub resources: Vec<AgentSkillResourceMetadata>,
+    pub required_tools: Vec<String>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum AgentSkillOrigin {
+    Bundled,
+    Custom,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AgentSkillResourceMetadata {
+    pub id: String,
+    pub label: String,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum AgentSkillActivationMode {
+    Mandatory,
+    Explicit,
+    Implicit,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AgentSkillProvenance {
+    pub id: String,
+    pub name: String,
+    pub origin: AgentSkillOrigin,
+    pub digest: String,
+    pub activation_mode: AgentSkillActivationMode,
+    pub editor_scope: String,
 }

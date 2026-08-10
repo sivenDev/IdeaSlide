@@ -71,3 +71,17 @@ test('runtime diagnostics use a transport-neutral exact-or-unavailable context c
   assert.match(source, /effectivePolicy: AgentEffectivePolicy/);
   assert.doesNotMatch(source, /chainOfThought|rawProviderPayload|estimatedTokens/);
 });
+
+test('managed Skill contracts are additive, origin-qualified, and persist provenance only', async () => {
+  const protocol = await readFile(new URL('../src/lib/agent/protocol.ts', import.meta.url), 'utf8');
+  const types = await readFile(new URL('../src/lib/agent/types.ts', import.meta.url), 'utf8');
+  const native = await readFile(new URL('../src-tauri/src/agent/skill_registry.rs', import.meta.url), 'utf8');
+  assert.match(types, /origin: "bundled" \| "custom"/);
+  assert.match(types, /selectedSkillIds: string\[\]/);
+  assert.match(types, /activationMode: AgentSkillActivationMode/);
+  assert.match(protocol, /interface AgentSkillActivatedEvent/);
+  assert.match(protocol, /skillProvenance: AgentSkillProvenance\[\]/);
+  assert.match(native, /custom:/);
+  assert.match(native, /"persistable": false/);
+  assert.doesNotMatch(protocol, /instructions: string|relativePath|absolutePath/);
+});
