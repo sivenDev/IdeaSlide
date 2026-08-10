@@ -60,6 +60,7 @@ pub fn run() {
             commands::save_file,
             commands::write_file_bytes,
             commands::inspect_file,
+            commands::read_document_image,
             commands::open_workspace,
             commands::scan_workspace,
             commands::refresh_workspace,

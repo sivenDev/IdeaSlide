@@ -1,15 +1,16 @@
 import type { DocumentSession } from "../types";
 import { getFileTypeDefinition } from "../lib/fileTypeRegistry";
+import { getEditorContribution, type DocumentEditorContributionProps } from "../lib/editorRegistry";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { UnsupportedFileView } from "./UnsupportedFileView";
 
 interface DocumentEditorHostProps {
   document?: DocumentSession;
   fullPath?: string;
-  renderIdeaSketch?: (document: DocumentSession) => React.ReactNode;
+  editorProps: Omit<DocumentEditorContributionProps, "document">;
 }
 
-export function DocumentEditorHost({ document, fullPath, renderIdeaSketch }: DocumentEditorHostProps) {
+export function DocumentEditorHost({ document, fullPath, editorProps }: DocumentEditorHostProps) {
   if (!document) {
     return (
       <div className="flex h-full items-center justify-center bg-[#f7f8fa] text-sm text-gray-400">
@@ -25,19 +26,21 @@ export function DocumentEditorHost({ document, fullPath, renderIdeaSketch }: Doc
   }
   const isMissing = document.status === "missing";
   const definition = getFileTypeDefinition(document.fileType);
-  if (definition?.editor === "ideasketch" && document.model && renderIdeaSketch) {
+  const contribution = definition ? getEditorContribution(definition.editor) : undefined;
+  if (contribution && document.model) {
+    const Editor = contribution.component;
     return (
       <div className="relative h-full min-h-0 bg-[#f7f8fa]">
         <div className="h-full min-h-0" hidden={isMissing} aria-hidden={isMissing}>
-          <ErrorBoundary>{renderIdeaSketch(document)}</ErrorBoundary>
+          <ErrorBoundary><Editor document={document} {...editorProps} /></ErrorBoundary>
         </div>
       </div>
     );
   }
-  if (definition?.editor === "ideasketch") {
+  if (contribution) {
     return (
       <div className="flex h-full items-center justify-center bg-[#f7f8fa] text-sm text-gray-500">
-        IdeaSketch editor is ready for this document session.
+        {definition?.displayName} editor is ready for this document session.
       </div>
     );
   }

@@ -8,6 +8,7 @@ test('only the active heavy document editor is mounted', async () => {
   assert.match(editor, /const activeDocument = state\.documents\.find/);
   assert.match(editor, /<DocumentEditorHost[\s\S]*document=\{activeDocument\}/);
   assert.doesNotMatch(editor, /state\.documents\.map[\s\S]*DocumentEditorHost/);
-  assert.match(host, /renderIdeaSketch/);
-  assert.match(editor, /<IdeaSketchEditor/);
+  assert.match(host, /getEditorContribution/);
+  assert.match(host, /<Editor document=\{document\}/);
+  assert.doesNotMatch(editor, /<IdeaSketchEditor/);
 });

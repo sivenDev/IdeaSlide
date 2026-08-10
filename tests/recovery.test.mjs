@@ -26,6 +26,14 @@ test('recovery drafts are versioned and detect source changes without overwritin
   assert.equal(classifyRecoveryDraft({ ...draft, schemaVersion: 99 }, document), 'invalid');
 });
 
+test('Markdown recovery validates against the active registered file type', () => {
+  const markdown = { type: 'markdown', text: '# Draft\n', bom: false, lineEnding: 'lf', originalText: '# Draft\n' };
+  const document = { id: 'm', mode: 'standalone', filePath: '/notes.md', fileType: 'markdown', status: 'editable', isDirty: true, revision: 1 };
+  const draft = createRecoveryDraft(document, markdown);
+  assert.equal(classifyRecoveryDraft(draft, document), 'current');
+  assert.equal(classifyRecoveryDraft(draft, { ...document, fileType: 'ideasketch' }), 'invalid');
+});
+
 test('startup discovery and close lifecycle are wired for standalone drafts', async () => {
   const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
   const editor = await readFile(new URL('../src/components/EditorLayout.tsx', import.meta.url), 'utf8');

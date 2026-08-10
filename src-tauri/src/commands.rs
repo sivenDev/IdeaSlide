@@ -4,9 +4,10 @@ use crate::workspace::{
     WorkspaceService, WorkspaceState,
 };
 use crate::workspace_watcher::WorkspaceWatcherState;
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 use tauri::command;
 
 #[derive(Debug, Clone, Serialize)]
@@ -78,6 +79,56 @@ pub fn write_file_bytes(path: String, data: Vec<u8>) -> Result<(), String> {
 #[command]
 pub fn inspect_file(path: String) -> Result<FileInspection, String> {
     inspect_path(PathBuf::from(path).as_path())
+}
+
+#[command]
+pub fn read_document_image(document_path: String, href: String) -> Result<String, String> {
+    let relative = Path::new(href.split(['?', '#']).next().unwrap_or_default());
+    if relative.as_os_str().is_empty()
+        || relative.is_absolute()
+        || relative.components().any(|component| {
+            matches!(
+                component,
+                Component::ParentDir | Component::RootDir | Component::Prefix(_)
+            )
+        })
+    {
+        return Err("Markdown image path must stay inside the document directory".to_string());
+    }
+    let document = PathBuf::from(document_path);
+    let directory = document
+        .parent()
+        .ok_or_else(|| "Markdown document has no parent directory".to_string())?;
+    let directory = directory
+        .canonicalize()
+        .map_err(|error| format!("Failed to resolve document directory: {error}"))?;
+    let image = directory
+        .join(relative)
+        .canonicalize()
+        .map_err(|error| format!("Failed to resolve Markdown image: {error}"))?;
+    if !image.starts_with(&directory) || !image.is_file() {
+        return Err("Markdown image path is outside the document directory".to_string());
+    }
+    let extension = image
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    let mime = match extension.as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        _ => return Err("Markdown preview supports PNG, JPEG, GIF, and WebP images".to_string()),
+    };
+    let metadata = std::fs::metadata(&image)
+        .map_err(|error| format!("Failed to inspect Markdown image: {error}"))?;
+    if metadata.len() > 10 * 1024 * 1024 {
+        return Err("Markdown image exceeds the 10 MB preview limit".to_string());
+    }
+    let bytes =
+        std::fs::read(&image).map_err(|error| format!("Failed to read Markdown image: {error}"))?;
+    Ok(format!("data:{mime};base64,{}", BASE64.encode(bytes)))
 }
 
 #[command]
@@ -221,5 +272,28 @@ mod tests {
         .unwrap();
         let opened = open_workspace_document(root, "drawing.is".to_string()).unwrap();
         assert!(matches!(opened, OpenDocumentResult::Editable { .. }));
+    }
+
+    #[test]
+    fn markdown_images_are_bounded_to_the_document_directory() {
+        let directory = TempDir::new().unwrap();
+        let notes = directory.path().join("notes");
+        std::fs::create_dir_all(&notes).unwrap();
+        let document = notes.join("readme.md");
+        let image = notes.join("cover.png");
+        std::fs::write(&document, "# Notes").unwrap();
+        std::fs::write(&image, b"png-bytes").unwrap();
+        let data_url = read_document_image(
+            document.to_string_lossy().to_string(),
+            "cover.png".to_string(),
+        )
+        .unwrap();
+        assert!(data_url.starts_with("data:image/png;base64,"));
+        assert!(read_document_image(
+            document.to_string_lossy().to_string(),
+            "../outside.png".to_string(),
+        )
+        .unwrap_err()
+        .contains("stay inside"));
     }
 }

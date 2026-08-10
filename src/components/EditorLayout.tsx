@@ -53,18 +53,18 @@ import {
   type UnsavedDocumentResolution,
 } from "../lib/unsavedChanges";
 import { isProtectedDocumentSession } from "../lib/appStoreReducer";
+import { getFileTypeDefinitionByPath } from "../lib/fileTypeRegistry";
 import {
   projectWorkspaceEntryDrop,
   workspaceParentPath,
   type WorkspaceDropRequest,
 } from "../lib/workspaceOrdering";
-import type { DocumentModel, DocumentSession, IdeaSketchDocument, IdeaSketchPage, WorkspaceEntry } from "../types";
+import type { DocumentEditorState, DocumentModel, DocumentSession, IdeaSketchPage, WorkspaceEntry } from "../types";
 import type { ActiveAgentEditorBinding } from "../lib/agent/types";
 import { Toolbar } from "./Toolbar";
 import { WorkspaceExplorer } from "./WorkspaceExplorer";
 import { DocumentEditorHost } from "./DocumentEditorHost";
 import { ResizableDivider } from "./ResizableDivider";
-import { IdeaSketchEditor } from "./IdeaSketchEditor";
 import { ExternalChangeNotice } from "./ExternalChangeNotice";
 import { RecoveryPrompt } from "./RecoveryPrompt";
 import { WorkspaceStatusNotice } from "./WorkspaceStatusNotice";
@@ -111,6 +111,20 @@ function joinWorkspacePath(root: string, relativePath: string): string {
   return `${root.replace(/[\\/]$/, "")}/${relativePath}`;
 }
 
+function resolveRelativeDocumentPath(basePath: string, href: string): string | undefined {
+  const cleanHref = href.split(/[?#]/, 1)[0].replace(/\\/g, "/");
+  if (!cleanHref || cleanHref.startsWith("/") || /^[a-z][a-z\d+.-]*:/i.test(cleanHref)) return undefined;
+  const hrefParts = cleanHref.split("/");
+  if (hrefParts.some((part) => part === "..")) return undefined;
+  const baseParts = basePath.replace(/\\/g, "/").split("/");
+  baseParts.pop();
+  for (const part of hrefParts) {
+    if (!part || part === ".") continue;
+    baseParts.push(part);
+  }
+  return baseParts.join("/");
+}
+
 export function EditorLayout({
   onGoHome,
   onOpenSettings,
@@ -135,7 +149,7 @@ export function EditorLayout({
     requestUnsavedChangesDecision,
     resolveUnsavedChangesDecision,
   } = useUnsavedChangesDialog();
-  const documentSnapshotProviders = useRef(new Map<string, () => IdeaSketchDocument>());
+  const documentSnapshotProviders = useRef(new Map<string, () => DocumentModel>());
   const pendingAutoSaveModified = useRef(new Map<string, string | undefined>());
   const standaloneWriteGeneration = useRef(new Map<string, number>());
   const standaloneWritesInProgress = useRef(new Map<string, number>());
@@ -319,7 +333,7 @@ export function EditorLayout({
     if (scope) await deleteRecoveryDraft(scope).catch((error) => console.warn("Failed to clear recovery draft:", error));
   }, [state.workspace?.root]);
 
-  const handleWriteRecovery = useCallback(async (sessionId: string, model: IdeaSketchDocument) => {
+  const handleWriteRecovery = useCallback(async (sessionId: string, model: DocumentModel) => {
     const document = state.documents.find((candidate) => candidate.id === sessionId);
     if (!document) return;
     const scope = recoveryScopeForDocument(document, state.workspace?.root);
@@ -466,7 +480,7 @@ export function EditorLayout({
         return true;
       }
       let path = forceSaveAs ? "" : document.filePath;
-      if (!path) path = await chooseStandaloneSavePath(document.displayName || "Untitled.is") ?? "";
+      if (!path) path = await chooseStandaloneSavePath(document.displayName || "Untitled.is", model.type) ?? "";
       if (!path) return false;
       const inspection = await saveStandaloneDocumentWithTracking(document, model, path);
       await clearRecoveryForDocument(document);
@@ -482,7 +496,7 @@ export function EditorLayout({
     }
   }, [clearRecoveryForDocument, dispatch, inspectDocumentTarget, saveStandaloneDocumentWithTracking, state.workspace]);
 
-  const handleRegisterSnapshot = useCallback((sessionId: string, provider?: () => IdeaSketchDocument) => {
+  const handleRegisterSnapshot = useCallback((sessionId: string, provider?: () => DocumentModel) => {
     if (provider) documentSnapshotProviders.current.set(sessionId, provider);
     else documentSnapshotProviders.current.delete(sessionId);
   }, []);
@@ -541,6 +555,33 @@ export function EditorLayout({
     flushActiveDocumentSnapshot();
     return saveDirtyDocumentBeforeTransition(activeDocument, saveDocument);
   }, [activeDocument, flushActiveDocumentSnapshot, saveDocument]);
+
+  const handleOpenDocumentLink = useCallback(async (href: string) => {
+    if (!activeDocument) return;
+    const targetPath = resolveRelativeDocumentPath(activeDocument.filePath, href);
+    const definition = targetPath ? getFileTypeDefinitionByPath(targetPath) : undefined;
+    if (!targetPath || !definition?.openable) {
+      await message("This relative link is outside the current document boundary or uses an unsupported file type.", {
+        title: "Link Not Opened",
+        kind: "warning",
+      });
+      return;
+    }
+    if (!await prepareActiveDocumentTransition()) return;
+    try {
+      const opened = activeDocument.mode === "workspace" && state.workspace
+        ? await openWorkspaceDocument(state.workspace.root, targetPath)
+        : await openStandaloneDocument(targetPath);
+      dispatch({ type: "OPEN_DOCUMENT", document: sessionFromOpened(targetPath, activeDocument.mode, opened) });
+      if (activeDocument.mode === "workspace") dispatch({ type: "SELECT_WORKSPACE_PATH", path: targetPath });
+      else addRecentFile(targetPath).catch(console.error);
+    } catch (error) {
+      await message(`The linked document could not be opened: ${error instanceof Error ? error.message : String(error)}`, {
+        title: "Link Not Opened",
+        kind: "warning",
+      });
+    }
+  }, [activeDocument, dispatch, prepareActiveDocumentTransition, state.workspace]);
 
   const openEntry = useCallback(async (entry: WorkspaceEntry) => {
     if (!state.workspace || entry.kind !== "file") return;
@@ -890,26 +931,25 @@ export function EditorLayout({
               <DocumentEditorHost
                 document={activeDocument}
                 fullPath={activeFullPath}
-                renderIdeaSketch={(document) => (
-                  <IdeaSketchEditor
-                    document={document as DocumentSession<IdeaSketchDocument>}
-                    readOnly={readOnly || Boolean(state.workspace?.readOnly) || Boolean(document.readOnly) || document.status === "read-only"}
-                    editorRefreshToken={state.editorRefreshToken}
-                    onModelChange={(sessionId, model) => dispatch({ type: "UPDATE_DOCUMENT_MODEL", sessionId, model })}
-                    onDirty={(sessionId) => dispatch({ type: "MARK_DOCUMENT_DIRTY", sessionId })}
-                    onEditorStateChange={(sessionId, activePageId) => dispatch({
-                      type: "SET_DOCUMENT_EDITOR_STATE",
-                      sessionId,
-                      editorState: { activePageId },
-                    })}
-                    onRegisterSnapshot={handleRegisterSnapshot}
-                    onAutoSave={handleAutoSave}
-                    onAutoSaveComplete={(sessionId) => void handleAutoSaveComplete(sessionId)}
-                    onWriteRecovery={handleWriteRecovery}
-                    onStartPresentation={handleStartPresentation}
-                    onAgentBindingChange={handleAgentBindingChange}
-                  />
-                )}
+                editorProps={{
+                  readOnly: readOnly || Boolean(state.workspace?.readOnly) || Boolean(activeDocument?.readOnly) || activeDocument?.status === "read-only",
+                  editorRefreshToken: state.editorRefreshToken,
+                  onModelChange: (sessionId, model) => dispatch({ type: "UPDATE_DOCUMENT_MODEL", sessionId, model }),
+                  onDirty: (sessionId) => dispatch({ type: "MARK_DOCUMENT_DIRTY", sessionId }),
+                  onEditorStateChange: (sessionId: string, editorState: DocumentEditorState | undefined) => dispatch({
+                    type: "SET_DOCUMENT_EDITOR_STATE",
+                    sessionId,
+                    editorState: editorState ?? {},
+                  }),
+                  onRegisterSnapshot: handleRegisterSnapshot,
+                  onAutoSave: handleAutoSave,
+                  onAutoSaveComplete: (sessionId) => void handleAutoSaveComplete(sessionId),
+                  onWriteRecovery: handleWriteRecovery,
+                  onStartPresentation: handleStartPresentation,
+                  onAgentBindingChange: handleAgentBindingChange,
+                  documentFullPath: activeFullPath,
+                  onOpenDocumentLink: (href) => void handleOpenDocumentLink(href),
+                }}
               />
             </div>
           </div>

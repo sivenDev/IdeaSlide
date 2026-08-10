@@ -21,14 +21,17 @@ import {
   workspaceToIdeaSketchDocument,
   type IdeaSketchFileData,
 } from "./ideaSketchDocument.ts";
-import { getFileTypeDefinitionByPath } from "./fileTypeRegistry.ts";
-import { getFileTypeDefinition } from "./fileTypeRegistry.ts";
+import {
+  getFileTypeDefinition,
+  getFileTypeDefinitionByPath,
+  getOpenableFileTypeDefinitions,
+} from "./fileTypeRegistry.ts";
 
 const createdTimestampByPath = new Map<string, string>();
 
 interface BackendDocumentData {
-  type: "ideasketch";
-  data: IdeaSketchFileData;
+  type: string;
+  data: unknown;
 }
 
 type BackendOpenDocumentResult =
@@ -257,7 +260,7 @@ async function parseBackendOpenResult(result: BackendOpenDocumentResult): Promis
   return {
     status: "editable",
     fileType,
-    model: await definition.parse(unwrapIdeaSketchData(result.document)),
+    model: await definition.parse(result.document.data),
   };
 }
 
@@ -299,7 +302,8 @@ export async function openWorkspaceDocument(root: string, path: string): Promise
 }
 
 export async function openStandaloneDocument(path: string): Promise<OpenedDocument> {
-  requireIdeaSketchDefinition(path);
+  const definition = getFileTypeDefinitionByPath(path);
+  if (!definition?.openable) throw new Error(`Unsupported file type: ${path}`);
   const opened = await parseBackendOpenResult(
     await invoke<BackendOpenDocumentResult>("open_file", { path }),
   );
@@ -309,8 +313,15 @@ export async function openStandaloneDocument(path: string): Promise<OpenedDocume
 }
 
 export async function chooseAndOpenStandaloneDocument(): Promise<{ path: string; document: OpenedDocument }> {
+  const definitions = getOpenableFileTypeDefinitions();
   const path = await open({
-    filters: [{ name: "IdeaNote IdeaSketch", extensions: ["is"] }],
+    filters: [
+      { name: "IdeaNote Documents", extensions: definitions.flatMap((definition) => definition.extensions) },
+      ...definitions.map((definition) => ({
+        name: definition.displayName,
+        extensions: definition.extensions,
+      })),
+    ],
     multiple: false,
   });
   if (!path || typeof path !== "string") throw new Error("File selection cancelled");
@@ -383,9 +394,25 @@ export async function inspectFile(path: string): Promise<FileInspection> {
   return invoke<FileInspection>("inspect_file", { path });
 }
 
-export async function chooseStandaloneSavePath(defaultName = "Untitled.is"): Promise<string | null> {
+export async function readDocumentImage(documentPath: string, href: string): Promise<string> {
+  return invoke<string>("read_document_image", { documentPath, href });
+}
+
+export async function chooseStandaloneSavePath(
+  defaultName = "Untitled.is",
+  fileType?: string,
+): Promise<string | null> {
+  const definition = fileType
+    ? getFileTypeDefinition(fileType)
+    : getFileTypeDefinitionByPath(defaultName);
+  const filters = definition
+    ? [{ name: definition.displayName, extensions: definition.extensions }]
+    : getOpenableFileTypeDefinitions().map((candidate) => ({
+      name: candidate.displayName,
+      extensions: candidate.extensions,
+    }));
   return save({
-    filters: [{ name: "IdeaNote IdeaSketch", extensions: ["is"] }],
+    filters,
     defaultPath: defaultName,
   });
 }

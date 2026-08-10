@@ -29,7 +29,7 @@ IdeaNote 同时支持：
 - 中间：当前文件的单一 Editor。
 - 右侧：AI Agent。
 
-当前阶段已实现左侧 Workspace Explorer、中间单一 Editor、IdeaSketch 编辑器、全局 Settings Center 和可配置的通用 AI Agent。Markdown、IdeaTable、IdeaWorkflow 以及 Workspace 导入导出在后续阶段开发；新增编辑器复用同一 Agent Runtime，并通过注册表注入自己的 Skill、Tools、Context 和 Change Review。
+当前阶段已实现左侧 Workspace Explorer、中间单一 Editor、IdeaSketch 与 Markdown 编辑器、全局 Settings Center 和可配置的通用 AI Agent。IdeaTable、IdeaWorkflow 以及 Workspace 导入导出在后续阶段开发；新增编辑器复用同一 Agent Runtime，并通过注册表注入自己的 Skill、Tools 和 Context。
 
 ## 2. 已确认产品决定
 
@@ -43,12 +43,12 @@ IdeaNote 同时支持：
 8. 中间编辑区不显示文件 Tabs，同时只呈现一个当前文件编辑器；文件切换由 Workspace Explorer 驱动。
 9. 从左侧新建文件后，新文件立即成为当前文件并在中间编辑器打开。
 10. 应用 Shell 使用左、中、右三栏：左侧 Workspace Explorer，中间为当前编辑器及其内部 Navigator，右侧为编辑器无关、可折叠且可调整宽度的 AI Agent；Agent 不嵌入任何具体编辑器的导航区域。
-11. 当前唯一支持的编辑器是 Excalidraw，文件格式为 `.is v1`。
-12. 未来文件格式为 `.it`（IdeaTable）、`.iwf`（IdeaWorkflow）和 `.md`（Markdown）。
+11. 当前支持 IdeaSketch (`.is v1`) 和 Markdown (`.md`) 两个编辑器。
+12. 未来文件格式为 `.it`（IdeaTable）和 `.iwf`（IdeaWorkflow）。
 13. 当前阶段实现一个编辑器无关的 AI Agent 架构：Rust Agent Core 负责 Runtime 选择、Turn 编排、流式输出、取消、重试、持久化和 Tool Broker；TypeScript 只负责活动编辑器的 Tool 执行、提案、Change Review、Apply/Undo 和 UI。两侧通用层都不包含 `.is`、Markdown、IdeaTable 或 IdeaWorkflow 业务逻辑。
 14. 当前阶段不实现 Workspace 导入导出。
 15. 新编辑器不需要等待 Agent 重构：它们通过 File Type Registry 关联自己的 Agent Extension，直接复用 Rust Agent Core、Settings、Provider、会话、Tool Bridge 和审核界面。
-16. Workspace Explorer 始终显示可导航的真实目录，但文件只显示当前 File Type Registry 明确支持打开的类型；当前阶段即只显示 `.is`。
+16. Workspace Explorer 始终显示可导航的真实目录，但文件只显示当前 File Type Registry 明确支持打开的类型；当前阶段显示 `.is` 和 `.md`。
 17. Workspace Mode 产生的临时写入文件和其他应用内部临时产物统一放在 Workspace Root 的 `.ideanote/` 子目录中，不在用户文件旁生成 `.is.tmp` 等临时文件。
 18. Settings Center 同时从 Home 和编辑器打开，配置 General、AI Provider、Agent 和编辑器贡献的设置区段。
 19. AI 默认开启；关闭后不挂载 Agent UI、不初始化 Runtime、不发现 Skill、不暴露 Tool、不访问 Provider，也不保留后台 Agent 生命周期。
@@ -181,14 +181,14 @@ Workspace Mode 与 Single File Mode 不能维护两套编辑器和格式实现�
 - 展开和收起目录。
 - 选择文件或目录。
 - 新建 Folder。
-- 新建 IdeaSketch (`.is`)。
+- 新建 IdeaSketch (`.is`) 和 Markdown (`.md`)。
 - Rename。
 - Move。
 - Delete，并提供明确确认。
 - Refresh。
 - 监听外部文件创建、修改、移动和删除。
 - 保留真实目录层级，包括暂时没有受支持文件的空目录。
-- 文件只显示当前 File Type Registry 中 `openable` 的受支持类型；当前阶段只显示 `.is`。
+- 文件只显示当前 File Type Registry 中 `openable` 的受支持类型；当前阶段显示 `.is` 和 `.md`。
 - 隐藏 `.ideanote/`、不受支持的文件和应用内部临时文件。
 
 新建流程：
@@ -213,7 +213,7 @@ New IdeaWorkflow (.iwf)
 New Folder
 ```
 
-当前阶段只有 IdeaSketch 和 Folder 可创建。
+当前阶段可创建 IdeaSketch、Markdown 和 Folder。
 
 ### 6.3 Workspace 与真实文件
 
@@ -366,7 +366,7 @@ Single File Mode：
 - 不创建 `.ideanote/`。
 - 直接读取和保存用户选择的真实文件。
 - 使用与 Workspace Mode 相同的 File Type Registry、Editor Host、Parser 和 Serializer。
-- 当前阶段只正式支持 `.is v1`。
+- 当前阶段正式支持 `.is v1` 和 `.md`。
 
 ### 9.2 保存
 
@@ -435,7 +435,7 @@ interface FileTypeDefinition {
 - Unsupported File 回退。
 - 编辑器 Settings 区段和 Agent Extension 注册。
 
-当前注册类型只有 IdeaSketch。
+当前注册类型为 IdeaSketch 和 Markdown。
 
 ## 11. IdeaSketch (`.is v1`)
 
@@ -496,11 +496,11 @@ Manifest：
 - Single File Mode 不创建 `.ideanote/`；其保存临时数据使用应用本地临时存储或平台安全替换机制，并在失败时保留原文件。
 - `.is v2` 必须被识别为不受当前 Editor 支持的 Legacy Workspace，不能按 v1 覆盖。
 
-## 12. 未来文件类型
+## 12. 其他文件类型
 
 ### 12.1 Markdown (`.md`)
 
-标准 Markdown 文档。未来支持文本编辑、预览、链接和文件内引用。
+标准 UTF-8 Markdown 文档，使用 CodeMirror 6 作为唯一编辑状态与原生 Undo/Redo 历史。支持 Edit、Split、Preview、GFM 安全预览、Outline、标题跳转、同文档锚点、受限相对文档链接和文档目录内的安全本地图片。保留 UTF-8 BOM 与 LF/CRLF；未编辑的 mixed line endings 原样保留，编辑后保存前必须选择 LF 或 CRLF。Markdown 与 IdeaSketch 共用打开、保存、自动保存、Recovery、只读和外部修改保护生命周期。
 
 ### 12.2 IdeaTable (`.it`)
 
@@ -658,15 +658,14 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 
 ### 18.2 不包含
 
-1. Markdown Editor。
-2. IdeaTable Editor。
-3. IdeaWorkflow Editor。
-4. Workspace Import/Export。
-5. `.is v2` 自动迁移。
-6. Cloud Sync。
-7. Collaboration。
-8. Script Runtime。
-9. 后台自治、多 Agent 编排和不受限 Agent 工具集。
+1. IdeaTable Editor。
+2. IdeaWorkflow Editor。
+3. Workspace Import/Export。
+4. `.is v2` 自动迁移。
+5. Cloud Sync。
+6. Collaboration。
+7. Script Runtime。
+8. 后台自治、多 Agent 编排和不受限 Agent 工具集。
 
 ## 19. MVP 验收标准
 
@@ -680,13 +679,13 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 
 ### Files and Editor
 
-- 用户可以在左侧创建 Folder 和 `.is`。
+- 用户可以在左侧创建 Folder、`.is` 和 `.md`。
 - 新建 `.is` 是磁盘上的有效 v1 文件，并立即成为当前文件。
 - 点击另一个受支持文件后，中间区域切换到该文件，且始终只有一个前台 Editor。
 - 同一个真实路径不会出现重复 Document Session。
 - 文件切换前会提交当前编辑器草稿；Dirty、冲突和 Recovery Session 不会被静默丢弃。
 - 已存在 `.ideanote/` 时，重新打开 Workspace 可以恢复最后活动文件；旧版 Tab 状态不会恢复为标签栏。
-- Workspace Explorer 保留目录层级，但只显示当前支持的文件类型；当前阶段不显示 `.md`、`.it`、`.iwf` 或其他不支持文件。
+- Workspace Explorer 保留目录层级，但只显示当前支持的 `.is` 和 `.md`；不显示 `.it`、`.iwf` 或其他不支持文件。
 - 被过滤的不支持文件不会被解析、修改或删除。
 - `.ideanote/` 和其中的 `tmp/`、`recovery/`、`cache/` 永不出现在 Workspace Explorer 中。
 
@@ -694,6 +693,7 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 
 - `.is v1` 可以在 Workspace Mode 打开。
 - `.is v1` 可以在 Single File Mode 直接打开。
+- `.md` 可以在 Workspace Mode 和 Single File Mode 打开、编辑、保存和恢复。
 - 两种模式使用同一个 Reader、Writer 和 Excalidraw Editor。
 - Single File Mode 不创建 `.ideanote/`。
 - Save 写回当前真实文件，Save As 更新当前 Session。
@@ -719,8 +719,8 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 - Hidden reasoning 不显示、不推断、不持久化；只有 Runtime 明确标记为公开的过程信息才可流式呈现。
 - IdeaSketch Agent 修改在批准前不改变文档或磁盘；陈旧、只读、冲突或外部修改目标拒绝 Apply。
 - 当前构建不提供 Workspace Import/Export。
-- New File 菜单当前只有 IdeaSketch 和 Folder。
-- `.md`、`.it`、`.iwf` 在对应编辑器注册为可打开之前不显示在 Workspace Explorer 中；从其他入口显式打开时安全拒绝，且不宣称可编辑。
+- New File 菜单当前提供 IdeaSketch、Markdown 和 Folder。
+- `.it`、`.iwf` 在对应编辑器注册为可打开之前不显示在 Workspace Explorer 中；从其他入口显式打开时安全拒绝，且不宣称可编辑。
 
 ## 20. 推荐开发阶段
 

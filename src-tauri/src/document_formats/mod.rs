@@ -1,22 +1,34 @@
 pub mod idea_sketch;
+pub mod markdown;
 
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
 pub use idea_sketch::IdeaSketchFileData;
+pub use markdown::MarkdownFileData;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
 pub enum DocumentFileData {
     #[serde(rename = "ideasketch")]
     IdeaSketch(IdeaSketchFileData),
+    #[serde(rename = "markdown")]
+    Markdown(MarkdownFileData),
 }
 
 impl DocumentFileData {
     pub fn as_idea_sketch(&self) -> Result<&IdeaSketchFileData, String> {
         match self {
             Self::IdeaSketch(data) => Ok(data),
+            Self::Markdown(_) => Err("Document payload is not IdeaSketch".to_string()),
+        }
+    }
+
+    pub fn as_markdown(&self) -> Result<&MarkdownFileData, String> {
+        match self {
+            Self::Markdown(data) => Ok(data),
+            Self::IdeaSketch(_) => Err("Document payload is not Markdown".to_string()),
         }
     }
 }
@@ -38,6 +50,7 @@ pub enum OpenDocumentResult {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DocumentFormatKind {
     IdeaSketch,
+    Markdown,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -49,13 +62,22 @@ pub struct DocumentFormatDefinition {
     pub kind: DocumentFormatKind,
 }
 
-pub const DOCUMENT_FORMATS: &[DocumentFormatDefinition] = &[DocumentFormatDefinition {
-    type_id: "ideasketch",
-    display_name: "IdeaSketch",
-    extensions: &["is"],
-    openable: true,
-    kind: DocumentFormatKind::IdeaSketch,
-}];
+pub const DOCUMENT_FORMATS: &[DocumentFormatDefinition] = &[
+    DocumentFormatDefinition {
+        type_id: "ideasketch",
+        display_name: "IdeaSketch",
+        extensions: &["is"],
+        openable: true,
+        kind: DocumentFormatKind::IdeaSketch,
+    },
+    DocumentFormatDefinition {
+        type_id: "markdown",
+        display_name: "Markdown",
+        extensions: &["md"],
+        openable: true,
+        kind: DocumentFormatKind::Markdown,
+    },
+];
 
 pub fn definition_for_path(path: &Path) -> Option<&'static DocumentFormatDefinition> {
     let extension = path.extension()?.to_str()?;
@@ -104,6 +126,8 @@ pub fn create_file_with_staging(
             idea_sketch::create_file_with_staging(path, staging_directory)
                 .map(DocumentFileData::IdeaSketch)
         }
+        DocumentFormatKind::Markdown => markdown::create_file_with_staging(path, staging_directory)
+            .map(DocumentFileData::Markdown),
     }
 }
 
@@ -121,6 +145,9 @@ pub fn open_file(path: &Path) -> Result<OpenDocumentResult, String> {
                 })
             }
         },
+        DocumentFormatKind::Markdown => Ok(OpenDocumentResult::Editable {
+            document: DocumentFileData::Markdown(markdown::open_file(path)?),
+        }),
     }
 }
 
@@ -130,6 +157,7 @@ pub fn read_file(path: &Path) -> Result<DocumentFileData, String> {
         DocumentFormatKind::IdeaSketch => {
             idea_sketch::read_file(path).map(DocumentFileData::IdeaSketch)
         }
+        DocumentFormatKind::Markdown => markdown::read_file(path).map(DocumentFileData::Markdown),
     }
 }
 
@@ -149,6 +177,9 @@ pub fn write_file_with_staging(
         DocumentFormatKind::IdeaSketch => {
             idea_sketch::write_file_with_staging(path, data.as_idea_sketch()?, staging_directory)
         }
+        DocumentFormatKind::Markdown => {
+            markdown::write_file_with_staging(path, data.as_markdown()?, staging_directory)
+        }
     }
 }
 
@@ -166,16 +197,25 @@ mod tests {
 
     #[test]
     fn registry_rejects_unregistered_extensions() {
-        assert!(definition_for_path(Path::new("notes.md")).is_none());
-        assert!(read_file(Path::new("notes.md"))
+        assert!(definition_for_path(Path::new("notes.txt")).is_none());
+        assert!(read_file(Path::new("notes.txt"))
             .unwrap_err()
             .contains("Unsupported file type"));
+    }
+
+    #[test]
+    fn registry_resolves_markdown_case_insensitively() {
+        let definition = definition_for_path(Path::new("README.MD")).unwrap();
+        assert_eq!(definition.type_id, "markdown");
+        assert_eq!(definition.kind, DocumentFormatKind::Markdown);
     }
 
     #[test]
     fn registry_resolves_type_ids_for_workspace_creation() {
         let definition = definition_for_type("IDEASKETCH").unwrap();
         assert_eq!(definition.extensions, ["is"]);
+        let markdown = definition_for_type("MARKDOWN").unwrap();
+        assert_eq!(markdown.extensions, ["md"]);
     }
 
     #[test]
@@ -200,5 +240,14 @@ mod tests {
         let value = serde_json::to_value(protected).unwrap();
         assert_eq!(value["status"], "legacy-protected");
         assert_eq!(value["fileType"], "ideasketch");
+
+        let markdown = DocumentFileData::Markdown(markdown::MarkdownFileData {
+            text: "# Notes\n".to_string(),
+            bom: false,
+            line_ending: markdown::MarkdownLineEnding::Lf,
+        });
+        let value = serde_json::to_value(markdown).unwrap();
+        assert_eq!(value["type"], "markdown");
+        assert_eq!(value["data"]["text"], "# Notes\n");
     }
 }

@@ -1,10 +1,16 @@
-import type { DocumentModel, IdeaSketchDocument } from "../types";
+import type { DocumentModel, IdeaSketchDocument, MarkdownDocument } from "../types";
 import {
   createEmptyIdeaSketchDocument,
   parseIdeaSketchFile,
   serializeIdeaSketchDocument,
   type IdeaSketchFileData,
 } from "./ideaSketchDocument.ts";
+import {
+  createEmptyMarkdownDocument,
+  parseMarkdownFile,
+  serializeMarkdownDocument,
+  type MarkdownFileData,
+} from "./markdownDocument.ts";
 import "./agent/extensions/ideaSketchAgentExtension.ts";
 
 export interface FileTypeDefinition<TModel extends DocumentModel = DocumentModel> {
@@ -43,8 +49,28 @@ const IDEA_SKETCH_DEFINITION: FileTypeDefinition<IdeaSketchDocument> = {
   },
 };
 
+const MARKDOWN_DEFINITION: FileTypeDefinition<MarkdownDocument> = {
+  type: "markdown",
+  displayName: "Markdown",
+  extensions: ["md"],
+  icon: "markdown",
+  editor: "markdown",
+  creatable: true,
+  openable: true,
+  async createEmpty() {
+    return createEmptyMarkdownDocument();
+  },
+  async parse(data) {
+    return parseMarkdownFile(data);
+  },
+  async serialize(model) {
+    return serializeMarkdownDocument(model) satisfies MarkdownFileData;
+  },
+};
+
 const FILE_TYPE_REGISTRY = new Map<string, FileTypeDefinition>([
   [IDEA_SKETCH_DEFINITION.type, IDEA_SKETCH_DEFINITION as FileTypeDefinition],
+  [MARKDOWN_DEFINITION.type, MARKDOWN_DEFINITION as FileTypeDefinition],
 ]);
 
 export function getFileTypeDefinition(type: string): FileTypeDefinition | undefined {

@@ -32,7 +32,7 @@ export function createRecoveryDraft(document: DocumentSession, model: DocumentMo
 }
 
 export function classifyRecoveryDraft(draft: RecoveryDraft, document: DocumentSession): "current" | "source-changed" | "invalid" {
-  if (draft.schemaVersion !== RECOVERY_SCHEMA_VERSION || draft.model?.type !== "ideasketch") return "invalid";
+  if (draft.schemaVersion !== RECOVERY_SCHEMA_VERSION || draft.model?.type !== document.fileType) return "invalid";
   if (draft.sourcePath !== document.filePath) return "invalid";
   return draft.sourceModified && document.sourceModified && draft.sourceModified !== document.sourceModified
     ? "source-changed"

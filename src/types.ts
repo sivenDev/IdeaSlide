@@ -88,11 +88,32 @@ export interface IdeaSketchDocument {
   pages: IdeaSketchPage[];
 }
 
-export interface DocumentEditorState {
-  activePageId?: string;
+export type MarkdownLineEnding = "none" | "lf" | "crlf" | "mixed";
+
+export interface MarkdownDocument {
+  type: "markdown";
+  text: string;
+  bom: boolean;
+  lineEnding: MarkdownLineEnding;
+  originalText: string;
+  normalization?: "lf" | "crlf";
 }
 
-export type DocumentModel = IdeaSketchDocument;
+export type MarkdownViewMode = "edit" | "split" | "preview";
+
+export interface MarkdownEditorState {
+  viewMode?: MarkdownViewMode;
+  showOutline?: boolean;
+  splitRatio?: number;
+  scrollSync?: boolean;
+}
+
+export interface DocumentEditorState {
+  activePageId?: string;
+  markdown?: MarkdownEditorState;
+}
+
+export type DocumentModel = IdeaSketchDocument | MarkdownDocument;
 
 export interface DocumentSession<TModel = DocumentModel> {
   id: string;

@@ -92,17 +92,18 @@ function AppContent() {
     setPendingStandalonePath(undefined);
   }, []);
 
-  const handleNewFile = useCallback(async () => {
-    const definition = getFileTypeDefinition("ideasketch");
-    if (!definition) throw new Error("IdeaSketch is not registered");
+  const handleNewFile = useCallback(async (fileType: string) => {
+    const definition = getFileTypeDefinition(fileType);
+    if (!definition?.creatable) throw new Error(`${fileType} is not registered for creation`);
     const model = await definition.createEmpty();
+    const extension = definition.extensions[0] ?? "txt";
     dispatch({
       type: "OPEN_DOCUMENT",
       document: {
         id: crypto.randomUUID(),
         mode: "standalone",
         filePath: "",
-        displayName: "Untitled.is",
+        displayName: `Untitled.${extension}`,
         fileType: definition.type,
         status: "editable",
         model,
@@ -161,7 +162,7 @@ function AppContent() {
     if (isRendererWindow || !isTauriRuntime) return;
     listStandaloneRecoveryDrafts()
       .then((records) => setStartupRecoveries(records.filter((record) =>
-        !record.draft.sourcePath && record.draft.model?.type === "ideasketch")))
+        !record.draft.sourcePath && Boolean(getFileTypeDefinition(record.draft.model?.type)))))
       .catch((error) => console.warn("Standalone recovery drafts could not be listed:", error));
   }, [isRendererWindow, isTauriRuntime]);
 
@@ -170,6 +171,10 @@ function AppContent() {
   const restoreStartupRecovery = useCallback(async () => {
     if (!startupRecovery) return;
     const sessionId = crypto.randomUUID();
+    const fileType = startupRecovery.draft.model.type;
+    const definition = getFileTypeDefinition(fileType);
+    if (!definition) return;
+    const extension = definition.extensions[0] ?? "txt";
     await deleteStandaloneRecoveryDraft(startupRecovery.key).catch((error) => {
       console.warn("Failed to retire standalone recovery draft:", error);
     });
@@ -179,8 +184,8 @@ function AppContent() {
         id: sessionId,
         mode: "standalone",
         filePath: "",
-        displayName: "Recovered Untitled.is",
-        fileType: "ideasketch",
+        displayName: `Recovered Untitled.${extension}`,
+        fileType,
         status: "editable",
         model: startupRecovery.draft.model,
         isDirty: true,

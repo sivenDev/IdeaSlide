@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { FileInput, FolderOpen, Settings, X } from "lucide-react";
+import { FileInput, FileText, FolderOpen, Presentation, Settings, X } from "lucide-react";
 import {
   getRecentFiles,
   getRecentWorkspaces,
@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/Tabs";
 type RecentTab = "workspaces" | "files";
 
 interface LaunchScreenProps {
-  onNewFile: () => Promise<void> | void;
+  onNewFile: (fileType: string) => Promise<void> | void;
   onOpenWorkspace: () => Promise<void> | void;
   onOpenFile: () => Promise<void> | void;
   onOpenRecentWorkspace: (path: string) => Promise<void> | void;
@@ -51,6 +51,7 @@ export function LaunchScreen({
   const [activeRecentTab, setActiveRecentTab] = useState<RecentTab>("files");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
+  const [showNewFileTypes, setShowNewFileTypes] = useState(false);
   const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
 
   useEffect(() => {
@@ -100,9 +101,19 @@ export function LaunchScreen({
           {error && <div className="mt-5 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs text-white/90">{error}</div>}
 
           <div className="mt-8 flex flex-col gap-2.5" data-no-drag>
-            <button type="button" onClick={() => void run(onNewFile)} className="flex items-center gap-3 rounded-xl border border-white/20 bg-white/15 px-5 py-3 text-left text-sm font-medium backdrop-blur transition hover:bg-white/20">
+            <button type="button" aria-expanded={showNewFileTypes} onClick={() => setShowNewFileTypes((visible) => !visible)} className="flex items-center gap-3 rounded-xl border border-white/20 bg-white/15 px-5 py-3 text-left text-sm font-medium backdrop-blur transition hover:bg-white/20">
               <span className="text-lg">＋</span><span>New File</span>
             </button>
+            {showNewFileTypes && (
+              <div className="-mt-1 grid grid-cols-2 gap-2 rounded-xl border border-white/15 bg-white/[0.08] p-2">
+                <button type="button" onClick={() => void run(() => onNewFile("ideasketch"))} className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-white/80 transition hover:bg-white/12 hover:text-white">
+                  <Presentation size={15} aria-hidden="true" /><span>IdeaSketch</span>
+                </button>
+                <button type="button" onClick={() => void run(() => onNewFile("markdown"))} className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-white/80 transition hover:bg-white/12 hover:text-white">
+                  <FileText size={15} aria-hidden="true" /><span>Markdown</span>
+                </button>
+              </div>
+            )}
             <button type="button" onClick={() => void run(onOpenWorkspace)} className="flex items-center gap-3 rounded-xl border border-white/15 bg-white/[0.09] px-5 py-3 text-left text-sm font-medium transition hover:bg-white/15">
               <FolderOpen {...launchActionIconProps} /><span>Open Workspace</span>
             </button>

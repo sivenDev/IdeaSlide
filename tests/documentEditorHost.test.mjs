@@ -7,12 +7,12 @@ test('generic Editor Host loads only the active document and preserves safe fall
   assert.match(source, /getFileTypeDefinition/);
   assert.match(source, /document\.status === "loading"/);
   assert.match(source, /UnsupportedFileView/);
-  assert.match(source, /definition\?\.editor === "ideasketch"/);
-  assert.match(source, /renderIdeaSketch/);
+  assert.match(source, /getEditorContribution/);
+  assert.match(source, /const Editor = contribution\.component/);
   assert.match(source, /const isMissing = document\.status === "missing"/);
   assert.match(source, /hidden=\{isMissing\}/);
   assert.match(source, /aria-hidden=\{isMissing\}/);
-  assert.match(source, /renderIdeaSketch\(document\)/);
+  assert.match(source, /<Editor document=\{document\} \{\.\.\.editorProps\}/);
   assert.doesNotMatch(source, /File missing/);
   assert.doesNotMatch(source, /if\s*\(document\.status === "missing"\)\s*\{?\s*return\s*<UnsupportedFileView/);
 });

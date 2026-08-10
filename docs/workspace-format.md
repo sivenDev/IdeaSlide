@@ -11,7 +11,7 @@ Opening or refreshing a Workspace performs a metadata-only directory scan:
 - It does not parse document payloads.
 - It does not create `.ideanote/`, sample files, or configuration.
 - It preserves real directory nodes, including directories with no currently supported files.
-- It includes regular files only when the backend Document Format Registry marks their type openable; the current visible file type is `.is`.
+- It includes regular files only when the backend Document Format Registry marks their type openable; the current visible file types are `.is` and `.md`.
 - It lists Symlinks as non-expandable entries and never follows them.
 - It hides the entire `.ideanote/` subtree and unsupported regular files.
 
@@ -21,7 +21,7 @@ Every command receives a Workspace root and a normalized relative child path. Ab
 
 The metadata directory is created only after one of these successful, user-authorized operations:
 
-- Create a supported document such as `Untitled.is`.
+- Create a supported document such as `Untitled.is` or `Untitled.md`.
 - Save an existing Workspace document.
 - Explicitly persist Workspace state or settings.
 

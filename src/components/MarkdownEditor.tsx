@@ -1,0 +1,418 @@
+import { createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { EditorView } from "@codemirror/view";
+import GithubSlugger from "github-slugger";
+import {
+  Bold,
+  Braces,
+  Eye,
+  Heading2,
+  Italic,
+  Link,
+  List,
+  ListTree,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Redo2,
+  Rows3,
+  Undo2,
+} from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import type {
+  DocumentModel,
+  DocumentSession,
+  MarkdownDocument,
+  MarkdownEditorState,
+  MarkdownViewMode,
+} from "../types";
+import { useAutoSave } from "../hooks/useAutoSave";
+import { useCodeMirrorEditor } from "../hooks/useCodeMirrorEditor";
+import { normalizeMarkdownLineEndings, updateMarkdownText } from "../lib/markdownDocument";
+import { readDocumentImage } from "../lib/tauriCommands";
+
+interface MarkdownEditorProps {
+  document: DocumentSession<MarkdownDocument>;
+  readOnly?: boolean;
+  onModelChange: (sessionId: string, model: MarkdownDocument) => void;
+  onEditorStateChange: (sessionId: string, editorState: MarkdownEditorState) => void;
+  onRegisterSnapshot: (sessionId: string, provider?: () => DocumentModel) => void;
+  onAutoSave: (sessionId: string, model: DocumentModel) => Promise<void>;
+  onAutoSaveComplete: (sessionId: string) => void;
+  onWriteRecovery: (sessionId: string, model: DocumentModel) => Promise<void>;
+  onOpenDocumentLink?: (href: string) => void;
+  documentFullPath?: string;
+}
+
+interface MarkdownHeading {
+  level: number;
+  text: string;
+  line: number;
+  offset: number;
+  id: string;
+}
+
+function projectHeadings(text: string): MarkdownHeading[] {
+  const slugger = new GithubSlugger();
+  let offset = 0;
+  const headings: MarkdownHeading[] = [];
+  text.split("\n").forEach((line, index) => {
+    const match = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line);
+    if (match) {
+      const headingText = match[2].trim();
+      headings.push({
+        level: match[1].length,
+        text: headingText,
+        line: index + 1,
+        offset,
+        id: slugger.slug(headingText),
+      });
+    }
+    offset += line.length + 1;
+  });
+  return headings;
+}
+
+function ToolbarButton({
+  label,
+  onClick,
+  disabled,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="flex h-7 w-7 items-center justify-center rounded-md text-gray-500 transition hover:bg-[#ecebff] hover:text-[#5752bd] disabled:cursor-not-allowed disabled:opacity-35"
+    >
+      {children}
+    </button>
+  );
+}
+
+function MarkdownPreviewImage({
+  src = "",
+  alt = "",
+  title,
+  documentFullPath,
+}: {
+  src?: string;
+  alt?: string;
+  title?: string;
+  documentFullPath?: string;
+}) {
+  const [resolved, setResolved] = useState<string>();
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false);
+    if (/^data:image\/(?:png|jpeg|gif|webp);base64,/i.test(src)) {
+      setResolved(src);
+      return;
+    }
+    if (!documentFullPath || !src || /^\w+:\/\//.test(src) || !("__TAURI_INTERNALS__" in window)) {
+      setResolved(undefined);
+      setFailed(Boolean(src));
+      return;
+    }
+    let cancelled = false;
+    readDocumentImage(documentFullPath, src)
+      .then((value) => { if (!cancelled) setResolved(value); })
+      .catch(() => { if (!cancelled) setFailed(true); });
+    return () => { cancelled = true; };
+  }, [documentFullPath, src]);
+  if (resolved) return <img src={resolved} alt={alt} title={title} />;
+  return <span className="inline-flex rounded-md border border-dashed border-gray-300 bg-gray-50 px-2 py-1 text-xs text-gray-400">{failed ? `Image unavailable: ${alt || src}` : "Loading image…"}</span>;
+}
+
+export function MarkdownEditor({
+  document,
+  readOnly = false,
+  onModelChange,
+  onEditorStateChange,
+  onRegisterSnapshot,
+  onAutoSave,
+  onAutoSaveComplete,
+  onWriteRecovery,
+  onOpenDocumentLink,
+  documentFullPath,
+}: MarkdownEditorProps) {
+  const model = document.model;
+  if (!model) throw new Error("Markdown document model is missing");
+  const modelRef = useRef(model);
+  const editVersionRef = useRef(document.revision);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const splitContainerRef = useRef<HTMLDivElement>(null);
+  const syncingScroll = useRef(false);
+  const initialState = document.editorState?.markdown;
+  const [viewMode, setViewMode] = useState<MarkdownViewMode>(initialState?.viewMode ?? "split");
+  const [showOutline, setShowOutline] = useState(initialState?.showOutline ?? true);
+  const [scrollSync, setScrollSync] = useState(initialState?.scrollSync ?? true);
+  const [splitRatio, setSplitRatio] = useState(initialState?.splitRatio ?? 0.5);
+  const splitRatioRef = useRef(splitRatio);
+  const [resizingSplit, setResizingSplit] = useState(false);
+  const [previewStale, setPreviewStale] = useState(false);
+  const [previewText, setPreviewText] = useState(model.text);
+
+  useEffect(() => {
+    modelRef.current = document.model!;
+  }, [document.model]);
+
+  useEffect(() => {
+    setPreviewStale(true);
+    const timeout = window.setTimeout(() => {
+      setPreviewText(model.text);
+      setPreviewStale(false);
+    }, model.text.length > 100_000 ? 500 : 120);
+    return () => window.clearTimeout(timeout);
+  }, [model]);
+
+  const updateEditorState = useCallback((patch: Partial<MarkdownEditorState>) => {
+    const next: MarkdownEditorState = {
+      viewMode,
+      showOutline,
+      scrollSync,
+      splitRatio,
+      ...patch,
+    };
+    if (patch.viewMode) setViewMode(patch.viewMode);
+    if (typeof patch.showOutline === "boolean") setShowOutline(patch.showOutline);
+    if (typeof patch.scrollSync === "boolean") setScrollSync(patch.scrollSync);
+    onEditorStateChange(document.id, next);
+  }, [document.id, onEditorStateChange, scrollSync, showOutline, splitRatio, viewMode]);
+
+  useEffect(() => {
+    if (!resizingSplit) return;
+    const handleMove = (event: MouseEvent) => {
+      const bounds = splitContainerRef.current?.getBoundingClientRect();
+      if (!bounds || bounds.width <= 0) return;
+      const nextRatio = Math.max(0.28, Math.min(0.72, (event.clientX - bounds.left) / bounds.width));
+      splitRatioRef.current = nextRatio;
+      setSplitRatio(nextRatio);
+    };
+    const handleUp = () => {
+      setResizingSplit(false);
+      onEditorStateChange(document.id, { viewMode, showOutline, scrollSync, splitRatio: splitRatioRef.current });
+    };
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp, { once: true });
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+  }, [document.id, onEditorStateChange, resizingSplit, scrollSync, showOutline, viewMode]);
+
+  const handleSourceScroll = useCallback((ratio: number) => {
+    if (!scrollSync || syncingScroll.current || !previewRef.current) return;
+    syncingScroll.current = true;
+    const preview = previewRef.current;
+    preview.scrollTop = ratio * Math.max(0, preview.scrollHeight - preview.clientHeight);
+    requestAnimationFrame(() => { syncingScroll.current = false; });
+  }, [scrollSync]);
+
+  const handleTextChange = useCallback((text: string) => {
+    if (readOnly) return;
+    const next = updateMarkdownText(modelRef.current, text);
+    if (next === modelRef.current) return;
+    modelRef.current = next;
+    editVersionRef.current += 1;
+    onModelChange(document.id, next);
+  }, [document.id, onModelChange, readOnly]);
+
+  const editor = useCodeMirrorEditor({
+    value: model.text,
+    readOnly,
+    onChange: handleTextChange,
+    onScroll: handleSourceScroll,
+  });
+
+  useEffect(() => {
+    onRegisterSnapshot(document.id, () => modelRef.current);
+    return () => onRegisterSnapshot(document.id, undefined);
+  }, [document.id, onRegisterSnapshot]);
+
+  useAutoSave({
+    enabled: Boolean(document.filePath) && !readOnly && document.status === "editable",
+    sessionId: document.id,
+    filePath: document.filePath,
+    revision: document.revision,
+    isDirty: document.isDirty,
+    getModel: () => modelRef.current,
+    getEditVersion: () => editVersionRef.current,
+    onSave: (model) => onAutoSave(document.id, model),
+    onSaveComplete: () => onAutoSaveComplete(document.id),
+    onSaveError: (error) => console.error(`Markdown auto-save failed for ${document.displayName}:`, error),
+  });
+
+  useEffect(() => {
+    if (!document.isDirty || readOnly) return;
+    const timeout = window.setTimeout(() => {
+      void onWriteRecovery(document.id, modelRef.current).catch((error) => {
+        console.warn("Markdown recovery draft could not be written:", error);
+      });
+    }, 900);
+    return () => window.clearTimeout(timeout);
+  }, [document.id, document.isDirty, document.revision, onWriteRecovery, readOnly]);
+
+  const headings = useMemo(() => projectHeadings(previewText), [previewText]);
+  const previewComponents = useMemo(() => {
+    const slugger = new GithubSlugger();
+    const heading = (level: number) => ({ children }: { children?: React.ReactNode }) => {
+      const text = String(children ?? "");
+      return createElement(`h${level}`, { id: slugger.slug(text) }, children);
+    };
+    return {
+      h1: heading(1), h2: heading(2), h3: heading(3),
+      h4: heading(4), h5: heading(5), h6: heading(6),
+      a: ({ href = "", children }: { href?: string; children?: React.ReactNode }) => (
+        <a
+          href={href}
+          onClick={(event) => {
+            event.preventDefault();
+            if (href.startsWith("#")) {
+              previewRef.current?.querySelector<HTMLElement>(`#${CSS.escape(href.slice(1))}`)?.scrollIntoView({ behavior: "smooth" });
+            } else if (/^https?:\/\//i.test(href)) {
+              void openUrl(href);
+            } else if (href) {
+              onOpenDocumentLink?.(href);
+            }
+          }}
+        >{children}</a>
+      ),
+      img: ({ src = "", alt = "", title }: { src?: string; alt?: string; title?: string }) => (
+        <MarkdownPreviewImage src={src} alt={alt} title={title} documentFullPath={documentFullPath} />
+      ),
+    };
+  }, [documentFullPath, onOpenDocumentLink, previewText]);
+
+  const jumpToHeading = (heading: MarkdownHeading) => {
+    const view = editor.getView();
+    if (!view) return;
+    view.dispatch({
+      selection: { anchor: Math.min(heading.offset, view.state.doc.length) },
+      effects: EditorView.scrollIntoView(Math.min(heading.offset, view.state.doc.length), { y: "center" }),
+    });
+    view.focus();
+  };
+
+  const preview = (
+    <div
+      ref={previewRef}
+      className="ideanote-markdown-preview h-full overflow-auto bg-white"
+      onScroll={() => {
+        if (!scrollSync || syncingScroll.current || !previewRef.current) return;
+        const previewElement = previewRef.current;
+        const range = previewElement.scrollHeight - previewElement.clientHeight;
+        syncingScroll.current = true;
+        editor.scrollToRatio(range > 0 ? previewElement.scrollTop / range : 0);
+        requestAnimationFrame(() => { syncingScroll.current = false; });
+      }}
+    >
+      <div className="mx-auto max-w-[780px] px-10 py-10 pb-32">
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={previewComponents}>{previewText}</ReactMarkdown>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-[#f7f8fa]">
+      <div className="flex h-10 flex-none items-center justify-between border-b border-gray-200 bg-white px-2.5">
+        <div className="flex items-center gap-0.5">
+          <ToolbarButton label={showOutline ? "Hide outline" : "Show outline"} onClick={() => updateEditorState({ showOutline: !showOutline })}>
+            {showOutline ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}
+          </ToolbarButton>
+          <span className="mx-1 h-4 w-px bg-gray-200" />
+          <ToolbarButton label="Undo" disabled={readOnly} onClick={editor.undo}><Undo2 size={14} /></ToolbarButton>
+          <ToolbarButton label="Redo" disabled={readOnly} onClick={editor.redo}><Redo2 size={14} /></ToolbarButton>
+          <span className="mx-1 h-4 w-px bg-gray-200" />
+          <ToolbarButton label="Heading" disabled={readOnly} onClick={() => editor.replaceSelection("## ")}><Heading2 size={14} /></ToolbarButton>
+          <ToolbarButton label="Bold" disabled={readOnly} onClick={() => editor.wrapSelection("**")}><Bold size={14} /></ToolbarButton>
+          <ToolbarButton label="Italic" disabled={readOnly} onClick={() => editor.wrapSelection("_")}><Italic size={14} /></ToolbarButton>
+          <ToolbarButton label="Link" disabled={readOnly} onClick={() => editor.wrapSelection("[", "](https://)")}><Link size={14} /></ToolbarButton>
+          <ToolbarButton label="Bullet list" disabled={readOnly} onClick={() => editor.replaceSelection("- ")}><List size={14} /></ToolbarButton>
+          <ToolbarButton label="Code block" disabled={readOnly} onClick={() => editor.wrapSelection("```\n", "\n```")}><Braces size={14} /></ToolbarButton>
+        </div>
+        <div className="flex items-center gap-2">
+          {model.lineEnding === "mixed" && !model.normalization && (
+            <label className="flex items-center gap-1.5 text-[11px] font-medium text-amber-700">
+              Normalize line endings
+              <select
+                className="h-7 rounded-md border border-amber-200 bg-amber-50 px-1.5 text-[11px] outline-none"
+                defaultValue=""
+                onChange={(event) => {
+                  if (!event.target.value) return;
+                  const next = normalizeMarkdownLineEndings(modelRef.current, event.target.value as "lf" | "crlf");
+                  modelRef.current = next;
+                  onModelChange(document.id, next);
+                }}
+              >
+                <option value="" disabled>Choose…</option>
+                <option value="lf">LF</option>
+                <option value="crlf">CRLF</option>
+              </select>
+            </label>
+          )}
+          <button type="button" onClick={() => updateEditorState({ scrollSync: !scrollSync })} className={`rounded-md px-2 py-1 text-[11px] font-medium ${scrollSync ? "bg-[#ecebff] text-[#5752bd]" : "text-gray-400 hover:bg-gray-100"}`}>Sync scroll</button>
+          <div className="flex rounded-lg bg-gray-100 p-0.5" aria-label="Markdown view mode">
+            {([
+              ["edit", <ListTree key="edit" size={13} />, "Edit"],
+              ["split", <Rows3 key="split" size={13} />, "Split"],
+              ["preview", <Eye key="preview" size={13} />, "Preview"],
+            ] as const).map(([mode, icon, label]) => (
+              <button key={mode} type="button" title={label} aria-pressed={viewMode === mode} onClick={() => updateEditorState({ viewMode: mode })} className={`flex h-7 items-center gap-1 rounded-md px-2 text-[11px] font-medium transition ${viewMode === mode ? "bg-white text-[#5752bd] shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
+                {icon}<span>{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex min-h-0 flex-1">
+        {showOutline && (
+          <aside className="w-52 flex-none overflow-auto border-r border-gray-200 bg-[#f4f5f7] px-2 py-3" aria-label="Document outline">
+            <div className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-400">Outline</div>
+            {headings.length === 0 ? (
+              <div className="px-2 py-6 text-xs leading-5 text-gray-400">Add headings to navigate this document.</div>
+            ) : headings.map((heading) => (
+              <button key={`${heading.line}-${heading.id}`} type="button" onClick={() => jumpToHeading(heading)} className="block w-full truncate rounded-md py-1.5 pr-2 text-left text-xs text-gray-600 hover:bg-white hover:text-[#5752bd]" style={{ paddingLeft: `${8 + (heading.level - 1) * 10}px` }} title={heading.text}>
+                {heading.text}
+              </button>
+            ))}
+          </aside>
+        )}
+        <div ref={splitContainerRef} className={`relative flex min-w-0 flex-1 ${resizingSplit ? "select-none" : ""}`}>
+          {(viewMode === "edit" || viewMode === "split") && (
+            <div className="min-w-0" style={{ width: viewMode === "split" ? `${splitRatio * 100}%` : "100%" }}>
+              <div ref={editor.hostRef} className="h-full" aria-label="Markdown source editor" />
+            </div>
+          )}
+          {viewMode === "split" && (
+            <div
+              role="separator"
+              aria-label="Resize Markdown source and preview"
+              aria-orientation="vertical"
+              className={`relative z-10 w-px flex-none cursor-col-resize bg-gray-200 before:absolute before:-left-1.5 before:top-0 before:h-full before:w-3 ${resizingSplit ? "bg-[#7772dd]" : "hover:bg-[#aaa6e8]"}`}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                setResizingSplit(true);
+              }}
+            />
+          )}
+          {(viewMode === "preview" || viewMode === "split") && (
+            <div className="min-w-0" style={{ width: viewMode === "split" ? `${(1 - splitRatio) * 100}%` : "100%" }}>{preview}</div>
+          )}
+          {previewStale && viewMode !== "edit" && (
+            <div className="pointer-events-none absolute right-4 top-3 rounded-full border border-gray-200 bg-white/90 px-2 py-1 text-[10px] font-medium text-gray-400 shadow-sm">Updating preview…</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

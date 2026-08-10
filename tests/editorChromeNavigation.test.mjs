@@ -77,7 +77,8 @@ test('Toolbar keeps generic file commands and centered IdeaNote document title',
   assert.doesNotMatch(source, /\bonNewFile\b/);
   assert.doesNotMatch(editor, /\bhandleNewFile\b/);
   assert.doesNotMatch(editor, /onNewFile=/);
-  assert.match(launch, /onClick=\{\(\) => void run\(onNewFile\)\}/);
+  assert.match(launch, /onNewFile\("ideasketch"\)/);
+  assert.match(launch, /onNewFile\("markdown"\)/);
   assert.match(launch, />New File</);
   assert.match(workspace, /tooltip="New File" aria-label="New File"/);
   assert.match(source, /Open Workspace/);

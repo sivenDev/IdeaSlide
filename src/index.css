@@ -8,6 +8,51 @@ body,
     overflow: hidden;
 }
 
+.ideanote-markdown-preview {
+    color: #343740;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.75;
+}
+
+.ideanote-markdown-preview h1,
+.ideanote-markdown-preview h2,
+.ideanote-markdown-preview h3,
+.ideanote-markdown-preview h4,
+.ideanote-markdown-preview h5,
+.ideanote-markdown-preview h6 {
+    color: #1f2229;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.25;
+    scroll-margin-top: 24px;
+}
+
+.ideanote-markdown-preview h1 { margin: 0 0 1.2rem; font-size: 2rem; }
+.ideanote-markdown-preview h2 { margin: 2.2rem 0 0.8rem; border-bottom: 1px solid #e6e7eb; padding-bottom: 0.45rem; font-size: 1.45rem; }
+.ideanote-markdown-preview h3 { margin: 1.8rem 0 0.65rem; font-size: 1.16rem; }
+.ideanote-markdown-preview h4,
+.ideanote-markdown-preview h5,
+.ideanote-markdown-preview h6 { margin: 1.5rem 0 0.5rem; font-size: 1rem; }
+.ideanote-markdown-preview p { margin: 0.85rem 0; }
+.ideanote-markdown-preview ul,
+.ideanote-markdown-preview ol { margin: 0.8rem 0; padding-left: 1.55rem; }
+.ideanote-markdown-preview ul { list-style: disc; }
+.ideanote-markdown-preview ol { list-style: decimal; }
+.ideanote-markdown-preview li { margin: 0.25rem 0; }
+.ideanote-markdown-preview a { color: #5d58c8; text-decoration: underline; text-decoration-color: #c5c2f4; text-underline-offset: 3px; }
+.ideanote-markdown-preview a:hover { color: #443fa8; text-decoration-color: #7772dd; }
+.ideanote-markdown-preview blockquote { margin: 1rem 0; border-left: 3px solid #aaa6e8; background: #f7f6ff; padding: 0.65rem 1rem; color: #626674; }
+.ideanote-markdown-preview code { border-radius: 4px; background: #f0f1f4; padding: 0.12rem 0.32rem; color: #4d478e; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.88em; }
+.ideanote-markdown-preview pre { margin: 1rem 0; overflow: auto; border: 1px solid #e4e5e9; border-radius: 10px; background: #f6f7f9; padding: 1rem; }
+.ideanote-markdown-preview pre code { background: transparent; padding: 0; color: #30333b; }
+.ideanote-markdown-preview table { width: 100%; margin: 1rem 0; border-collapse: collapse; font-size: 0.92em; }
+.ideanote-markdown-preview th,
+.ideanote-markdown-preview td { border: 1px solid #dde0e6; padding: 0.48rem 0.65rem; text-align: left; }
+.ideanote-markdown-preview th { background: #f4f5f7; font-weight: 650; }
+.ideanote-markdown-preview hr { margin: 2rem 0; border: 0; border-top: 1px solid #e2e4e8; }
+.ideanote-markdown-preview img { max-width: 100%; border-radius: 8px; }
+
 .ideanote-settings-overlay {
     position: fixed;
     z-index: 3000;

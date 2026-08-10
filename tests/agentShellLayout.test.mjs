@@ -5,11 +5,13 @@ import { readFile } from 'node:fs/promises';
 test('Agent is an app-level right column outside the active editor', async () => {
   const shell = await readFile(new URL('../src/components/EditorLayout.tsx', import.meta.url), 'utf8');
   const editor = await readFile(new URL('../src/components/IdeaSketchEditor.tsx', import.meta.url), 'utf8');
+  const registry = await readFile(new URL('../src/lib/editorRegistry.tsx', import.meta.url), 'utf8');
   const host = await readFile(new URL('../src/components/RightSidebarHost.tsx', import.meta.url), 'utf8');
 
   assert.match(shell, /<RightSidebarHost/);
   assert.match(shell, /<DocumentEditorHost/);
-  assert.match(shell, /onAgentBindingChange=/);
+  assert.match(shell, /onAgentBindingChange: handleAgentBindingChange/);
+  assert.match(registry, /onAgentBindingChange=\{props\.onAgentBindingChange\}/);
   assert.match(shell, /side="right"[\s\S]*?showAgent/);
   assert.match(editor, /onAgentBindingChange/);
   assert.match(editor, /const agentBindingStateRef = useRef/);
