@@ -315,3 +315,10 @@ Reject the current F040 production presentation because the full title bar and s
 - created: 2026-08-10
 
 Refine the isolated F041 review prototype so the left Workspace and right Agent follow Codex-client-style panel interaction. Replace seam-mounted collapse controls and persistent collapsed rails with clear panel toggle buttons integrated into the top chrome. Each panel must fully close to return its width to the generic Editor Host, remain independently restorable from an always-available control, preserve macOS window-control placement, maintain Light/Dark/System and responsive behavior, and stay under .temp with no production migration or editor-owned UI changes.
+
+## F043: Refine prototype navigation, settings, welcome state, and Agent affordance
+
+- status: done
+- created: 2026-08-10
+
+Refine only the isolated review prototype. Remove the IdeaNote Lab brand/workspace-switcher block. Rebuild the left navigation as a Workspaces section containing added workspace roots with an add action and no search, followed by a Recents section listing recently opened editor files. Replace the bottom sync/preferences area with one Settings action that opens a real configuration dialog. Start with no selected file and render a restrained shell-owned Welcome page in Editor Host. While Welcome is active, keep Agent closed and hide its top-right toggle; after a file opens, show the Agent toggle. Use a robot icon when Agent is closed and the right-panel navigation icon when Agent is open. Preserve independent Workspace behavior, themes, responsiveness, editor-format neutrality, and the .temp-only no-migration boundary.

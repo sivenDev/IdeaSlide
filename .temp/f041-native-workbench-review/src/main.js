@@ -4,25 +4,25 @@ const files = {
   "launch-plan.is": {
     type: "IdeaSketch",
     extension: "IS",
-    path: "Product/launch-plan.is",
+    path: "Product Studio/launch-plan.is",
     tone: "blue",
   },
   "field-notes.md": {
     type: "Markdown",
     extension: "MD",
-    path: "Research/field-notes.md",
+    path: "Research Library/field-notes.md",
     tone: "slate",
   },
   "customers.table": {
     type: "Table",
     extension: "TB",
-    path: "Operations/customers.table",
+    path: "Product Studio/customers.table",
     tone: "rust",
   },
   "onboarding.workflow": {
     type: "Workflow",
     extension: "WF",
-    path: "Operations/onboarding.workflow",
+    path: "Operations Hub/onboarding.workflow",
     tone: "olive",
   },
 };
@@ -38,6 +38,7 @@ const icon = (name, size = 16) => {
     settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.1A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.1A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.15.38.36.72.6 1 .3.35.7.55 1.1.6h.1v4h-.1a1.7 1.7 0 0 0-1.7.4z"/>',
     panelLeft: '<path d="M4 4h16v16H4z"/><path d="M9 4v16"/>',
     panelRight: '<path d="M4 4h16v16H4z"/><path d="M15 4v16"/>',
+    bot: '<rect x="5" y="7" width="14" height="11" rx="3"/><path d="M9 11h.01M15 11h.01M9 15h6M12 7V4M10 4h4"/>',
     sparkle: '<path d="m12 3 1.2 3.8L17 8l-3.8 1.2L12 13l-1.2-3.8L7 8l3.8-1.2z"/><path d="m18.5 14 .7 2.3 2.3.7-2.3.7-.7 2.3-.7-2.3-2.3-.7 2.3-.7z"/>',
     thread: '<path d="M5 5h14v10H9l-4 4z"/>',
     history: '<path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/>',
@@ -56,74 +57,72 @@ const icon = (name, size = 16) => {
 const treeFile = (name) => {
   const item = files[name];
   return `
-    <button class="tree-file${name === "launch-plan.is" ? " is-active" : ""}" data-file="${name}" type="button">
+    <button class="tree-file" data-file="${name}" type="button">
       <span class="file-glyph file-glyph--${item.tone}">${item.extension}</span>
       <span class="tree-file__name">${name}</span>
     </button>`;
 };
 
 document.querySelector("#app").innerHTML = `
-  <main class="app-shell" data-workspace="open" data-agent="open">
+  <main class="app-shell" data-workspace="open" data-agent="closed" data-document="welcome">
     <div class="window-controls" aria-label="Window and Workspace controls">
       <div class="traffic-lights" aria-hidden="true"><span></span><span></span><span></span></div>
       <button class="panel-toggle panel-toggle--workspace" id="workspace-toggle" type="button" aria-label="Hide Workspace" aria-pressed="true" data-tooltip="Hide Workspace">${icon("panelLeft", 16)}</button>
     </div>
 
-    <button class="panel-toggle panel-toggle--agent" id="agent-toggle" type="button" aria-label="Hide Agent" aria-pressed="true" data-tooltip="Hide Agent">${icon("panelRight", 16)}</button>
+    <button class="panel-toggle panel-toggle--agent" id="agent-toggle" type="button" aria-label="Show Agent" aria-pressed="false" data-tooltip="Show Agent" hidden>${icon("bot", 16)}</button>
 
     <aside class="workspace-region" aria-label="Workspace">
-      <div class="workspace-crown" data-tauri-drag-region>
-        <button class="workspace-switcher" type="button" aria-label="Switch Workspace">
-          <span class="workspace-mark">IN</span>
-          <span class="workspace-switcher__copy"><strong>IdeaNote Lab</strong><small>Local Workspace</small></span>
-          ${icon("chevron", 13)}
-        </button>
-      </div>
+      <div class="workspace-crown" data-tauri-drag-region></div>
 
       <div class="workspace-toolbar">
-        <span>Workspace</span>
+        <span>Workspaces</span>
         <div class="inline-actions">
-          <button class="icon-button" type="button" aria-label="New item">${icon("plus", 15)}</button>
-          <button class="icon-button" id="open-command" type="button" aria-label="Open commands">${icon("search", 15)}</button>
+          <button class="icon-button" id="add-workspace" type="button" aria-label="Add Workspace">${icon("plus", 15)}</button>
         </div>
       </div>
 
-      <nav class="workspace-tree" aria-label="Workspace files">
+      <nav class="workspace-tree" aria-label="Workspaces and recent files">
         <div class="tree-group">
-          <button class="tree-folder is-open" type="button"><span class="folder-caret">${icon("chevron", 12)}</span>${icon("folder", 15)}<span>Product</span></button>
-          <div class="tree-children">${treeFile("launch-plan.is")}</div>
+          <button class="tree-folder workspace-root is-open" type="button" aria-expanded="true"><span class="folder-caret">${icon("chevron", 12)}</span>${icon("folder", 15)}<span>Product Studio</span></button>
+          <div class="tree-children">${treeFile("launch-plan.is")}${treeFile("customers.table")}</div>
         </div>
         <div class="tree-group">
-          <button class="tree-folder is-open" type="button"><span class="folder-caret">${icon("chevron", 12)}</span>${icon("folder", 15)}<span>Research</span></button>
+          <button class="tree-folder workspace-root" type="button" aria-expanded="false"><span class="folder-caret">${icon("chevron", 12)}</span>${icon("folder", 15)}<span>Research Library</span></button>
           <div class="tree-children">${treeFile("field-notes.md")}</div>
         </div>
         <div class="tree-group">
-          <button class="tree-folder is-open" type="button"><span class="folder-caret">${icon("chevron", 12)}</span>${icon("folder", 15)}<span>Operations</span></button>
-          <div class="tree-children">
+          <button class="tree-folder workspace-root" type="button" aria-expanded="false"><span class="folder-caret">${icon("chevron", 12)}</span>${icon("folder", 15)}<span>Operations Hub</span></button>
+          <div class="tree-children">${treeFile("onboarding.workflow")}</div>
+        </div>
+
+        <section class="recents-section" aria-labelledby="recents-title">
+          <div class="recents-heading" id="recents-title">Recents</div>
+          <div class="recent-list">
+            ${treeFile("launch-plan.is")}
+            ${treeFile("field-notes.md")}
             ${treeFile("customers.table")}
             ${treeFile("onboarding.workflow")}
           </div>
-        </div>
-        <div class="tree-group tree-group--quiet">
-          <button class="tree-folder" type="button"><span class="folder-caret">${icon("chevron", 12)}</span>${icon("folder", 15)}<span>Archive</span></button>
-        </div>
+        </section>
+
+        <p class="workspace-notice" id="workspace-notice" role="status" hidden>Workspace picker is not connected in this review.</p>
       </nav>
 
       <div class="workspace-foot">
-        <div class="sync-state"><span></span><span>Local files up to date</span></div>
-        <button class="foot-action" id="theme-trigger" type="button">${icon("settings", 15)}<span>Preferences</span><kbd>⌘,</kbd></button>
+        <button class="foot-action" id="settings-trigger" type="button">${icon("settings", 15)}<span>Settings</span><kbd>⌘,</kbd></button>
       </div>
     </aside>
 
     <section class="editor-region" aria-label="Editor Host">
       <header class="editor-crown" data-tauri-drag-region>
         <div class="document-identity">
-          <span class="document-icon file-glyph file-glyph--blue" id="document-icon">IS</span>
-          <span class="document-copy"><strong id="document-name">launch-plan.is</strong><small id="document-path">Product / launch-plan.is</small></span>
+          <span class="document-icon file-glyph file-glyph--blue" id="document-icon" hidden></span>
+          <span class="document-copy"><strong id="document-name">Welcome</strong><small id="document-path">Choose a file to begin</small></span>
         </div>
         <div class="editor-shell-actions">
-          <span class="editor-owner"><span></span>Editor-owned surface</span>
-          <button class="icon-button" type="button" aria-label="Document actions">${icon("more", 16)}</button>
+          <span class="editor-owner"><span></span><span id="editor-owner-label">Workspace shell</span></span>
+          <button class="icon-button" id="document-actions" type="button" aria-label="Document actions" hidden>${icon("more", 16)}</button>
         </div>
       </header>
 
@@ -132,7 +131,16 @@ document.querySelector("#app").innerHTML = `
         <div class="aperture-corner aperture-corner--tr"></div>
         <div class="aperture-corner aperture-corner--bl"></div>
         <div class="aperture-corner aperture-corner--br"></div>
-        <div class="editor-placeholder">
+        <div class="welcome-panel" id="welcome-panel">
+          <span class="welcome-eyebrow">Workspace ready</span>
+          <h1>Welcome</h1>
+          <p>Open a recent file or choose one from a workspace.</p>
+          <div class="welcome-actions">
+            <button type="button" id="welcome-recent">Open most recent <kbd>↵</kbd></button>
+            <button type="button" id="welcome-workspaces">Browse Workspaces</button>
+          </div>
+        </div>
+        <div class="editor-placeholder" id="editor-placeholder" hidden>
           <span class="placeholder-label">Editor Host</span>
           <strong id="editor-type">The active editor owns this surface</strong>
           <p>The application shell does not draw inside this boundary.</p>
@@ -155,7 +163,7 @@ document.querySelector("#app").innerHTML = `
 
       <div class="agent-scope">
         <span>Attached document</span>
-        <strong id="agent-document">launch-plan.is</strong>
+        <strong id="agent-document"></strong>
       </div>
 
       <div class="agent-thread" aria-live="polite">
@@ -165,7 +173,7 @@ document.querySelector("#app").innerHTML = `
         </article>
         <article class="activity-row">
           <span class="activity-icon">${icon("branch", 14)}</span>
-          <div><strong>Read document structure</strong><p id="activity-copy">Attached to launch-plan.is</p></div>
+          <div><strong>Read document structure</strong><p id="activity-copy"></p></div>
           <span class="activity-check">${icon("check", 13)}</span>
         </article>
         <article class="agent-answer">
@@ -186,11 +194,39 @@ document.querySelector("#app").innerHTML = `
     </aside>
   </main>
 
-  <div class="popover theme-popover" id="theme-popover" hidden>
-    <div class="popover-label">Appearance</div>
-    <button type="button" data-theme-choice="light" class="is-selected">${icon("sun", 15)}<span>Light</span><small>Bright native surfaces</small></button>
-    <button type="button" data-theme-choice="dark">${icon("moon", 15)}<span>Dark</span><small>Low-light workspace</small></button>
-    <button type="button" data-theme-choice="system">${icon("monitor", 15)}<span>System</span><small>Follow this Mac</small></button>
+  <div class="settings-backdrop" id="settings-backdrop" hidden>
+    <section class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <header class="settings-header">
+        <div><strong id="settings-title">Settings</strong><small>Application preferences</small></div>
+        <button class="icon-button" id="settings-close" type="button" aria-label="Close Settings">${icon("close", 16)}</button>
+      </header>
+      <div class="settings-layout">
+        <nav class="settings-nav" aria-label="Settings categories">
+          <button class="is-selected" type="button" data-settings-section="general" aria-current="page">General</button>
+          <button type="button" data-settings-section="agent">Agent</button>
+        </nav>
+        <div class="settings-content">
+          <section class="settings-section" data-settings-panel="general">
+            <span class="settings-kicker">General</span>
+            <h2>Appearance</h2>
+            <p>Choose how application-owned surfaces appear.</p>
+            <div class="theme-options" role="group" aria-label="Theme">
+              <button type="button" data-theme-choice="light" class="is-selected" aria-pressed="true">${icon("sun", 16)}<span><strong>Light</strong><small>Bright native surfaces</small></span></button>
+              <button type="button" data-theme-choice="dark" aria-pressed="false">${icon("moon", 16)}<span><strong>Dark</strong><small>Low-light workspace</small></span></button>
+              <button type="button" data-theme-choice="system" aria-pressed="false">${icon("monitor", 16)}<span><strong>System</strong><small>Follow this Mac</small></span></button>
+            </div>
+            <div class="settings-fact"><span>Workspace panel</span><strong>Open on desktop</strong></div>
+          </section>
+          <section class="settings-section" data-settings-panel="agent" hidden>
+            <span class="settings-kicker">Agent</span>
+            <h2>Availability</h2>
+            <p>Agent becomes available only after a file is open.</p>
+            <div class="settings-fact"><span>Context</span><strong>Active document only</strong></div>
+            <div class="settings-fact"><span>Panel</span><strong>Open manually</strong></div>
+          </section>
+        </div>
+      </div>
+    </section>
   </div>
 
   <div class="command-backdrop" id="command-backdrop" hidden>
@@ -199,28 +235,56 @@ document.querySelector("#app").innerHTML = `
       <div class="command-section"><span id="command-title">Quick actions</span></div>
       <button type="button" data-command-file="field-notes.md">${icon("file", 15)}<span><strong>Open field-notes.md</strong><small>Research</small></span><kbd>↵</kbd></button>
       <button type="button" data-command-file="customers.table">${icon("file", 15)}<span><strong>Open customers.table</strong><small>Operations</small></span></button>
-      <button type="button" id="command-theme">${icon("settings", 15)}<span><strong>Change appearance</strong><small>Light, Dark, or System</small></span></button>
+      <button type="button" id="command-settings">${icon("settings", 15)}<span><strong>Open Settings</strong><small>Appearance and Agent</small></span></button>
     </section>
   </div>
 `;
 
 const shell = document.querySelector(".app-shell");
 const root = document.documentElement;
-const themePopover = document.querySelector("#theme-popover");
+const settingsBackdrop = document.querySelector("#settings-backdrop");
+const settingsClose = document.querySelector("#settings-close");
 const commandBackdrop = document.querySelector("#command-backdrop");
 const commandInput = document.querySelector("#command-input");
+let activeFile = null;
+let settingsReturnFocus = null;
 
 function setFile(name) {
   const file = files[name];
   if (!file) return;
-  document.querySelectorAll(".tree-file").forEach((button) => button.classList.toggle("is-active", button.dataset.file === name));
+  const firstFile = activeFile === null;
+  activeFile = name;
+  shell.dataset.document = "file";
+  document.querySelectorAll("[data-file]").forEach((button) => button.classList.toggle("is-active", button.dataset.file === name));
   const iconNode = document.querySelector("#document-icon");
+  iconNode.hidden = false;
   iconNode.textContent = file.extension;
   iconNode.className = `document-icon file-glyph file-glyph--${file.tone}`;
   document.querySelector("#document-name").textContent = name;
   document.querySelector("#document-path").textContent = file.path.replace("/", " / ");
+  document.querySelector("#welcome-panel").hidden = true;
+  document.querySelector("#editor-placeholder").hidden = false;
+  document.querySelector("#document-actions").hidden = false;
+  document.querySelector("#editor-owner-label").textContent = "Editor-owned surface";
   document.querySelector("#agent-document").textContent = name;
   document.querySelector("#activity-copy").textContent = `Attached to ${name}`;
+  setPanelState("agent", firstFile ? false : shell.dataset.agent === "open");
+}
+
+function showWelcome() {
+  activeFile = null;
+  shell.dataset.document = "welcome";
+  document.querySelectorAll("[data-file]").forEach((button) => button.classList.remove("is-active"));
+  document.querySelector("#document-icon").hidden = true;
+  document.querySelector("#document-name").textContent = "Welcome";
+  document.querySelector("#document-path").textContent = "Choose a file to begin";
+  document.querySelector("#welcome-panel").hidden = false;
+  document.querySelector("#editor-placeholder").hidden = true;
+  document.querySelector("#document-actions").hidden = true;
+  document.querySelector("#editor-owner-label").textContent = "Workspace shell";
+  document.querySelector("#agent-document").textContent = "";
+  document.querySelector("#activity-copy").textContent = "";
+  setPanelState("agent", false);
 }
 
 function setTheme(choice) {
@@ -228,7 +292,11 @@ function setTheme(choice) {
   root.dataset.theme = dark ? "dark" : "light";
   root.dataset.themePreference = choice;
   root.style.colorScheme = dark ? "dark" : "light";
-  document.querySelectorAll("[data-theme-choice]").forEach((button) => button.classList.toggle("is-selected", button.dataset.themeChoice === choice));
+  document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+    const selected = button.dataset.themeChoice === choice;
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
 }
 
 function openCommand() {
@@ -240,9 +308,38 @@ function closeCommand() {
   commandBackdrop.hidden = true;
 }
 
+function selectSettingsSection(section) {
+  document.querySelectorAll("[data-settings-section]").forEach((button) => {
+    const selected = button.dataset.settingsSection === section;
+    button.classList.toggle("is-selected", selected);
+    if (selected) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
+  document.querySelectorAll("[data-settings-panel]").forEach((panel) => {
+    panel.hidden = panel.dataset.settingsPanel !== section;
+  });
+}
+
+function openSettings() {
+  settingsReturnFocus = document.activeElement;
+  selectSettingsSection("general");
+  settingsBackdrop.hidden = false;
+  requestAnimationFrame(() => settingsClose.focus());
+}
+
+function closeSettings() {
+  settingsBackdrop.hidden = true;
+  if (settingsReturnFocus instanceof HTMLElement && settingsReturnFocus.isConnected) settingsReturnFocus.focus();
+}
+
 function setPanelState(panel, open) {
   const label = panel === "workspace" ? "Workspace" : "Agent";
   const toggle = document.querySelector(`#${panel}-toggle`);
+  if (panel === "agent") {
+    open = Boolean(activeFile) && open;
+    toggle.hidden = !activeFile;
+    toggle.innerHTML = icon(open ? "panelRight" : "bot", 16);
+  }
   const action = open ? "Hide" : "Show";
   shell.dataset[panel] = open ? "open" : "closed";
   toggle.setAttribute("aria-label", `${action} ${label}`);
@@ -261,35 +358,45 @@ function syncResponsivePanels() {
   if (nextBucket === responsiveBucket) return;
   responsiveBucket = nextBucket;
   setPanelState("workspace", nextBucket === "desktop");
-  setPanelState("agent", nextBucket !== "minimum");
+  if (!activeFile || nextBucket === "minimum") setPanelState("agent", false);
 }
 
-document.querySelectorAll(".tree-file").forEach((button) => button.addEventListener("click", () => setFile(button.dataset.file)));
-document.querySelectorAll(".tree-folder").forEach((button) => button.addEventListener("click", () => button.classList.toggle("is-open")));
+document.querySelectorAll("[data-file]").forEach((button) => button.addEventListener("click", () => setFile(button.dataset.file)));
+document.querySelectorAll(".tree-folder").forEach((button) => button.addEventListener("click", () => {
+  const expanded = button.classList.toggle("is-open");
+  button.setAttribute("aria-expanded", String(expanded));
+}));
 
 document.querySelector("#workspace-toggle").addEventListener("click", () => togglePanel("workspace"));
 document.querySelector("#agent-toggle").addEventListener("click", () => togglePanel("agent"));
 
-document.querySelector("#theme-trigger").addEventListener("click", (event) => {
-  const box = event.currentTarget.getBoundingClientRect();
-  themePopover.style.left = `${Math.max(10, box.left)}px`;
-  themePopover.style.bottom = `${window.innerHeight - box.top + 7}px`;
-  themePopover.hidden = !themePopover.hidden;
+document.querySelector("#add-workspace").addEventListener("click", () => {
+  const notice = document.querySelector("#workspace-notice");
+  notice.hidden = false;
+  window.setTimeout(() => { notice.hidden = true; }, 2400);
 });
 
-document.querySelectorAll("[data-theme-choice]").forEach((button) => button.addEventListener("click", () => {
-  setTheme(button.dataset.themeChoice);
-  themePopover.hidden = true;
-}));
+document.querySelector("#welcome-recent").addEventListener("click", () => setFile("launch-plan.is"));
+document.querySelector("#welcome-workspaces").addEventListener("click", () => {
+  setPanelState("workspace", true);
+  document.querySelector(".workspace-root").focus();
+});
 
-document.querySelector("#open-command").addEventListener("click", openCommand);
+document.querySelector("#settings-trigger").addEventListener("click", openSettings);
+settingsClose.addEventListener("click", closeSettings);
+settingsBackdrop.addEventListener("mousedown", (event) => {
+  if (event.target === settingsBackdrop) closeSettings();
+});
+document.querySelectorAll("[data-settings-section]").forEach((button) => button.addEventListener("click", () => selectSettingsSection(button.dataset.settingsSection)));
+document.querySelectorAll("[data-theme-choice]").forEach((button) => button.addEventListener("click", () => setTheme(button.dataset.themeChoice)));
+
 document.querySelectorAll("[data-command-file]").forEach((button) => button.addEventListener("click", () => {
   setFile(button.dataset.commandFile);
   closeCommand();
 }));
-document.querySelector("#command-theme").addEventListener("click", () => {
+document.querySelector("#command-settings").addEventListener("click", () => {
   closeCommand();
-  document.querySelector("#theme-trigger").click();
+  openSettings();
 });
 
 commandBackdrop.addEventListener("mousedown", (event) => {
@@ -303,11 +410,11 @@ document.addEventListener("keydown", (event) => {
   }
   if ((event.metaKey || event.ctrlKey) && event.key === ",") {
     event.preventDefault();
-    document.querySelector("#theme-trigger").click();
+    openSettings();
   }
   if (event.key === "Escape") {
     closeCommand();
-    themePopover.hidden = true;
+    if (!settingsBackdrop.hidden) closeSettings();
   }
 });
 
@@ -316,5 +423,6 @@ window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () 
 });
 
 window.addEventListener("resize", syncResponsivePanels);
-syncResponsivePanels();
 setTheme("light");
+showWelcome();
+syncResponsivePanels();
