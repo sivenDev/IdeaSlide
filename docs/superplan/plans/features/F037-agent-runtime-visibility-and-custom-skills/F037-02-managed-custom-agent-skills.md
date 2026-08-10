@@ -7,18 +7,18 @@ summary: "Let users safely import, manage, and invoke standard custom Skills wit
 source: "docs/superplan/human/features.md"
 created: "2026-08-10"
 order: 43
-depends_on: ["F037-01"]
+depends_on: ["F037-01", "F038-02"]
 parent: "F037"
 ---
 
 # Add Managed Custom Agent Skills Plan
 
 **Goal:** Let users extend the application-level Agent with reusable workflow instructions while preserving one runtime-neutral Skill standard and the existing editor Tool security boundary.
-**Scope:** Replace the hard-coded single-Skill loader with an IdeaNote-owned normalized Skill registry covering bundled editor Skills and user-imported Skills. Accept the open Agent Skills directory shape with required `SKILL.md` `name` and `description`, progressive metadata-first loading, optional bounded text references, optional non-executable assets, and a safe subset of `agents/openai.yaml` interface/invocation metadata. Import local folders into an application-managed Skill store using atomic copies and validation; list, enable/disable, refresh, remove, inspect errors, control implicit invocation, and restrict compatible editor scopes in Settings > Agent. Keep the active editor Skill mandatory and additive; custom Skills never replace it. Support explicit custom-Skill selection from the composer and runtime-initiated implicit activation through IdeaNote-owned read-only Skill activation/reference Tools so Codex and Compatibility follow the same behavior. Capture Skill identity, origin, content digest/version, activation mode, and editor scope at Turn start or activation so in-flight behavior remains stable and history stays explainable.
-**Non-Goals:** This plan does not execute Skill scripts; install dependencies; register or configure MCP; add shell, arbitrary filesystem, network, browser, or process capabilities; allow a Skill to define editor Tools or bypass Tool prerequisites, validation, cancellation, maximum-step, mutation, Undo/Redo, safe-save, or external-change rules; load arbitrary Codex user/repository Skills outside IdeaNote's managed registry; add a remote marketplace, plugin publishing, cloud sync, Workspace-scoped Skill configuration, automatic internet installation, or multi-agent roles; silently override bundled Skill ids; or make binary assets executable or directly writable into documents.
-**Architecture:** Rust owns the Skill registry, import transaction, canonical-path and symlink checks, frontmatter parsing, safe metadata normalization, content hashing, bounded resource reads, duplicate/reserved-id policy, and atomic application-data persistence. Internal Skill ids are origin-qualified and stable; user-facing `name` remains standard metadata. Bundled/editor, user, and future plugin origins implement one registry contract. The frontend receives metadata and management status only. A bounded catalog of enabled compatible Skill names/descriptions is supplied to the runtime. Explicit selections load their immutable snapshot before model work; implicit use requires the model to call an IdeaNote-owned `activate_skill` Tool, after which full instructions are injected and bounded references are available through `read_skill_reference`. These host Tools are not editor Tools and cannot return arbitrary paths. Custom Skill instructions may name existing Tool capabilities, but activation validates them against the captured editor Tool catalog and never creates or widens permissions. The Turn records safe provenance, not full instructions or reference content. AI disable stops automatic discovery, activation, resource serving, and runtime injection; explicit Settings management may operate only on persisted/imported Skill metadata and files and cannot initialize a model runtime.
-**Baseline:** `src-tauri/src/agent/skills.rs` embeds one packaged `ideasketch/SKILL.md`, returns one hard-coded metadata row, and resolves only the literal `ideasketch` id. `AgentSkillMetadata` contains only id/name/description. `AgentExtension.skillId` is singular and the active editor binding passes that id into each Turn. `prompt_with_context` eagerly inserts the entire editor Skill into every preamble. There is no custom origin, import repository, enablement state, validation UI, Skill version, explicit picker, implicit activation, reference-reading contract, or Codex/Compatibility parity test. Editor Tools are already registry-owned and executed against a captured live editor binding, which remains the authority this feature must not weaken.
-**Exit Criteria:** Settings lists bundled and custom Skills with origin, source, enabled state, invocation policy, compatible editors, version digest, validation state, and last refresh. A user can import a valid instruction-only or reference-bearing Skill folder, enable it, explicitly select it for a Turn, allow or disable implicit invocation, refresh it by deliberate re-import, and remove only the managed custom copy. Invalid metadata, duplicate/reserved ids, unsupported dependencies/scripts, excessive files/sizes, traversal, symlink, and malformed reference cases fail with safe actionable errors and no partial registry state. The active editor Skill remains present for every supported editor Turn. Codex and Compatibility can autonomously activate an eligible implicit Skill through the normalized host Tool and read only bounded in-root text references; neither runtime gains arbitrary filesystem access. A Turn keeps one immutable activated Skill snapshot even if Settings change during execution and persists only safe provenance. AI disable prevents runtime discovery/activation/resource access. Complete frontend, Rust, build, package, privacy, import/restart, cross-runtime, and IdeaSketch Tool/Undo acceptance pass.
+**Scope:** Extend the existing IdeaNote-owned bundled Skill registry into one normalized registry covering the current IdeaSketch and Markdown editor Skills plus user-imported Skills. Accept the open Agent Skills directory shape with required `SKILL.md` `name` and `description`, progressive metadata-first loading, optional bounded text references, optional non-executable assets, and a safe subset of `agents/openai.yaml` interface/invocation metadata. Import local folders into an application-managed Skill store using atomic copies and validation; list, enable/disable, refresh, remove, inspect errors, control implicit invocation, and restrict compatible editor scopes in Settings > Agent. Preserve bundled Skill discovery and embedded references; keep the active editor Skill mandatory and additive, and never let custom Skills replace it. Support explicit custom-Skill selection from the composer and runtime-initiated implicit activation through IdeaNote-owned read-only Skill activation/reference Tools so Codex and Compatibility follow the same behavior. Capture Skill identity, origin, content digest/version, activation mode, and editor scope at Turn start or activation so in-flight behavior remains stable and history stays explainable.
+**Non-Goals:** This plan does not execute Skill scripts; install dependencies; register or configure MCP; add shell, arbitrary filesystem, network, browser, or process capabilities; allow a Skill to define editor Tools or bypass Tool prerequisites, validation, cancellation, maximum-step, direct frontend editor-SDK mutation, native Undo/Redo, safe-save, or external-change rules; load arbitrary Codex user/repository Skills outside IdeaNote's managed registry; add a remote marketplace, plugin publishing, cloud sync, Workspace-scoped Skill configuration, automatic internet installation, or multi-agent roles; silently override bundled Skill ids; or make binary assets executable or directly writable into documents.
+**Architecture:** Rust owns the Skill registry, import transaction, canonical-path and symlink checks, frontmatter parsing, safe metadata normalization, content hashing, bounded resource reads, duplicate/reserved-id policy, and atomic application-data persistence. Internal Skill ids are origin-qualified and stable; user-facing `name` remains standard metadata. Bundled/editor, user, and future plugin origins implement one registry contract, with the existing `BUNDLED_SKILLS` entries retained as read-only registry members rather than replaced by managed copies. The frontend receives metadata and management status only. A bounded catalog of enabled compatible Skill names/descriptions is supplied to the runtime. Explicit selections load their immutable snapshot before model work; implicit use requires the model to call an IdeaNote-owned `activate_skill` Tool, after which full instructions are injected and bounded references are available through `read_skill_reference`. These host Tools are not editor Tools and cannot return arbitrary paths. Custom Skill instructions may name existing Tool capabilities, but activation validates them against the captured editor Tool catalog and never creates or widens permissions. The mandatory active editor Skill and captured editor extension remain authoritative for Tool descriptors and direct SDK execution; no registry, Runtime, Tool Broker, Agent Panel, or store branch may depend on IdeaSketch, Markdown, or document format. The Turn records safe provenance, not full instructions or reference content. AI disable stops automatic discovery, activation, resource serving, and runtime injection; explicit Settings management may operate only on persisted/imported Skill metadata and files and cannot initialize a model runtime.
+**Baseline:** `src-tauri/src/agent/skills.rs` now has a generic `BUNDLED_SKILLS` registry with `ideasketch` and `markdown`, metadata-only discovery, full instruction loading, and embedded Markdown reference support. `src-tauri/agent-skills/markdown/` and `src/lib/agent/extensions/markdownAgentExtension.ts` prove the second-editor path, while IdeaSketch and Markdown mutations execute through captured Excalidraw or CodeMirror SDK transactions and use native Undo/Redo. `AgentSkillMetadata` still contains only id/name/description. `AgentExtension.skillId` remains singular and the active editor binding passes that mandatory id into each Turn. `prompt_with_context` eagerly inserts the full active editor Skill into every preamble. There is no user-managed origin, import repository, enablement state, validation UI, Skill version, explicit picker, implicit activation, opaque bounded reference-reading Tool, or immutable custom-Skill provenance. The generic Tool Broker, runtime adapters, Agent Panel, store, and activity UI already accept both editor extensions without format branches and remain the authority this feature must preserve.
+**Exit Criteria:** Settings lists bundled and custom Skills with origin, source, enabled state, invocation policy, compatible editors, version digest, validation state, and last refresh. A user can import a valid instruction-only or reference-bearing Skill folder, enable it, explicitly select it for a Turn, allow or disable implicit invocation, refresh it by deliberate re-import, and remove only the managed custom copy. Invalid metadata, duplicate/reserved ids, unsupported dependencies/scripts, excessive files/sizes, traversal, symlink, and malformed reference cases fail with safe actionable errors and no partial registry state. The matching bundled IdeaSketch or Markdown Skill remains present and mandatory for every supported editor Turn, while selected or activated custom Skills are additive. Codex and Compatibility can autonomously activate an eligible implicit Skill through the normalized host Tool and read only bounded in-root text references; neither runtime gains arbitrary filesystem access. A Turn keeps one immutable activated Skill snapshot even if Settings change during execution and persists only safe provenance. AI disable prevents runtime discovery/activation/resource access. Complete frontend, Rust, build, package, privacy, import/restart, cross-runtime, IdeaSketch/Markdown Tool, native Undo/Redo, unsupported-editor isolation, and no-format-branch acceptance pass.
 
 ## Task 1: Define the Standard Skill Registry and Invocation Contract
 
@@ -31,10 +31,11 @@ parent: "F037"
 - Modify: `src-tauri/src/agent/types.rs`
 - Modify: `tests/agentProtocol.test.mjs`
 - Modify: `tests/agentExtensionRegistry.test.mjs`
+- Modify: `tests/agentSecondEditorReuse.test.mjs`
 
 **Change Map:**
-- registry metadata: origin, stable internal id, standard name/description, enabled/valid state, digest/version, source label, compatible editor scopes, implicit policy, resources, and safe validation diagnostics
-- Turn binding: mandatory editor Skill plus zero or more custom Skill selections/activations and immutable provenance snapshots
+- registry metadata: origin, stable internal id, standard name/description, enabled/valid state, digest/version, source label, compatible editor scopes, implicit policy, resources, and safe validation diagnostics while preserving current bundled ids and references
+- Turn binding: mandatory IdeaSketch-or-Markdown editor Skill selected through the generic extension registry plus zero or more custom Skill selections/activations and immutable provenance snapshots
 - invocation: explicit selection and runtime-neutral implicit activation; exact behavior when a Skill becomes disabled, invalid, missing, or incompatible
 - capability boundary: Skill requirements resolve only against captured existing host/editor capabilities; dependencies, scripts, MCP, and arbitrary Tools are unsupported
 - resource contract: progressive `SKILL.md` and bounded in-root text-reference reads with no raw absolute paths
@@ -65,7 +66,7 @@ parent: "F037"
 - Test: `tests/agentSkillRepository.test.mjs`
 
 **Change Map:**
-- managed repository: application-data root, schema/version manifest, bundled/user origins, atomic staging/rename, restart hydration, refresh/re-import, remove, and corruption recovery
+- managed repository: application-data root, schema/version manifest, read-only bundled/user origins, atomic staging/rename, restart hydration, refresh/re-import, remove, and corruption recovery without copying or shadowing the bundled registry
 - import validation: canonical source, no symlinks or traversal, required `SKILL.md`, standard frontmatter, reserved/duplicate policy, bounded file count/depth/size, UTF-8 references, non-executable assets, and unsupported script/dependency rejection
 - metadata parsing: standard fields plus safe optional display and implicit-invocation metadata; ignore no security-relevant field silently
 - commands/capabilities: list, import, enable/disable, update invocation/scope, refresh, inspect, and remove custom Skills with narrow Tauri permissions and redacted errors
@@ -96,6 +97,8 @@ parent: "F037"
 - Modify: `src/hooks/useAgentThread.ts`
 - Modify: `tests/agentInteraction.test.mjs`
 - Modify: `tests/agentStore.test.mjs`
+- Modify: `tests/agentSecondEditorReuse.test.mjs`
+- Modify: `tests/markdownAgentExtension.test.mjs`
 - Test: relevant Rust Agent runtime/adapter/broker modules
 
 **Change Map:**
@@ -104,12 +107,12 @@ parent: "F037"
 - implicit activation: normalized `activate_skill` host Tool chosen by the model, full instruction injection, idempotency, captured version, and explicit denial for invalid/incompatible/disabled Skills
 - references: normalized `read_skill_reference` host Tool serves bounded captured text and participates in Tool chronology without masquerading as an editor Tool
 - capability validation: declared Skill requirements match existing captured editor/host Tool ids; no descriptor or schema can be added by Skill content
-- lifecycle: maximum-step accounting, cancellation, late result rejection, Thread persistence provenance, AI teardown, and parity across Codex and Compatibility
+- lifecycle: maximum-step accounting, cancellation, late result rejection, Thread persistence provenance, AI teardown, and parity across Codex/Compatibility and IdeaSketch/Markdown without format-aware host routing
 
 **Verification:**
 - `cargo test --manifest-path src-tauri/Cargo.toml agent -- --nocapture`
 - `node --test tests/agentInteraction.test.mjs tests/agentStore.test.mjs tests/agentItems.test.mjs tests/agentSecondEditorReuse.test.mjs`
-- Cases: mandatory editor Skill; explicit custom Skill; model-chosen implicit Skill; implicit disabled; same Skill twice; reference read; incompatible Tool requirement; change during Turn; cancellation; max-step boundary; Codex/Compatibility parity; unsupported editor; second-editor isolation.
+- Cases: mandatory IdeaSketch Skill; mandatory Markdown Skill; explicit custom Skill; model-chosen implicit Skill; implicit disabled; same Skill twice; reference read; incompatible Tool requirement; change during Turn; cancellation; max-step boundary; Codex/Compatibility parity; unsupported editor; cross-editor scope isolation; no generic format branch.
 
 - [ ] Add failing cross-runtime activation/resource/immutability fixtures before changing prompt or Tool routing.
 - [ ] Implement host-owned Skill Tools separately from editor Tool descriptors and executors.
@@ -137,7 +140,7 @@ parent: "F037"
 - composer: accessible `$` mention/picker, selected-Skill chips, incompatibility feedback, mandatory editor Skill indication, and captured selection at submit
 - transcript/inspector: concise Skill activation Tool chronology and Turn provenance without dumping instructions or private resources
 - accessibility/layout: keyboard search/select/remove, focus restoration after dialogs, screen-reader labels, narrow Agent/Settings layouts, and non-color validation state
-- acceptance: application restart, custom import/update/remove, runtime parity, editor Tool safety, native Undo/Redo, AI disable/enable, privacy, and no external folder mutation
+- acceptance: application restart, custom import/update/remove, runtime parity, IdeaSketch and Markdown Tool safety, Excalidraw and CodeMirror native Undo/Redo, AI disable/enable, privacy, unsupported-editor isolation, and no external folder mutation
 
 **Verification:**
 - `node --test tests/agentSkillManager.test.mjs tests/agentSkillPicker.test.mjs tests/agentPanel.test.mjs tests/settings.test.mjs tests/agentInteraction.test.mjs`
@@ -148,7 +151,7 @@ parent: "F037"
 - `npm run build`
 - `npm run tauri build -- --debug`
 - `git diff --check`
-- Native matrix: import/enable/explicit/implicit/reference/restart/refresh/remove; invalid and adversarial folders; Codex and Compatibility; IdeaSketch read/mutation with native Undo/Redo; second-editor incompatible scope; AI disable/enable; no scripts/MCP/new Tools/arbitrary paths/secrets/instruction bodies in history.
+- Native matrix: import/enable/explicit/implicit/reference/restart/refresh/remove; invalid and adversarial folders; Codex and Compatibility; IdeaSketch and Markdown read/mutation with Excalidraw/CodeMirror native Undo/Redo; cross-editor compatible/incompatible scopes; unsupported editor; AI disable/enable; no scripts/MCP/new Tools/arbitrary paths/secrets/instruction bodies in history.
 
 - [ ] Build accessible Settings management and composer selection against the normalized registry.
 - [ ] Run focused failure/fix loops for every import, activation, lifecycle, and Tool-safety scenario until clean.
@@ -163,11 +166,14 @@ parent: "F037"
 - `docs/superplan/plans/features/F031-configurable-ai-agent/F031-02-generic-agent-runtime.md`
 - `docs/superplan/plans/features/F033-codex-style-agent-implementation/F033-04-persistent-threads-and-editor-tools.md`
 - `docs/superplan/plans/features/F036-direct-agent-editor-edits-with-undo.md`
+- `docs/superplan/plans/features/F038-markdown-editor-and-agent-extension/F038-02-markdown-agent-skill-and-tools.md`
 - `src-tauri/src/agent/skills.rs`
+- `src-tauri/agent-skills/markdown/`
 - `src-tauri/src/agent/runtime.rs`
 - `src-tauri/src/agent/tool_broker.rs`
 - `src/lib/agent/types.ts`
 - `src/lib/agent/agentExtensionRegistry.ts`
+- `src/lib/agent/extensions/markdownAgentExtension.ts`
 - `src/components/settings/AgentSettings.tsx`
 - Official OpenAI Skills documentation: `https://learn.chatgpt.com/docs/build-skills`
 - Open Agent Skills standard: `https://agentskills.io`
