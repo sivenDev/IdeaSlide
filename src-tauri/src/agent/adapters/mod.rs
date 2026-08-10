@@ -13,7 +13,7 @@ use std::{collections::VecDeque, fmt, path::PathBuf, time::Duration};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::types::AgentToolDescriptor;
+use super::types::{AgentTokenUsageBreakdown, AgentToolDescriptor};
 use stdio_json_rpc::JsonRpcId;
 use stdio_json_rpc::JsonRpcMessage;
 
@@ -63,6 +63,16 @@ pub(crate) enum RuntimeEvent {
         request_id: String,
         title: String,
         description: String,
+    },
+    ContextUsage {
+        total: AgentTokenUsageBreakdown,
+        last: AgentTokenUsageBreakdown,
+        model_context_window: Option<u64>,
+    },
+    ContextCompacted,
+    Diagnostic {
+        code: String,
+        message: String,
     },
     TurnCompleted,
     TurnCancelled,

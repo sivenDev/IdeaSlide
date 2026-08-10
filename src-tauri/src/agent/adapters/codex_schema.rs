@@ -1,5 +1,7 @@
 use serde_json::Value;
 
+use super::super::types::AgentTokenUsageBreakdown;
+
 pub(crate) const INITIALIZE: &str = "initialize";
 pub(crate) const INITIALIZED: &str = "initialized";
 pub(crate) const THREAD_START: &str = "thread/start";
@@ -22,6 +24,25 @@ pub(crate) fn bool_at(value: &Value, path: &[&str]) -> Option<bool> {
         current = current.get(*segment)?;
     }
     current.as_bool()
+}
+
+pub(crate) fn u64_at(value: &Value, path: &[&str]) -> Option<u64> {
+    let mut current = value;
+    for segment in path {
+        current = current.get(*segment)?;
+    }
+    current.as_u64()
+}
+
+pub(crate) fn token_usage_breakdown(value: &Value) -> Option<AgentTokenUsageBreakdown> {
+    Some(AgentTokenUsageBreakdown {
+        total_tokens: u64_at(value, &["totalTokens"])?,
+        input_tokens: u64_at(value, &["inputTokens"])?,
+        cached_input_tokens: u64_at(value, &["cachedInputTokens"]).unwrap_or(0),
+        cache_write_input_tokens: u64_at(value, &["cacheWriteInputTokens"]).unwrap_or(0),
+        output_tokens: u64_at(value, &["outputTokens"])?,
+        reasoning_output_tokens: u64_at(value, &["reasoningOutputTokens"]).unwrap_or(0),
+    })
 }
 
 pub(crate) fn plan_steps(params: &Value) -> Vec<String> {

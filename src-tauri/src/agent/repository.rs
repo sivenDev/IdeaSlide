@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
+use super::types::AgentTokenUsageBreakdown;
 use crate::safe_write::{self, WriteMode};
 
 const THREAD_SCHEMA_VERSION: u32 = 1;
@@ -13,6 +14,7 @@ const MAX_RECORD_BYTES: usize = 1024 * 1024;
 const MAX_STRING_BYTES: usize = 64 * 1024;
 const MAX_ARRAY_ITEMS: usize = 500;
 const MAX_JSON_DEPTH: usize = 16;
+const MAX_DIAGNOSTICS: usize = 100;
 
 fn default_schema_version() -> u32 {
     0
@@ -27,9 +29,53 @@ pub(crate) struct AgentThreadRuntimeMetadata {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub upstream_thread_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_replay_truncated_before_turn_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub compacted_before_turn_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub diagnostic: Option<String>,
     #[serde(default)]
     pub degraded: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub health: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AgentContextSnapshot {
+    pub status: String,
+    pub source: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub total: Option<AgentTokenUsageBreakdown>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last: Option<AgentTokenUsageBreakdown>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_context_window: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub used_percent: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime_compacted_at: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime_compacted_turn_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_replay_truncated_before_turn_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AgentRuntimeDiagnostic {
+    pub id: String,
+    pub at: u64,
+    pub category: String,
+    pub severity: String,
+    pub code: String,
+    pub message: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recovery: Option<String>,
+    #[serde(default)]
+    pub retryable: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -40,6 +86,10 @@ pub(crate) struct AgentThreadRecord {
     pub thread: Value,
     pub capabilities: Value,
     pub runtime: AgentThreadRuntimeMetadata,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<AgentContextSnapshot>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub runtime_diagnostics: Vec<AgentRuntimeDiagnostic>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub archived_at: Option<u64>,
 }
@@ -256,13 +306,125 @@ fn normalize_record(mut record: AgentThreadRecord) -> Result<AgentThreadRecord, 
         .runtime
         .upstream_thread_id
         .map(|value| bounded_string(value, 256));
-    record.runtime.compacted_before_turn_id = record
+    record.runtime.local_replay_truncated_before_turn_id = record
         .runtime
-        .compacted_before_turn_id
+        .local_replay_truncated_before_turn_id
+        .take()
+        .or_else(|| record.runtime.compacted_before_turn_id.take())
         .map(|value| bounded_string(value, 160));
+    record.runtime.compacted_before_turn_id = None;
+    record.runtime.diagnostic = record
+        .runtime
+        .diagnostic
+        .map(|value| sanitize_diagnostic_text(value, 512));
+    record.runtime.health = record.runtime.health.and_then(|value| {
+        matches!(
+            value.as_str(),
+            "healthy" | "degraded" | "unavailable" | "unknown"
+        )
+        .then_some(value)
+    });
+    record.context = record.context.map(normalize_context);
+    if let Some(context) = record.context.as_mut() {
+        if context.local_replay_truncated_before_turn_id.is_none() {
+            context.local_replay_truncated_before_turn_id =
+                record.runtime.local_replay_truncated_before_turn_id.clone();
+        }
+    }
+    let retention = diagnostic_retention_from_thread(&record.thread);
     retain_persistable_turns(&mut record.thread)?;
+    record.runtime_diagnostics = record
+        .runtime_diagnostics
+        .into_iter()
+        .map(normalize_runtime_diagnostic)
+        .collect::<Vec<_>>();
+    if record.runtime_diagnostics.len() > retention {
+        let keep_from = record.runtime_diagnostics.len() - retention;
+        record.runtime_diagnostics.drain(..keep_from);
+    }
     summary_from_record(&record)?;
     Ok(record)
+}
+
+fn normalize_context(mut context: AgentContextSnapshot) -> AgentContextSnapshot {
+    context.status = match context.status.as_str() {
+        "available" | "unavailable" | "unknown" => context.status,
+        _ => "unknown".to_string(),
+    };
+    context.source = match context.source.as_str() {
+        "runtime" | "provider" | "none" => context.source,
+        _ => "none".to_string(),
+    };
+    context.used_percent = context.used_percent.map(|value| value.min(100));
+    context.runtime_compacted_turn_id = context
+        .runtime_compacted_turn_id
+        .map(|value| bounded_string(value, 160));
+    context.local_replay_truncated_before_turn_id = context
+        .local_replay_truncated_before_turn_id
+        .map(|value| bounded_string(value, 160));
+    context.message = context
+        .message
+        .map(|value| sanitize_diagnostic_text(value, 512));
+    context
+}
+
+fn normalize_runtime_diagnostic(mut diagnostic: AgentRuntimeDiagnostic) -> AgentRuntimeDiagnostic {
+    diagnostic.id = bounded_string(diagnostic.id, 160);
+    diagnostic.category = match diagnostic.category.as_str() {
+        "discovery" | "startup" | "selection" | "fallback" | "retry" | "provider"
+        | "cancellation" | "terminal" | "compaction" | "policy" => diagnostic.category,
+        _ => "terminal".to_string(),
+    };
+    diagnostic.severity = match diagnostic.severity.as_str() {
+        "info" | "warning" | "error" => diagnostic.severity,
+        _ => "warning".to_string(),
+    };
+    diagnostic.code = bounded_string(diagnostic.code, 160);
+    diagnostic.message = sanitize_diagnostic_text(diagnostic.message, 1024);
+    diagnostic.recovery = diagnostic
+        .recovery
+        .map(|value| sanitize_diagnostic_text(value, 512));
+    diagnostic
+}
+
+fn diagnostic_retention_from_thread(thread: &Value) -> usize {
+    thread
+        .get("turns")
+        .and_then(Value::as_array)
+        .and_then(|turns| {
+            turns.iter().rev().find_map(|turn| {
+                turn.pointer("/effectivePolicy/diagnosticRetention")
+                    .and_then(Value::as_u64)
+            })
+        })
+        .unwrap_or(20)
+        .clamp(5, MAX_DIAGNOSTICS as u64) as usize
+}
+
+fn sanitize_diagnostic_text(value: String, max_bytes: usize) -> String {
+    let lower = value.to_ascii_lowercase();
+    if lower.contains("authorization")
+        || lower.contains("bearer ")
+        || lower.contains("api_key")
+        || lower.contains("apikey")
+        || lower.contains("token=")
+        || lower.contains("chain of thought")
+        || lower.contains("raw payload")
+    {
+        return "Sensitive diagnostic details were redacted.".to_string();
+    }
+    let without_queries = value
+        .split_whitespace()
+        .map(|part| {
+            if part.contains("://") && part.contains('?') {
+                part.split('?').next().unwrap_or(part).to_string()
+            } else {
+                part.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+    bounded_string(without_queries, max_bytes)
 }
 
 fn retain_persistable_turns(thread: &mut Value) -> Result<(), String> {
@@ -443,9 +605,14 @@ mod tests {
                 label: "Compatibility".to_string(),
                 model: "test-model".to_string(),
                 upstream_thread_id: None,
+                local_replay_truncated_before_turn_id: None,
                 compacted_before_turn_id: None,
+                diagnostic: None,
                 degraded: true,
+                health: Some("degraded".to_string()),
             },
+            context: None,
+            runtime_diagnostics: Vec::new(),
             archived_at: None,
         }
     }
@@ -520,5 +687,69 @@ mod tests {
             .as_str()
             .unwrap()
             .ends_with("…[truncated]"));
+    }
+
+    #[test]
+    fn migrates_local_replay_and_bounds_redacted_runtime_evidence() {
+        let root = TempDir::new().unwrap();
+        let repository = AgentThreadRepository::new(root.path().join("agent"));
+        let mut value = record("diagnostics", 1);
+        value.runtime.compacted_before_turn_id = Some("turn-legacy".to_string());
+        value.thread["turns"][0]["effectivePolicy"] = json!({"diagnosticRetention": 5});
+        value.context = Some(AgentContextSnapshot {
+            status: "available".to_string(),
+            source: "provider".to_string(),
+            total: Some(AgentTokenUsageBreakdown {
+                total_tokens: 42,
+                input_tokens: 30,
+                output_tokens: 12,
+                ..Default::default()
+            }),
+            last: None,
+            model_context_window: None,
+            used_percent: None,
+            runtime_compacted_at: None,
+            runtime_compacted_turn_id: None,
+            local_replay_truncated_before_turn_id: None,
+            message: Some("Exact provider usage".to_string()),
+        });
+        value.runtime_diagnostics = (0..8)
+            .map(|index| AgentRuntimeDiagnostic {
+                id: format!("diagnostic-{index}"),
+                at: index,
+                category: "provider".to_string(),
+                severity: "warning".to_string(),
+                code: "provider.failure".to_string(),
+                message: if index == 7 {
+                    "Authorization: Bearer secret-token".to_string()
+                } else {
+                    format!("Safe diagnostic {index}")
+                },
+                recovery: None,
+                retryable: true,
+            })
+            .collect();
+
+        let saved = repository.save(value).unwrap();
+        assert_eq!(
+            saved
+                .runtime
+                .local_replay_truncated_before_turn_id
+                .as_deref(),
+            Some("turn-legacy")
+        );
+        assert!(saved.runtime.compacted_before_turn_id.is_none());
+        assert_eq!(saved.runtime_diagnostics.len(), 5);
+        assert_eq!(
+            saved.runtime_diagnostics.last().unwrap().message,
+            "Sensitive diagnostic details were redacted."
+        );
+        assert_eq!(
+            saved
+                .context
+                .as_ref()
+                .and_then(|context| context.local_replay_truncated_before_turn_id.as_deref()),
+            Some("turn-legacy")
+        );
     }
 }

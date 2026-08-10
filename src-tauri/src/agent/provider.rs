@@ -12,7 +12,7 @@ use super::telemetry::{
 use super::types::{
     AgentErrorCode, AgentErrorDiagnostic, AgentMessageInput, AgentMessageRole,
     AgentProviderCapabilities, AgentProviderStrategy, AgentRetryPolicy, AgentStreamingTelemetry,
-    AgentToolCall, AgentToolDescriptor,
+    AgentTokenUsageBreakdown, AgentToolCall, AgentToolDescriptor,
 };
 
 const MAX_ERROR_BODY_BYTES: usize = 8 * 1024;
@@ -55,6 +55,11 @@ pub(crate) enum ProviderProgress {
         diagnostic: AgentErrorDiagnostic,
     },
     PublicActivityDelta(String),
+    ContextUsage {
+        total: AgentTokenUsageBreakdown,
+        last: AgentTokenUsageBreakdown,
+        model_context_window: Option<u64>,
+    },
     TextDelta(String),
     ToolStarted {
         call_id: String,
@@ -87,6 +92,7 @@ enum ProviderStreamEvent {
         name: String,
         arguments: Value,
     },
+    Usage(AgentTokenUsageBreakdown),
     Completed,
     Error(String),
 }
@@ -397,6 +403,14 @@ async fn execute_attempt(
                         arguments,
                     });
                 }
+                ProviderStreamEvent::Usage(usage) => {
+                    emit(ProviderProgress::ContextUsage {
+                        total: usage.clone(),
+                        last: usage,
+                        model_context_window: None,
+                    })
+                    .map_err(|message| runtime_attempt_failure(&message))?;
+                }
                 ProviderStreamEvent::Error(message) => {
                     return Err(AttemptFailure {
                         diagnostic: diagnostic(
@@ -573,11 +587,55 @@ fn parse_responses_event(data: &str) -> Result<Option<ProviderStreamEvent>, Stri
             .map(|text| ProviderStreamEvent::PublicActivityDelta(text.to_string())),
         "response.output_item.added" => function_call_event(&value, false),
         "response.output_item.done" => function_call_event(&value, true),
-        "response.completed" => Some(ProviderStreamEvent::Completed),
+        "response.completed" => responses_usage(&value)
+            .map(ProviderStreamEvent::Usage)
+            .or(Some(ProviderStreamEvent::Completed)),
         "response.failed" | "error" => {
             Some(ProviderStreamEvent::Error(provider_error_message(&value)))
         }
         _ => None,
+    })
+}
+
+fn responses_usage(value: &Value) -> Option<AgentTokenUsageBreakdown> {
+    let usage = value.pointer("/response/usage")?;
+    Some(AgentTokenUsageBreakdown {
+        total_tokens: usage.get("total_tokens")?.as_u64()?,
+        input_tokens: usage.get("input_tokens")?.as_u64()?,
+        cached_input_tokens: usage
+            .pointer("/input_tokens_details/cached_tokens")
+            .and_then(Value::as_u64)
+            .unwrap_or(0),
+        cache_write_input_tokens: usage
+            .pointer("/input_tokens_details/cache_write_tokens")
+            .and_then(Value::as_u64)
+            .unwrap_or(0),
+        output_tokens: usage.get("output_tokens")?.as_u64()?,
+        reasoning_output_tokens: usage
+            .pointer("/output_tokens_details/reasoning_tokens")
+            .and_then(Value::as_u64)
+            .unwrap_or(0),
+    })
+}
+
+fn chat_usage(value: &Value) -> Option<AgentTokenUsageBreakdown> {
+    let usage = value.get("usage")?;
+    Some(AgentTokenUsageBreakdown {
+        total_tokens: usage.get("total_tokens")?.as_u64()?,
+        input_tokens: usage.get("prompt_tokens")?.as_u64()?,
+        cached_input_tokens: usage
+            .pointer("/prompt_tokens_details/cached_tokens")
+            .and_then(Value::as_u64)
+            .unwrap_or(0),
+        cache_write_input_tokens: usage
+            .pointer("/prompt_tokens_details/cache_write_tokens")
+            .and_then(Value::as_u64)
+            .unwrap_or(0),
+        output_tokens: usage.get("completion_tokens")?.as_u64()?,
+        reasoning_output_tokens: usage
+            .pointer("/completion_tokens_details/reasoning_tokens")
+            .and_then(Value::as_u64)
+            .unwrap_or(0),
     })
 }
 
@@ -629,6 +687,9 @@ fn parse_chat_event(data: &str) -> Result<Option<ProviderStreamEvent>, String> {
         return Ok(Some(ProviderStreamEvent::Error(provider_error_message(
             &value,
         ))));
+    }
+    if let Some(usage) = chat_usage(&value) {
+        return Ok(Some(ProviderStreamEvent::Usage(usage)));
     }
     let choice = value
         .get("choices")
@@ -1054,6 +1115,43 @@ mod contract_tests {
             .expect("raw reasoning event should be safely ignored"),
             None
         );
+    }
+
+    #[test]
+    fn exact_provider_usage_is_normalized_without_estimating_a_context_window() {
+        let responses = parse_responses_event(
+            r#"{"type":"response.completed","response":{"usage":{"input_tokens":80,"input_tokens_details":{"cached_tokens":30},"output_tokens":20,"output_tokens_details":{"reasoning_tokens":7},"total_tokens":100}}}"#,
+        )
+        .unwrap()
+        .unwrap();
+        assert!(matches!(
+            responses,
+            ProviderStreamEvent::Usage(AgentTokenUsageBreakdown {
+                total_tokens: 100,
+                input_tokens: 80,
+                cached_input_tokens: 30,
+                output_tokens: 20,
+                reasoning_output_tokens: 7,
+                ..
+            })
+        ));
+
+        let chat = parse_chat_event(
+            r#"{"choices":[],"usage":{"prompt_tokens":50,"prompt_tokens_details":{"cached_tokens":10},"completion_tokens":15,"completion_tokens_details":{"reasoning_tokens":4},"total_tokens":65}}"#,
+        )
+        .unwrap()
+        .unwrap();
+        assert!(matches!(
+            chat,
+            ProviderStreamEvent::Usage(AgentTokenUsageBreakdown {
+                total_tokens: 65,
+                input_tokens: 50,
+                cached_input_tokens: 10,
+                output_tokens: 15,
+                reasoning_output_tokens: 4,
+                ..
+            })
+        ));
     }
 
     #[test]

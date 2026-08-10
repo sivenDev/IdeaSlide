@@ -24,9 +24,9 @@ test('AI defaults to enabled and requires configuration before runtime activatio
   }, true), 'disabled');
 });
 
-test('settings normalization is versioned and bounds Agent steps and Provider retries', async () => {
+test('settings normalization is versioned and bounds Agent policy and Provider retries', async () => {
   const { SETTINGS_SCHEMA_VERSION, normalizeSettings } = await loadSettingsModule();
-  assert.equal(SETTINGS_SCHEMA_VERSION, 2);
+  assert.equal(SETTINGS_SCHEMA_VERSION, 3);
   const normalized = normalizeSettings({
     schemaVersion: 999,
     ai: {
@@ -34,13 +34,25 @@ test('settings normalization is versioned and bounds Agent steps and Provider re
       baseUrl: 'https://example.test/v1/',
       retry: { enabled: false, maxAttempts: 100 },
     },
-    agent: { maxSteps: 100 },
+    agent: {
+      maxSteps: 100,
+      contextWarningPercent: 99,
+      newThreadPercent: 40,
+      diagnosticRetention: 999,
+      compatibilityReplayMessageLimit: 2,
+      showDeliveryTelemetry: false,
+    },
   });
   assert.equal(normalized.schemaVersion, SETTINGS_SCHEMA_VERSION);
   assert.equal(normalized.ai.enabled, false);
   assert.equal(normalized.ai.baseUrl, 'https://example.test/v1');
   assert.deepEqual(normalized.ai.retry, { enabled: false, maxAttempts: 5 });
   assert.equal(normalized.agent.maxSteps, 20);
+  assert.equal(normalized.agent.contextWarningPercent, 90);
+  assert.equal(normalized.agent.newThreadPercent, 91);
+  assert.equal(normalized.agent.diagnosticRetention, 100);
+  assert.equal(normalized.agent.compatibilityReplayMessageLimit, 10);
+  assert.equal(normalized.agent.showDeliveryTelemetry, false);
 
   const migrated = normalizeSettings({
     schemaVersion: 1,
@@ -48,6 +60,15 @@ test('settings normalization is versioned and bounds Agent steps and Provider re
   });
   assert.deepEqual(migrated.ai.retry, { enabled: true, maxAttempts: 3 });
   assert.equal(normalizeSettings({ ai: { retry: { maxAttempts: 0 } } }).ai.retry.maxAttempts, 1);
+  assert.deepEqual(normalizeSettings(undefined).agent, {
+    maxSteps: 8,
+    showToolActivity: true,
+    contextWarningPercent: 75,
+    newThreadPercent: 90,
+    diagnosticRetention: 20,
+    compatibilityReplayMessageLimit: 60,
+    showDeliveryTelemetry: true,
+  });
 });
 
 test('credentials use native commands and are not part of persisted settings', async () => {
@@ -78,4 +99,9 @@ test('Agent settings explain automatic Codex selection and Compatibility fallbac
   assert.match(agentSettings, /falls back to the configured OpenAI-compatible provider/);
   assert.match(agentSettings, /listAgentRuntimes\(\)/);
   assert.match(agentSettings, /selectAgentRuntime\(runtimes/);
+  assert.match(agentSettings, /title="Context warning"/);
+  assert.match(agentSettings, /title="New Thread recommendation"/);
+  assert.match(agentSettings, /title="Runtime diagnostics retained"/);
+  assert.match(agentSettings, /title="Compatibility replay messages"/);
+  assert.match(agentSettings, /title="Show source delivery"/);
 });

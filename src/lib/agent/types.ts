@@ -107,6 +107,7 @@ export interface AgentRunRequest {
   model: string;
   systemPrompt: string;
   retry: AgentRetryPolicy;
+  policy: AgentPolicySettings;
   skillId?: string;
   context: Record<string, unknown>;
   tools: AgentToolDescriptor[];
@@ -116,6 +117,15 @@ export interface AgentRunRequest {
 export interface AgentRetryPolicy {
   enabled: boolean;
   maxAttempts: number;
+}
+
+export interface AgentPolicySettings {
+  maxSteps: number;
+  contextWarningPercent: number;
+  newThreadPercent: number;
+  diagnosticRetention: number;
+  compatibilityReplayMessageLimit: number;
+  showDeliveryTelemetry: boolean;
 }
 
 export interface AgentRunResponse {

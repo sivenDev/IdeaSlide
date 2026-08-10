@@ -25,6 +25,7 @@ use types::{
     AgentErrorCode, AgentProviderCapabilities, AgentRunEvent, AgentRunRequest, AgentRunResponse,
     AgentSkillMetadata, AgentToolCall,
 };
+use uuid::Uuid;
 
 #[tauri::command]
 pub(crate) async fn list_agent_runtimes() -> Vec<adapters::RuntimeDescriptor> {
@@ -257,6 +258,30 @@ impl NativeTurnEmitter {
         self.send(event_type, payload)?;
         Ok(true)
     }
+}
+
+fn record_runtime_diagnostic(
+    turn: &mut NativeTurnEmitter,
+    category: &str,
+    severity: &str,
+    code: &str,
+    message: impl Into<String>,
+    recovery: Option<String>,
+    retryable: bool,
+) -> Result<(), String> {
+    turn.send(
+        "runtimeDiagnosticRecorded",
+        json!({"diagnostic": {
+            "id": Uuid::new_v4().to_string(),
+            "at": now_millis(),
+            "category": category,
+            "severity": severity,
+            "code": code,
+            "message": message.into(),
+            "recovery": recovery,
+            "retryable": retryable,
+        }}),
+    )
 }
 
 fn can_fallback_after_codex_failure(runtime_progressed: bool) -> bool {
@@ -504,9 +529,10 @@ async fn receive_tool_result(
     }
 }
 
-struct CodexDeliveryTiming {
+struct CodexRunOptions {
     started: std::time::Instant,
     request_ms: u64,
+    max_steps: u8,
 }
 
 async fn run_codex_driver(
@@ -515,7 +541,7 @@ async fn run_codex_driver(
     emitter: &Arc<Mutex<NativeTurnEmitter>>,
     tools: &[types::AgentToolDescriptor],
     model: &str,
-    timing: CodexDeliveryTiming,
+    options: CodexRunOptions,
     mut cancellation: tokio::sync::watch::Receiver<bool>,
 ) -> Result<
     (
@@ -541,7 +567,20 @@ async fn run_codex_driver(
                 "upstreamThreadId": upstream_thread_id,
                 "diagnostic": format!("Pinned Codex {} selected automatically.", adapters::PINNED_CODEX_VERSION),
                 "degraded": false,
+                "health": "healthy",
             }}),
+        )?;
+        record_runtime_diagnostic(
+            &mut turn,
+            "selection",
+            "info",
+            "runtime.codexSelected",
+            format!(
+                "Pinned Codex {} passed compatibility checks and was selected automatically.",
+                adapters::PINNED_CODEX_VERSION
+            ),
+            None,
+            false,
         )?;
         turn.send(
             "capabilitiesUpdated",
@@ -568,7 +607,7 @@ async fn run_codex_driver(
             }}),
         )?;
     }
-    let mut broker = AgentToolBroker::new(tools)?;
+    let mut broker = AgentToolBroker::with_max_steps(tools, options.max_steps)?;
     let mut text = String::new();
     let mut delivery = TextDeliveryTelemetryCollector::default();
     loop {
@@ -582,7 +621,7 @@ async fn run_codex_driver(
             }
             event = driver.next_event() => event.map_err(|error| error.message)?,
         };
-        let event_ms = elapsed_millis(timing.started);
+        let event_ms = elapsed_millis(options.started);
         delivery.observe_event(event_ms);
         match event {
             adapters::RuntimeDriverEvent::ToolRequest { request_id, call } => {
@@ -674,6 +713,80 @@ async fn run_codex_driver(
                         }}),
                     )?;
                 }
+                adapters::RuntimeEvent::ContextUsage {
+                    total,
+                    last,
+                    model_context_window,
+                } => {
+                    let used_percent =
+                        model_context_window
+                            .filter(|window| *window > 0)
+                            .map(|window| {
+                                total
+                                    .total_tokens
+                                    .saturating_mul(100)
+                                    .checked_div(window)
+                                    .unwrap_or(0)
+                                    .min(100)
+                            });
+                    let mut turn = emitter
+                        .lock()
+                        .map_err(|_| "Agent Turn event state is unavailable")?;
+                    turn.send(
+                        "contextUpdated",
+                        json!({"context": {
+                            "status": "available",
+                            "source": "runtime",
+                            "total": total,
+                            "last": last,
+                            "modelContextWindow": model_context_window,
+                            "usedPercent": used_percent,
+                            "message": if used_percent.is_some() {
+                                "Exact context usage supplied by the active runtime."
+                            } else {
+                                "Exact token usage is available, but the runtime did not supply a context window."
+                            },
+                        }}),
+                    )?;
+                }
+                adapters::RuntimeEvent::ContextCompacted => {
+                    let mut turn = emitter
+                        .lock()
+                        .map_err(|_| "Agent Turn event state is unavailable")?;
+                    let turn_id = turn.turn_id.clone();
+                    let compacted_at = now_millis();
+                    turn.send(
+                        "contextUpdated",
+                        json!({"context": {
+                            "runtimeCompactedAt": compacted_at,
+                            "runtimeCompactedTurnId": turn_id,
+                            "message": "The active runtime compacted upstream context. Visible Thread history is unchanged.",
+                        }}),
+                    )?;
+                    record_runtime_diagnostic(
+                        &mut turn,
+                        "compaction",
+                        "info",
+                        "runtime.contextCompacted",
+                        "The active runtime compacted upstream context. Visible Thread history is unchanged.",
+                        Some("Start a new Thread if the current task no longer has enough working context.".to_string()),
+                        false,
+                    )?;
+                }
+                adapters::RuntimeEvent::Diagnostic { code, message } => {
+                    let mut turn = emitter
+                        .lock()
+                        .map_err(|_| "Agent Turn event state is unavailable")?;
+                    record_runtime_diagnostic(
+                        &mut turn,
+                        "provider",
+                        "warning",
+                        &code,
+                        message,
+                        Some("Retry the Turn if the runtime cannot continue.".to_string()),
+                        true,
+                    )?;
+                }
                 adapters::RuntimeEvent::TurnCompleted => break,
                 adapters::RuntimeEvent::TurnCancelled => {
                     return Err("Agent run cancelled".to_string());
@@ -685,11 +798,11 @@ async fn run_codex_driver(
         }
     }
     let _ = driver.shutdown().await;
-    let total_ms = elapsed_millis(timing.started);
+    let total_ms = elapsed_millis(options.started);
     let telemetry = delivery.finish(
         types::AgentProviderStrategy::Responses,
         1,
-        timing.request_ms,
+        options.request_ms,
         total_ms,
     );
     Ok((
@@ -748,11 +861,13 @@ impl Drop for ActiveRunGuard<'_> {
 
 #[tauri::command]
 pub(crate) async fn run_agent(
-    request: AgentRunRequest,
+    mut request: AgentRunRequest,
     on_event: Channel<AgentRunEvent>,
     state: tauri::State<'_, AgentSessionState>,
     app_handle: tauri::AppHandle,
 ) -> Result<AgentRunResponse, String> {
+    let policy = request.policy.normalized();
+    request.policy = policy;
     let run_id = request.run_id.clone();
     let thread_id = request.thread_id.clone();
     let retry_of_turn_id = request.retry_of_turn_id.clone();
@@ -782,7 +897,33 @@ pub(crate) async fn run_agent(
                 "binding": binding,
                 "userItemId": format!("{run_id}:user"),
                 "assistantItemId": assistant_item_id,
+                "effectivePolicy": {
+                    "maxSteps": policy.max_steps,
+                    "contextWarningPercent": policy.context_warning_percent,
+                    "newThreadPercent": policy.new_thread_percent,
+                    "diagnosticRetention": policy.diagnostic_retention,
+                    "compatibilityReplayMessageLimit": policy.compatibility_replay_message_limit,
+                    "showDeliveryTelemetry": policy.show_delivery_telemetry,
+                    "capturedAt": now_millis(),
+                },
             }),
+        )?;
+        turn.send(
+            "contextUpdated",
+            json!({"context": {
+                "status": "unavailable",
+                "source": "none",
+                "message": "The active runtime has not supplied exact token usage.",
+            }}),
+        )?;
+        record_runtime_diagnostic(
+            &mut turn,
+            "discovery",
+            "info",
+            "runtime.discoveryStarted",
+            "Checking installed Agent runtimes and compatibility.",
+            None,
+            false,
         )?;
         turn.send(
             "itemAdded",
@@ -827,6 +968,20 @@ pub(crate) async fn run_agent(
     let mut compatibility_reason = codex_runtime
         .and_then(|runtime| runtime.diagnostic.clone())
         .unwrap_or_else(|| "Codex did not pass the runtime safety gate.".to_string());
+    if !codex_available {
+        let mut turn = emitter
+            .lock()
+            .map_err(|_| "Agent Turn event state is unavailable")?;
+        record_runtime_diagnostic(
+            &mut turn,
+            "discovery",
+            "warning",
+            "runtime.richRuntimeUnavailable",
+            compatibility_reason.clone(),
+            Some("Compatibility will be selected automatically for this Turn.".to_string()),
+            false,
+        )?;
+    }
     if codex_available {
         let runtime_root = app_handle
             .path()
@@ -855,9 +1010,10 @@ pub(crate) async fn run_agent(
                     &emitter,
                     &tool_definitions,
                     &request.model,
-                    CodexDeliveryTiming {
+                    CodexRunOptions {
                         started: codex_started,
                         request_ms,
+                        max_steps: policy.max_steps,
                     },
                     tool_cancellation.clone(),
                 )
@@ -890,6 +1046,15 @@ pub(crate) async fn run_agent(
                     Err(message) => {
                         if message.to_ascii_lowercase().contains("cancel") {
                             if let Ok(mut turn) = emitter.lock() {
+                                let _ = record_runtime_diagnostic(
+                                    &mut turn,
+                                    "cancellation",
+                                    "info",
+                                    "runtime.cancelled",
+                                    "The running Turn was cancelled.",
+                                    None,
+                                    false,
+                                );
                                 let _ = turn.send_terminal(
                                     "turnCancelled",
                                     json!({"label": "Agent run cancelled"}),
@@ -917,8 +1082,29 @@ pub(crate) async fn run_agent(
                                 "status": "completed",
                                 "createdAt": now_millis(),
                             }}))?;
+                            record_runtime_diagnostic(
+                                &mut turn,
+                                "fallback",
+                                "warning",
+                                "runtime.codexStoppedBeforeOutput",
+                                compatibility_reason.clone(),
+                                Some(
+                                    "Compatibility was selected automatically for this Turn."
+                                        .to_string(),
+                                ),
+                                true,
+                            )?;
                         } else {
                             if let Ok(mut turn) = emitter.lock() {
+                                let _ = record_runtime_diagnostic(
+                                    &mut turn,
+                                    "terminal",
+                                    "error",
+                                    "runtime.codexFailedAfterProgress",
+                                    message.clone(),
+                                    Some("Retry the Turn. Automatic fallback is disabled after visible Codex progress or Tool activity.".to_string()),
+                                    true,
+                                );
                                 let assistant_item_id = turn.assistant_item_id.clone();
                                 let _ = turn.send_terminal("turnFailed", json!({
                                     "assistantItemId": assistant_item_id,
@@ -948,6 +1134,15 @@ pub(crate) async fn run_agent(
                     "status": "completed",
                     "createdAt": now_millis(),
                 }}))?;
+                record_runtime_diagnostic(
+                    &mut turn,
+                    "startup",
+                    "warning",
+                    "runtime.codexInitializationFailed",
+                    compatibility_reason.clone(),
+                    Some("Compatibility was selected automatically for this Turn.".to_string()),
+                    true,
+                )?;
             }
         }
     }
@@ -963,7 +1158,17 @@ pub(crate) async fn run_agent(
                 "model": request.model.clone(),
                 "diagnostic": compatibility_reason,
                 "degraded": true,
+                "health": "degraded",
             }}),
+        )?;
+        record_runtime_diagnostic(
+            &mut turn,
+            "selection",
+            "warning",
+            "runtime.compatibilitySelected",
+            "Using the OpenAI-compatible runtime for this Turn.",
+            Some("Open Agent Settings to inspect installed runtime compatibility.".to_string()),
+            false,
         )?;
     }
     let api_key = settings::read_provider_api_key(&app_handle)?
@@ -986,12 +1191,21 @@ pub(crate) async fn run_agent(
                     "label": format!("{reason} ({from:?} → {to:?})"),
                     "status": "completed",
                     "createdAt": now_millis(),
-                }}))
+                }}))?;
+                record_runtime_diagnostic(
+                    &mut turn,
+                    "fallback",
+                    "warning",
+                    "provider.strategyFallback",
+                    format!("{reason} ({from:?} → {to:?})"),
+                    Some("No action is required unless the fallback repeats.".to_string()),
+                    true,
+                )
             }
             provider::ProviderProgress::RetryScheduled {
                 attempt,
                 delay_ms,
-                diagnostic: _,
+                diagnostic,
             } => {
                 let item_id = format!("{}:retry:{attempt}", turn.turn_id);
                 turn.send("itemAdded", json!({"item": {
@@ -1000,10 +1214,51 @@ pub(crate) async fn run_agent(
                     "label": format!("Retrying provider request (attempt {attempt}) in {delay_ms} ms"),
                     "status": "completed",
                     "createdAt": now_millis(),
-                }}))
+                }}))?;
+                record_runtime_diagnostic(
+                    &mut turn,
+                    "retry",
+                    "warning",
+                    &format!("provider.{:?}", diagnostic.code),
+                    diagnostic.message,
+                    diagnostic.recovery,
+                    diagnostic.retryable,
+                )
             }
             provider::ProviderProgress::PublicActivityDelta(text) => {
                 emit_public_activity_delta(&mut turn, text)
+            }
+            provider::ProviderProgress::ContextUsage {
+                total,
+                last,
+                model_context_window,
+            } => {
+                let used_percent = model_context_window
+                    .filter(|window| *window > 0)
+                    .map(|window| {
+                        total
+                            .total_tokens
+                            .saturating_mul(100)
+                            .checked_div(window)
+                            .unwrap_or(0)
+                            .min(100)
+                    });
+                turn.send(
+                    "contextUpdated",
+                    json!({"context": {
+                        "status": "available",
+                        "source": "provider",
+                        "total": total,
+                        "last": last,
+                        "modelContextWindow": model_context_window,
+                        "usedPercent": used_percent,
+                        "message": if used_percent.is_some() {
+                            "Exact context usage was supplied by the provider."
+                        } else {
+                            "Exact token usage was supplied by the provider, but no context window was supplied."
+                        },
+                    }}),
+                )
             }
             provider::ProviderProgress::TextDelta(text) => {
                 turn.append_assistant_delta(&text)
@@ -1041,7 +1296,7 @@ pub(crate) async fn run_agent(
     .await;
     match result {
         Ok(completion) => {
-            let mut broker = AgentToolBroker::new(&tool_definitions)?;
+            let mut broker = AgentToolBroker::with_max_steps(&tool_definitions, policy.max_steps)?;
             for tool_call in &completion.tool_calls {
                 let raw_result = match execute_editor_tool(
                     &state,
@@ -1055,6 +1310,15 @@ pub(crate) async fn run_agent(
                     Ok(result) => result,
                     Err(message) => {
                         if let Ok(mut turn) = emitter.lock() {
+                            let _ = record_runtime_diagnostic(
+                                &mut turn,
+                                "cancellation",
+                                "info",
+                                "runtime.cancelledDuringTool",
+                                "The running Turn was cancelled during editor Tool activity.",
+                                None,
+                                false,
+                            );
                             let _ = turn.send_terminal(
                                 "turnCancelled",
                                 json!({"label": "Agent run cancelled"}),
@@ -1089,6 +1353,15 @@ pub(crate) async fn run_agent(
         }
         Err(failure) if failure.diagnostic.code == AgentErrorCode::Cancelled => {
             if let Ok(mut turn) = emitter.lock() {
+                let _ = record_runtime_diagnostic(
+                    &mut turn,
+                    "cancellation",
+                    "info",
+                    "provider.cancelled",
+                    "The running Turn was cancelled.",
+                    None,
+                    false,
+                );
                 let _ =
                     turn.send_terminal("turnCancelled", json!({"label": "Agent run cancelled"}));
             }
@@ -1097,6 +1370,15 @@ pub(crate) async fn run_agent(
         Err(failure) => {
             let message = failure.diagnostic.message.clone();
             if let Ok(mut turn) = emitter.lock() {
+                let _ = record_runtime_diagnostic(
+                    &mut turn,
+                    "provider",
+                    "error",
+                    &format!("provider.{:?}", failure.diagnostic.code),
+                    failure.diagnostic.message.clone(),
+                    failure.diagnostic.recovery.clone(),
+                    failure.diagnostic.retryable,
+                );
                 let assistant_item_id = turn.assistant_item_id.clone();
                 let error = serde_json::to_value(failure.diagnostic).unwrap_or_else(|_| {
                     json!({

@@ -458,6 +458,166 @@ body,
     opacity: 0.35;
 }
 
+.ideanote-agent-inspector {
+    position: absolute;
+    z-index: 19;
+    top: 48px;
+    right: 0;
+    left: 0;
+    max-height: calc(100% - 48px);
+    overflow-y: auto;
+    border-bottom: 1px solid #dddfe7;
+    color: #555c68;
+    background: rgb(252 252 253 / 98%);
+    box-shadow: 0 14px 28px rgb(32 36 45 / 14%);
+    font-size: 9px;
+    scrollbar-color: #cfd2da transparent;
+    scrollbar-width: thin;
+}
+
+.ideanote-agent-inspector__status {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    border-bottom: 1px solid #e8eaf0;
+    padding: 11px 12px;
+}
+
+.ideanote-agent-inspector__status > div {
+    min-width: 0;
+    flex: 1;
+}
+
+.ideanote-agent-inspector__status strong,
+.ideanote-agent-inspector__status span {
+    display: block;
+}
+
+.ideanote-agent-inspector__status strong {
+    color: #303540;
+    font-size: 10px;
+}
+
+.ideanote-agent-inspector__status span {
+    margin-top: 3px;
+    color: #777e8a;
+    line-height: 1.45;
+}
+
+.ideanote-agent-inspector__status.is-high-pressure,
+.ideanote-agent-inspector__status.is-approaching-limit {
+    color: #9a6c12;
+    background: #fff9e8;
+}
+
+.ideanote-agent-inspector__status.is-healthy {
+    color: #287a59;
+    background: #f0faf5;
+}
+
+.ideanote-agent-inspector__status > button {
+    flex: 0 0 auto;
+    border-radius: 6px;
+    color: #fff;
+    background: #6965db;
+    font-size: 8px;
+    font-weight: 650;
+    padding: 5px 7px;
+}
+
+.ideanote-agent-inspector__status > button:disabled {
+    opacity: 0.45;
+}
+
+.ideanote-agent-inspector > section {
+    padding: 11px 12px;
+}
+
+.ideanote-agent-inspector > section + section {
+    border-top: 1px solid #eceef2;
+}
+
+.ideanote-agent-inspector h3 {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: #343944;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.ideanote-agent-inspector dl {
+    display: grid;
+    gap: 5px;
+    margin-top: 8px;
+}
+
+.ideanote-agent-inspector dl > div {
+    display: grid;
+    grid-template-columns: minmax(92px, 0.8fr) minmax(0, 1.2fr);
+    gap: 8px;
+}
+
+.ideanote-agent-inspector dt {
+    color: #9298a3;
+}
+
+.ideanote-agent-inspector dd {
+    min-width: 0;
+    color: #4c525e;
+    overflow-wrap: anywhere;
+    text-align: right;
+}
+
+.ideanote-agent-inspector__note,
+.ideanote-agent-inspector__empty {
+    margin-top: 8px;
+    color: #7e8490;
+    line-height: 1.5;
+}
+
+.ideanote-agent-inspector__diagnostics {
+    display: grid;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.ideanote-agent-inspector__diagnostics li {
+    border-left: 2px solid #c7cad1;
+    border-radius: 0 6px 6px 0;
+    background: #f6f7f9;
+    padding: 7px 8px;
+}
+
+.ideanote-agent-inspector__diagnostics li.is-warning {
+    border-left-color: #d6a13c;
+}
+
+.ideanote-agent-inspector__diagnostics li.is-error {
+    border-left-color: #cf5b5b;
+}
+
+.ideanote-agent-inspector__diagnostics strong,
+.ideanote-agent-inspector__diagnostics span {
+    display: block;
+}
+
+.ideanote-agent-inspector__diagnostics strong {
+    color: #464c57;
+    line-height: 1.45;
+}
+
+.ideanote-agent-inspector__diagnostics span {
+    margin-top: 3px;
+    color: #989da7;
+}
+
+.ideanote-agent-inspector__diagnostics p {
+    margin-top: 5px;
+    color: #6f7681;
+    line-height: 1.45;
+}
+
 .ideanote-agent-history {
     position: absolute;
     z-index: 20;

@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { load, type Store } from "@tauri-apps/plugin-store";
 
-export const SETTINGS_SCHEMA_VERSION = 2;
+export const SETTINGS_SCHEMA_VERSION = 3;
 const SETTINGS_STORE_PATH = "settings.json";
 const SETTINGS_STORE_KEY = "settings";
 const BROWSER_STORAGE_KEY = "ideanote.settings.v1";
@@ -25,6 +25,11 @@ export interface AppSettings {
   agent: {
     maxSteps: number;
     showToolActivity: boolean;
+    contextWarningPercent: number;
+    newThreadPercent: number;
+    diagnosticRetention: number;
+    compatibilityReplayMessageLimit: number;
+    showDeliveryTelemetry: boolean;
   };
   ideaSketch: {
     previewLaserEnabled: boolean;
@@ -45,7 +50,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
     provider: "openai-compatible",
     baseUrl: "https://api.openai.com/v1",
     model: "gpt-5-mini",
-    systemPrompt: "You are IdeaNote's editor assistant. Use the active editor skill and propose changes for review before applying them.",
+    systemPrompt: "You are IdeaNote's editor assistant. Use the active editor Skill and Tools, inspect required context first, and apply requested edits directly through editor Tools.",
     retry: {
       enabled: true,
       maxAttempts: 3,
@@ -54,6 +59,11 @@ export const DEFAULT_SETTINGS = Object.freeze({
   agent: {
     maxSteps: 8,
     showToolActivity: true,
+    contextWarningPercent: 75,
+    newThreadPercent: 90,
+    diagnosticRetention: 20,
+    compatibilityReplayMessageLimit: 60,
+    showDeliveryTelemetry: true,
   },
   ideaSketch: {
     previewLaserEnabled: true,
@@ -64,6 +74,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function boundedInteger(value: unknown, fallback: number, minimum: number, maximum: number): number {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.min(maximum, Math.max(minimum, Math.round(value)))
+    : fallback;
+}
+
 export function normalizeSettings(value: unknown): AppSettings {
   if (!isRecord(value)) return structuredClone(DEFAULT_SETTINGS);
   const general = isRecord(value.general) ? value.general : {};
@@ -71,9 +87,22 @@ export function normalizeSettings(value: unknown): AppSettings {
   const retry = isRecord(ai.retry) ? ai.retry : {};
   const agent = isRecord(value.agent) ? value.agent : {};
   const ideaSketch = isRecord(value.ideaSketch) ? value.ideaSketch : {};
-  const maxSteps = typeof agent.maxSteps === "number" && Number.isFinite(agent.maxSteps)
-    ? Math.min(20, Math.max(1, Math.round(agent.maxSteps)))
-    : DEFAULT_SETTINGS.agent.maxSteps;
+  const maxSteps = boundedInteger(agent.maxSteps, DEFAULT_SETTINGS.agent.maxSteps, 1, 20);
+  const contextWarningPercent = boundedInteger(
+    agent.contextWarningPercent,
+    DEFAULT_SETTINGS.agent.contextWarningPercent,
+    50,
+    90,
+  );
+  const requestedNewThreadPercent = boundedInteger(
+    agent.newThreadPercent,
+    DEFAULT_SETTINGS.agent.newThreadPercent,
+    60,
+    100,
+  );
+  const newThreadPercent = requestedNewThreadPercent > contextWarningPercent
+    ? requestedNewThreadPercent
+    : Math.min(100, contextWarningPercent + 1);
 
   return {
     schemaVersion: SETTINGS_SCHEMA_VERSION,
@@ -100,6 +129,23 @@ export function normalizeSettings(value: unknown): AppSettings {
     agent: {
       maxSteps,
       showToolActivity: typeof agent.showToolActivity === "boolean" ? agent.showToolActivity : true,
+      contextWarningPercent,
+      newThreadPercent,
+      diagnosticRetention: boundedInteger(
+        agent.diagnosticRetention,
+        DEFAULT_SETTINGS.agent.diagnosticRetention,
+        5,
+        100,
+      ),
+      compatibilityReplayMessageLimit: boundedInteger(
+        agent.compatibilityReplayMessageLimit,
+        DEFAULT_SETTINGS.agent.compatibilityReplayMessageLimit,
+        10,
+        200,
+      ),
+      showDeliveryTelemetry: typeof agent.showDeliveryTelemetry === "boolean"
+        ? agent.showDeliveryTelemetry
+        : DEFAULT_SETTINGS.agent.showDeliveryTelemetry,
     },
     ideaSketch: {
       previewLaserEnabled: typeof ideaSketch.previewLaserEnabled === "boolean"

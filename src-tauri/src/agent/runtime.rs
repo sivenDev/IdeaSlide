@@ -94,6 +94,7 @@ mod tests {
             model: "test-model".to_string(),
             system_prompt: "Follow the editor contract".to_string(),
             retry: Default::default(),
+            policy: Default::default(),
             skill_id: None,
             context: serde_json::json!({"documentType": "test"}),
             tools: vec![AgentToolDescriptor {

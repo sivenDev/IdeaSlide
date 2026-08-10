@@ -1,6 +1,7 @@
 import { cancelAgent, runAgent, submitAgentToolResult } from "./agentClient";
 import type {
   AgentMessage,
+  AgentPolicySettings,
   AgentRetryPolicy,
   AgentRunRequest,
   AgentToolCall,
@@ -28,6 +29,7 @@ export interface StartAgentTurnInput {
   model: string;
   systemPrompt: string;
   retry: AgentRetryPolicy;
+  policy: AgentPolicySettings;
   context: Record<string, unknown>;
   tools: AgentToolDescriptor[];
   messages: AgentMessage[];
@@ -100,6 +102,7 @@ export function createNativeAgentRuntime(): AgentRuntime {
         model: input.model,
         systemPrompt: input.systemPrompt,
         retry: input.retry,
+        policy: input.policy,
         skillId: input.binding.skillId,
         context: input.context,
         tools: input.tools,

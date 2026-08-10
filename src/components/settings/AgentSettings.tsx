@@ -3,7 +3,34 @@ import { useSettings } from "../../hooks/useSettings";
 import { listAgentRuntimes } from "../../lib/agent/agentClient";
 import { selectAgentRuntime } from "../../lib/agent/runtimeSelection";
 import type { AgentRuntimeDescriptor } from "../../lib/agent/types";
+import { DEFAULT_SETTINGS, type AppSettings } from "../../lib/settings";
 import { SettingsField, SettingsToggle } from "./SettingsField";
+
+function AgentNumberInput({
+  label,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <input
+      type="number"
+      min={min}
+      max={max}
+      aria-label={label}
+      className="ideanote-settings-control w-20"
+      value={value}
+      onChange={(event) => onChange(Number(event.target.value))}
+    />
+  );
+}
 
 export function AgentSettings() {
   const { settings, activationState, updateSettings } = useSettings();
@@ -34,6 +61,10 @@ export function AgentSettings() {
       : activationState === "disabled"
         ? "Disabled"
         : "Loading settings";
+  const updateAgent = (change: Partial<AppSettings["agent"]>) => void updateSettings((current) => ({
+    ...current,
+    agent: { ...current.agent, ...change },
+  }));
 
   return (
     <section aria-labelledby="settings-agent-title">
@@ -68,28 +99,91 @@ export function AgentSettings() {
         </div>
       </SettingsField>
       <SettingsField title="Maximum steps" description="Bound each Agent run to prevent unbounded Tool activity.">
-        <input
-          type="number"
+        <AgentNumberInput
+          label="Maximum Agent steps"
+          value={settings.agent.maxSteps}
           min={1}
           max={20}
-          aria-label="Maximum Agent steps"
-          className="ideanote-settings-control w-20"
-          value={settings.agent.maxSteps}
-          onChange={(event) => void updateSettings((current) => ({
-            ...current,
-            agent: { ...current.agent, maxSteps: Number(event.target.value) },
-          }))}
+          onChange={(maxSteps) => updateAgent({ maxSteps })}
+        />
+      </SettingsField>
+      <SettingsField
+        title="Context warning"
+        description="Show an approaching-limit state only when the runtime supplies an exact context window. Range: 50–90%."
+      >
+        <AgentNumberInput
+          label="Context warning percent"
+          value={settings.agent.contextWarningPercent}
+          min={50}
+          max={90}
+          onChange={(contextWarningPercent) => updateAgent({ contextWarningPercent })}
+        />
+      </SettingsField>
+      <SettingsField
+        title="New Thread recommendation"
+        description="Recommend a new Thread at this exact context percentage. It is always normalized above the warning threshold. Range: 60–100%."
+      >
+        <AgentNumberInput
+          label="New Thread recommendation percent"
+          value={settings.agent.newThreadPercent}
+          min={60}
+          max={100}
+          onChange={(newThreadPercent) => updateAgent({ newThreadPercent })}
+        />
+      </SettingsField>
+      <SettingsField
+        title="Runtime diagnostics retained"
+        description="Keep this many safe, classified diagnostics per Thread. Credentials and raw provider payloads are never retained. Range: 5–100."
+      >
+        <AgentNumberInput
+          label="Runtime diagnostics retained"
+          value={settings.agent.diagnosticRetention}
+          min={5}
+          max={100}
+          onChange={(diagnosticRetention) => updateAgent({ diagnosticRetention })}
+        />
+      </SettingsField>
+      <SettingsField
+        title="Compatibility replay messages"
+        description="Limit how many settled messages are sent with a Compatibility request. This is not a model context-window setting. Range: 10–200."
+      >
+        <AgentNumberInput
+          label="Compatibility replay message limit"
+          value={settings.agent.compatibilityReplayMessageLimit}
+          min={10}
+          max={200}
+          onChange={(compatibilityReplayMessageLimit) => updateAgent({ compatibilityReplayMessageLimit })}
+        />
+      </SettingsField>
+      <SettingsField title="Show source delivery" description="Show exact delivery timing and stream behavior in the Runtime Inspector.">
+        <SettingsToggle
+          label="Show source delivery telemetry"
+          checked={settings.agent.showDeliveryTelemetry}
+          onChange={(showDeliveryTelemetry) => updateAgent({ showDeliveryTelemetry })}
         />
       </SettingsField>
       <SettingsField title="Show Tool Activity" description="Display editor Tool calls and results in the Agent panel.">
         <SettingsToggle
           label="Show Tool Activity"
           checked={settings.agent.showToolActivity}
-          onChange={(showToolActivity) => void updateSettings((current) => ({
-            ...current,
-            agent: { ...current.agent, showToolActivity },
-          }))}
+          onChange={(showToolActivity) => updateAgent({ showToolActivity })}
         />
+      </SettingsField>
+      <SettingsField title="Reset Agent policy" description="Restore the maximum-step, context, diagnostics, replay, and delivery-visibility defaults.">
+        <button
+          type="button"
+          className="ideanote-settings-button"
+          onClick={() => updateAgent({
+            maxSteps: DEFAULT_SETTINGS.agent.maxSteps,
+            contextWarningPercent: DEFAULT_SETTINGS.agent.contextWarningPercent,
+            newThreadPercent: DEFAULT_SETTINGS.agent.newThreadPercent,
+            diagnosticRetention: DEFAULT_SETTINGS.agent.diagnosticRetention,
+            compatibilityReplayMessageLimit: DEFAULT_SETTINGS.agent.compatibilityReplayMessageLimit,
+            showDeliveryTelemetry: DEFAULT_SETTINGS.agent.showDeliveryTelemetry,
+          })}
+        >
+          Reset policy
+        </button>
       </SettingsField>
     </section>
   );

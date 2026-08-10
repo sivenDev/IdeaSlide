@@ -51,6 +51,15 @@ const started = () => event('turnStarted', 0, {
   binding,
   userItemId: 'turn-1:user',
   assistantItemId: 'turn-1:assistant',
+  effectivePolicy: {
+    maxSteps: 8,
+    contextWarningPercent: 75,
+    newThreadPercent: 90,
+    diagnosticRetention: 5,
+    compatibilityReplayMessageLimit: 60,
+    showDeliveryTelemetry: true,
+    capturedAt: 10,
+  },
 });
 
 const assistantAdded = (sequence = 1) => event('itemAdded', sequence, {
@@ -345,4 +354,64 @@ test('plans and approvals remain first-class Items with explicit decisions', () 
   const approval = turn.items.find((item) => item.kind === 'approval');
   assert.equal(approval.decision, 'rejected');
   assert.equal(approval.status, 'completed');
+});
+
+test('effective Turn policy, exact context, and bounded runtime diagnostics reduce in order', () => {
+  let state = reduceAgentEvent(initial(), started());
+  state = reduceAgentEvent(state, event('contextUpdated', 1, {
+    context: {
+      status: 'available', source: 'runtime', modelContextWindow: 200, usedPercent: 75,
+      total: { totalTokens: 150, inputTokens: 120, cachedInputTokens: 40, cacheWriteInputTokens: 0, outputTokens: 30, reasoningOutputTokens: 8 },
+      last: { totalTokens: 20, inputTokens: 15, cachedInputTokens: 4, cacheWriteInputTokens: 0, outputTokens: 5, reasoningOutputTokens: 2 },
+    },
+  }));
+  for (let index = 0; index < 7; index += 1) {
+    state = reduceAgentEvent(state, event('runtimeDiagnosticRecorded', index + 2, {
+      diagnostic: {
+        id: `diagnostic-${index}`, at: index + 12, category: 'provider', severity: 'warning',
+        code: 'provider.retry', message: `Retry ${index}`, retryable: true,
+      },
+    }));
+  }
+  assert.equal(state.thread.turns.at(-1).effectivePolicy.maxSteps, 8);
+  assert.equal(state.context.usedPercent, 75);
+  assert.equal(state.context.total.totalTokens, 150);
+  assert.equal(state.runtimeDiagnostics.length, 5);
+  assert.equal(state.runtimeDiagnostics[0].id, 'diagnostic-2');
+});
+
+test('an unavailable context update clears stale exact usage from an earlier Turn', () => {
+  let state = reduceAgentEvent(initial(), started());
+  state = reduceAgentEvent(state, event('contextUpdated', 1, {
+    context: {
+      status: 'available', source: 'runtime', modelContextWindow: 200, usedPercent: 75,
+      total: { totalTokens: 150, inputTokens: 120, cachedInputTokens: 40, cacheWriteInputTokens: 0, outputTokens: 30, reasoningOutputTokens: 8 },
+      last: { totalTokens: 20, inputTokens: 15, cachedInputTokens: 4, cacheWriteInputTokens: 0, outputTokens: 5, reasoningOutputTokens: 2 },
+    },
+  }));
+  state = reduceAgentEvent(state, event('contextUpdated', 2, {
+    context: { status: 'unavailable', source: 'none', message: 'No exact usage yet.' },
+  }));
+
+  assert.equal(state.context.status, 'unavailable');
+  assert.equal(state.context.total, undefined);
+  assert.equal(state.context.last, undefined);
+  assert.equal(state.context.modelContextWindow, undefined);
+  assert.equal(state.context.usedPercent, undefined);
+});
+
+test('legacy compaction marker hydrates only as a local Compatibility replay boundary', () => {
+  const base = initial();
+  const hydrated = hydrateAgentThreadState({
+    schemaVersion: 1,
+    thread: base.thread,
+    capabilities: base.capabilities,
+    runtime: {
+      kind: 'compatibility', label: 'Compatibility', model: 'test', degraded: true,
+      compactedBeforeTurnId: 'legacy-turn',
+    },
+  });
+  assert.equal(hydrated.runtime.localReplayTruncatedBeforeTurnId, 'legacy-turn');
+  assert.equal(hydrated.context.localReplayTruncatedBeforeTurnId, 'legacy-turn');
+  assert.equal(hydrated.context.runtimeCompactedAt, undefined);
 });

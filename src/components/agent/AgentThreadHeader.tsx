@@ -1,4 +1,4 @@
-import { Circle, History, Plus, Settings2 } from "lucide-react";
+import { Activity, Circle, History, Plus, Settings2 } from "lucide-react";
 import type { AgentCapabilities } from "../../lib/agent/protocol";
 
 export function AgentThreadHeader({
@@ -9,8 +9,11 @@ export function AgentThreadHeader({
   capabilities,
   running,
   historyOpen,
+  inspectorOpen,
+  statusLabel,
   onNewThread,
   onToggleHistory,
+  onToggleInspector,
   onOpenSettings,
 }: {
   title: string;
@@ -20,8 +23,11 @@ export function AgentThreadHeader({
   capabilities: AgentCapabilities;
   running: boolean;
   historyOpen: boolean;
+  inspectorOpen: boolean;
+  statusLabel: string;
   onNewThread: () => void;
   onToggleHistory: () => void;
+  onToggleInspector: () => void;
   onOpenSettings: () => void;
 }) {
   const capabilityLabel = capabilities.plans || capabilities.toolEvents
@@ -40,6 +46,8 @@ export function AgentThreadHeader({
           <span title={modelLabel}>{modelLabel}</span>
           <span aria-hidden>·</span>
           <span>{capabilityLabel}</span>
+          <span aria-hidden>·</span>
+          <span>{statusLabel}</span>
         </div>
       </div>
       <div className="ideanote-agent-thread-header__actions">
@@ -53,6 +61,14 @@ export function AgentThreadHeader({
           aria-expanded={historyOpen}
         >
           <History aria-hidden size={13} />
+        </button>
+        <button
+          type="button"
+          onClick={onToggleInspector}
+          aria-label="Open Agent runtime inspector"
+          aria-expanded={inspectorOpen}
+        >
+          <Activity aria-hidden size={13} />
         </button>
         <button type="button" onClick={onOpenSettings} aria-label="Open Agent settings">
           <Settings2 aria-hidden size={13} />

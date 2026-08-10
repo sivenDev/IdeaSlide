@@ -58,3 +58,16 @@ test('the captured retry policy crosses the generic Agent request boundary', asy
   assert.match(provider, /effective_max_attempts\(request\.retry\)/);
   assert.match(provider, /policy\.max_attempts\.clamp\(1, 5\)/);
 });
+
+test('runtime diagnostics use a transport-neutral exact-or-unavailable context contract', async () => {
+  const source = await readFile(new URL('../src/lib/agent/protocol.ts', import.meta.url), 'utf8');
+  assert.match(source, /interface AgentContextSnapshot/);
+  assert.match(source, /status: "available" \| "unavailable" \| "unknown"/);
+  assert.match(source, /modelContextWindow\?: number/);
+  assert.match(source, /usedPercent\?: number/);
+  assert.match(source, /runtimeCompactedAt\?: number/);
+  assert.match(source, /localReplayTruncatedBeforeTurnId\?: string/);
+  assert.match(source, /interface AgentRuntimeDiagnostic/);
+  assert.match(source, /effectivePolicy: AgentEffectivePolicy/);
+  assert.doesNotMatch(source, /chainOfThought|rawProviderPayload|estimatedTokens/);
+});

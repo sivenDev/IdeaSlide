@@ -48,7 +48,7 @@ test('model context compaction leaves visible history intact', () => {
   }
   const compacted = agentRuntimeMessagesFromState(state, 20);
   assert.equal(compacted.messages.length, 20);
-  assert.ok(compacted.compactedBeforeTurnId);
+  assert.ok(compacted.localReplayTruncatedBeforeTurnId);
   assert.equal(state.thread.turns.length, 71);
 });
 

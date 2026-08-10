@@ -210,13 +210,59 @@ impl AgentRuntimeAdapter for CodexAppServerAdapter {
                     }]
                 })
                 .unwrap_or_default(),
-            "item/completed" => codex_schema::dynamic_tool(&params)
-                .map(|(call_id, name, _)| {
-                    vec![RuntimeEvent::ToolCompleted {
-                        call_id: call_id.to_string(),
-                        name: name.to_string(),
-                        success: codex_schema::bool_at(&params, &["item", "success"])
-                            .unwrap_or(true),
+            "item/completed" => {
+                if codex_schema::string_at(&params, &["item", "type"])
+                    .is_some_and(|kind| kind == "contextCompaction")
+                {
+                    vec![RuntimeEvent::ContextCompacted]
+                } else {
+                    codex_schema::dynamic_tool(&params)
+                        .map(|(call_id, name, _)| {
+                            vec![RuntimeEvent::ToolCompleted {
+                                call_id: call_id.to_string(),
+                                name: name.to_string(),
+                                success: codex_schema::bool_at(&params, &["item", "success"])
+                                    .unwrap_or(true),
+                            }]
+                        })
+                        .unwrap_or_default()
+                }
+            }
+            "thread/tokenUsage/updated" => {
+                let usage = params.get("tokenUsage");
+                match usage.and_then(|usage| {
+                    Some(RuntimeEvent::ContextUsage {
+                        total: codex_schema::token_usage_breakdown(usage.get("total")?)?,
+                        last: codex_schema::token_usage_breakdown(usage.get("last")?)?,
+                        model_context_window: usage
+                            .get("modelContextWindow")
+                            .and_then(Value::as_u64),
+                    })
+                }) {
+                    Some(event) => vec![event],
+                    None => vec![RuntimeEvent::Diagnostic {
+                        code: "runtime.invalidTokenUsage".to_string(),
+                        message: "Codex supplied an invalid token-usage notification; context usage remains unavailable."
+                            .to_string(),
+                    }],
+                }
+            }
+            "thread/compacted" => vec![RuntimeEvent::ContextCompacted],
+            "model/rerouted" => {
+                let from = codex_schema::string_at(&params, &["fromModel"])
+                    .unwrap_or("the requested model");
+                let to = codex_schema::string_at(&params, &["toModel"])
+                    .unwrap_or("another compatible model");
+                vec![RuntimeEvent::Diagnostic {
+                    code: "runtime.modelRerouted".to_string(),
+                    message: redact_text(&format!("Codex rerouted this Turn from {from} to {to}.")),
+                }]
+            }
+            "warning" => codex_schema::string_at(&params, &["message"])
+                .map(|message| {
+                    vec![RuntimeEvent::Diagnostic {
+                        code: "runtime.warning".to_string(),
+                        message: redact_text(message),
                     }]
                 })
                 .unwrap_or_default(),
@@ -325,5 +371,62 @@ mod tests {
                 ..
             }]
         ));
+    }
+
+    #[test]
+    fn maps_exact_usage_and_both_compaction_forms() {
+        let adapter = adapter();
+        let usage = JsonRpcMessage::notification(
+            "thread/tokenUsage/updated",
+            json!({
+                "threadId": "thread-1",
+                "turnId": "turn-1",
+                "tokenUsage": {
+                    "total": {
+                        "totalTokens": 120,
+                        "inputTokens": 90,
+                        "cachedInputTokens": 30,
+                        "cacheWriteInputTokens": 4,
+                        "outputTokens": 30,
+                        "reasoningOutputTokens": 8
+                    },
+                    "last": {
+                        "totalTokens": 20,
+                        "inputTokens": 12,
+                        "cachedInputTokens": 2,
+                        "cacheWriteInputTokens": 0,
+                        "outputTokens": 8,
+                        "reasoningOutputTokens": 3
+                    },
+                    "modelContextWindow": 200
+                }
+            }),
+        );
+        let events = adapter.map_message(&usage).expect("usage should map");
+        assert!(matches!(
+            events.as_slice(),
+            [RuntimeEvent::ContextUsage {
+                total,
+                last,
+                model_context_window: Some(200),
+            }] if total.total_tokens == 120 && last.reasoning_output_tokens == 3
+        ));
+
+        let current = JsonRpcMessage::notification(
+            "item/completed",
+            json!({"item": {"type": "contextCompaction", "id": "compact-1"}}),
+        );
+        assert_eq!(
+            adapter.map_message(&current).unwrap(),
+            vec![RuntimeEvent::ContextCompacted]
+        );
+        let legacy = JsonRpcMessage::notification(
+            "thread/compacted",
+            json!({"threadId": "thread-1", "turnId": "turn-1"}),
+        );
+        assert_eq!(
+            adapter.map_message(&legacy).unwrap(),
+            vec![RuntimeEvent::ContextCompacted]
+        );
     }
 }

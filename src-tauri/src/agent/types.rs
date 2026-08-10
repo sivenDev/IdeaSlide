@@ -16,6 +16,8 @@ pub(crate) struct AgentRunRequest {
     pub system_prompt: String,
     #[serde(default)]
     pub retry: AgentRetryPolicy,
+    #[serde(default)]
+    pub policy: AgentPolicySettings,
     pub skill_id: Option<String>,
     pub context: serde_json::Value,
     pub tools: Vec<AgentToolDescriptor>,
@@ -34,6 +36,51 @@ impl Default for AgentRetryPolicy {
         Self {
             enabled: true,
             max_attempts: 3,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AgentPolicySettings {
+    pub max_steps: u8,
+    pub context_warning_percent: u8,
+    pub new_thread_percent: u8,
+    pub diagnostic_retention: u16,
+    pub compatibility_replay_message_limit: u16,
+    pub show_delivery_telemetry: bool,
+}
+
+impl Default for AgentPolicySettings {
+    fn default() -> Self {
+        Self {
+            max_steps: 8,
+            context_warning_percent: 75,
+            new_thread_percent: 90,
+            diagnostic_retention: 20,
+            compatibility_replay_message_limit: 60,
+            show_delivery_telemetry: true,
+        }
+    }
+}
+
+impl AgentPolicySettings {
+    pub(crate) fn normalized(self) -> Self {
+        let context_warning_percent = self.context_warning_percent.clamp(50, 90);
+        let requested_new_thread = self.new_thread_percent.clamp(60, 100);
+        Self {
+            max_steps: self.max_steps.clamp(1, 20),
+            context_warning_percent,
+            new_thread_percent: if requested_new_thread > context_warning_percent {
+                requested_new_thread
+            } else {
+                context_warning_percent.saturating_add(1).min(100)
+            },
+            diagnostic_retention: self.diagnostic_retention.clamp(5, 100),
+            compatibility_replay_message_limit: self
+                .compatibility_replay_message_limit
+                .clamp(10, 200),
+            show_delivery_telemetry: self.show_delivery_telemetry,
         }
     }
 }
@@ -158,6 +205,17 @@ pub(crate) struct AgentStreamingTelemetry {
     pub p95_inter_delta_ms: Option<u64>,
     pub densest_window_percent: u8,
     pub behavior: StreamingBehavior,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AgentTokenUsageBreakdown {
+    pub total_tokens: u64,
+    pub input_tokens: u64,
+    pub cached_input_tokens: u64,
+    pub cache_write_input_tokens: u64,
+    pub output_tokens: u64,
+    pub reasoning_output_tokens: u64,
 }
 
 #[derive(Clone, Debug, Serialize)]

@@ -22,6 +22,7 @@ export function createAgentThreadState({
     label: "Compatibility",
     model: "",
     degraded: true,
+    health: "unknown",
   },
   now = Date.now(),
 }: {
@@ -58,7 +59,9 @@ export function createAgentThreadState({
   return {
     thread: { id: threadId, title, createdAt: now, updatedAt: now, turns: [welcomeTurn] },
     capabilities,
-    runtime,
+    runtime: normalizeRuntimeMetadata(runtime),
+    context: unavailableContext(runtime.localReplayTruncatedBeforeTurnId ?? runtime.compactedBeforeTurnId),
+    runtimeDiagnostics: [],
     notices: [],
     processedEventIds: {},
     nextSequenceByTurn: {},
@@ -79,12 +82,40 @@ export function hydrateAgentThreadState(record: AgentThreadRecord): AgentThreadS
   return {
     thread,
     capabilities: { ...record.capabilities, persistence: true },
-    runtime: record.runtime,
+    runtime: normalizeRuntimeMetadata(record.runtime),
+    context: {
+      ...(record.context ?? unavailableContext(
+        record.runtime.localReplayTruncatedBeforeTurnId ?? record.runtime.compactedBeforeTurnId,
+      )),
+      localReplayTruncatedBeforeTurnId: record.context?.localReplayTruncatedBeforeTurnId
+        ?? record.runtime.localReplayTruncatedBeforeTurnId
+        ?? record.runtime.compactedBeforeTurnId,
+    },
+    runtimeDiagnostics: record.runtimeDiagnostics ?? [],
     notices: [],
     processedEventIds: {},
     nextSequenceByTurn: {},
     pendingEventsByTurn: {},
     diagnostics: [],
+  };
+}
+
+function normalizeRuntimeMetadata(runtime: AgentThreadRuntimeMetadata): AgentThreadRuntimeMetadata {
+  const localReplayTruncatedBeforeTurnId = runtime.localReplayTruncatedBeforeTurnId
+    ?? runtime.compactedBeforeTurnId;
+  return {
+    ...runtime,
+    localReplayTruncatedBeforeTurnId,
+    health: runtime.health ?? (runtime.degraded ? "degraded" : "healthy"),
+  };
+}
+
+function unavailableContext(localReplayTruncatedBeforeTurnId?: string) {
+  return {
+    status: "unavailable" as const,
+    source: "none" as const,
+    localReplayTruncatedBeforeTurnId,
+    message: "This runtime has not supplied exact token usage.",
   };
 }
 
@@ -183,6 +214,7 @@ function applyOrderedEvent(state: AgentThreadState, event: AgentEvent): AgentThr
         status: "running",
         createdAt: event.at,
         binding: event.binding,
+        effectivePolicy: event.effectivePolicy,
         items: [
           {
             id: event.userItemId,
@@ -214,7 +246,35 @@ function applyOrderedEvent(state: AgentThreadState, event: AgentEvent): AgentThr
     case "capabilitiesUpdated":
       return { ...state, capabilities: event.capabilities };
     case "runtimeUpdated":
-      return { ...state, runtime: event.runtime };
+      return { ...state, runtime: normalizeRuntimeMetadata(event.runtime) };
+    case "runtimeDiagnosticRecorded": {
+      const turn = state.thread.turns.find((candidate) => candidate.id === event.turnId);
+      const retention = Math.min(100, Math.max(5, turn?.effectivePolicy?.diagnosticRetention ?? 20));
+      return {
+        ...state,
+        runtimeDiagnostics: [...state.runtimeDiagnostics, event.diagnostic].slice(-retention),
+      };
+    }
+    case "contextUpdated": {
+      const exactUsage = event.context.status && event.context.status !== "available"
+        ? {
+            total: undefined,
+            last: undefined,
+            modelContextWindow: undefined,
+            usedPercent: undefined,
+          }
+        : {};
+      return {
+        ...state,
+        context: {
+          ...state.context,
+          ...exactUsage,
+          ...event.context,
+          localReplayTruncatedBeforeTurnId: event.context.localReplayTruncatedBeforeTurnId
+            ?? state.context.localReplayTruncatedBeforeTurnId,
+        },
+      };
+    }
     case "itemAdded":
       return updateTurn(state, event.turnId, (turn) => (
         turn.items.some((item) => item.id === event.item.id)
@@ -468,7 +528,7 @@ export function agentMessagesFromState(state: AgentThreadState): AgentMessage[] 
 export function agentRuntimeMessagesFromState(
   state: AgentThreadState,
   maxMessages = 60,
-): { messages: AgentMessage[]; compactedBeforeTurnId?: string } {
+): { messages: AgentMessage[]; localReplayTruncatedBeforeTurnId?: string } {
   const messages = agentMessagesFromState(state);
   if (messages.length <= maxMessages) return { messages };
   const retained = messages.slice(-maxMessages);
@@ -476,10 +536,10 @@ export function agentRuntimeMessagesFromState(
   const firstRetainedTurnIndex = state.thread.turns.findIndex((turn) => (
     turn.items.some((item) => item.id === firstRetainedId)
   ));
-  const compactedBeforeTurnId = firstRetainedTurnIndex > 0
+  const localReplayTruncatedBeforeTurnId = firstRetainedTurnIndex > 0
     ? state.thread.turns[firstRetainedTurnIndex - 1]?.id
     : undefined;
-  return { messages: retained, compactedBeforeTurnId };
+  return { messages: retained, localReplayTruncatedBeforeTurnId };
 }
 
 export function retryPromptFromState(state: AgentThreadState): string | undefined {

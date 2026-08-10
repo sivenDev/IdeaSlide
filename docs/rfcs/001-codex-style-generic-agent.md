@@ -610,6 +610,29 @@ Grok ACP v1 maps incremental assistant messages, Plans, Tool activity, permissio
 
 Runtime discovery and selection are native-owned. The installed Codex `0.147.0` app-server is selected automatically when its version and dynamic editor Tool safety gates pass. Its upstream Thread id is persisted and reused for later Turns. Missing, incompatible, initialization-failing, or pre-progress crashed Codex transparently falls back to Compatibility with a normalized diagnostic. A crash after visible text, public activity, Plan, or Tool execution ends the Turn with an explicit retryable error instead of replaying partial work. Grok remains evaluated but is not production-selected. The frontend consumes normalized runtime metadata and effective capabilities and never branches on Codex or Grok protocol types.
 
+### 10.1 Runtime evidence and configurable policy
+
+IdeaNote owns one runtime-neutral evidence contract. Rust emits normalized `runtimeUpdated`, `runtimeDiagnosticRecorded`, `contextUpdated`, and `telemetryUpdated` Events. The frontend stores the latest context snapshot and a bounded per-Thread diagnostic timeline, then derives UI guidance through a pure selector. Provider and Codex wire payloads never cross this boundary.
+
+Context evidence is exact-or-unavailable. Codex `thread/tokenUsage/updated` maps exact total and last-Turn input, cached-input, cache-write-input, output, reasoning-output, and total token counts. Compatibility opportunistically accepts exact Responses terminal usage and Chat streaming usage when a compatible gateway supplies it. IdeaNote calculates `usedPercent` only when the same authoritative event supplies a positive `modelContextWindow`; it never estimates tokens, hard-codes model windows, or treats account usage as Thread context.
+
+Current `contextCompaction` Items and legacy `thread/compacted` notifications map to one upstream Runtime compaction signal. The local Compatibility request replay boundary is stored separately as `localReplayTruncatedBeforeTurnId`. Neither mechanism deletes the visible Thread transcript.
+
+Runtime diagnostics classify discovery, startup, automatic selection, model reroute, fallback, retry, Provider failure, cancellation, compaction, and terminal failure. Records contain only bounded ids, category, severity, code, message, optional recovery, retryability, and timestamps. Credentials, authorization data, URLs with secret query values, executable paths, raw Provider/App-server payloads, prompts, answers, document snapshots, hidden reasoning, and presentation timers are excluded and redacted again by the repository.
+
+Versioned Agent policy defaults to:
+
+- 8 maximum Tool steps, range 1–20;
+- 75% context warning, range 50–90%;
+- 90% New Thread recommendation, range 60–100% and strictly above warning;
+- 20 retained diagnostics, range 5–100;
+- 60 Compatibility replay messages, range 10–200;
+- source-delivery telemetry visible.
+
+The policy is normalized in TypeScript and Rust. A Turn captures its effective values at submission, and the Rust Tool Broker enforces the maximum-step bound for Codex and Compatibility without editor-specific branches. The Compatibility replay count is a request-history bound, not a model context-window setting. Low-level transport timeouts, retry backoff, animation cadence, and presentation timing remain implementation constants rather than user settings.
+
+The right-column Runtime Inspector keeps this evidence out of the transcript. It shows effective Runtime, model, capabilities, health, exact usage or an explicit unavailable state, upstream compaction, local replay truncation, effective Turn policy, optional source-delivery telemetry, and classified diagnostics. Warning and New Thread guidance appear only at configured thresholds backed by an exact context window. Tool Activity remains a separate chronological transcript surface. Hidden chain-of-thought is neither requested nor displayed.
+
 ## 11. Streaming behavior
 
 ### 11.1 Source delivery
@@ -719,7 +742,7 @@ Persist:
 - bounded mutation summaries and terminal Tool state without duplicating full document data;
 - runtime/model/capability metadata needed to explain history;
 - the upstream runtime Thread id needed to resume a compatible Codex conversation;
-- diagnostic ids and safe timing metrics.
+- latest exact-or-unavailable context state, effective Turn policy, bounded classified diagnostics, and safe timing metrics.
 
 Do not persist:
 
@@ -736,7 +759,7 @@ Threads may store a local association with Workspace and document identity for n
 
 ### 13.4 Compaction
 
-Long-running Threads may compact older model context while retaining the user-visible transcript. Compaction is a runtime concern; it cannot delete user-visible history without an explicit history-management action.
+Long-running Threads may compact older upstream Runtime context while retaining the user-visible transcript. Runtime compaction is persisted separately from local Compatibility replay truncation; neither can delete user-visible history without an explicit history-management action.
 
 ### 13.5 Permanent deletion
 

@@ -544,8 +544,13 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 - Provider 使用 OpenAI-compatible Endpoint、Model 和 Rust 管理的本地加密 API Key；未配置时不请求，旧 Keychain 数据不自动读取或迁移。
 - Settings 只允许查看当前正在输入的 API Key，不返回已保存值；自动重试可关闭，总尝试次数限制为一至五次并在 Turn 开始时捕获。
 - Settings 显示自动 Runtime 选择状态；通过安全门的已安装 Codex `0.147.0` 优先，缺失、不兼容、初始化失败或 pre-progress crash 时回退 Compatibility，并显示有界诊断原因。
+- Agent Settings 提供最大 Tool step（默认 8，范围 1–20）、context warning（默认 75%，范围 50–90%）、New Thread 建议（默认 90%，范围 60–100% 且严格高于 warning）、每 Thread 诊断保留数（默认 20，范围 5–100）、Compatibility replay message 数（默认 60，范围 10–200）和 source-delivery telemetry 可见性。执行相关值在 Turn 开始时捕获，活动 Turn 不受后续 Settings 修改影响。
 - 本地 Thread 支持创建、恢复、重命名、归档和确认后的永久删除；运行中的 Thread 不允许删除，删除当前 Thread 前必须先建立有效替代 Thread。
 - Codex upstream Thread id 与有效 Runtime/model/fallback metadata 随本地 Thread 持久化，用于后续 Turn 恢复和历史解释。
+- 每个 Thread 的 Runtime Inspector 显示有效 Runtime、Model、能力、健康状态、有效 Turn policy、source-delivery telemetry、最新安全诊断与 context 状态；Tool Activity 仍保留在对话时间线中，不与 Inspector 混合。
+- Context 使用量仅在 Runtime 或 Provider 提供精确 token 数时记录；只有同时提供精确 `modelContextWindow` 时才计算百分比并应用 warning/New Thread 阈值。不得估算 token、硬编码模型 context window，或把账户用量当作 Thread context。
+- Codex 的 `thread/tokenUsage/updated`、当前 `contextCompaction` Item 和 legacy `thread/compacted` 归一化为应用事件。Runtime upstream compaction 与本地 Compatibility replay 截断是两个独立状态，二者都不删除可见 Thread 历史。
+- Runtime discovery、startup、selection、reroute、fallback、retry、Provider failure、cancellation、compaction 和 terminal failure 进入有界、分类、脱敏的诊断记录；凭据、隐藏 reasoning、原始 payload、prompt/answer、文档快照、可执行路径和 presentation timer 不进入诊断。
 - 真正的文本 delta 必须立即进入规范化事件链；若上游增量交付，则在有界渲染延迟内直接显示；若上游缓冲、突发或原子交付，则允许只对 assistant answer 使用有界展示节奏，同时保留来源时序诊断，且不得将其表述为实时 token 生成或 reasoning。
 - 可展开 Tool Activity 只显示经过 Rust Tool Broker 限界和脱敏的参数/结果；call id、schema、重复调用、超时和结果大小由 Rust 统一治理。
 - 只显示 Runtime 明确分类为公开的过程摘要；隐藏 chain-of-thought 不进入事件、UI 或持久化。缺少公开过程信息时不显示误导性提示。
@@ -713,6 +718,8 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 - AI 默认开启；关闭后不显示 Agent UI，也不初始化任何 Agent 生命周期。
 - 未配置 Provider 时只显示配置引导，不发起请求。
 - 已安装且兼容的 Codex `0.147.0` 自动用于支持编辑器 Tool 的 Turn；不可用时回退 Compatibility，并在 Agent/Settings 显示有效 Runtime、Model、能力和诊断。
+- Runtime Inspector 对精确 usage、不可用 usage、Runtime compaction 和本地 Compatibility replay 截断作不同说明；只有精确 context window 达到配置阈值时才提示压力或建议 New Thread。
+- Agent policy 默认值为 8 maximum steps、75% warning、90% New Thread、20 diagnostics、60 Compatibility messages 和显示 source delivery；边界与阈值关系在 TypeScript 和 Rust 两侧归一化，maximum steps 对 Codex 与 Compatibility 的所有编辑器 Tool 生效。
 - Agent 答案在上游提供增量时于完成前持续增长；上游缓冲、突发或原子交付时，Preparing、Working 和 elapsed activity 仍由真实生命周期驱动，assistant answer 可使用有界展示节奏逐步出现，但 UI 与诊断不得声称这是实时 token 生成或模型思考。
 - 本地 Thread 历史支持恢复、重命名、归档和确认永久删除；运行中的 Thread 不可删除，删除不会触及文档、Workspace、Recovery、凭据或其他 Thread。
 - Tool 请求通过 Rust ledger 与 TypeScript 活动编辑器 executor 往返；所有修改生成目标绑定 ChangeSet，经活动编辑器复核后直接作为一次原生事务应用，并可通过编辑器原生历史一步 Undo/Redo。

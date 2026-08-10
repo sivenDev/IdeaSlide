@@ -2,7 +2,7 @@
 id: "F037-01"
 title: "Add Runtime Diagnostics and Configurable Agent Policy"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Expose truthful per-Thread runtime, delivery, and context evidence while making user-meaningful Agent policy values configurable and enforceable."
 source: "docs/superplan/human/features.md"
 created: "2026-08-10"
@@ -45,9 +45,9 @@ parent: "F037"
 - Rust serialization tests for exact, unavailable, unknown, legacy, redacted, malformed, and normalized policy values.
 - Cases: defaults; lower/upper bounds; threshold collision; missing context window; invalid counts; legacy `compactedBeforeTurnId`; no hidden reasoning/raw payload fields.
 
-- [ ] Add failing contracts for diagnostics, exact-or-unavailable context, policy defaults/bounds/relationships, compaction provenance, and legacy migration.
-- [ ] Define matching Rust and TypeScript normalized types without Runtime- or editor-specific frontend unions.
-- [ ] Update the PRD and RFC with truthful availability, privacy, automatic-selection, effective-policy, and non-configurable transport rules.
+- [x] Add failing contracts for diagnostics, exact-or-unavailable context, policy defaults/bounds/relationships, compaction provenance, and legacy migration.
+- [x] Define matching Rust and TypeScript normalized types without Runtime- or editor-specific frontend unions.
+- [x] Update the PRD and RFC with truthful availability, privacy, automatic-selection, effective-policy, and non-configurable transport rules.
 
 ## Task 2: Capture Authoritative Evidence and Enforce Turn Policy
 
@@ -79,9 +79,9 @@ parent: "F037"
 - `cargo test --manifest-path src-tauri/Cargo.toml agent::tool_broker -- --nocapture`
 - Fixtures: exact usage with/without context window; repeated usage; both compaction forms; replay limits; max-step boundaries for both runtimes; retry then success; fallback; terminal error; cancellation and late Events.
 
-- [ ] Add failing adapter, replay, and maximum-step fixtures before changing runtime behavior.
-- [ ] Emit one normalized context/health stream from Codex and Compatibility without adding brand logic to TypeScript.
-- [ ] Prove all diagnostics remain classified, redacted, configured-bounded, ordered, and lifecycle-safe.
+- [x] Add failing adapter, replay, and maximum-step fixtures before changing runtime behavior.
+- [x] Emit one normalized context/health stream from Codex and Compatibility without adding brand logic to TypeScript.
+- [x] Prove all diagnostics remain classified, redacted, configured-bounded, ordered, and lifecycle-safe.
 
 ## Task 3: Persist Safe Snapshots and Derive Configurable Guidance
 
@@ -109,9 +109,9 @@ parent: "F037"
 - `cargo test --manifest-path src-tauri/Cargo.toml agent::repository -- --nocapture`
 - Cases: default and custom threshold boundaries; unavailable numerator/denominator; compaction with/without usage; custom retention trimming; legacy migration; corrupt record; restart; delete race; AI disable; secret/raw-payload rejection.
 
-- [ ] Add failing persistence and selector tests for configurable pressure, unsupported states, retention, compaction, and local-history distinction.
-- [ ] Persist only bounded normalized snapshots and migrate legacy Thread records safely.
-- [ ] Centralize health and new-Thread guidance in a Runtime/editor-neutral selector.
+- [x] Add failing persistence and selector tests for configurable pressure, unsupported states, retention, compaction, and local-history distinction.
+- [x] Persist only bounded normalized snapshots and migrate legacy Thread records safely.
+- [x] Centralize health and new-Thread guidance in a Runtime/editor-neutral selector.
 
 ## Task 4: Add Policy Controls, the Per-Thread Inspector, and Native Acceptance
 
@@ -149,9 +149,18 @@ parent: "F037"
 - `git diff --check`
 - Native matrix: default/custom policy restart; max-step enforcement; Codex usage and compaction; Compatibility usage present/absent and replay truncation; fallback/retry/error/cancel; incremental/burst/atomic telemetry visible/hidden; Thread restart/new/delete; AI disable/enable; IdeaSketch and Markdown read/mutation sequences with Excalidraw/CodeMirror native Undo/Redo; unsupported-editor isolation; privacy inspection.
 
-- [ ] Build accessible policy controls and the generic inspector with truthful unavailable states.
-- [ ] Run focused failure/fix loops across settings, protocol, adapters, persistence, UI, and native Runtime scenarios until clean.
-- [ ] Complete F037-01 evidence and refresh Superplan progress without implementing F037-02 early.
+- [x] Build accessible policy controls and the generic inspector with truthful unavailable states.
+- [x] Run focused failure/fix loops across settings, protocol, adapters, persistence, UI, and native Runtime scenarios until clean.
+- [x] Complete F037-01 evidence and refresh Superplan progress without implementing F037-02 early.
+
+## Delivery Evidence
+
+- `node --test tests/*.test.mjs`: 347 passed, 0 failed. Focused diagnostics/settings/store/Inspector coverage also passed 28/28 after the final effective-policy and stale-context corrections.
+- `cargo test --manifest-path src-tauri/Cargo.toml agent:: -- --nocapture`: 60 passed, 0 failed after the final Rust change. The complete Rust suite previously passed 139/139 against the same implementation, and the real pinned-Codex smoke passed 3/3 for handshake, dynamic read Tool execution, and prerequisite read-to-mutation ordering.
+- `npm run build`, `cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check`, `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets`, and `git diff --check`: passed. Rust reports only the existing unused future-adapter warnings; Vite reports the existing Excalidraw import and large-chunk warnings.
+- `npm run tauri build -- --debug`: passed and produced `src-tauri/target/debug/bundle/macos/IdeaNote.app` and `src-tauri/target/debug/bundle/dmg/IdeaNote_0.1.0_aarch64.dmg`.
+- Browser acceptance verified every Agent policy control and default, threshold-conflict normalization, reset behavior, and the Runtime Inspector layout. Warning 90 plus New Thread 60 normalized to 91; reset restored warning 75, New Thread 90, and maximum steps 8.
+- Architecture/privacy inspection found no IdeaSketch or Markdown branch in the generic Runtime, Tool Broker, Agent Panel, protocol, store, selector, or Inspector. Context percentages remain exact-or-unavailable; unavailable updates clear stale exact values; Runtime compaction remains distinct from local Compatibility replay truncation; persisted diagnostics are typed, bounded, query/secret-redacted, and exclude raw payloads, hidden reasoning, credentials, and arbitrary metadata.
 
 ## References
 

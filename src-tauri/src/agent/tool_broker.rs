@@ -25,10 +25,19 @@ pub(crate) struct AgentToolBroker {
     tools: HashMap<String, AgentToolDescriptor>,
     ledger: HashMap<String, LedgerEntry>,
     successful_tools: HashSet<String>,
+    max_steps: u8,
+    executed_steps: u8,
 }
 
 impl AgentToolBroker {
     pub(crate) fn new(tools: &[AgentToolDescriptor]) -> Result<Self, String> {
+        Self::with_max_steps(tools, 20)
+    }
+
+    pub(crate) fn with_max_steps(
+        tools: &[AgentToolDescriptor],
+        max_steps: u8,
+    ) -> Result<Self, String> {
         let mut definitions = HashMap::new();
         for tool in tools {
             validate_tool_name(&tool.name)?;
@@ -49,6 +58,8 @@ impl AgentToolBroker {
             tools: definitions,
             ledger: HashMap::new(),
             successful_tools: HashSet::new(),
+            max_steps: max_steps.clamp(1, 20),
+            executed_steps: 0,
         })
     }
 
@@ -99,6 +110,13 @@ impl AgentToolBroker {
                 .map(BrokerDecision::Cached)
                 .ok_or_else(|| format!("Tool call {} is already running.", call.call_id));
         }
+        if self.executed_steps >= self.max_steps {
+            return Err(format!(
+                "Agent Tool step limit reached ({}). Start a new Turn to continue.",
+                self.max_steps
+            ));
+        }
+        self.executed_steps = self.executed_steps.saturating_add(1);
         self.ledger.insert(
             call.call_id.clone(),
             LedgerEntry {
@@ -318,6 +336,44 @@ mod tests {
             ..call
         };
         assert!(broker.begin(&reused).is_err());
+    }
+
+    #[test]
+    fn maximum_steps_count_unique_executions_but_not_cached_replays() {
+        let mut broker = AgentToolBroker::with_max_steps(&tools(), 1).unwrap();
+        let first = AgentToolCall {
+            call_id: "call-1".to_string(),
+            name: "read_outline".to_string(),
+            arguments: json!({"pageId": "page-1"}),
+        };
+        assert!(matches!(
+            broker.begin(&first).unwrap(),
+            BrokerDecision::Execute
+        ));
+        broker
+            .complete(
+                &first,
+                json!({
+                    "kind": "read", "callId": "call-1", "name": "read_outline",
+                    "success": true, "summary": "Read outline"
+                }),
+            )
+            .unwrap();
+        assert!(matches!(
+            broker.begin(&first).unwrap(),
+            BrokerDecision::Cached(_)
+        ));
+
+        let second = AgentToolCall {
+            call_id: "call-2".to_string(),
+            name: "read_outline".to_string(),
+            arguments: json!({"pageId": "page-2"}),
+        };
+        let error = match broker.begin(&second) {
+            Ok(_) => panic!("second unique Tool execution should exceed the step limit"),
+            Err(error) => error,
+        };
+        assert!(error.contains("step limit reached (1)"));
     }
 
     #[test]

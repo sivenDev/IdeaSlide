@@ -32,7 +32,8 @@ test('Thread hook resumes the latest local Thread and keeps AI-disabled history 
   assert.match(source, /deleteThread/);
   assert.match(source, /deletedThreadIdsRef\.current\.has\(state\.thread\.id\)/);
   assert.match(source, /Stop the running Turn before deleting its Thread/);
-  assert.match(source, /saveAgentThread\(persistenceRecord\(replacement/);
+  assert.match(source, /saveAgentThread\(persistenceRecord\(\s*replacement,/);
+  assert.match(source, /policy\.compatibilityReplayMessageLimit/);
   assert.match(source, /deleteAgentThread\(threadId\)/);
   assert.doesNotMatch(source, /workspace|\.ideanote/i);
 });

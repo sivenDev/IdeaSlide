@@ -1,4 +1,9 @@
-import type { AgentChangeSet, AgentRuntimeKind, AgentStreamingTelemetry } from "./types";
+import type {
+  AgentChangeSet,
+  AgentPolicySettings,
+  AgentRuntimeKind,
+  AgentStreamingTelemetry,
+} from "./types";
 
 export type AgentTurnStatus = "running" | "completed" | "cancelled" | "failed";
 export type AgentItemStatus = "pending" | "running" | "completed" | "cancelled" | "failed";
@@ -145,6 +150,7 @@ export interface AgentTurn {
   binding: AgentTurnBindingSnapshot;
   items: AgentItem[];
   telemetry?: AgentStreamingTelemetry;
+  effectivePolicy?: AgentEffectivePolicy;
 }
 
 export interface AgentThread {
@@ -160,9 +166,63 @@ export interface AgentThreadRuntimeMetadata {
   label: string;
   model: string;
   upstreamThreadId?: string;
+  localReplayTruncatedBeforeTurnId?: string;
+  /** Legacy persisted name retained for migration only. */
   compactedBeforeTurnId?: string;
   diagnostic?: string;
   degraded: boolean;
+  health?: AgentRuntimeHealth;
+}
+
+export type AgentRuntimeHealth = "healthy" | "degraded" | "unavailable" | "unknown";
+
+export interface AgentTokenUsageBreakdown {
+  totalTokens: number;
+  inputTokens: number;
+  cachedInputTokens: number;
+  cacheWriteInputTokens: number;
+  outputTokens: number;
+  reasoningOutputTokens: number;
+}
+
+export interface AgentContextSnapshot {
+  status: "available" | "unavailable" | "unknown";
+  source: "runtime" | "provider" | "none";
+  total?: AgentTokenUsageBreakdown;
+  last?: AgentTokenUsageBreakdown;
+  modelContextWindow?: number;
+  usedPercent?: number;
+  runtimeCompactedAt?: number;
+  runtimeCompactedTurnId?: string;
+  localReplayTruncatedBeforeTurnId?: string;
+  message?: string;
+}
+
+export interface AgentEffectivePolicy extends AgentPolicySettings {
+  capturedAt: number;
+}
+
+export type AgentRuntimeDiagnosticCategory =
+  | "discovery"
+  | "startup"
+  | "selection"
+  | "fallback"
+  | "retry"
+  | "provider"
+  | "cancellation"
+  | "terminal"
+  | "compaction"
+  | "policy";
+
+export interface AgentRuntimeDiagnostic {
+  id: string;
+  at: number;
+  category: AgentRuntimeDiagnosticCategory;
+  severity: "info" | "warning" | "error";
+  code: string;
+  message: string;
+  recovery?: string;
+  retryable: boolean;
 }
 
 export interface AgentThreadRecord {
@@ -170,6 +230,8 @@ export interface AgentThreadRecord {
   thread: AgentThread;
   capabilities: AgentCapabilities;
   runtime: AgentThreadRuntimeMetadata;
+  context?: AgentContextSnapshot;
+  runtimeDiagnostics?: AgentRuntimeDiagnostic[];
   archivedAt?: number;
 }
 
@@ -207,6 +269,8 @@ export interface AgentThreadState {
   thread: AgentThread;
   capabilities: AgentCapabilities;
   runtime: AgentThreadRuntimeMetadata;
+  context: AgentContextSnapshot;
+  runtimeDiagnostics: AgentRuntimeDiagnostic[];
   activeTurnId?: string;
   notices: AgentItem[];
   processedEventIds: Record<string, true>;
@@ -230,6 +294,7 @@ export interface AgentTurnStartedEvent extends AgentEventBase {
   binding: AgentTurnBindingSnapshot;
   userItemId: string;
   assistantItemId: string;
+  effectivePolicy: AgentEffectivePolicy;
 }
 
 export interface AgentCapabilitiesUpdatedEvent extends AgentEventBase {
@@ -240,6 +305,16 @@ export interface AgentCapabilitiesUpdatedEvent extends AgentEventBase {
 export interface AgentRuntimeUpdatedEvent extends AgentEventBase {
   type: "runtimeUpdated";
   runtime: AgentThreadRuntimeMetadata;
+}
+
+export interface AgentRuntimeDiagnosticRecordedEvent extends AgentEventBase {
+  type: "runtimeDiagnosticRecorded";
+  diagnostic: AgentRuntimeDiagnostic;
+}
+
+export interface AgentContextUpdatedEvent extends AgentEventBase {
+  type: "contextUpdated";
+  context: Partial<AgentContextSnapshot>;
 }
 
 export interface AgentItemAddedEvent extends AgentEventBase {
@@ -300,6 +375,8 @@ export type AgentEvent =
   | AgentTurnStartedEvent
   | AgentCapabilitiesUpdatedEvent
   | AgentRuntimeUpdatedEvent
+  | AgentRuntimeDiagnosticRecordedEvent
+  | AgentContextUpdatedEvent
   | AgentItemAddedEvent
   | AgentItemDeltaEvent
   | AgentItemUpdatedEvent

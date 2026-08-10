@@ -30,6 +30,7 @@ import type {
   AgentThreadRuntimeMetadata,
   AgentThreadState,
 } from "../lib/agent/protocol";
+import type { AgentPolicySettings } from "../lib/agent/types";
 
 const EMPTY_HISTORY: AgentThreadPage = {
   threads: [],
@@ -46,13 +47,23 @@ function isDesktopRuntime(): boolean {
 
 function persistenceRecord(
   state: AgentThreadState,
+  compatibilityReplayMessageLimit: number,
 ): AgentThreadRecord {
-  const { compactedBeforeTurnId } = agentRuntimeMessagesFromState(state);
+  const { localReplayTruncatedBeforeTurnId } = agentRuntimeMessagesFromState(
+    state,
+    compatibilityReplayMessageLimit,
+  );
   return {
     schemaVersion: 1,
     thread: state.thread,
     capabilities: { ...state.capabilities, persistence: true },
-    runtime: { ...state.runtime, compactedBeforeTurnId },
+    runtime: {
+      ...state.runtime,
+      localReplayTruncatedBeforeTurnId,
+      compactedBeforeTurnId: undefined,
+    },
+    context: { ...state.context, localReplayTruncatedBeforeTurnId },
+    runtimeDiagnostics: state.runtimeDiagnostics,
   };
 }
 
@@ -61,14 +72,16 @@ export function useAgentThread({
   welcome,
   capabilities,
   runtime,
+  policy,
 }: {
   title: string;
   welcome: string;
   capabilities: AgentCapabilities;
   runtime: AgentThreadRuntimeMetadata;
+  policy: AgentPolicySettings;
 }) {
-  const defaultsRef = useRef({ title, welcome, capabilities, runtime });
-  defaultsRef.current = { title, welcome, capabilities, runtime };
+  const defaultsRef = useRef({ title, welcome, capabilities, runtime, policy });
+  defaultsRef.current = { title, welcome, capabilities, runtime, policy };
   const createState = useCallback(() => createAgentThreadState({
     threadId: freshThreadId(),
     title: defaultsRef.current.title,
@@ -120,7 +133,10 @@ export function useAgentThread({
         } else {
           const initial = createState();
           setState(initial);
-          await saveAgentThread(persistenceRecord(initial));
+          await saveAgentThread(persistenceRecord(
+            initial,
+            defaultsRef.current.policy.compatibilityReplayMessageLimit,
+          ));
           if (active) await refreshHistory();
         }
         if (page.recoveredCorruptEntries > 0 && active) {
@@ -148,7 +164,10 @@ export function useAgentThread({
     persistTimerRef.current = window.setTimeout(() => {
       persistTimerRef.current = undefined;
       if (deletedThreadIdsRef.current.has(state.thread.id)) return;
-      saveAgentThread(persistenceRecord(state))
+      saveAgentThread(persistenceRecord(
+        state,
+        defaultsRef.current.policy.compatibilityReplayMessageLimit,
+      ))
         .then(() => refreshHistory())
         .catch((cause) => setPersistenceError(cause instanceof Error ? cause.message : String(cause)));
     }, 150);
@@ -201,7 +220,10 @@ export function useAgentThread({
     setState(next);
     setPersistenceError(undefined);
     if (isDesktopRuntime()) {
-      await saveAgentThread(persistenceRecord(next));
+      await saveAgentThread(persistenceRecord(
+        next,
+        defaultsRef.current.policy.compatibilityReplayMessageLimit,
+      ));
       await refreshHistory();
     }
   }, [createState, refreshHistory]);
@@ -253,7 +275,10 @@ export function useAgentThread({
       replacement = createState();
       setState(replacement);
       try {
-        await saveAgentThread(persistenceRecord(replacement));
+        await saveAgentThread(persistenceRecord(
+          replacement,
+          defaultsRef.current.policy.compatibilityReplayMessageLimit,
+        ));
       } catch (cause) {
         deletedThreadIdsRef.current.delete(threadId);
         setState(state);
@@ -303,7 +328,10 @@ export function useAgentThread({
   }, [history.nextCursor, showArchivedHistory]);
 
   const messages = useMemo(() => agentMessagesFromState(state), [state]);
-  const runtimeMessages = useMemo(() => agentRuntimeMessagesFromState(state).messages, [state]);
+  const runtimeMessages = useMemo(() => agentRuntimeMessagesFromState(
+    state,
+    policy.compatibilityReplayMessageLimit,
+  ).messages, [policy.compatibilityReplayMessageLimit, state]);
   const retryPrompt = useMemo(() => retryPromptFromState(state), [state]);
   const retryTurnId = useMemo(() => retryTurnIdFromState(state), [state]);
   const itemCount = useMemo(() => totalAgentItemCount(state), [state]);

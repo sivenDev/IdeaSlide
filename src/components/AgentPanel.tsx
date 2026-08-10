@@ -8,12 +8,14 @@ import { useAgentThread } from "../hooks/useAgentThread";
 import { useAgentPresentation } from "../hooks/useAgentPresentation";
 import { useSettings } from "../hooks/useSettings";
 import { createNativeAgentRuntime } from "../lib/agent/agentRuntime";
+import { selectAgentDiagnosticView } from "../lib/agent/agentDiagnostics";
 import { createDirectApplyToolExecutor } from "../lib/agent/agentToolHost";
 import { discoverAgentSkills } from "../lib/agent/agentClient";
 import { promptFromAssistantUiMessage, toAssistantUiMessage } from "../lib/agent/assistantUiAdapter";
 import type { ActiveAgentEditorBinding } from "../lib/agent/types";
 import { createAgentEventId } from "../lib/agent/protocol";
 import { AgentComposer } from "./agent/AgentComposer";
+import { AgentRuntimeInspector } from "./agent/AgentRuntimeInspector";
 import { AgentThreadHistory } from "./agent/AgentThreadHistory";
 import { AgentThreadHeader } from "./agent/AgentThreadHeader";
 import { AgentTranscript } from "./agent/AgentTranscript";
@@ -27,7 +29,16 @@ export function AgentPanel({
 }) {
   const { settings, activationState } = useSettings();
   const runtime = useMemo(() => createNativeAgentRuntime(), []);
+  const agentPolicy = useMemo(() => ({
+    maxSteps: settings.agent.maxSteps,
+    contextWarningPercent: settings.agent.contextWarningPercent,
+    newThreadPercent: settings.agent.newThreadPercent,
+    diagnosticRetention: settings.agent.diagnosticRetention,
+    compatibilityReplayMessageLimit: settings.agent.compatibilityReplayMessageLimit,
+    showDeliveryTelemetry: settings.agent.showDeliveryTelemetry,
+  }), [settings.agent]);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   const currentTurnIdRef = useRef<string | undefined>(undefined);
   const cancelledTurnIdsRef = useRef(new Set<string>());
   const bindingRef = useRef(binding);
@@ -68,9 +79,16 @@ export function AgentPanel({
       model: settings.ai.model,
       diagnostic: "Codex app-server is selected automatically when the pinned runtime is available.",
       degraded: !runtime.capabilities.steering,
+      health: "unknown",
     },
+    policy: agentPolicy,
   });
   const running = Boolean(state.activeTurnId);
+  const diagnosticPolicy = state.thread.turns[state.thread.turns.length - 1]?.effectivePolicy ?? agentPolicy;
+  const diagnosticView = useMemo(
+    () => selectAgentDiagnosticView(state, diagnosticPolicy),
+    [diagnosticPolicy, state],
+  );
   const presentation = useAgentPresentation(state);
   currentTurnIdRef.current = state.activeTurnId;
 
@@ -171,6 +189,7 @@ export function AgentPanel({
         model: settings.ai.model,
         systemPrompt: settings.ai.systemPrompt,
         retry: settings.ai.retry,
+        policy: agentPolicy,
         context: capturedBinding.buildContext(),
         tools: capturedBinding.tools,
         messages: runtimeMessages,
@@ -311,8 +330,17 @@ export function AgentPanel({
           capabilities={state.capabilities}
           running={running}
           historyOpen={historyOpen}
+          inspectorOpen={inspectorOpen}
+          statusLabel={diagnosticView.label}
           onNewThread={() => handleHistoryAction(createThread)}
-          onToggleHistory={() => setHistoryOpen((open) => !open)}
+          onToggleHistory={() => {
+            setInspectorOpen(false);
+            setHistoryOpen((open) => !open);
+          }}
+          onToggleInspector={() => {
+            setHistoryOpen(false);
+            setInspectorOpen((open) => !open);
+          }}
           onOpenSettings={onOpenSettings}
         />
         {historyOpen && (
@@ -332,6 +360,17 @@ export function AgentPanel({
             onToggleArchived={(visible) => handleHistoryAction(() => setArchivedHistoryVisible(visible))}
             onLoadMore={() => handleHistoryAction(loadMoreHistory)}
             onClose={() => setHistoryOpen(false)}
+          />
+        )}
+        {inspectorOpen && (
+          <AgentRuntimeInspector
+            state={state}
+            policy={agentPolicy}
+            running={running}
+            onNewThread={() => handleHistoryAction(async () => {
+              await createThread();
+              setInspectorOpen(false);
+            })}
           />
         )}
         {persistenceError && (
