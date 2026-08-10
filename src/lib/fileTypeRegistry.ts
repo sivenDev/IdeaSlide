@@ -12,6 +12,7 @@ import {
   type MarkdownFileData,
 } from "./markdownDocument.ts";
 import "./agent/extensions/ideaSketchAgentExtension.ts";
+import "./agent/extensions/markdownAgentExtension.ts";
 
 export interface FileTypeDefinition<TModel extends DocumentModel = DocumentModel> {
   type: string;
@@ -55,6 +56,7 @@ const MARKDOWN_DEFINITION: FileTypeDefinition<MarkdownDocument> = {
   extensions: ["md"],
   icon: "markdown",
   editor: "markdown",
+  agentExtensionId: "markdown-agent",
   creatable: true,
   openable: true,
   async createEmpty() {

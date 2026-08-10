@@ -2,7 +2,7 @@
 id: "F038-02"
 title: "Add the Markdown Agent Skill and Native Editor Tools"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Add bounded Markdown reads and direct CodeMirror range edits as a reusable editor Agent Extension with native Undo and no direct file writes."
 source: "docs/superplan/human/features.md"
 created: "2026-08-10"
@@ -50,9 +50,9 @@ parent: "F038"
 - `node --test tests/markdownAgentExtension.test.mjs tests/agentExtensionRegistry.test.mjs tests/agentToolHost.test.mjs tests/agentSecondEditorReuse.test.mjs`
 - Cases: correct activation; unsupported file; lean Context; outline bounds; short document read; large document refuses whole read and requires range; range validation; result truncation; prerequisite descriptor; no Save/filesystem capability.
 
-- [ ] Package the Markdown Skill, generalize bundled discovery, and lock bounded disclosure with failing tests.
-- [ ] Implement distinct outline/document/range reads with deterministic schemas and output limits.
-- [ ] Replace the synthetic second-editor proof with the production Markdown registration while keeping the synthetic isolation regression where useful.
+- [x] Package the Markdown Skill, generalize bundled discovery, and lock bounded disclosure with failing tests.
+- [x] Implement distinct outline/document/range reads with deterministic schemas and output limits.
+- [x] Replace the synthetic second-editor proof with the production Markdown registration while keeping the synthetic isolation regression where useful.
 
 ## Task 2: Apply Range Replacements Through One CodeMirror Transaction
 
@@ -80,9 +80,9 @@ parent: "F038"
 - Focused Markdown Agent/editor tests.
 - Cases: replace/insert/delete; beginning/end of document; multiline Unicode; one native Undo/Redo step; preview refresh; Recovery snapshot; invalid/split surrogate range; stale hash; unmounted target; no direct IPC write.
 
-- [ ] Add behavior-level tests that fail unless the mounted CodeMirror SDK receives exactly one transaction.
-- [ ] Implement range-hash revalidation and transaction application through the live binding.
-- [ ] Prove editor-native history and normal persistence propagation without Agent-owned Undo state.
+- [x] Add behavior-level tests that fail unless the mounted CodeMirror SDK receives exactly one transaction.
+- [x] Implement range-hash revalidation and transaction application through the live binding.
+- [x] Prove editor-native history and normal persistence propagation without Agent-owned Undo state.
 
 ## Task 3: Prove Runtime Reuse, Ordering, Cancellation, and Fail-closed Safety
 
@@ -108,9 +108,9 @@ parent: "F038"
 - `cargo test --manifest-path src-tauri/Cargo.toml agent -- --nocapture`
 - Cases: read→mutation→final order; read failure; cancellation before/during/after read; duplicate mutation; late result; editor switch; external conflict; read-only/missing; AI disable; Codex and Compatibility descriptor parity.
 
-- [ ] Extend generic contract tests with real Markdown operations and fail the plan if production Runtime/UI branching is required.
-- [ ] Preserve exact Tool/activity ordering and cancellation across both runtime paths.
-- [ ] Verify every stale, duplicate, late, oversized, or unavailable target fails without editor or disk mutation.
+- [x] Extend generic contract tests with real Markdown operations and fail the plan if production Runtime/UI branching is required.
+- [x] Preserve exact Tool/activity ordering and cancellation across both runtime paths.
+- [x] Verify every stale, duplicate, late, oversized, or unavailable target fails without editor or disk mutation.
 
 ## Task 4: Verify the Production Second-editor Agent and Deliver F038
 
@@ -139,9 +139,18 @@ parent: "F038"
 - `git diff --check`
 - Native matrix: request outline/read/edit on disposable LF and CRLF Markdown files; observe real Tools in order; Undo/Redo through CodeMirror; autosave/save/reopen; Stop before mutation; stale/external/read-only/switch rejection; restart Thread; repeat on Codex and Compatibility when available; verify IdeaSketch Tools remain isolated.
 
-- [ ] Run focused failure/fix loops and the complete frontend/Rust/build/package matrix.
-- [ ] Complete native saved-file, runtime-parity, native-history, persistence, safety, privacy, and extension-switching acceptance.
-- [ ] Record evidence, complete both F038 plans and the human request, refresh Superplan state, and create the isolated F038-02 commit.
+- [x] Run focused failure/fix loops and the complete frontend/Rust/build/package matrix.
+- [x] Complete native saved-file, runtime-parity, native-history, persistence, safety, privacy, and extension-switching acceptance.
+- [x] Record evidence, complete both F038 plans and the human request, refresh Superplan state, and create the isolated F038-02 commit.
+
+## Delivery Evidence
+
+- `node --test tests/*.test.mjs`: 339 passed, 0 failed. Focused Markdown/Agent coverage proves lean Context, Skill/Tool activation, bounded outline/document/range reads, UTF-16 and surrogate safety, exact range/source fingerprints, prerequisite descriptors, generic Tool-host reuse, direct-apply rejection cases, one CodeMirror transaction, native-history ownership, Recovery integration, cancellation, ordered activity, and extension isolation.
+- `cargo test --manifest-path src-tauri/Cargo.toml --quiet`: 135 passed, 0 failed; focused `cargo test ... agent -- --nocapture`: 56 passed. This includes packaged Skill discovery/loading, Codex/Compatibility dynamic Tool contracts, prerequisite bookkeeping, applied-result enforcement, duplicate/late suppression, cancellation, fallback, and no-MCP/non-editor-tool gates.
+- `cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check`, `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets`, `npm run build`, and `git diff --check`: passed. Rust reports only the existing unused future-adapter warnings; Vite reports the existing Excalidraw import and large-chunk warnings.
+- `npm run tauri build -- --debug`: passed and produced `src-tauri/target/debug/bundle/macos/IdeaNote.app` and `src-tauri/target/debug/bundle/dmg/IdeaNote_0.1.0_aarch64.dmg`.
+- Browser acceptance at `http://127.0.0.1:1420/`: creating `Untitled.md` activated the Markdown editor while retaining the application-level right Agent column; the Agent target changed to `Untitled.md`; Markdown input updated Outline and GFM preview. The browser-only frontend correctly remained configuration-gated because native credential commands are unavailable there.
+- Architecture and safety inspection: Markdown semantics exist only in the Markdown Skill, Agent Extension, File Type/Editor registries, and Markdown editor binding. No Markdown branch was added to the Rust Tool Broker/runtime adapters or generic Agent Panel/store/activity UI. Mutation applies through one mounted `EditorView.dispatch` and reaches the model only through CodeMirror's update listener; no Agent filesystem command or custom Undo stack exists.
 
 ## References
 

@@ -35,7 +35,7 @@ export function AgentPanel({
   const title = binding?.document.displayName ?? "Current file";
   const bindingSkillId = binding?.skillId;
   const welcome = binding
-    ? `I can inspect and edit **${binding.document.displayName}**. Canvas edits use the editor's native Undo and Redo history.`
+    ? `I can inspect and edit **${binding.document.displayName}**. Editor changes use native Undo and Redo when the active editor supports them.`
     : "Open a supported file to give the Agent editor context.";
   const {
     state,

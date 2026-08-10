@@ -6,21 +6,24 @@ async function loadRegistry() {
   return import('../src/lib/agent/agentExtensionRegistry.ts');
 }
 
-test('IdeaSketch registers an Agent extension without coupling the generic runtime to the format', async () => {
+test('IdeaSketch and Markdown register Agent extensions without coupling the generic runtime to either format', async () => {
   const { getAgentExtension, getAgentExtensionForFileType } = await loadRegistry();
-  const extension = getAgentExtension('ideasketch-agent');
-  assert.equal(extension.fileType, 'ideasketch');
-  assert.equal(extension.skillId, 'ideasketch');
-  assert.equal(getAgentExtensionForFileType('ideasketch'), extension);
-  assert.equal(getAgentExtensionForFileType('markdown'), undefined);
+  const ideaSketch = getAgentExtension('ideasketch-agent');
+  const markdown = getAgentExtension('markdown-agent');
+  assert.equal(ideaSketch.fileType, 'ideasketch');
+  assert.equal(ideaSketch.skillId, 'ideasketch');
+  assert.equal(markdown.fileType, 'markdown');
+  assert.equal(markdown.skillId, 'markdown');
+  assert.equal(getAgentExtensionForFileType('ideasketch'), ideaSketch);
+  assert.equal(getAgentExtensionForFileType('markdown'), markdown);
 });
 
 test('a synthetic future editor can register different Skills and Tools', async () => {
   const { getAgentExtension, registerAgentExtension } = await loadRegistry();
   const unregister = registerAgentExtension({
-    id: 'synthetic-markdown',
-    fileType: 'markdown',
-    skillId: 'markdown',
+    id: 'synthetic-plaintext',
+    fileType: 'plaintext',
+    skillId: 'plaintext',
     tools: [{ name: 'read_markdown', description: 'Read Markdown', inputSchema: { type: 'object' } }],
     buildContext: () => ({ documentType: 'markdown' }),
     executeTool: () => ({
@@ -29,7 +32,7 @@ test('a synthetic future editor can register different Skills and Tools', async 
     }),
     describeChangeSet: () => [],
   });
-  assert.equal(getAgentExtension('synthetic-markdown').skillId, 'markdown');
+  assert.equal(getAgentExtension('synthetic-plaintext').skillId, 'plaintext');
   unregister();
-  assert.equal(getAgentExtension('synthetic-markdown'), undefined);
+  assert.equal(getAgentExtension('synthetic-plaintext'), undefined);
 });

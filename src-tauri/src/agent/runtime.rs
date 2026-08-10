@@ -40,7 +40,7 @@ pub(crate) fn prompt_with_context(
         .map(skills::load_skill)
         .transpose()
         .map_err(runtime_failure)?
-        .unwrap_or("");
+        .unwrap_or_default();
     let tools = serde_json::to_string_pretty(&request.tools)
         .map_err(|error| runtime_failure(format!("Agent tools could not be encoded: {error}")))?;
     let context = serde_json::to_string_pretty(&request.context)

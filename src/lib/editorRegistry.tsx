@@ -65,6 +65,7 @@ function MarkdownContribution(props: DocumentEditorContributionProps) {
       onAutoSave={props.onAutoSave}
       onAutoSaveComplete={props.onAutoSaveComplete}
       onWriteRecovery={props.onWriteRecovery}
+      onAgentBindingChange={props.onAgentBindingChange}
       onOpenDocumentLink={props.onOpenDocumentLink}
       documentFullPath={props.documentFullPath}
     />

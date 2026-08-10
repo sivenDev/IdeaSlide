@@ -30,6 +30,16 @@ import { useAutoSave } from "../hooks/useAutoSave";
 import { useCodeMirrorEditor } from "../hooks/useCodeMirrorEditor";
 import { normalizeMarkdownLineEndings, updateMarkdownText } from "../lib/markdownDocument";
 import { readDocumentImage } from "../lib/tauriCommands";
+import { createAgentToolHost } from "../lib/agent/agentToolHost";
+import { markdownAgentExtension } from "../lib/agent/extensions/markdownAgentExtension";
+import {
+  resolveMarkdownAgentEdit,
+  type MarkdownAgentOperation,
+} from "../lib/agent/extensions/markdownAgentTools";
+import type {
+  ActiveAgentEditorBinding,
+  AgentChangeSet,
+} from "../lib/agent/types";
 
 interface MarkdownEditorProps {
   document: DocumentSession<MarkdownDocument>;
@@ -40,8 +50,17 @@ interface MarkdownEditorProps {
   onAutoSave: (sessionId: string, model: DocumentModel) => Promise<void>;
   onAutoSaveComplete: (sessionId: string) => void;
   onWriteRecovery: (sessionId: string, model: DocumentModel) => Promise<void>;
+  onAgentBindingChange: (binding: ActiveAgentEditorBinding | undefined, documentId: string) => void;
   onOpenDocumentLink?: (href: string) => void;
   documentFullPath?: string;
+}
+
+function markdownSelectionContext(view: EditorView | undefined): string | undefined {
+  if (!view) return undefined;
+  const { anchor, head } = view.state.selection.main;
+  const anchorLine = view.state.doc.lineAt(anchor);
+  const headLine = view.state.doc.lineAt(head);
+  return `${anchorLine.number}:${anchor - anchorLine.from}-${headLine.number}:${head - headLine.from}`;
 }
 
 interface MarkdownHeading {
@@ -141,6 +160,7 @@ export function MarkdownEditor({
   onAutoSave,
   onAutoSaveComplete,
   onWriteRecovery,
+  onAgentBindingChange,
   onOpenDocumentLink,
   documentFullPath,
 }: MarkdownEditorProps) {
@@ -260,6 +280,77 @@ export function MarkdownEditor({
     }, 900);
     return () => window.clearTimeout(timeout);
   }, [document.id, document.isDirty, document.revision, onWriteRecovery, readOnly]);
+
+  const handleApplyAgentChangeSet = useCallback((changeSet: AgentChangeSet): boolean => {
+    const view = editor.getView();
+    if (!view) return false;
+    const liveText = view.state.doc.toString();
+    const resolved = resolveMarkdownAgentEdit(
+      changeSet as AgentChangeSet<MarkdownAgentOperation>,
+      {
+        documentId: document.id,
+        revision: document.revision,
+        documentStatus: document.status,
+        sourceModified: document.sourceModified,
+        readOnly,
+        model: { ...modelRef.current, text: liveText },
+      },
+    );
+    if (!resolved) return false;
+    const { from, to, replacement } = resolved;
+    view.dispatch({
+      changes: { from, to, insert: replacement },
+    });
+    return true;
+  }, [document.id, document.revision, document.sourceModified, document.status, editor, readOnly]);
+
+  const agentBindingStateRef = useRef({
+    document,
+    readOnly,
+    applyChangeSet: handleApplyAgentChangeSet,
+  });
+  agentBindingStateRef.current = {
+    document,
+    readOnly,
+    applyChangeSet: handleApplyAgentChangeSet,
+  };
+  const agentBinding = useMemo<ActiveAgentEditorBinding>(() => ({
+    get document() { return agentBindingStateRef.current.document; },
+    extensionId: markdownAgentExtension.id,
+    fileType: markdownAgentExtension.fileType,
+    skillId: markdownAgentExtension.skillId,
+    tools: markdownAgentExtension.tools,
+    get activeContextId() { return markdownSelectionContext(editor.getView()); },
+    get readOnly() { return agentBindingStateRef.current.readOnly; },
+    buildContext: () => markdownAgentExtension.buildContext(
+      modelRef.current,
+      markdownSelectionContext(editor.getView()),
+      agentBindingStateRef.current.document.revision,
+    ),
+    createToolExecutor: () => createAgentToolHost({
+      extension: markdownAgentExtension,
+      context: {
+        documentId: agentBindingStateRef.current.document.id,
+        revision: agentBindingStateRef.current.document.revision,
+        documentStatus: agentBindingStateRef.current.document.status,
+        sourceModified: agentBindingStateRef.current.document.sourceModified,
+        activeContextId: markdownSelectionContext(editor.getView()),
+        model: structuredClone(modelRef.current),
+      },
+    }),
+    describeChangeSet: (changeSet) => markdownAgentExtension.describeChangeSet(
+      changeSet as AgentChangeSet<MarkdownAgentOperation>,
+    ),
+    applyChangeSet: (changeSet) => agentBindingStateRef.current.applyChangeSet(changeSet),
+  }), [document.id]);
+
+  useEffect(() => {
+    onAgentBindingChange(agentBinding, document.id);
+  }, [agentBinding, document.id, onAgentBindingChange]);
+
+  useEffect(() => () => {
+    onAgentBindingChange(undefined, document.id);
+  }, [document.id, onAgentBindingChange]);
 
   const headings = useMemo(() => projectHeadings(previewText), [previewText]);
   const previewComponents = useMemo(() => {

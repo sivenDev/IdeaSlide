@@ -45,9 +45,9 @@ IdeaNote 同时支持：
 10. 应用 Shell 使用左、中、右三栏：左侧 Workspace Explorer，中间为当前编辑器及其内部 Navigator，右侧为编辑器无关、可折叠且可调整宽度的 AI Agent；Agent 不嵌入任何具体编辑器的导航区域。
 11. 当前支持 IdeaSketch (`.is v1`) 和 Markdown (`.md`) 两个编辑器。
 12. 未来文件格式为 `.it`（IdeaTable）和 `.iwf`（IdeaWorkflow）。
-13. 当前阶段实现一个编辑器无关的 AI Agent 架构：Rust Agent Core 负责 Runtime 选择、Turn 编排、流式输出、取消、重试、持久化和 Tool Broker；TypeScript 只负责活动编辑器的 Tool 执行、提案、Change Review、Apply/Undo 和 UI。两侧通用层都不包含 `.is`、Markdown、IdeaTable 或 IdeaWorkflow 业务逻辑。
+13. 当前阶段实现一个编辑器无关的 AI Agent 架构：Rust Agent Core 负责 Runtime 选择、Turn 编排、流式输出、取消、重试、持久化和 Tool Broker；TypeScript 只负责活动编辑器的 Tool 执行、格式感知 ChangeSet、编辑器 SDK 直连事务和 UI。两侧通用层都不包含 `.is`、Markdown、IdeaTable 或 IdeaWorkflow 业务逻辑。
 14. 当前阶段不实现 Workspace 导入导出。
-15. 新编辑器不需要等待 Agent 重构：它们通过 File Type Registry 关联自己的 Agent Extension，直接复用 Rust Agent Core、Settings、Provider、会话、Tool Bridge 和审核界面。
+15. 新编辑器不需要等待 Agent 重构：它们通过 File Type Registry 关联自己的 Agent Extension，直接复用 Rust Agent Core、Settings、Provider、会话、Tool Bridge 和通用 Tool Activity 界面。
 16. Workspace Explorer 始终显示可导航的真实目录，但文件只显示当前 File Type Registry 明确支持打开的类型；当前阶段显示 `.is` 和 `.md`。
 17. Workspace Mode 产生的临时写入文件和其他应用内部临时产物统一放在 Workspace Root 的 `.ideanote/` 子目录中，不在用户文件旁生成 `.is.tmp` 等临时文件。
 18. Settings Center 同时从 Home 和编辑器打开，配置 General、AI Provider、Agent 和编辑器贡献的设置区段。
@@ -529,14 +529,14 @@ IdeaSketch (.is)
 
 ## 13. AI Agent 与 Settings
 
-AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Core 负责 Runtime 发现与自动选择、Turn 顺序、Provider/Codex 流式输出、取消、重试、Thread 持久化、Tool Broker 和安全边界；TypeScript 负责规范化事件投影、活动编辑器的实时模型 Tool 执行、提案构造、Change Review、Apply/Undo 和 UI。文件类型 Extension 只负责本格式的业务语义。
+AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Core 负责 Runtime 发现与自动选择、Turn 顺序、Provider/Codex 流式输出、取消、重试、Thread 持久化、Tool Broker 和安全边界；TypeScript 负责规范化事件投影、活动编辑器的实时模型 Tool 执行、格式感知 ChangeSet 构造、编辑器 SDK 直连事务和 UI。文件类型 Extension 只负责本格式的业务语义。
 
 每个 Agent Extension 可贡献：
 
 - open Agent Skills `SKILL.md`。
 - 有界的当前文档、活动 Page/Selection 等 Context。
-- 只读 Tool 描述和提案型 Mutation Tool。
-- 格式感知的 Change Review 与 Apply/Undo Adapter。
+- 只读 Tool 描述和前置读取约束的 Mutation Tool。
+- 格式感知的目标复核、编辑器 SDK 直连事务与原生 Undo/Redo Adapter。
 
 通用规则：
 
@@ -551,9 +551,9 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 - 只显示 Runtime 明确分类为公开的过程摘要；隐藏 chain-of-thought 不进入事件、UI 或持久化。缺少公开过程信息时不显示误导性提示。
 - Skill 先发现 metadata，只有活动编辑器 Extension 才加载完整指令和 Tool。
 - Runtime、Panel、Settings 不直接包含 `.is` 或未来编辑器的解析、验证、读写逻辑。
-- Rust 不从磁盘重建活动编辑器状态，也不直接写用户文件；TypeScript Tool executor 只返回读取结果或 proposal，不能绕过 Change Review 执行 Apply。
-- Mutation 只能返回 ChangeSet，不直接修改内存模型或磁盘；批准时复核文档 id、revision、source fingerprint、状态和外部修改标记。
-- Apply 复用现有 Editor、Document Session、Dirty、Auto-save、Recovery 和外部冲突保护；批准后的修改可一步 Undo。
+- Rust 不从磁盘重建活动编辑器状态，也不直接写用户文件；TypeScript Tool executor 返回读取结果或目标绑定的 ChangeSet，并只允许可信活动编辑器通过其前端 SDK 应用。
+- Mutation 不直接写磁盘或先改 reducer 模型；应用前复核文档 id、revision、source fingerprint、状态、外部修改标记、取消状态和编辑器挂载状态。
+- 有效修改通过一次编辑器原生事务进入 Document Session、Dirty、Auto-save、Recovery 和外部冲突保护；Undo/Redo 使用编辑器自身历史，不由 Agent 实现。
 - 不提供任意本地文件、Shell、脚本、网络或自动执行工具。
 - 旧 MCP Runtime 不再作为并行自动化入口。
 
@@ -653,8 +653,8 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 18. Home/Editor 共用的 Settings Center、版本化非秘密设置和 Rust 管理的本地加密凭据。
 19. 默认开启但可完整关闭的 AI Gate。
 20. 编辑器无关的流式 Agent Runtime、取消、对话历史和应用级右侧 Agent 栏。
-21. IdeaSketch Skill、受限 Context、Page 读能力以及新增/删除/重排/内容替换提案。
-22. Change Review、显式 Apply、陈旧/外部状态拒绝和一步 Undo。
+21. IdeaSketch 与 Markdown 各自的 Skill、受限 Context、只读 Tool 和格式感知 Mutation Tool。
+22. 前置读取、目标/外部状态复核、编辑器 SDK 单事务直连应用和原生一步 Undo/Redo。
 
 ### 18.2 不包含
 
@@ -715,9 +715,9 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 - 已安装且兼容的 Codex `0.147.0` 自动用于支持编辑器 Tool 的 Turn；不可用时回退 Compatibility，并在 Agent/Settings 显示有效 Runtime、Model、能力和诊断。
 - Agent 答案在上游提供增量时于完成前持续增长；上游缓冲、突发或原子交付时，Preparing、Working 和 elapsed activity 仍由真实生命周期驱动，assistant answer 可使用有界展示节奏逐步出现，但 UI 与诊断不得声称这是实时 token 生成或模型思考。
 - 本地 Thread 历史支持恢复、重命名、归档和确认永久删除；运行中的 Thread 不可删除，删除不会触及文档、Workspace、Recovery、凭据或其他 Thread。
-- Tool 请求通过 Rust ledger 与 TypeScript 活动编辑器 executor 往返；所有修改仍只生成 ChangeSet，必须经 Review 和显式 Apply，并可一步 Undo。
+- Tool 请求通过 Rust ledger 与 TypeScript 活动编辑器 executor 往返；所有修改生成目标绑定 ChangeSet，经活动编辑器复核后直接作为一次原生事务应用，并可通过编辑器原生历史一步 Undo/Redo。
 - Hidden reasoning 不显示、不推断、不持久化；只有 Runtime 明确标记为公开的过程信息才可流式呈现。
-- IdeaSketch Agent 修改在批准前不改变文档或磁盘；陈旧、只读、冲突或外部修改目标拒绝 Apply。
+- IdeaSketch 与 Markdown Agent 修改都不直接写磁盘；陈旧、只读、冲突、外部修改、已切换或未挂载目标拒绝应用。
 - 当前构建不提供 Workspace Import/Export。
 - New File 菜单当前提供 IdeaSketch、Markdown 和 Folder。
 - `.it`、`.iwf` 在对应编辑器注册为可打开之前不显示在 Workspace Explorer 中；从其他入口显式打开时安全拒绝，且不宣称可编辑。
@@ -757,13 +757,13 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 - 默认开启/完整关闭 AI Gate。
 - 通用 Agent Runtime、流式输出、取消和会话历史。
 - 独立的应用级右侧 Agent 栏。
-- IdeaSketch Skill、Tools、Context、Change Review、Apply 和 Undo。
+- IdeaSketch Skill、Tools、Context、编辑器 SDK 直连事务和原生 Undo。
 
 ### Phase 4：Markdown
 
 - `.md` Editor。
 - Markdown Parser/Serializer。
-- 基本命令接口。
+- Markdown Skill、受限读取 Tool、精确范围替换 Tool 和 CodeMirror 原生 Undo/Redo。
 
 ### Phase 5：IdeaTable
 
@@ -805,7 +805,7 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 
 ### 21.5 Agent 与编辑器耦合
 
-如果通用 Runtime 或 Panel 直接包含某一种格式的业务逻辑，后续编辑器会迫使 Agent 重构。必须由 File Type Registry 关联 Agent Extension，并让 Extension 独立注入 Skill、Tools、Context 和 Change Review；通用层只维护 Provider、会话、安全和 UI 生命周期。
+如果通用 Runtime 或 Panel 直接包含某一种格式的业务逻辑，后续编辑器会迫使 Agent 重构。必须由 File Type Registry 关联 Agent Extension，并让 Extension 独立注入 Skill、Tools、Context 和编辑器 SDK Mutation Adapter；通用层只维护 Provider、会话、安全和 UI 生命周期。
 
 ### 21.6 `.is v1/v2` 冲突
 
@@ -833,7 +833,7 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 16. 全局 Settings 和 AI Credential 位于应用配置目录；Credential 使用独立受限密钥和认证加密，不写入 `.ideanote/`，未来若增加 Workspace Override，必须使用独立版本字段且不得包含 Secret。
 17. AI 默认开启；关闭是完整生命周期 Gate，未配置 Credential 是独立的配置状态。
 18. Agent Runtime 使用 IdeaNote 自有接口包装维护中的开源框架；编辑器只通过 Agent Extension Contract 接入。
-19. 每个 Agent Mutation 都先生成一次性 ChangeSet，批准时复核文档 revision、source fingerprint、Document Status 和 source modified marker，并通过现有 Editor Session 应用。
+19. 每个 Agent Mutation 都先生成一次性 ChangeSet，直接应用前复核文档 revision、source fingerprint、Document Status、source modified marker、活动绑定和编辑器挂载状态，并通过现有 Editor SDK 的一次原生事务应用。
 20. MCP stdio Runtime、`--mcp`/`--visible`、隐藏 MCP Renderer、`rmcp` dependency 和前端 MCP Bridge 已退休；`preview-renderer` 作为缩略图/预览基础设施继续保留。
 
 ## 23. 开发启动门槛

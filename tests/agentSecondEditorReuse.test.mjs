@@ -6,6 +6,23 @@ import {
   registerAgentExtension,
 } from '../src/lib/agent/agentExtensionRegistry.ts';
 
+await import('../src/lib/fileTypeRegistry.ts');
+
+test('the production Markdown extension reuses the generic registry and Tool host', async () => {
+  const extension = getAgentExtension('markdown-agent');
+  const source = '# Intro\nBody';
+  const executor = createAgentToolHost({
+    extension,
+    context: {
+      documentId: 'readme-md', revision: 2, documentStatus: 'editable',
+      model: { type: 'markdown', text: source, bom: false, lineEnding: 'lf', originalText: source },
+    },
+  });
+  const read = await executor.execute({ callId: 'outline', name: 'read_markdown_outline', arguments: {} });
+  assert.equal(read.kind, 'read');
+  assert.equal(read.content.headings[0].text, 'Intro');
+});
+
 test('a Markdown-like extension reuses the generic registry and Tool host without runtime or UI changes', async () => {
   const markdownExtension = {
     id: 'synthetic-markdown-agent',

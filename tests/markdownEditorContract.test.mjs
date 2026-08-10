@@ -25,6 +25,8 @@ test('Markdown uses CodeMirror native history, one source of truth, and safe GFM
   assert.match(hook, /undo\(viewRef\.current\)/);
   assert.match(hook, /redo\(viewRef\.current\)/);
   assert.match(hook, /Transaction\.addToHistory\.of\(false\)/);
+  assert.match(editor, /resolveMarkdownAgentEdit/);
+  assert.match(editor, /changes:\s*\{ from, to, insert: replacement \}/);
 });
 
 test('Markdown exposes Edit, Split, Preview, outline, autosave, and Recovery through shared services', async () => {

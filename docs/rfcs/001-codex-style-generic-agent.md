@@ -4,14 +4,14 @@
 - Date: 2026-08-08
 - Amended: 2026-08-09 by RFC Addendum 002
 - Source: F032
-- Delivered through: F035, B029
+- Delivered through: F035, F036, B027, B028, B029, F038
 - Audience: IdeaNote product and engineering
 
 ## 1. Summary
 
-IdeaNote will evolve its current editor-agnostic Agent into a Codex-style task surface while preserving the existing product boundary: the Agent is an application-level right column, and every editor contributes only its own Skill, Tools, Context, Change Review, Apply, and Undo behavior.
+IdeaNote will evolve its current editor-agnostic Agent into a Codex-style task surface while preserving the existing product boundary: the Agent is an application-level right column, and every editor contributes only its own Skill, Tools, Context, direct editor-SDK mutation adapter, and native history behavior.
 
-The frontend depends on an IdeaNote-owned Agent SDK and normalized Agent Protocol. It does not depend directly on Codex app-server JSON-RPC types, a model provider SDK, Rig types, or assistant-ui runtime types. The Rust Agent Core owns runtime selection, Turn orchestration, streaming, cancellation, retry, persistence, and runtime-facing Tool governance. TypeScript is limited to the application UI, normalized state projection, live editor Tool execution, and editor-owned Change Review, Apply, and Undo.
+The frontend depends on an IdeaNote-owned Agent SDK and normalized Agent Protocol. It does not depend directly on Codex app-server JSON-RPC types, a model provider SDK, Rig types, or assistant-ui runtime types. The Rust Agent Core owns runtime selection, Turn orchestration, streaming, cancellation, retry, persistence, and runtime-facing Tool governance. TypeScript is limited to the application UI, normalized state projection, live editor Tool execution, and editor-owned direct SDK transactions.
 
 The delivered runtime architecture is a native hybrid adapter architecture:
 
@@ -48,9 +48,9 @@ The current architecture remains valuable:
 - The Agent occupies an independent application-level right column.
 - The Agent runtime is editor-agnostic.
 - File Type Registry selects an Agent Extension.
-- IdeaSketch contributes its own Skill, bounded Context, Tools, Change Review, Apply, and Undo.
-- Mutation Tools produce reviewable Change Sets and never write directly.
-- Apply reuses the normal document session, dirty, save, recovery, and external-change boundaries.
+- IdeaSketch and Markdown contribute independent Skills, bounded Context, Tools, direct-apply adapters, and native history behavior.
+- Mutation Tools produce opaque, target-bound Change Sets which the trusted active editor validates and applies immediately; they never write files directly.
+- Direct editor transactions reuse the normal document session, dirty, save, recovery, and external-change boundaries.
 
 This RFC keeps those strengths and replaces the flattened chat model with a task-oriented Agent protocol.
 
@@ -64,7 +64,7 @@ This RFC keeps those strengths and replaces the flattened chat model with a task
 6. Normalize provider and runtime capabilities behind one Rust Agent Core and one frontend SDK.
 7. Reuse maintained open-source foundations behind IdeaNote-owned interfaces.
 8. Keep all editor semantics outside the generic runtime and UI.
-9. Preserve proposal-first mutation and explicit human Apply.
+9. Apply supported Agent edits immediately through the active editor SDK after prerequisite reads and fail-closed target revalidation.
 10. Allow Markdown and future editors to reuse the same Agent without runtime changes.
 
 ## 4. Non-goals
@@ -72,7 +72,7 @@ This RFC keeps those strengths and replaces the flattened chat model with a task
 - Exact reproduction of Codex visuals, branding, or internal implementation.
 - Displaying hidden chain-of-thought, claiming a status indicator is model reasoning, or describing presentation pacing as live model-token generation.
 - Direct model writes to documents or the filesystem.
-- Automatic approval of editor mutations.
+- Direct filesystem or model-first mutation that bypasses the active editor SDK.
 - Arbitrary shell, script, filesystem, or network access.
 - Reintroducing IdeaNote's retired MCP server or MCP product surface.
 - Multi-agent orchestration in the first implementation.
@@ -113,7 +113,7 @@ At Turn start, the host captures:
 - active Skill identity;
 - read-only and external-change state.
 
-Changing the active document does not silently retarget an in-flight Turn. A proposal remains bound to the original target and must pass the normal stale checks before Apply.
+Changing the active document does not silently retarget an in-flight Turn. A mutation remains bound to the original target and must pass document, revision, status, source-marker, source-fingerprint, and editor-availability checks before the editor SDK transaction.
 
 ### 5.4 Activity is data, not formatted prose
 
@@ -138,14 +138,9 @@ If a runtime cannot provide public process text, the UI does not show a fake rea
 │ Working                              │
 │ ▸ Read active page                   │
 │ ▸ Plan                               │
-│ ✓ Proposed 1 document change         │
+│ ✓ Applied 1 editor transaction       │
 │                                      │
 │ Assistant Markdown response          │
-│                                      │
-│ ┌ Change Review ───────────────────┐ │
-│ │ Add Page: Architecture           │ │
-│ │ [Reject] [Revise] [Apply]        │ │
-│ └──────────────────────────────────┘ │
 ├──────────────────────────────────────┤
 │ Ask about this file…                 │
 │ [Model / effort]          [Send/Stop]│
@@ -178,7 +173,7 @@ The transcript is an ordered projection of Turns and Items. It supports:
 - Skill activation;
 - tool calls, progress, and results;
 - approval requests;
-- editor Change Reviews;
+- directly applied editor mutation results;
 - warnings and errors;
 - completed, cancelled, and failed Turn boundaries.
 
@@ -216,7 +211,7 @@ Requirements:
 IdeaNote distinguishes three concepts:
 
 1. **Public runtime activity:** readable runtime-provided process events explicitly classified as user-visible, displayed only when supported.
-2. **Agent activity:** deterministic application events such as loading a Skill, calling a Tool, waiting for approval, or validating a Change Set.
+2. **Agent activity:** deterministic application events such as loading a Skill, calling a Tool, waiting for a runtime approval, or validating and applying a Change Set through the editor SDK.
 3. **Hidden reasoning:** not available to the UI and never claimed to be displayed.
 
 There is no dedicated Reasoning Summary product surface. Public activity is optional, appears in chronological transcript order, and is persisted only when the runtime and policy mark it safe. Codex reasoning-summary events and raw/private reasoning are discarded at the adapter boundary.
@@ -261,7 +256,7 @@ src/lib/agent/
   agentClient.ts       # thin Tauri command/channel bridge
   agentRuntime.ts      # native-core facade and editor Tool dispatch
   agentStore.ts        # ordered Event projection
-  agentToolHost.ts     # live editor execution and proposal creation
+  agentToolHost.ts     # live editor execution and fail-closed direct application
   agentExtension*.ts   # registry-selected editor contracts
 ```
 
@@ -356,7 +351,6 @@ export type AgentItem =
   | AgentToolCallItem
   | AgentToolResultItem
   | AgentApprovalItem
-  | AgentChangeReviewItem
   | AgentWarningItem
   | AgentErrorItem;
 ```
@@ -374,7 +368,7 @@ export interface AgentItemBase {
 }
 ```
 
-The final Item value is authoritative. Deltas are transport updates and may not concatenate into an identical final value.
+The final Item value is authoritative. Deltas are transport updates and may not concatenate into an identical final value. The legacy `changeReview` Item remains readable only for old persisted data and is filtered from the current transcript.
 
 ### 7.6 Event model
 
@@ -401,7 +395,7 @@ Required event classes:
 - Plan delta and final Plan Item.
 - Tool call requested, progress, result, failure.
 - Approval requested and resolved.
-- Change Review created, stale, applied, rejected.
+- Editor mutation requested, applied, rejected as stale/unsafe, or cancelled.
 - Runtime warning and classified error.
 
 The reducer rejects duplicate event ids, ignores stale sequence numbers, and records protocol gaps for diagnostics. Runtime selection changes are delivered as normalized `runtimeUpdated` Events; persisted metadata records the effective runtime, model, degradation reason, and upstream Thread id used for Codex resume.
@@ -426,7 +420,6 @@ Expected hooks:
 - `useAgentComposer`
 - `useAgentCapabilities`
 - `useAgentApproval`
-- `useAgentChangeReview`
 - `useAgentHistory`
 
 assistant-ui remains an internal rendering primitive. React components consume normalized SDK state and do not parse provider events.
@@ -436,27 +429,22 @@ assistant-ui remains an internal rendering primitive. React components consume n
 ### 8.1 Extension contract
 
 ```ts
-export interface AgentEditorExtension<TDocument, TChangeSet> {
+export interface AgentExtension<TModel, TOperation> {
   id: string;
   fileType: string;
   skillId: string;
+  tools: AgentToolDescriptor[];
 
-  buildContext(input: BuildAgentContextInput<TDocument>): AgentContext;
-  getTools(input: AgentToolAvailabilityInput<TDocument>): AgentToolDefinition[];
-
-  executeReadTool(
+  buildContext(
+    model: TModel,
+    activeContextId: string | undefined,
+    revision: number,
+  ): Record<string, unknown>;
+  executeTool(
     call: AgentToolCall,
-    input: AgentToolExecutionInput<TDocument>,
-  ): Promise<AgentToolResult>;
-
-  createChangeProposal(
-    call: AgentToolCall,
-    input: AgentToolExecutionInput<TDocument>,
-  ): Promise<TChangeSet>;
-
-  reviewChangeSet(changeSet: TChangeSet): AgentChangeReview;
-  applyChangeSet(changeSet: TChangeSet): Promise<AgentApplyResult>;
-  undoLastAgentChange(): Promise<AgentUndoResult>;
+    context: AgentToolExecutionContext<TModel>,
+  ): Promise<AgentToolResult<TOperation>> | AgentToolResult<TOperation>;
+  describeChangeSet(changeSet: AgentChangeSet<TOperation>): string[];
 }
 ```
 
@@ -464,13 +452,7 @@ The generic SDK never imports `IdeaSketchDocument`, Markdown AST types, or futur
 
 ### 8.2 Tool categories
 
-Tools are declared as:
-
-- `read`: returns bounded editor data and cannot mutate.
-- `propose`: creates an opaque Change Set and cannot Apply it.
-- `host`: application-owned non-editor operations, introduced only through a separate policy review.
-
-There is no model-callable `applyChangeSet` Tool. Apply is a human UI action handled by the trusted editor host.
+Tools return either a bounded `read`, a target-bound `mutation`, or a normalized `failure`. A mutation Tool returns an opaque proposed Change Set to the trusted host; the host immediately revalidates the captured active binding and calls the editor-owned `applyChangeSet` callback. The callback is not exposed as a model-callable Tool. It must use the mounted editor SDK and must not mutate the reducer model or filesystem first.
 
 ### 8.3 Dynamic tool routing
 
@@ -481,9 +463,11 @@ Rust Agent Core Tool Broker validates name, schema, call id, target policy, and 
         │
 Typed Tauri request/result bridge
         │
-Active TypeScript AgentEditorExtension executes a live-model read or proposal
+Active TypeScript AgentExtension executes a live-model read or creates a target-bound mutation
         │
-Rust bounds/redacts the correlated result and returns it to the runtime
+Trusted host revalidates and applies a valid mutation through the mounted editor SDK
+        │
+Rust bounds/redacts the correlated applied result and returns it to the runtime
 ```
 
 Tool calls use stable call ids. The Rust ledger is authoritative: repeated delivery of the same call id returns the recorded result and does not execute again. TypeScript retains defensive extension and target checks but does not own runtime sequencing or idempotency.
@@ -501,10 +485,16 @@ Every editor Change Set contains or references:
 - optional editor context identity such as Page id;
 - opaque extension-owned operations;
 - bounded human-readable summary;
-- one-use Apply identity;
+- one-use mutation identity;
 - lifecycle state.
 
-Apply revalidates all target fields. A stale, read-only, missing, externally changed, or already-applied Change Set is rejected.
+Direct application revalidates all target fields. A stale, read-only, missing, unmounted, externally changed, cancelled, duplicate, late, or already-applied Change Set is rejected without model or disk mutation. Undo and Redo belong to the editor SDK, not to the Agent.
+
+### 8.5 Markdown production second-editor proof
+
+F038 registers Markdown through the same File Type Registry and Agent Extension Registry as IdeaSketch. Turn-start Context contains counts, line-ending policy, a bounded heading summary, and UTF-16 selection coordinates, never the full source. `read_markdown_outline`, `read_markdown_document`, and `read_markdown_range` disclose bounded source; `replace_markdown_range` requires the range read and carries exact positions, range hash, document revision, source fingerprint, status, and source-modified evidence.
+
+The Markdown editor revalidates the live CodeMirror source and dispatches exactly one `EditorView.dispatch({ changes })` transaction. The CodeMirror update listener remains the only path into the document model, preview, dirty state, autosave, Recovery, and Save. Native Undo restores the prior source and Redo reapplies it. No Markdown branch was added to the Rust Tool Broker, runtime adapters, Agent Panel, store, or activity projection; switching between IdeaSketch, Markdown, and unsupported files changes only the injected binding.
 
 ## 9. Runtime adapters
 
@@ -614,7 +604,7 @@ The effective capability set is recorded at Turn start so a mid-Turn provider ch
 
 The comparison spike pins Codex CLI/app-server `0.147.0`, Grok Build source revision `3e620a76a5f374ce644dc7c87f7e990c68348218`, and ACP protocol version `1`. Both adapters use the same bounded stdio JSON-RPC codec, process supervisor, redaction rules, lifecycle contract, and normalized Event mapping.
 
-The installed Codex `0.147.0` app-server completed the real `initialize`/`initialized` handshake. Its documented experimental `dynamicTools` flow maps IdeaNote editor Tool definitions to client-owned calls while the upstream runtime remains `read-only` with automatic built-in mutation approval disabled. Codex is therefore the preferred optional rich runtime for mutation-capable Turns after F033-04 wires persistent execution and completes native proposal/Apply/Undo acceptance.
+The installed Codex `0.147.0` app-server completed the real `initialize`/`initialized` handshake. Its documented experimental `dynamicTools` flow maps IdeaNote editor Tool definitions to client-owned calls while the upstream runtime remains `read-only` with automatic built-in mutation approval disabled. Codex is therefore the preferred optional rich runtime for mutation-capable Turns after the native read/direct-editor-transaction/Undo acceptance passes.
 
 Grok ACP v1 maps incremental assistant messages, Plans, Tool activity, permissions, cancellation, Session creation/resume, and custom model configuration. Sessions are created with `mcpServers: []`, filesystem write capability disabled, and terminal capability disabled. Neither the official ACP documentation nor the inspected open-source surface establishes a stable client-owned dynamic Tool equivalent. Grok therefore advertises no editor Tool capability and remains optional for read/research Turns; mutation-required selection degrades to the compatibility adapter rather than restoring MCP or allowing built-in writes.
 
@@ -711,7 +701,7 @@ After any visible output or Tool call, retry is explicit. It creates a new Turn 
 
 ### 12.4 Tool idempotency
 
-Every Tool call has a stable call id and an execution ledger. Duplicate delivery returns the prior result. Proposal Tools must not create duplicate Change Sets for the same call id.
+Every Tool call has a stable call id and an execution ledger. Duplicate delivery returns the prior result. Mutation Tools must not apply duplicate Change Sets for the same call id.
 
 ## 13. Persistence
 
@@ -726,7 +716,7 @@ Persist:
 - Thread metadata and title;
 - completed Turns and final Items;
 - bounded Tool summaries and results approved for persistence;
-- Change Review state without duplicating full document data;
+- bounded mutation summaries and terminal Tool state without duplicating full document data;
 - runtime/model/capability metadata needed to explain history;
 - the upstream runtime Thread id needed to resume a compatible Codex conversation;
 - diagnostic ids and safe timing metrics.
@@ -761,10 +751,9 @@ Users may permanently delete a non-running local Thread after confirmation. Dele
 - Tool definitions, schemas, arguments, call ids, duplicate delivery, timeouts, and result bounds are validated by the Rust Tool Broker.
 - Only the active registered editor extension can receive editor Tool calls.
 - Read Tools return bounded data with truncation markers.
-- Proposal Tools create Change Sets only.
-- Apply is a user action, not a model Tool.
-- Apply performs revision, fingerprint, status, and external-change validation.
-- Undo uses the existing editor/session boundary.
+- Mutation Tools create target-bound Change Sets; only the trusted active editor binding can apply them.
+- Direct application performs revision, fingerprint, status, source-marker, range/hash, cancellation, and mounted-editor validation.
+- The editor SDK performs one native transaction; the Agent owns no Undo stack.
 - AI disabled means no runtime process, Thread subscription, Skill discovery, Tool registration, or provider request.
 - Unsupported editors contribute no mutation Tools.
 - Codex app-server experimental capabilities are disabled unless explicitly enabled by the adapter after compatibility checks.
@@ -779,7 +768,7 @@ Users may permanently delete a non-running local Thread after confirmation. Dele
 - Public-summary, plan, and Tool disclosures use accessible expanded state.
 - Running status uses a polite live region without announcing every token.
 - Approval buttons name the target and consequence.
-- Focus returns predictably after Send, Stop, Apply, Reject, and retry.
+- Focus returns predictably after Send, Stop, native Undo/Redo, and retry.
 - Keyboard navigation reaches Thread history, transcript actions, disclosures, and composer.
 - Color is not the only error, success, or running indicator.
 
@@ -816,7 +805,7 @@ Open-source libraries implement mechanics. IdeaNote owns:
 - native Turn orchestration and capability policy;
 - the runtime-facing Tool Broker and editor bridge contract;
 - retry policy;
-- approval and Change Set safety;
+- runtime approval and direct editor-mutation safety;
 - persistence policy;
 - product UI and accessibility behavior.
 
@@ -881,11 +870,11 @@ Advantages:
 Disadvantages:
 
 - the documented ACP path does not yet establish a stable client-owned dynamic editor Tool mechanism;
-- built-in coding Tools and filesystem mutation are broader than IdeaNote's proposal-only editor contract;
+- built-in coding Tools and filesystem mutation are broader than IdeaNote's editor-SDK-only mutation contract;
 - unstable ACP features and Grok-specific extensions require adapter/version testing;
 - adopting it directly could force IdeaNote toward MCP or a maintained fork.
 
-Decision: retain as a first-class spike and optional adapter candidate, but do not make it the only runtime until dynamic editor Tool injection and proposal-only safety are proven.
+Decision: retain as a first-class spike and optional adapter candidate, but do not make it the only runtime until dynamic editor Tool injection and editor-SDK-only safety are proven.
 
 ### 17.5 Hybrid IdeaNote-owned adapter architecture
 
@@ -912,7 +901,7 @@ Decision: adopted. F035 moves Turn orchestration and Tool governance into Rust w
 - Add the Thread, Turn, Item, Event, Error, and Capability types.
 - Replace component-local transcript state with the normalized reducer/store.
 - Add safe Markdown rendering.
-- Render text, deterministic activity, Change Review, and errors as distinct Items.
+- Render text, deterministic activity, Tool mutation results, and errors as distinct Items.
 - Preserve the existing runtime behind an adapter.
 
 ### Phase 2: Harden the OpenAI-compatible adapter — delivered
@@ -945,14 +934,14 @@ Run equivalent offline and native acceptance against both rich-runtime candidate
 - Determine whether IdeaNote editor Tools can be injected without MCP and without enabling unrestricted filesystem/shell mutation.
 - Measure the maintenance surface of a Tool-router bridge if standard ACP is insufficient.
 
-The comparison selected Codex for production editor-capable Turns after its dynamic Tool bridge passed the same proposal/Apply/Undo boundary. Grok remains adapter-private and non-production until it can pass that boundary without MCP.
+The comparison selected Codex for production editor-capable Turns after its dynamic Tool bridge passed the same read/direct-editor-transaction/native-Undo boundary. Grok remains adapter-private and non-production until it can pass that boundary without MCP.
 
 ### Phase 4: Editor dynamic Tools — delivered
 
 - Map the existing IdeaSketch Extension to the normalized Tool host.
 - Map to app-server dynamic Tools where supported.
 - Prove duplicate call id handling.
-- Prove no mutation before Change Review Apply.
+- Prove no mutation before prerequisite reads and trusted active-editor revalidation.
 - Prove document switch and stale Change Set behavior.
 
 ### Phase 5: Persistent Codex-style interaction — delivered through F035
@@ -963,7 +952,7 @@ The comparison selected Codex for production editor-capable Turns after its dyna
 - Expose automatic runtime selection, effective model/capabilities, and fallback diagnostics.
 - Continue accessibility and long-transcript performance work as the history surface grows.
 
-### Phase 6: Second-editor proof
+### Phase 6: Second-editor proof — delivered through F038
 
 - Register the Markdown Agent Extension without changing the Agent Runtime, Protocol, React SDK, or generic UI.
 - Use the result to decide whether the internal frontend SDK is ready to become a separately versioned package.
@@ -1005,14 +994,14 @@ Run the same contract suite against offline fake implementations of every adapte
 
 ### 19.3 Editor extension tests
 
-- correct extension activation;
+- correct IdeaSketch/Markdown extension activation and switching;
 - bounded Context;
 - schema validation;
 - duplicate Tool call id;
-- proposal-only mutation;
-- stale Apply rejection;
+- prerequisite-bound mutation;
+- stale direct-application rejection;
 - external-change rejection;
-- Apply and Undo through the current document session;
+- one mounted editor transaction and native Undo/Redo through the current document session;
 - unsupported editor exposes no mutation Tools.
 
 ### 19.4 UI acceptance
@@ -1024,7 +1013,7 @@ Run the same contract suite against offline fake implementations of every adapte
 - source-completed/display-revealing reconciliation without a false Working state;
 - optional public-activity presentation;
 - plan and Tool timeline;
-- approval and Change Review cards;
+- runtime approval and ordered Tool activity when supported;
 - Stop, retry, and steering;
 - Thread history and resume;
 - keyboard and screen-reader behavior;
@@ -1033,7 +1022,7 @@ Run the same contract suite against offline fake implementations of every adapte
 
 ### 19.5 Native acceptance
 
-Use a disposable unsaved document. Prove a complete read, proposal, review, Apply, and Undo flow without saving or touching a real user file. Test the fully capable fake, the production-selected pinned Codex adapter, and the configured Compatibility adapter without exposing credentials. Any future Grok production selection must first pass the same observable lifecycle and dynamic editor Tool contract without MCP.
+Use disposable saved and unsaved documents. Prove complete read, direct editor transaction, native Undo/Redo, dirty/autosave/Recovery/save/reopen, cancellation, stale rejection, and extension switching without direct Agent file writes. Test the fully capable fake, the production-selected pinned Codex adapter, and the configured Compatibility adapter without exposing credentials. Any future Grok production selection must first pass the same observable lifecycle and dynamic editor Tool contract without MCP.
 
 ## 20. Acceptance criteria
 
@@ -1041,20 +1030,20 @@ Use a disposable unsaved document. Prove a complete read, proposal, review, Appl
 2. No Codex app-server, Grok Build ACP, provider SDK, Rig, or assistant-ui runtime type crosses the public SDK boundary.
 3. Assistant messages render safe Markdown.
 4. Public runtime summaries appear only when explicitly supplied; hidden reasoning is never displayed or persisted.
-5. Tool calls, plans, approvals, Change Reviews, and errors are first-class Items.
+5. Tool calls, plans, runtime approvals, direct mutation results, and errors are first-class Items.
 6. Persistent local Threads can be created, resumed, listed, renamed, archived, and permanently deleted after confirmation.
 7. Cancellation works; steering and approvals appear only when their complete product commands are supported.
 8. Transient failures retry automatically only before visible output or Tool execution.
 9. Buffered, burst, and atomic delivery are diagnosed from source timing; bounded answer presentation may be paced without claiming live token generation or reasoning.
 10. Editor Tools are selected through File Type Registry Agent Extensions.
-11. Mutation Tools cannot Apply or write directly.
-12. Apply and Undo preserve all current document safety checks.
+11. Mutation Tools cannot write files or mutate an unmounted/reducer-only model; only the trusted active editor binding can apply them.
+12. Direct editor transactions and native Undo/Redo preserve all current document safety checks.
 13. AI disabled tears down the complete Agent lifecycle.
 14. Rust automatically selects the pinned compatible Codex app-server for editor-capable Turns, persists its upstream Thread id, and falls back transparently to Compatibility.
 15. Grok Build and ACP types remain adapter-private, exactly versioned, and capability-gated.
-16. Runtime selection cannot weaken proposal-only mutation, bypass explicit Apply, enable unrestricted filesystem/shell mutation, or restore MCP as an IdeaNote product surface.
-17. A future Markdown extension can reuse the Rust runtime, TypeScript editor Tool executor, and frontend without generic code changes.
-18. Rust owns Turn sequencing and Tool governance; TypeScript owns only live editor execution, proposal construction, Review, Apply, Undo, and UI.
+16. Runtime selection cannot weaken prerequisite-bound editor mutation, bypass the trusted active-editor SDK, enable unrestricted filesystem/shell mutation, or restore MCP as an IdeaNote product surface.
+17. The production Markdown extension reuses the Rust runtime, TypeScript editor Tool executor, and frontend without generic runtime or UI branches.
+18. Rust owns Turn sequencing and Tool governance; TypeScript owns live editor execution, format-specific mutation construction, direct SDK application, and UI.
 19. Incremental upstream text is visible before completion; burst or atomic upstream text becomes visibly progressive through the bounded answer-only presentation queue while source timing and terminal lifecycle remain truthful.
 
 ## 21. Risks
@@ -1081,7 +1070,7 @@ Mitigation: retain the OpenAI-compatible adapter and drive UI from effective cap
 
 ### 21.6 Duplicate Tool effects during retry
 
-Mitigation: stable call ids, execution ledger, no automatic retry after Tool execution, and proposal-only mutations.
+Mitigation: stable call ids, execution ledger, no automatic retry after Tool execution, prerequisite reads, and fail-closed direct editor mutations.
 
 ### 21.7 Conversation privacy
 

@@ -283,7 +283,7 @@ Expose truthful per-Thread Agent runtime health and memory visibility: current r
 
 ## F038: Implement the Markdown Editor and Agent Extension
 
-- status: accepted
+- status: done
 - created: 2026-08-10
 
 Implement the first real Markdown (.md) editor in Workspace and Single File modes using the shared document kernel and established open-source components. Provide source editing, safe GFM preview, edit/split/preview modes, links and in-document references, native editor Undo/Redo, save/autosave/recovery/external-change protection, registry-driven create/open/filter behavior, and loss-aware UTF-8 line-ending/BOM handling. Generalize the currently IdeaSketch-specific frontend/backend seams instead of adding Markdown branches to shared commands. Add a Markdown Agent Extension with its own packaged Skill, bounded read/range Tools, direct editor-SDK mutations as one Undo transaction, and no file writes or runtime-specific logic.

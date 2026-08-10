@@ -7,7 +7,7 @@ const proposal = {
   sourceFingerprint: 'source', summary: 'Test', operations: [], status: 'proposed',
 };
 
-test('Agent change sets have explicit review transitions', () => {
+test('Agent change sets retain explicit lifecycle transitions for compatibility', () => {
   assert.equal(markAgentChangeSetApplied(proposal).status, 'applied');
   assert.equal(markAgentChangeSetStale(proposal).status, 'stale');
   assert.equal(rejectAgentChangeSet(proposal).status, 'rejected');
