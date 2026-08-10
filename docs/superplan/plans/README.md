@@ -7,7 +7,7 @@
 | Type | Plans | Complete |
 | --- | --- | --- |
 | `required` | 6 | 6 |
-| `feature` | 45 | 45 |
+| `feature` | 46 | 46 |
 | `bugfix` | 29 | 29 |
 
 ## Execution Order
@@ -81,6 +81,7 @@
 | `F037-02` | [Add Managed Custom Agent Skills](features/F037-agent-runtime-visibility-and-custom-skills/F037-02-managed-custom-agent-skills.md) | `complete` | 2026-08-10 |
 | `F038-01` | [Generalize the Document Kernel and Deliver the Markdown Editor](features/F038-markdown-editor-and-agent-extension/F038-01-generic-document-kernel-and-markdown-editor.md) | `complete` | 2026-08-10 |
 | `F038-02` | [Add the Markdown Agent Skill and Native Editor Tools](features/F038-markdown-editor-and-agent-extension/F038-02-markdown-agent-skill-and-tools.md) | `complete` | 2026-08-10 |
+| `F039` | [Explore Workspace-first AI Agent Layout Concepts](features/F039-workspace-first-ai-agent-layout-concepts.md) | `complete` | 2026-08-10 |
 
 ### Bugfix Plans
 

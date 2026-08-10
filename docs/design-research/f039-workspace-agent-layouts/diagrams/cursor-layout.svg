@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Cursor Agents observed layout</title>
+  <desc id="desc">A left Agent navigation and workspaces column, a central Agent thread, and a right IDE changes result column.</desc>
+  <defs>
+    <style>
+      .bg{fill:#151617}.panel{fill:#202123;stroke:#393b3f;stroke-width:2}.panel2{fill:#1a1b1d;stroke:#393b3f;stroke-width:2}.bar{fill:#292b2e}.muted{fill:#a8abb2;font:15px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}.label{fill:#f5f5f5;font:600 22px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}.small{fill:#c7cad0;font:14px ui-monospace,SFMono-Regular,Menlo,monospace}.accent{fill:#dba49b}.green{fill:#355e48}.red{fill:#653842}.line{stroke:#676b73;stroke-width:2;fill:none;marker-end:url(#arrow)}
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#676b73"/></marker>
+  </defs>
+  <rect class="bg" width="1200" height="720" rx="24"/>
+  <rect class="panel" x="24" y="24" width="260" height="672" rx="16"/>
+  <rect class="panel2" x="300" y="24" width="430" height="672" rx="16"/>
+  <rect class="panel" x="746" y="24" width="430" height="672" rx="16"/>
+  <text class="label" x="48" y="62">Agent navigation</text>
+  <rect class="bar" x="46" y="84" width="214" height="38" rx="9"/><text class="muted" x="62" y="109">New Agent</text>
+  <rect class="bar" x="46" y="132" width="214" height="38" rx="9"/><text class="muted" x="62" y="157">Search / Automations</text>
+  <text class="small" x="48" y="205">WORKSPACES</text>
+  <rect fill="#343538" x="42" y="222" width="220" height="48" rx="10"/><text class="muted" x="58" y="252">Task / thread history</text>
+  <rect class="bar" x="42" y="280" width="220" height="48" rx="10"/><text class="muted" x="58" y="310">Other workspace</text>
+  <text class="label" x="326" y="62">Agent thread</text>
+  <rect class="bar" x="326" y="88" width="378" height="84" rx="14"/><text class="muted" x="348" y="122">User request</text><text class="small" x="348" y="148">task-scoped conversation</text>
+  <rect class="bar" x="326" y="190" width="378" height="56" rx="12"/><text class="accent" x="348" y="224">Worked for 18m · activity</text>
+  <rect class="bar" x="326" y="264" width="378" height="126" rx="14"/><text class="muted" x="348" y="299">Changed files summary</text><text class="small" x="348" y="328">render.rs              +161 −96</text><text class="small" x="348" y="355">process_memory.rs       +54</text>
+  <rect class="bar" x="326" y="548" width="378" height="112" rx="16"/><text class="muted" x="348" y="582">Send follow-up</text><text class="small" x="348" y="628">model · branch · environment · context</text>
+  <text class="label" x="772" y="62">IDE / Changes</text>
+  <rect class="bar" x="772" y="88" width="378" height="46" rx="10"/><text class="small" x="792" y="117">Last Agent Turn  +465 −130</text>
+  <rect class="red" x="772" y="154" width="378" height="72" rx="8"/><text class="small" x="792" y="186">removed code</text>
+  <rect class="green" x="772" y="232" width="378" height="88" rx="8"/><text class="small" x="792" y="270">added code</text>
+  <rect class="bar" x="772" y="340" width="378" height="216" rx="12"/><text class="muted" x="792" y="376">Reviewable diff result</text><path d="M794 408h320M794 438h280M794 468h330M794 498h240" stroke="#55585f" stroke-width="10" stroke-linecap="round"/>
+  <path class="line" d="M268 350 C292 350 296 350 318 350"/>
+  <path class="line" d="M712 350 C733 350 738 350 760 350"/>
+  <text class="small" x="24" y="714">Observed hierarchy: Agent task is central; IDE output is adjacent and reviewable.</text>
+</svg>

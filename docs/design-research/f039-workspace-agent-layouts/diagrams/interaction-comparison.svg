@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760" role="img" aria-labelledby="title desc">
+  <title id="title">Cursor, Kition, Teable, and IdeaNote interaction comparison</title>
+  <desc id="desc">Four horizontal workflow lanes comparing how a user chooses context, works, invokes AI, inspects evidence, and accepts a result.</desc>
+  <defs><style>
+    .bg{fill:#f7f8fa}.lane{fill:#fff;stroke:#dce0e6;stroke-width:2}.idea{fill:#eef3ff;stroke:#9bb7f5;stroke-width:2}.step{fill:#f0f2f5;stroke:#d5d9e0}.accent{fill:#5b6ee1}.title{fill:#16181d;font:700 26px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}.label{fill:#20232a;font:600 18px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}.text{fill:#505560;font:14px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}.small{fill:#4b5260;font:13px ui-monospace,SFMono-Regular,Menlo,monospace}.arrow{stroke:#7d8490;stroke-width:2;fill:none;marker-end:url(#arrow)}
+  </style><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#7d8490"/></marker></defs>
+  <rect class="bg" width="1280" height="760" rx="24"/>
+  <text class="title" x="42" y="54">Interaction comparison</text>
+  <text class="small" x="42" y="80">context → direct work → Agent task → evidence → accept / continue</text>
+  <g transform="translate(36 112)">
+    <rect class="lane" width="1208" height="126" rx="16"/><text class="label" x="22" y="34">Cursor</text>
+    <g transform="translate(150 22)"><rect class="step" width="170" height="82" rx="12"/><text class="text" x="18" y="34">Choose Agent</text><text class="text" x="18" y="56">workspace / task</text></g>
+    <g transform="translate(360 22)"><rect class="step" width="170" height="82" rx="12"/><text class="text" x="18" y="34">Continue thread</text><text class="text" x="18" y="56">in center</text></g>
+    <g transform="translate(570 22)"><rect class="step" width="170" height="82" rx="12"/><text class="text" x="18" y="34">Observe activity</text><text class="text" x="18" y="56">and changed files</text></g>
+    <g transform="translate(780 22)"><rect class="step" width="170" height="82" rx="12"/><text class="text" x="18" y="34">Inspect IDE diff</text><text class="text" x="18" y="56">in right panel</text></g>
+    <g transform="translate(990 22)"><rect class="step" width="190" height="82" rx="12"/><text class="text" x="18" y="34">Review / follow up</text><text class="text" x="18" y="56">or deliver change</text></g>
+    <path class="arrow" d="M322 63h32M532 63h32M742 63h32M952 63h32"/>
+  </g>
+  <g transform="translate(36 254)">
+    <rect class="lane" width="1208" height="126" rx="16"/><text class="label" x="22" y="34">Kition</text>
+    <g transform="translate(150 22)"><rect class="step" width="170" height="82" rx="12"/><text class="text" x="18" y="34">Choose file</text><text class="text" x="18" y="56">in Workspace tree</text></g>
+    <g transform="translate(360 22)"><rect class="step" width="170" height="82" rx="12"/><text class="text" x="18" y="34">Choose view and</text><text class="text" x="18" y="56">edit the grid</text></g>
+    <g transform="translate(570 22)"><rect class="step" width="170" height="82" rx="12"/><text class="text" x="18" y="34">Ask right-side</text><text class="text" x="18" y="56">Agent about table</text></g>
+    <g transform="translate(780 22)"><rect class="step" width="170" height="82" rx="12"/><text class="text" x="18" y="34">Inspect answer</text><text class="text" x="18" y="56">beside editor</text></g>
+    <g transform="translate(990 22)"><rect class="step" width="190" height="82" rx="12"/><text class="text" x="18" y="34">Continue direct</text><text class="text" x="18" y="56">table work</text></g>
+    <path class="arrow" d="M322 63h32M532 63h32M742 63h32M952 63h32"/>
+  </g>
+  <g transform="translate(36 396)">
+    <rect class="lane" width="1208" height="126" rx="16"/><text class="label" x="22" y="34">Teable</text>
+    <g transform="translate(150 22)"><rect class="step" width="170" height="82" rx="12"/><text class="text" x="18" y="34">Open table/view</text><text class="text" x="18" y="56">implicit context</text></g>
+    <g transform="translate(360 22)"><rect class="step" width="170" height="82" rx="12"/><text class="text" x="18" y="34">Select cells or</text><text class="text" x="18" y="56">add @ references</text></g>
+    <g transform="translate(570 22)"><rect class="step" width="170" height="82" rx="12"/><text class="text" x="18" y="34">Ask for analysis</text><text class="text" x="18" y="56">or a plan</text></g>
+    <g transform="translate(780 22)"><rect class="step" width="170" height="82" rx="12"/><text class="text" x="18" y="34">Observe progress</text><text class="text" x="18" y="56">and node changes</text></g>
+    <g transform="translate(990 22)"><rect class="step" width="190" height="82" rx="12"/><text class="text" x="18" y="34">Confirm mutation</text><text class="text" x="18" y="56">or queue follow-up</text></g>
+    <path class="arrow" d="M322 63h32M532 63h32M742 63h32M952 63h32"/>
+  </g>
+  <g transform="translate(36 552)">
+    <rect class="idea" width="1208" height="150" rx="18"/><text class="label" x="22" y="36">IdeaNote target</text>
+    <g transform="translate(150 34)"><rect fill="#fff" stroke="#b7c9f6" width="170" height="88" rx="12"/><text class="text" x="18" y="34">Choose real local</text><text class="text" x="18" y="58">Workspace file</text></g>
+    <g transform="translate(360 34)"><rect fill="#fff" stroke="#b7c9f6" width="170" height="88" rx="12"/><text class="text" x="18" y="34">Work directly in</text><text class="text" x="18" y="58">active editor view</text></g>
+    <g transform="translate(570 34)"><rect fill="#fff" stroke="#b7c9f6" width="170" height="88" rx="12"/><text class="text" x="18" y="34">Show exact scope</text><text class="text" x="18" y="58">file · view · selection</text></g>
+    <g transform="translate(780 34)"><rect fill="#fff" stroke="#b7c9f6" width="170" height="88" rx="12"/><text class="text" x="18" y="34">Plan + ordered</text><text class="text" x="18" y="58">activity / changes</text></g>
+    <g transform="translate(990 34)"><rect class="accent" width="190" height="88" rx="12"/><text fill="#fff" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="14" x="18" y="34">Apply through editor</text><text fill="#fff" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="14" x="18" y="58">Undo / save safely</text></g>
+    <path class="arrow" d="M322 78h32M532 78h32M742 78h32M952 78h32"/>
+  </g>
+</svg>

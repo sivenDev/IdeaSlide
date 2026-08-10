@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Teable observed and documented layout model</title>
+  <desc id="desc">A left base tree, central table and view workbench, plus a documented AI context layer for current view, selection, references, and attachments.</desc>
+  <defs><style>
+    .bg{fill:#f3f4f6}.panel{fill:#fff;stroke:#d8dbe2;stroke-width:2}.soft{fill:#f7f8fa}.mint{fill:#dff5e8}.blue{fill:#3f7cf4}.pink{fill:#f7dfe5}.yellow{fill:#fff0bf}.label{fill:#17191e;font:600 22px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}.muted{fill:#60646f;font:15px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}.small{fill:#474b55;font:14px ui-monospace,SFMono-Regular,Menlo,monospace}.grid{stroke:#d9dce3;stroke-width:1}.line{stroke:#5f7288;stroke-width:2;fill:none;marker-end:url(#arrow)}
+  </style><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#5f7288"/></marker></defs>
+  <rect class="bg" width="1200" height="720" rx="24"/>
+  <rect class="panel" x="24" y="24" width="240" height="672" rx="16"/>
+  <rect class="panel" x="280" y="24" width="896" height="672" rx="16"/>
+  <text class="label" x="48" y="64">Base tree</text><text class="small" x="48" y="95">TASK TRACKER</text>
+  <rect class="mint" x="42" y="122" width="204" height="44" rx="8"/><text class="muted" x="60" y="150">▰ Task Management</text>
+  <text class="muted" x="60" y="196">▦ Task Management</text><text class="muted" x="60" y="234">▣ Dashboard / app</text>
+  <text class="label" x="306" y="64">Task Management</text><rect class="soft" x="516" y="38" width="116" height="42" rx="9"/><text class="muted" x="546" y="65">Grid view</text>
+  <rect class="soft" x="302" y="104" width="850" height="52" rx="8"/><text class="small" x="320" y="136">Fields   Filter   Sort   Group   Row height   Search</text>
+  <rect class="soft" x="302" y="170" width="850" height="42"/><path class="grid" d="M356 170v364M570 170v364M760 170v364M920 170v364M1068 170v364M302 212h850M302 258h850M302 304h850M302 350h850M302 396h850M302 442h850M302 488h850M302 534h850"/>
+  <text class="small" x="320" y="197">#</text><text class="small" x="378" y="197">Task description</text><text class="small" x="590" y="197">Summary</text><text class="small" x="780" y="197">Assignee</text><text class="small" x="940" y="197">Progress</text>
+  <rect class="blue" x="938" y="228" width="92" height="24" rx="8"/><text fill="#fff" font-size="13" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" x="952" y="245">Completed</text>
+  <rect class="pink" x="938" y="366" width="88" height="24" rx="8"/><text class="small" x="949" y="383">In progress</text>
+  <rect class="yellow" x="938" y="502" width="90" height="24" rx="8"/><text class="small" x="950" y="519">Not started</text>
+  <rect x="302" y="568" width="850" height="96" rx="14" fill="#eef4ff" stroke="#b9cff8" stroke-width="2"/>
+  <text class="label" x="326" y="600">Documented AI context layer</text>
+  <rect fill="#fff" x="326" y="616" width="142" height="30" rx="15"/><text class="small" x="342" y="636">current view</text>
+  <rect fill="#fff" x="478" y="616" width="142" height="30" rx="15"/><text class="small" x="494" y="636">selected cells</text>
+  <rect fill="#fff" x="630" y="616" width="142" height="30" rx="15"/><text class="small" x="646" y="636">@ workspace node</text>
+  <rect fill="#fff" x="782" y="616" width="126" height="30" rx="15"/><text class="small" x="800" y="636">attachment</text>
+  <rect fill="#fff" x="918" y="616" width="210" height="30" rx="15"/><text class="small" x="934" y="636">plan before mutation</text>
+  <path class="line" d="M248 300 C270 300 274 300 294 300"/><path class="line" d="M728 566 C728 550 728 544 728 526"/>
+  <text class="small" x="24" y="714">Observed table hierarchy plus official AI context behavior; exact live AI panel proportions were not observed.</text>
+</svg>

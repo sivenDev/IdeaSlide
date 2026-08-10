@@ -287,3 +287,10 @@ Expose truthful per-Thread Agent runtime health and memory visibility: current r
 - created: 2026-08-10
 
 Implement the first real Markdown (.md) editor in Workspace and Single File modes using the shared document kernel and established open-source components. Provide source editing, safe GFM preview, edit/split/preview modes, links and in-document references, native editor Undo/Redo, save/autosave/recovery/external-change protection, registry-driven create/open/filter behavior, and loss-aware UTF-8 line-ending/BOM handling. Generalize the currently IdeaSketch-specific frontend/backend seams instead of adding Markdown branches to shared commands. Add a Markdown Agent Extension with its own packaged Skill, bounded read/range Tools, direct editor-SDK mutations as one Undo transaction, and no file writes or runtime-specific logic.
+
+## F039: Explore workspace-first AI agent product layouts
+
+- status: done
+- created: 2026-08-10
+
+Remove the home-screen concept from the proposed product direction and explore a workspace-first main shell that opens directly into a left Workspace, center editor, and right AI Agent layout. Use the locally installed Cursor and Kition products plus Teable as references while keeping IdeaNote focused on workspace + editable content/table-like information. Preserve the research trail in one project directory, including source screenshots, layout diagrams, interaction-design notes, comparison findings, and applicability decisions. Deliver at least three distinct, directly openable HTML design concepts for human comparison; production application refactoring is out of scope until a direction is selected.

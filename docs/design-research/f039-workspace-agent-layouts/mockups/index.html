@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>F039 · Workspace-first layout concepts</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root { color-scheme: light; font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #17243a; background: #e7edf3; }
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; margin: 0; background: radial-gradient(circle at 84% 2%, rgba(43,139,125,.14), transparent 28%), #e7edf3; }
+    a:focus-visible { outline: 3px solid #245fc9; outline-offset: 4px; }
+    .page { width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding: 40px 0 56px; }
+    .masthead { display: grid; grid-template-columns: 1fr auto; gap: 28px; align-items: end; padding: 0 0 28px; border-bottom: 1px solid #bfcbd6; }
+    .kicker { margin: 0 0 12px; color: #2b776d; font: 750 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { max-width: 760px; margin: 0; font-size: clamp(38px, 6vw, 76px); line-height: .92; letter-spacing: -.065em; }
+    .masthead p { max-width: 330px; margin: 0; color: #5e6d80; font-size: 14px; line-height: 1.55; }
+    .decision { display: grid; grid-template-columns: 220px 1fr; gap: 24px; margin: 24px 0 34px; padding: 20px 22px; border-radius: 14px; background: #14243b; color: white; box-shadow: 0 20px 50px rgba(25,42,66,.12); }
+    .decision-label { color: #8ecabd; font: 720 10px ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase; }
+    .decision h2 { margin: 5px 0 0; font-size: 19px; }
+    .decision p { margin: 0; color: #bdcad8; font-size: 13px; line-height: 1.55; }
+    .concepts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .card { min-width: 0; overflow: hidden; border: 1px solid #c4ced8; border-radius: 14px; background: #f7f9fb; box-shadow: 0 8px 24px rgba(35,53,75,.06); }
+    .preview { height: 185px; display: grid; grid-template-columns: 21% 1fr 28%; gap: 3px; padding: 18px; background: var(--preview-bg); }
+    .preview span { display: block; border-radius: 4px; background: var(--panel); }
+    .preview .center { background: var(--center); box-shadow: inset 0 24px var(--chrome); }
+    .preview .right { background: var(--right); }
+    .atlas { --preview-bg: #161a20; --panel: #252a32; --center: #f4f5f7; --chrome: #323842; --right: #252a32; }
+    .ledger { --preview-bg: #0d0f12; --panel: #15181c; --center: #15181d; --chrome: #21252b; --right: #101216; }
+    .loom { --preview-bg: #dfe7ef; --panel: #16233a; --center: #fbfcfe; --chrome: #eef3f8; --right: #f3f7f7; }
+    .card-body { padding: 20px; }
+    .card-number { color: #728195; font: 720 10px ui-monospace, monospace; letter-spacing: .1em; }
+    .card h2 { margin: 9px 0 5px; font-size: 23px; letter-spacing: -.035em; }
+    .source { margin: 0 0 14px; color: #247264; font-size: 11px; font-weight: 720; }
+    .card p { min-height: 64px; margin: 0 0 18px; color: #637184; font-size: 12px; line-height: 1.5; }
+    .open { display: inline-flex; align-items: center; min-height: 34px; padding: 0 12px; border-radius: 7px; background: #17243a; color: white; text-decoration: none; font-size: 11px; font-weight: 720; }
+    .open::after { content: "↗"; margin-left: 8px; }
+    .recommend { display: inline-flex; margin-left: 7px; padding: 5px 7px; border-radius: 999px; background: #d8eee8; color: #247264; font-size: 9px; font-weight: 800; text-transform: uppercase; }
+    .matrix { margin-top: 34px; padding-top: 28px; border-top: 1px solid #bfcbd6; }
+    .matrix h2 { margin: 0 0 15px; font-size: 18px; }
+    table { width: 100%; border-collapse: collapse; background: rgba(255,255,255,.5); font-size: 11px; }
+    th, td { padding: 12px; border: 1px solid #c8d2dc; text-align: left; vertical-align: top; }
+    th { background: #dfe7ee; color: #556579; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
+    td:first-child { font-weight: 720; }
+    .notes { display: flex; justify-content: space-between; gap: 20px; margin-top: 24px; color: #657487; font-size: 11px; }
+    .notes a { color: #245fc9; }
+    @media (max-width: 850px) { .masthead, .decision { grid-template-columns: 1fr; } .concepts { grid-template-columns: 1fr; } .card p { min-height: 0; } .preview { height: 150px; } .matrix { overflow-x: auto; } table { min-width: 720px; } }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="masthead">
+      <div>
+        <p class="kicker">IdeaNote · F039 design study</p>
+        <h1>Open into the work.</h1>
+      </div>
+      <p>Three workspace-first shells remove the Home screen and keep a real Workspace, a table-shaped editor, and an independent AI Agent visible from the first frame.</p>
+    </header>
+
+    <section class="decision" aria-labelledby="decision-title">
+      <div>
+        <span class="decision-label">Recommended direction</span>
+        <h2 id="decision-title">Workspace Loom</h2>
+      </div>
+      <p>Use Kition's immediate three-region clarity, Teable's explicit scope model, and Cursor's ordered work evidence—then express them through IdeaNote's local-file and editor ownership. Atlas Table and Agent Ledger remain useful specialist references.</p>
+    </section>
+
+    <section class="concepts" aria-label="Layout concepts">
+      <article class="card">
+        <div class="preview atlas" aria-hidden="true"><span></span><span class="center"></span><span class="right"></span></div>
+        <div class="card-body">
+          <span class="card-number">CONCEPT A</span>
+          <h2>Atlas Table</h2>
+          <div class="source">Kition-influenced data workbench</div>
+          <p>Maximum table legibility and compact direct-manipulation controls, with a persistent Agent scope strip joining the active file to the right column.</p>
+          <a class="open" href="atlas-table.html">Open concept</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="preview ledger" aria-hidden="true"><span></span><span class="center"></span><span class="right"></span></div>
+        <div class="card-body">
+          <span class="card-number">CONCEPT B</span>
+          <h2>Agent Ledger</h2>
+          <div class="source">Cursor-influenced execution workbench</div>
+          <p>A wider Agent column turns every request into an ordered run, Tool trail, and reviewable table-change ledger while the editor stays directly usable.</p>
+          <a class="open" href="agent-ledger.html">Open concept</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="preview loom" aria-hidden="true"><span></span><span class="center"></span><span class="right"></span></div>
+        <div class="card-body">
+          <span class="card-number">CONCEPT C</span>
+          <h2>Workspace Loom <span class="recommend">Recommended</span></h2>
+          <div class="source">IdeaNote-native context workbench</div>
+          <p>A continuous context thread connects the selected Workspace object, current editor view, record selection, and Agent target without competing with the table.</p>
+          <a class="open" href="workspace-loom.html">Open concept</a>
+        </div>
+      </article>
+    </section>
+
+    <section class="matrix" aria-labelledby="matrix-title">
+      <h2 id="matrix-title">Decision matrix</h2>
+      <table>
+        <thead><tr><th>Criterion</th><th>Atlas Table</th><th>Agent Ledger</th><th>Workspace Loom</th></tr></thead>
+        <tbody>
+          <tr><td>Immediate comprehension</td><td>Strongest table familiarity</td><td>Strongest Agent task clarity</td><td>Strong shell and context clarity</td></tr>
+          <tr><td>Table productivity</td><td>Best dense toolbar and scanning</td><td>Good, deliberately quiet</td><td>Strong with adaptable editor space</td></tr>
+          <tr><td>Agent trust</td><td>Explicit target and selection</td><td>Best ordered activity and review</td><td>Explicit target plus bounded evidence</td></tr>
+          <tr><td>IdeaNote fit</td><td>Useful Kition-derived baseline</td><td>Useful specialist Agent mode</td><td><strong>Best combined production direction</strong></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer class="notes">
+      <span>All mockups are standalone and use no production application imports.</span>
+      <span><a href="../README.md">Research index</a> · <a href="../sources/comparison.md">Full comparison</a></span>
+    </footer>
+  </main>
+</body>
+</html>
