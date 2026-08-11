@@ -1,5 +1,7 @@
 export const reviewScenarios = [
   { id: "normal", group: "Baseline", label: "Normal workspace", description: "Reset all fixtures, failures, document patches, and review preferences." },
+  { id: "window-macos-fullscreen", group: "Window", label: "macOS Fullscreen", description: "Hide macOS traffic lights and reclaim the left titlebar area.", windowState: { platform: "macos", fullscreen: true } },
+  { id: "window-windows-windowed", group: "Window", label: "Windows Windowed", description: "Reserve the Windows caption-button area on the right.", windowState: { platform: "windows", fullscreen: false } },
   { id: "read-only", group: "Filesystem", label: "Read-only document", description: "Protect the active document while keeping its Workspace writable." },
   { id: "save-failure", group: "Filesystem", label: "Save failure", description: "The next manual or automatic document save fails and writes mock recovery." },
   { id: "metadata-failure", group: "Filesystem", label: "Workspace-state warning", description: "Document save succeeds while simulated Workspace metadata persistence warns." },
@@ -23,6 +25,12 @@ export const reviewScenarios = [
 ];
 
 const byId = new Map(reviewScenarios.map((scenario) => [scenario.id, scenario]));
+const defaultWindowState = { platform: "macos", fullscreen: false };
+
+function applyWindowState(windowApi, state = defaultWindowState) {
+  windowApi?.setPlatform?.(state.platform);
+  windowApi?.setFullscreen?.(state.fullscreen);
+}
 
 export const reviewStorageKeys = [
   "ideanote-complete-review-settings-v1",
@@ -32,9 +40,10 @@ export const reviewStorageKeys = [
   "ideanote-review-theme",
 ];
 
-export function resetReviewEnvironment({ desktopApi, storage = globalThis.localStorage }) {
+export function resetReviewEnvironment({ desktopApi, windowApi, storage = globalThis.localStorage }) {
   desktopApi.failures.clear();
   desktopApi.reset();
+  applyWindowState(windowApi);
   reviewStorageKeys.forEach((key) => storage?.removeItem?.(key));
   return desktopApi.snapshot();
 }
@@ -45,10 +54,11 @@ const documentScenarioIds = new Set([
   "agent-failure", "context-pressure", "provider-required", "runtime-fallback", "invalid-skill",
 ]);
 
-export async function applyReviewScenario(id, { desktopApi, settings, activeDocument }) {
+export async function applyReviewScenario(id, { desktopApi, settings, activeDocument, windowApi }) {
   const scenario = byId.get(id) ?? byId.get("normal");
   desktopApi.failures.clear();
   desktopApi.reset();
+  applyWindowState(windowApi, scenario.windowState);
   const nextSettings = structuredClone(settings);
   nextSettings.aiEnabled = true;
   nextSettings.provider.credentialConfigured = true;
@@ -73,7 +83,7 @@ export async function applyReviewScenario(id, { desktopApi, settings, activeDocu
   let message = scenario.description;
 
   if (id === "normal") {
-    resetReviewEnvironment({ desktopApi });
+    resetReviewEnvironment({ desktopApi, windowApi });
     nextSettings.theme = "light";
   }
   if (!activeDocument && documentScenarioIds.has(id)) openTarget = { mode: "workspace", workspaceId: "ws-product", path: "Planning/product-brief.md" };

@@ -8,6 +8,17 @@ export const runtimeCatalog = [
   { id: "compatibility", label: "OpenAI-compatible", status: "standby", capabilities: ["streaming", "threads"] },
 ];
 
+export const agentModelCatalog = [
+  { id: "gpt-5.6-sol", label: "GPT 5.6 Sol", efforts: ["low", "medium", "high", "xhigh"] },
+  { id: "gpt-5.6-terra", label: "GPT 5.6 Terra", efforts: ["low", "medium", "high", "xhigh"] },
+  { id: "gpt-5.6-luna", label: "GPT 5.6 Luna", efforts: ["low", "medium", "high"] },
+  { id: "gpt-5.5", label: "GPT 5.5", efforts: ["low", "medium", "high", "xhigh"] },
+];
+
+export function resolveAgentModel(selection = agentModelCatalog[0].id) {
+  return agentModelCatalog.find((model) => model.id === selection) ?? agentModelCatalog[0];
+}
+
 export function resolveRuntime(selection = "automatic") {
   const id = selection === "compatibility" ? "compatibility" : "codex";
   return runtimeCatalog.find((runtime) => runtime.id === id);
@@ -32,10 +43,13 @@ export class MockAgentRuntime {
     return { id: `thread-${unique}`, title: `Review ${document.name}`, documentId: document.sessionId, createdAt: Date.now(), updatedAt: Date.now(), items: [] };
   }
 
-  async run({ prompt, document, deliveryMode = "incremental", signal, onEvent, toolExecutor }) {
+  async run({ prompt, document, model = agentModelCatalog[0].id, reasoningEffort = "medium", deliveryMode = "incremental", signal, onEvent, toolExecutor }) {
     const script = responseFor(prompt, document);
     const turnId = `turn-${this.sequence++}`;
-    await onEvent({ type: "turn-started", turnId, runtime: "codex", model: "gpt-5.2" });
+    const startedAt = Date.now();
+    const resolvedModel = resolveAgentModel(model);
+    const resolvedEffort = resolvedModel.efforts.includes(reasoningEffort) ? reasoningEffort : "medium";
+    await onEvent({ type: "turn-started", turnId, runtime: "codex", model: resolvedModel.id, reasoningEffort: resolvedEffort });
     await wait(140, signal);
     await onEvent({ type: "activity", title: "Attached active editor", detail: `${document.name} · revision ${document.revision}`, status: "complete" });
     await wait(160, signal);
@@ -50,9 +64,15 @@ export class MockAgentRuntime {
     const chunks = deliveryMode === "atomic" ? [script.text] : deliveryMode === "burst" ? script.text.match(/.{1,48}(?:\s|$)/g) ?? [script.text] : script.text.split(/(?<=\s)/);
     for (const chunk of chunks) {
       await wait(deliveryMode === "incremental" ? 32 : deliveryMode === "burst" ? 95 : 20, signal);
-      await onEvent({ type: "message-delta", text: chunk });
+      await onEvent({ type: "message-delta", turnId, text: chunk });
     }
-    await onEvent({ type: "turn-completed", turnId, contextPercent: Math.min(96, 38 + prompt.length) });
+    const contextPercent = Math.min(96, 38 + prompt.length);
+    await onEvent({
+      type: "turn-completed",
+      turnId,
+      contextPercent,
+      evidence: { model: resolvedModel.id, reasoningEffort: resolvedEffort, contextPercent, elapsedMs: Math.max(1, Date.now() - startedAt) },
+    });
     return { turnId, text: script.text };
   }
 }

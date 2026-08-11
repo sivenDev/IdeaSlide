@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { defaultSettings } from "../src/mock/mockSettingsApi.js";
 import { MockDesktopApi } from "../src/mock/mockDesktopApi.js";
+import { MockWindowApi } from "../src/mock/mockWindowApi.js";
 import { applyReviewScenario, resetReviewEnvironment, reviewScenarios, reviewStorageKeys } from "../src/scenarios/reviewScenarioRegistry.js";
 
 const document = { sessionId: "workspace:ws-product:Planning/product-brief.md", mode: "workspace", workspaceId: "ws-product", path: "Planning/product-brief.md", name: "product-brief.md", type: "markdown", content: "# Brief", revision: 1, dirty: false };
@@ -23,6 +24,24 @@ test("read-only review remains document-scoped", async () => {
   assert.equal(result.documentPatch.readOnly, true);
   assert.equal(api.snapshot().workspaces.every((workspace) => !("readOnly" in workspace)), true);
   assert.equal(reviewScenarios.some((scenario) => scenario.label === "Read-only Workspace"), false);
+});
+
+test("window review scenarios drive native chrome state without leaking across scenarios", async () => {
+  const api = new MockDesktopApi({ latency: 0 });
+  const windowApi = new MockWindowApi({ platform: "macos", fullscreen: false });
+  const settings = structuredClone(defaultSettings);
+
+  assert.equal(reviewScenarios.some((scenario) => scenario.label === "macOS Fullscreen"), true);
+  assert.equal(reviewScenarios.some((scenario) => scenario.label === "Windows Windowed"), true);
+
+  await applyReviewScenario("window-macos-fullscreen", { desktopApi: api, settings, activeDocument: document, windowApi });
+  assert.deepEqual(windowApi.getState(), { platform: "macos", fullscreen: true });
+
+  await applyReviewScenario("window-windows-windowed", { desktopApi: api, settings, activeDocument: document, windowApi });
+  assert.deepEqual(windowApi.getState(), { platform: "windows", fullscreen: false });
+
+  await applyReviewScenario("read-only", { desktopApi: api, settings, activeDocument: document, windowApi });
+  assert.deepEqual(windowApi.getState(), { platform: "macos", fullscreen: false });
 });
 
 test("reset is deterministic and clears only namespaced review storage", async () => {

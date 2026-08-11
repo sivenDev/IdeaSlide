@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Complete |
-| --- | --- | --- |
-| `required` | 6 | 6 |
-| `feature` | 55 | 55 |
-| `bugfix` | 31 | 31 |
+| Type | Plans | In Progress | Complete |
+| --- | --- | --- | --- |
+| `required` | 6 | 0 | 6 |
+| `feature` | 55 | 0 | 55 |
+| `bugfix` | 32 | 1 | 31 |
 
 ## Execution Order
 
@@ -127,3 +127,4 @@
 | `B029` | [Make Burst Agent Answers Visibly Progressive](bugs/B029-make-burst-agent-answers-visibly-progressive.md) | `complete` | 2026-08-09 |
 | `B030` | [Fix Transient Menus, Settings, and Agent History](bugs/B030-fix-transient-menus-settings-and-agent-history.md) | `complete` | 2026-08-11 |
 | `B031` | [Compact Workspace and Agent Menus and Remove Redundant Labels](bugs/B031-compact-workspace-agent-menus-and-labels.md) | `complete` | 2026-08-11 |
+| `B032` | [Refine Agent Controls, Window Chrome, Menus, and Workspace Dragging](bugs/B032-refine-agent-window-chrome-menus-and-workspace-dragging.md) | `in_progress` | 2026-08-11 |

@@ -190,6 +190,9 @@ export class MockDesktopApi {
     const found = workspace && walk(workspace.entries, (entry) => entry.path === path);
     const destination = workspace && findDirectory(workspace.entries, destinationPath);
     if (!workspace || !found || !destination) throw new Error("The move destination is unavailable.");
+    if (found.entry.kind === "directory" && (destinationPath === path || destinationPath.startsWith(`${path}/`))) throw new Error("A folder cannot be moved into itself or one of its descendants.");
+    const sourceParentPath = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+    if (sourceParentPath === destinationPath) throw new Error("The item is already in this folder. Same-folder ordering is unchanged.");
     const sourceList = found.parent?.children ?? workspace.entries;
     if (destination.children.some((entry) => entry.name.toLowerCase() === found.entry.name.toLowerCase())) throw new Error("The destination already contains an item with this name.");
     sourceList.splice(sourceList.indexOf(found.entry), 1);

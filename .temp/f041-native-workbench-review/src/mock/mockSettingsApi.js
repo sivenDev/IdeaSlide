@@ -4,7 +4,7 @@ export const defaultSettings = {
   theme: "light",
   aiEnabled: true,
   provider: { baseUrl: "https://api.openai.com/v1", model: "gpt-5.2", retryEnabled: true, maxAttempts: 3, credentialConfigured: true },
-  agent: { runtime: "automatic", maxSteps: 12, exactContextWarning: 78, showToolActivity: true, deliveryMode: "incremental", diagnostics: 20, replayEvents: 200 },
+  agent: { runtime: "automatic", model: "gpt-5.6-sol", reasoningEffort: "medium", maxSteps: 12, exactContextWarning: 78, showToolActivity: true, deliveryMode: "incremental", diagnostics: 20, replayEvents: 200 },
   ideaSketch: { laserEnabled: true },
   skills: [
     { id: "workspace-review", name: "Workspace Review", source: "bundled", enabled: true, scope: "all", autonomous: true, valid: true },

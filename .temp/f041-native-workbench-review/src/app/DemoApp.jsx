@@ -1,4 +1,3 @@
-import { PanelLeft } from "lucide-react";
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { AgentPanel } from "../components/agent/AgentPanel.jsx";
 import { CommandPalette } from "../components/commands/CommandPalette.jsx";
@@ -6,10 +5,12 @@ import { buildCommandCatalog, commandById } from "../components/commands/command
 import { ConfirmDialog, MockPickerDialog, TextEntryDialog, UnsavedChangesDialog } from "../components/dialogs/Dialogs.jsx";
 import { EditorHost } from "../components/editor/EditorHost.jsx";
 import { ResizableDivider } from "../components/layout/ResizableDivider.jsx";
+import { WindowChrome } from "../components/layout/WindowChrome.jsx";
 import { SettingsCenter } from "../components/settings/SettingsCenter.jsx";
 import { WorkspacePanel } from "../components/workspace/WorkspacePanel.jsx";
 import { mockDesktopApi } from "../mock/mockDesktopApi.js";
 import { defaultSettings, mockSettingsApi } from "../mock/mockSettingsApi.js";
+import { mockWindowApi, windowChromeInsets } from "../mock/mockWindowApi.js";
 import { applyReviewScenario } from "../scenarios/reviewScenarioRegistry.js";
 import { activeDocument, demoReducer, initialState } from "./demoStore.js";
 
@@ -52,6 +53,7 @@ export function DemoApp() {
   const [editorAdapter, setEditorAdapter] = useState(null);
   const [settings, setSettings] = useState(defaultSettings);
   const [layout, setLayout] = useState(() => initialLayout(frame?.width));
+  const [windowState, setWindowState] = useState(() => mockWindowApi.getState());
   const document = activeDocument(state);
   const activeWorkspace = state.workspaces.find((item) => item.id === state.activeWorkspaceId) ?? state.workspaces[0];
 
@@ -155,7 +157,12 @@ export function DemoApp() {
   };
 
   const applyScenario = async (id) => {
-    const outcome = await applyReviewScenario(id, { desktopApi: mockDesktopApi, settings, activeDocument: document });
+    const outcome = await applyReviewScenario(id, {
+      desktopApi: mockDesktopApi,
+      settings,
+      activeDocument: document,
+      windowApi: mockWindowApi,
+    });
     const nextSettings = id === "normal" ? clone(defaultSettings) : outcome.settings;
     setSettings(nextSettings);
     dispatch({ type: "set-theme", theme: nextSettings.theme });
@@ -265,6 +272,16 @@ export function DemoApp() {
     else executeEntryAction(action, target);
   };
 
+  const moveWorkspaceEntry = async ({ workspaceId, path, destinationPath }) => {
+    try {
+      const moved = await mockDesktopApi.moveEntry(workspaceId, path, destinationPath);
+      dispatch({ type: "remap-workspace-path", workspaceId, previousPath: path, nextPath: moved.path });
+      await refresh();
+    } catch (error) {
+      dispatch({ type: "set-notice", notice: { tone: "danger", message: error.message } });
+    }
+  };
+
   const commands = useMemo(() => buildCommandCatalog({ document, recents: state.recents, workspaceOpen: state.workspaceOpen, agentOpen: state.agentOpen, aiEnabled: settings.aiEnabled }), [document, state.recents, state.workspaceOpen, state.agentOpen, settings.aiEnabled]);
   const runCommand = async (id) => {
     if (!commandById(commands, id)) return;
@@ -292,6 +309,7 @@ export function DemoApp() {
   useEffect(() => mockDesktopApi.subscribe(() => refresh()), [refresh]);
   useEffect(() => { if (!settings.aiEnabled && state.agentOpen) dispatch({ type: "toggle-agent" }); }, [settings.aiEnabled, state.agentOpen]);
   useEffect(() => { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); }, [layout]);
+  useEffect(() => mockWindowApi.subscribe(setWindowState), []);
   useEffect(() => {
     const root = window.document.documentElement;
     const apply = () => { root.dataset.theme = effectiveTheme(state.theme); };
@@ -337,7 +355,14 @@ export function DemoApp() {
   }
   const workspaceMax = Math.max(190, Math.min(360, availableWidth - agentWidth - 340));
   const agentMax = Math.max(260, Math.min(440, availableWidth - workspaceWidth - 340));
-  const shellStyle = { "--workspace-column": `${workspaceWidth}px`, "--agent-column": `${agentWidth}px`, ...(frame ? { width: frame.width, height: frame.height } : {}) };
+  const chromeInsets = windowChromeInsets(windowState);
+  const shellStyle = {
+    "--workspace-column": `${workspaceWidth}px`,
+    "--agent-column": `${agentWidth}px`,
+    "--native-left-safe": `${chromeInsets.left}px`,
+    "--native-right-safe": `${chromeInsets.right}px`,
+    ...(frame ? { width: frame.width, height: frame.height } : {}),
+  };
   const completePending = async (mode) => {
     if (pendingOpen?.exit) {
       dispatch({ type: "cancel-open" });
@@ -349,9 +374,9 @@ export function DemoApp() {
   if (!state.ready) return <div className="loading-screen">Preparing deterministic mock workspace…</div>;
 
   return (
-    <main className={shellClass} data-document={document ? "file" : "welcome"} style={shellStyle}>
-      <div className="window-controls"><div className="traffic-lights" aria-hidden="true"><span /><span /><span /></div><button className="panel-toggle panel-toggle--workspace" type="button" aria-label={state.workspaceOpen ? "Hide Workspaces" : "Show Workspaces"} aria-pressed={state.workspaceOpen} data-tooltip={state.workspaceOpen ? "Hide Workspaces" : "Show Workspaces"} onClick={() => dispatch({ type: "toggle-workspace" })}><PanelLeft size={16} /></button></div>
-      {state.workspaceOpen && <WorkspacePanel state={state} dispatch={dispatch} onOpen={(workspaceId, path) => openFile({ mode: "workspace", workspaceId, path })} onOpenRecent={openRecent} onAddWorkspace={() => dispatch({ type: "set-modal", modal: "workspace-picker" })} onCreate={beginCreate} onWorkspaceAction={beginWorkspaceAction} onEntryAction={beginEntryAction} onSettings={() => dispatch({ type: "set-modal", modal: "settings" })} onRemoveRecent={async (id) => { await mockDesktopApi.removeRecent(id); refresh(); }} />}
+    <main className={shellClass} data-document={document ? "file" : "welcome"} data-window-platform={windowState.platform} data-window-fullscreen={windowState.fullscreen ? "true" : "false"} style={shellStyle}>
+      <WindowChrome state={windowState} workspaceOpen={state.workspaceOpen} onToggleWorkspace={() => dispatch({ type: "toggle-workspace" })} />
+      {state.workspaceOpen && <WorkspacePanel state={state} dispatch={dispatch} onOpen={(workspaceId, path) => openFile({ mode: "workspace", workspaceId, path })} onOpenRecent={openRecent} onAddWorkspace={() => dispatch({ type: "set-modal", modal: "workspace-picker" })} onCreate={beginCreate} onWorkspaceAction={beginWorkspaceAction} onEntryAction={beginEntryAction} onMoveEntry={moveWorkspaceEntry} onSettings={() => dispatch({ type: "set-modal", modal: "settings" })} onRemoveRecent={async (id) => { await mockDesktopApi.removeRecent(id); refresh(); }} />}
       <EditorHost document={document} onSaveAs={() => saveAsDocument()} onClose={() => document?.dirty ? dispatch({ type: "request-open", target: { close: true } }) : dispatch({ type: "close-document" })} onChange={(content) => dispatch({ type: "update-document", sessionId: document.sessionId, content })} onOpenRecent={() => state.recents[0] && openRecent(state.recents[0])} onOpenFile={() => dispatch({ type: "set-modal", modal: "file-picker" })} onNewFile={() => beginCreate(activeWorkspace && { workspaceId: activeWorkspace.id, directoryPath: "", label: activeWorkspace.name })} agentOpen={state.agentOpen} onToggleAgent={() => dispatch({ type: "toggle-agent" })} onRegisterAdapter={setEditorAdapter} laserEnabled={settings.ideaSketch.laserEnabled} agentEnabled={settings.aiEnabled} onPatchDocument={patchDocument} onReloadDocument={reloadDocument} />
       {state.agentOpen && document && settings.aiEnabled && <AgentPanel document={document} settings={settings} editorAdapter={editorAdapter} onOpenSettings={() => dispatch({ type: "set-modal", modal: "settings" })} onToggleAgent={() => dispatch({ type: "toggle-agent" })} />}
 

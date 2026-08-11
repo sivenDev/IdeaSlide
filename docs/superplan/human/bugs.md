@@ -264,3 +264,16 @@ Refine only .temp/f041-native-workbench-review from the latest review feedback. 
 - created: 2026-08-11
 
 Refine only .temp/f041-native-workbench-review from the latest visual review. Workspace roots must not expose a Read-only state: an added Workspace is writable, the default Operations Hub fixture must be editable, and the read-only review scenario must remain document-scoped. All floating action menus must size to their actions instead of using a fixed wide surface, open adjacent to their three-dot or plus trigger, and omit decorative object-name headings. Agent conversation history must omit the Conversations/count header, keep the history list compact, and anchor each Rename/Delete menu beside its row trigger without the current vertical drift. Settings content must remove redundant kicker/navigation copy so each page has one clear title while the left navigation retains grouping. Preserve Radix accessibility and dismissal behavior, English copy, Light/Dark/System, responsive geometry, deterministic mocks, and the no-production-migration boundary.
+
+## B032: Refine Agent controls, window chrome, menus, and Workspace dragging
+
+- status: accepted
+- created: 2026-08-11
+
+Symptoms and acceptance:
+- Remove the Agent composer "Automatic Skill" control and the exposed "incremental" delivery-mode text.
+- Add a compact per-assistant-response capability inspector showing the model, reasoning effort, and context-window usage.
+- Add composer model and reasoning-effort selection modeled on the supplied ChatGPT references; selections must affect subsequent mocked Turns.
+- Make the upper-left Workspace toggle respect desktop window chrome: macOS windowed traffic-light safe area, macOS fullscreen without traffic lights, and Windows/non-macOS caption-button space.
+- Re-anchor Workspace overflow menus beside their three-dot triggers with collision-safe fallback instead of opening as a wide dropdown under the row.
+- Add maintained-library drag interactions for visible Workspace files/folders. A file or directory may be dragged from any tree depth into another directory, including moving outward from a nested directory into its parent, a different branch, or back to the current Workspace root through the existing mock desktop boundary; same-parent ordering, cross-Workspace moves, external filesystem drops, invalid targets, and self-descendant drops remain inert or are rejected, and the active document identity is preserved.

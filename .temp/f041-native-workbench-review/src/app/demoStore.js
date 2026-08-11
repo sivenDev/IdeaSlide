@@ -21,6 +21,12 @@ export const initialState = {
   activeScenario: "normal",
 };
 
+function remapPath(path, previousPath, nextPath) {
+  if (path === previousPath) return nextPath;
+  if (path.startsWith(`${previousPath}/`)) return `${nextPath}${path.slice(previousPath.length)}`;
+  return path;
+}
+
 export function demoReducer(state, action) {
   switch (action.type) {
     case "hydrate":
@@ -58,6 +64,35 @@ export function demoReducer(state, action) {
       const next = new Set(state.expandedDirectories);
       next.has(action.key) ? next.delete(action.key) : next.add(action.key);
       return { ...state, expandedDirectories: next };
+    }
+    case "remap-workspace-path": {
+      const prefix = `${action.workspaceId}:`;
+      const sessions = {};
+      let activeSessionId = state.activeSessionId;
+      for (const [key, session] of Object.entries(state.sessions)) {
+        if (session.mode !== "workspace" || session.workspaceId !== action.workspaceId) {
+          sessions[key] = session;
+          continue;
+        }
+        const path = remapPath(session.path, action.previousPath, action.nextPath);
+        if (path === session.path) {
+          sessions[key] = session;
+          continue;
+        }
+        const sessionId = `workspace:${action.workspaceId}:${path}`;
+        sessions[sessionId] = { ...session, sessionId, path };
+        if (activeSessionId === key) activeSessionId = sessionId;
+      }
+      const selectedPath = state.selectedPath?.startsWith(prefix)
+        ? `${prefix}${remapPath(state.selectedPath.slice(prefix.length), action.previousPath, action.nextPath)}`
+        : state.selectedPath;
+      const expandedDirectories = new Set([...state.expandedDirectories].map((key) => key.startsWith(prefix)
+        ? `${prefix}${remapPath(key.slice(prefix.length), action.previousPath, action.nextPath)}`
+        : key));
+      const pendingOpen = state.pendingOpen?.mode === "workspace" && state.pendingOpen.workspaceId === action.workspaceId
+        ? { ...state.pendingOpen, path: remapPath(state.pendingOpen.path, action.previousPath, action.nextPath) }
+        : state.pendingOpen;
+      return { ...state, sessions, activeSessionId, selectedPath, expandedDirectories, pendingOpen };
     }
     case "request-open":
       return { ...state, pendingOpen: action.target, modal: "unsaved" };

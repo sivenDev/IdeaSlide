@@ -23,6 +23,42 @@ test("workspace mutations share one authoritative tree", async () => {
   await assert.rejects(() => api.openWorkspaceFile("ws-product", moved.path), /could not be found/);
 });
 
+test("Workspace entries move inward, laterally, outward, and back to root", async () => {
+  const api = new MockDesktopApi({ latency: 0 });
+  const inward = await api.moveEntry("ws-product", "Research/field-notes.md", "Planning");
+  assert.equal(inward.path, "Planning/field-notes.md");
+  const lateral = await api.moveEntry("ws-product", "Planning/field-notes.md", "Archive");
+  assert.equal(lateral.path, "Archive/field-notes.md");
+  const outward = await api.moveEntry("ws-product", "Archive/field-notes.md", "");
+  assert.equal(outward.path, "field-notes.md");
+});
+
+test("Workspace move rejects same-parent, collisions, and self-descendant targets without mutation", async () => {
+  const api = new MockDesktopApi({ latency: 0 });
+  await api.createEntry("ws-product", "Planning", "directory", "Nested");
+  const before = api.snapshot();
+  await assert.rejects(() => api.moveEntry("ws-product", "Research/field-notes.md", "Research"), /already in this folder/i);
+  await assert.rejects(() => api.moveEntry("ws-product", "Planning", "Planning"), /itself|descendant/i);
+  await assert.rejects(() => api.moveEntry("ws-product", "Planning", "Planning/Nested"), /itself|descendant/i);
+  assert.deepEqual(api.snapshot(), before);
+});
+
+test("moving a directory remaps descendants and emits one move event", async () => {
+  const api = new MockDesktopApi({ latency: 0 });
+  const events = [];
+  api.subscribe((event) => events.push(event));
+  const moved = await api.moveEntry("ws-product", "Planning", "Archive");
+  assert.equal(moved.path, "Archive/Planning");
+  assert.equal(moved.children.every((entry) => entry.path.startsWith("Archive/Planning/")), true);
+  assert.deepEqual(events.filter((event) => event.operation === "move"), [{
+    type: "workspace-changed",
+    workspaceId: "ws-product",
+    operation: "move",
+    path: "Planning",
+    nextPath: "Archive/Planning",
+  }]);
+});
+
 test("Workspace roots are writable and do not propagate a read-only state", async () => {
   const api = new MockDesktopApi({ latency: 0 });
   assert.equal(api.snapshot().workspaces.every((workspace) => !("readOnly" in workspace)), true);

@@ -1,11 +1,11 @@
-import { Bot, Check, ChevronDown, CircleStop, Info, MoreHorizontal, PanelRight, Pencil, RefreshCw, Send, SquarePen, Trash2, Wrench, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Bot, Check, ChevronDown, CircleStop, Copy, Info, MoreHorizontal, PanelRight, Pencil, RefreshCw, Send, SquarePen, Trash2, Wrench, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { editorToolDecision } from "../../lib/agentEditorPolicy.js";
-import { mockAgentRuntime, resolveRuntime } from "../../mock/mockAgentRuntime.js";
+import { agentModelCatalog, mockAgentRuntime, resolveAgentModel, resolveRuntime } from "../../mock/mockAgentRuntime.js";
 import { AppDialog } from "../primitives/AppDialog.jsx";
-import { AppMenu, AppMenuItem, AppPopover } from "../primitives/AppMenu.jsx";
+import { AppMenu, AppMenuItem, AppMenuRadioGroup, AppMenuRadioItem, AppMenuSeparator, AppMenuSub, AppPopover } from "../primitives/AppMenu.jsx";
 
 const THREAD_KEY = "ideanote-review-agent-threads-v1";
 const readThreads = () => {
@@ -21,26 +21,60 @@ const readThreads = () => {
   } catch { return []; }
 };
 
+function ResponseActions({ item }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const model = resolveAgentModel(item.evidence.model);
+  const elapsed = item.evidence.elapsedMs < 1000 ? `${item.evidence.elapsedMs}ms` : `${(item.evidence.elapsedMs / 1000).toFixed(1)}s`;
+  const copy = async () => {
+    await navigator.clipboard?.writeText(item.text);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1200);
+  };
+  return (
+    <div className="response-actions">
+      <button type="button" aria-label="Copy response" onClick={copy}>{copied ? <Check size={13} /> : <Copy size={13} />}</button>
+      <span>{elapsed}</span>
+      <AppPopover
+        open={open}
+        onOpenChange={setOpen}
+        side="top"
+        align="end"
+        sideOffset={5}
+        contentClassName="response-evidence"
+        trigger={<button type="button" aria-label="Response evidence"><MoreHorizontal size={14} /></button>}
+      >
+        <dl>
+          <div><dt>Model</dt><dd>{model.label}</dd></div>
+          <div><dt>Reasoning</dt><dd>{item.evidence.reasoningEffort}</dd></div>
+          <div><dt>Context Window</dt><dd>{item.evidence.contextPercent}% used</dd></div>
+        </dl>
+      </AppPopover>
+    </div>
+  );
+}
+
 function TranscriptItem({ item, showTools }) {
   if (item.type === "user") return <article className="thread-note"><span className="thread-avatar">Y</span><div><p>{item.text}</p><time>{item.time}</time></div></article>;
-  if (item.type === "assistant") return <article className="agent-answer"><ReactMarkdown remarkPlugins={[remarkGfm]}>{item.text || "▍"}</ReactMarkdown></article>;
+  if (item.type === "assistant") return <article className="agent-answer"><ReactMarkdown remarkPlugins={[remarkGfm]}>{item.text || "▍"}</ReactMarkdown>{item.evidence && !item.streaming && <ResponseActions item={item} />}</article>;
   if (item.type === "activity") return <article className="activity-row"><span className="activity-icon"><PanelRight size={14} /></span><div><strong>{item.title}</strong><p>{item.detail}</p></div><span className="activity-check"><Check size={13} /></span></article>;
   if (item.type === "tool" && showTools) return <article className={`activity-row tool-row ${item.ok === false ? "is-error" : ""}`}><span className="activity-icon"><Wrench size={14} /></span><div><strong>{item.name}</strong><p>{item.detail}</p></div><span className="activity-check">{item.running ? <span className="mini-spinner" /> : item.ok === false ? <X size={13} /> : <Check size={13} />}</span></article>;
   if (item.type === "error") return <article className="agent-error"><strong>Turn stopped</strong><p>{item.text}</p></article>;
   return null;
 }
 
-function RuntimeInspector({ settings, contextPercent, document, selectedSkill }) {
+function RuntimeInspector({ settings, contextPercent, document, modelId, reasoningEffort }) {
   const selected = resolveRuntime(settings.agent.runtime);
+  const model = resolveAgentModel(modelId);
   return (
     <div className="runtime-inspector">
       <dl>
         <div><dt>Runtime</dt><dd>{selected.label} · {selected.status}</dd></div>
-        <div><dt>Model</dt><dd>{settings.provider.model || "Unavailable"}</dd></div>
+        <div><dt>Model</dt><dd>{model.label}</dd></div>
+        <div><dt>Reasoning</dt><dd>{reasoningEffort}</dd></div>
         <div><dt>Context</dt><dd>{contextPercent}%</dd></div>
         <div><dt>Document</dt><dd>{document.name} · revision {document.revision}</dd></div>
-        <div><dt>Policy</dt><dd>{settings.agent.maxSteps} steps · {settings.agent.deliveryMode}</dd></div>
-        <div><dt>Skill</dt><dd>{selectedSkill || "Automatic"}</dd></div>
+        <div><dt>Policy</dt><dd>{settings.agent.maxSteps} steps</dd></div>
         <div><dt>Capabilities</dt><dd>{selected.capabilities.join(", ")}</dd></div>
       </dl>
     </div>
@@ -53,7 +87,6 @@ function ConversationHistory({ open, onOpenChange, threads, activeThread, active
       open={open}
       onOpenChange={onOpenChange}
       align="start"
-      alignOffset={-132}
       contentClassName="conversation-popover"
       trigger={(
         <button className="conversation-trigger" type="button" aria-label={`Conversation history. Current conversation: ${activeThread.title}`}>
@@ -99,6 +132,29 @@ function AgentCrown({ history, onNew, onInspector, onClose }) {
   );
 }
 
+function ModelSelector({ modelId, reasoningEffort, disabled, onModelChange, onReasoningChange }) {
+  const model = resolveAgentModel(modelId);
+  return (
+    <AppMenu
+      align="start"
+      side="top"
+      sideOffset={6}
+      contentClassName="model-menu"
+      trigger={<button className="model-selector" type="button" aria-label="Model and reasoning" disabled={disabled}>{model.label} · {reasoningEffort}<ChevronDown size={12} /></button>}
+    >
+      <AppMenuRadioGroup value={model.id} onValueChange={onModelChange}>
+        {agentModelCatalog.map((option) => <AppMenuRadioItem key={option.id} value={option.id}>{option.label}</AppMenuRadioItem>)}
+      </AppMenuRadioGroup>
+      <AppMenuSeparator />
+      <AppMenuSub label={`Reasoning · ${reasoningEffort}`}>
+        <AppMenuRadioGroup value={reasoningEffort} onValueChange={onReasoningChange}>
+          {model.efforts.map((effort) => <AppMenuRadioItem key={effort} value={effort}>{effort}</AppMenuRadioItem>)}
+        </AppMenuRadioGroup>
+      </AppMenuSub>
+    </AppMenu>
+  );
+}
+
 export function AgentPanel({ document, settings, editorAdapter, onOpenSettings, onToggleAgent }) {
   const [threads, setThreads] = useState(() => {
     const stored = readThreads();
@@ -111,11 +167,11 @@ export function AgentPanel({ document, settings, editorAdapter, onOpenSettings, 
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [threadDialog, setThreadDialog] = useState(null);
   const [contextPercent, setContextPercent] = useState(38);
-  const [selectedSkill, setSelectedSkill] = useState("");
+  const [modelId, setModelId] = useState(settings.agent.model ?? agentModelCatalog[0].id);
+  const [reasoningEffort, setReasoningEffort] = useState(settings.agent.reasoningEffort ?? "medium");
   const controllerRef = useRef(null);
   const lastPromptRef = useRef("");
   const activeThread = threads.find((thread) => thread.id === activeId) ?? threads[0];
-  const availableSkills = useMemo(() => settings.skills.filter((skill) => skill.enabled && (skill.scope === "all" || skill.scope === document.type)), [settings.skills, document.type]);
   const runtime = resolveRuntime(settings.agent.runtime);
 
   useEffect(() => { localStorage.setItem(THREAD_KEY, JSON.stringify(threads)); }, [threads]);
@@ -132,11 +188,11 @@ export function AgentPanel({ document, settings, editorAdapter, onOpenSettings, 
   const updateActive = (updater) => setThreads((items) => items.map((thread) => thread.id === activeId ? updater(thread) : thread));
   const appendItem = (item) => updateActive((thread) => ({ ...thread, updatedAt: Date.now(), items: [...thread.items, { id: crypto.randomUUID(), ...item }] }));
   const updateLastTool = (patch) => updateActive((thread) => ({ ...thread, items: thread.items.map((item, index) => index === thread.items.length - 1 && item.type === "tool" ? { ...item, ...patch } : item) }));
-  const appendDelta = (text) => updateActive((thread) => {
+  const appendDelta = (text, turnId) => updateActive((thread) => {
     const items = [...thread.items];
     const last = items.at(-1);
-    if (last?.type === "assistant" && last.streaming) items[items.length - 1] = { ...last, text: `${last.text}${text}` };
-    else items.push({ id: crypto.randomUUID(), type: "assistant", text, streaming: true });
+    if (last?.type === "assistant" && last.streaming && last.turnId === turnId) items[items.length - 1] = { ...last, text: `${last.text}${text}` };
+    else items.push({ id: crypto.randomUUID(), type: "assistant", turnId, text, streaming: true });
     return { ...thread, items };
   });
 
@@ -164,10 +220,14 @@ export function AgentPanel({ document, settings, editorAdapter, onOpenSettings, 
     setRunning(true);
     const controller = new AbortController();
     controllerRef.current = controller;
+    const turnModel = modelId;
+    const turnReasoning = reasoningEffort;
     try {
       await mockAgentRuntime.run({
         prompt,
         document,
+        model: turnModel,
+        reasoningEffort: turnReasoning,
         deliveryMode: settings.agent.deliveryMode,
         signal: controller.signal,
         toolExecutor: executeTool,
@@ -175,10 +235,10 @@ export function AgentPanel({ document, settings, editorAdapter, onOpenSettings, 
           if (event.type === "activity") appendItem({ type: "activity", title: event.title, detail: event.detail });
           if (event.type === "tool-started") appendItem({ type: "tool", name: event.name, detail: event.detail, running: true });
           if (event.type === "tool-completed") updateLastTool({ detail: event.detail, running: false, ok: event.ok });
-          if (event.type === "message-delta") appendDelta(event.text);
+          if (event.type === "message-delta") appendDelta(event.text, event.turnId);
           if (event.type === "turn-completed") {
             setContextPercent(event.contextPercent);
-            updateActive((thread) => ({ ...thread, items: thread.items.map((item) => item.type === "assistant" ? { ...item, streaming: false } : item) }));
+            updateActive((thread) => ({ ...thread, items: thread.items.map((item) => item.type === "assistant" && item.turnId === event.turnId ? { ...item, streaming: false, evidence: event.evidence } : item) }));
           }
         },
       });
@@ -268,17 +328,20 @@ export function AgentPanel({ document, settings, editorAdapter, onOpenSettings, 
               : <div className="agent-empty agent-empty--thread"><Bot size={22} /><strong>Start a conversation</strong></div>}
           </div>
           <div className="agent-composer">
-            <div className="composer-skill-row">
-              <select aria-label="Agent Skill" value={selectedSkill} onChange={(event) => setSelectedSkill(event.target.value)} disabled={running || runtime.id === "compatibility"}>
-                <option value="">Automatic Skill</option>
-                {availableSkills.map((skill) => <option key={skill.id} value={skill.name}>{skill.name}</option>)}
-              </select>
-              <span>{settings.agent.deliveryMode}</span>
-            </div>
             <div className="composer-box">
               <textarea aria-label="Ask Agent" rows={3} value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask about the active document…" onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); running ? steer() : runPrompt(input); } }} />
               <div className="composer-foot">
-                <span>{running ? "Enter steers this Turn" : `${runtime.label} · simulated`}</span>
+                <ModelSelector
+                  modelId={modelId}
+                  reasoningEffort={reasoningEffort}
+                  disabled={running}
+                  onModelChange={(nextModel) => {
+                    const resolved = resolveAgentModel(nextModel);
+                    setModelId(resolved.id);
+                    if (!resolved.efforts.includes(reasoningEffort)) setReasoningEffort("medium");
+                  }}
+                  onReasoningChange={setReasoningEffort}
+                />
                 <div>
                   {activeThread.items.some((item) => item.type === "error") && !running && <button className="composer-retry" type="button" aria-label="Retry last Turn" onClick={() => runPrompt(lastPromptRef.current)}><RefreshCw size={13} /></button>}
                   {running && <button className="composer-cancel" type="button" aria-label="Cancel Turn" onClick={cancel}><CircleStop size={15} /></button>}
@@ -291,7 +354,7 @@ export function AgentPanel({ document, settings, editorAdapter, onOpenSettings, 
       )}
 
       <AppDialog open={inspectorOpen} onOpenChange={setInspectorOpen} title="Runtime Inspector" size="medium" closeLabel="Close Runtime Inspector">
-        <RuntimeInspector settings={settings} contextPercent={contextPercent} document={document} selectedSkill={selectedSkill} />
+        <RuntimeInspector settings={settings} contextPercent={contextPercent} document={document} modelId={modelId} reasoningEffort={reasoningEffort} />
       </AppDialog>
       <AppDialog
         open={threadDialog?.kind === "rename"}
