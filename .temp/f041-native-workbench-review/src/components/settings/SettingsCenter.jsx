@@ -22,7 +22,6 @@ function Field({ label, description, children }) {
 function GeneralSettings({ draft, setDraft, onTheme }) {
   return (
     <section className="settings-section">
-      <span className="settings-kicker">General</span>
       <h2>Appearance</h2>
       <div className="theme-options">
         {[["light", Sun, "Light"], ["dark", Moon, "Dark"], ["system", Monitor, "System"]].map(([value, Icon, label]) => (
@@ -69,7 +68,6 @@ function ProviderSettings({ draft, setDraft }) {
 
   return (
     <section className="settings-section">
-      <span className="settings-kicker">AI Provider</span>
       <h2>Provider</h2>
       <Field label="Base URL"><input aria-label="Provider Base URL" value={provider.baseUrl} onChange={(event) => invalidate({ baseUrl: event.target.value })} /></Field>
       <Field label="Token"><input aria-label="Provider token" type="password" autoComplete="new-password" placeholder={provider.credentialConfigured ? "Configured token" : "Enter token"} value={secret} onChange={(event) => { setSecret(event.target.value); invalidate(); }} /></Field>
@@ -98,7 +96,6 @@ function AgentSettings({ draft, setDraft }) {
   const selectedId = agent.runtime === "compatibility" ? "compatibility" : "codex";
   return (
     <section className="settings-section">
-      <span className="settings-kicker">Agent</span>
       <h2>Agent</h2>
       <Field label="AI features"><Toggle label="Enable AI features" checked={draft.aiEnabled} onChange={(value) => setDraft({ ...draft, aiEnabled: value })} /></Field>
       <div className="runtime-list">
@@ -124,7 +121,6 @@ function SkillSettings({ draft, setDraft }) {
   const updateSkill = (id, patch) => setDraft({ ...draft, skills: draft.skills.map((skill) => skill.id === id ? { ...skill, ...patch } : skill) });
   return (
     <section className="settings-section settings-section--wide">
-      <span className="settings-kicker">Skills</span>
       <h2>Skills</h2>
       <div className="skills-list">
         {draft.skills.map((skill) => (
@@ -143,7 +139,7 @@ function SkillSettings({ draft, setDraft }) {
 }
 
 function IdeaSketchSettings({ draft, setDraft }) {
-  return <section className="settings-section"><span className="settings-kicker">IdeaSketch</span><h2>Presentation</h2><Field label="Laser pointer"><Toggle label="Enable presentation laser" checked={draft.ideaSketch.laserEnabled} onChange={(value) => setDraft({ ...draft, ideaSketch: { ...draft.ideaSketch, laserEnabled: value } })} /></Field></section>;
+  return <section className="settings-section"><h2>Presentation</h2><Field label="Laser pointer"><Toggle label="Enable presentation laser" checked={draft.ideaSketch.laserEnabled} onChange={(value) => setDraft({ ...draft, ideaSketch: { ...draft.ideaSketch, laserEnabled: value } })} /></Field></section>;
 }
 
 export function SettingsCenter({ settings, onSettings, onTheme, onClose, activeScenario = "normal", onScenario }) {

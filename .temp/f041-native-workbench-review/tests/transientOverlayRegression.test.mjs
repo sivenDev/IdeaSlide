@@ -28,3 +28,17 @@ test("Workspace menus contain only the approved object actions", async () => {
   assert.equal(workspaceSource.includes("Move to Archive"), false);
   assert.equal(workspaceSource.includes(">Cancel<"), false);
 });
+
+test("shared action menus contain actions only and size from their content", async () => {
+  const [primitiveSource, workspaceSource, css] = await Promise.all([
+    read("../src/components/primitives/AppMenu.jsx"),
+    read("../src/components/workspace/WorkspacePanel.jsx"),
+    read("../src/styles.css"),
+  ]);
+
+  assert.equal(primitiveSource.includes("DropdownMenu.Label"), false);
+  assert.equal(primitiveSource.includes("app-menu__label"), false);
+  assert.equal(workspaceSource.includes("label={workspace.name}"), false);
+  assert.doesNotMatch(css, /\.app-menu\s*\{[^}]*width:\s*218px;/s);
+  assert.match(css, /\.app-menu\s*\{[^}]*width:\s*max-content;/s);
+});

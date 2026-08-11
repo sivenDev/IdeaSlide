@@ -23,6 +23,16 @@ test("workspace mutations share one authoritative tree", async () => {
   await assert.rejects(() => api.openWorkspaceFile("ws-product", moved.path), /could not be found/);
 });
 
+test("Workspace roots are writable and do not propagate a read-only state", async () => {
+  const api = new MockDesktopApi({ latency: 0 });
+  assert.equal(api.snapshot().workspaces.every((workspace) => !("readOnly" in workspace)), true);
+
+  const created = await api.createEntry("ws-operations", "", "markdown", "Operations note");
+  assert.equal(created.path, "Operations note.md");
+  const opened = await api.openWorkspaceFile("ws-operations", created.path);
+  assert.equal(opened.readOnly, undefined);
+});
+
 test("Recents contain standalone files only", async () => {
   const api = new MockDesktopApi({ latency: 0 });
   const initial = api.snapshot().recents;

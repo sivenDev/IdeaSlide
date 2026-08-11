@@ -53,6 +53,7 @@ function ConversationHistory({ open, onOpenChange, threads, activeThread, active
       open={open}
       onOpenChange={onOpenChange}
       align="start"
+      alignOffset={-132}
       contentClassName="conversation-popover"
       trigger={(
         <button className="conversation-trigger" type="button" aria-label={`Conversation history. Current conversation: ${activeThread.title}`}>
@@ -62,7 +63,6 @@ function ConversationHistory({ open, onOpenChange, threads, activeThread, active
         </button>
       )}
     >
-      <div className="conversation-popover__header"><strong>Conversations</strong><span>{threads.length}</span></div>
       <div className="conversation-list">
         {threads.map((thread) => (
           <div className={`conversation-row ${thread.id === activeId ? "is-active" : ""}`} key={thread.id}>
@@ -70,8 +70,10 @@ function ConversationHistory({ open, onOpenChange, threads, activeThread, active
               <strong>{thread.title}</strong><small>{thread.items.length} items</small>
             </button>
             <AppMenu
-              align="end"
               side="right"
+              align="start"
+              sideOffset={4}
+              contentClassName="app-menu--compact"
               trigger={<button className="conversation-actions" type="button" aria-label={`Actions for ${thread.title}`}><MoreHorizontal size={14} /></button>}
             >
               <AppMenuItem icon={Pencil} onSelect={() => onRename(thread.id)}>Rename</AppMenuItem>

@@ -29,10 +29,10 @@ Open the Command Palette with `Command/Ctrl+K` and run **Reset review scenario**
 2. Open `launch-plan.is` for the Excalidraw-based IdeaSketch editor. Review Pages, Cameras, reordering, presentation, laser pointer, clean-diagram conversion, and PNG/SVG/draw.io browser exports.
 3. Open `product-brief.md` for CodeMirror 6 Markdown. Review Edit/Split/Preview, GFM, Outline, formatting, search, line-ending choice, and native Undo/Redo.
 4. Edit a document and observe the leading status/close lens move through Unsaved, Saving, Saved, warning, and error states. Hover or focus it to reveal Close, then close while dirty to exercise Save, Discard, and Cancel. Manual save remains available through `Command/Ctrl+S` and the Command Palette.
-5. Use each Workspace root or directory `+` to create IdeaSketch, Markdown, or Folder entries at that exact location. The Radix-backed menus dismiss on outside interaction or Escape. Root overflow contains Rename, Show in Finder, and Remove from Workspaces; entry overflow contains Rename, Show in Finder, and Move to Trash. Files intentionally have overflow only.
+5. Use each writable Workspace root or directory `+` to create IdeaSketch, Markdown, or Folder entries at that exact location. Radix-backed menus size to their actions, contain no decorative object-name heading, remain aligned to the clicked row control, and dismiss on outside interaction or Escape. Root overflow contains Rename, Show in Finder, and Remove from Workspaces; entry overflow contains Rename, Show in Finder, and Move to Trash. Files intentionally have overflow only.
 6. Confirm Recents contains only standalone files opened outside a Workspace. Workspace roots and Workspace-owned files never enter the list; Open Workspace remains available through the Command Palette and the empty-Workspaces action.
 7. Collapse Workspaces on Welcome and with an active editor. The Editor Host remains visible, interactive, and expands into the released width. Resize Workspaces, IdeaSketch Navigator, Markdown split, and Agent with a pointer or keyboard.
-8. Open Agent after selecting a document. The current conversation is the left-side history selector; New conversation, Runtime Inspector, and Hide Agent remain right-aligned. Each conversation has a Rename/Delete overflow menu, Runtime Inspector opens as a dismissible dialog, and the composer stays pinned to the panel bottom while the transcript scrolls independently. Review Skills, incremental/burst/atomic delivery, steering, cancellation, Retry, public activity, Tool chronology, bounded editor mutations, and native Undo.
+8. Open Agent after selecting a document. The current conversation is the left-side history selector; its compact list starts directly with records, without a redundant Conversations/count header. New conversation, Runtime Inspector, and Hide Agent remain right-aligned. Each conversation has a trigger-aligned compact Rename/Delete menu, Runtime Inspector opens as a dismissible dialog, and the composer stays pinned to the panel bottom while the transcript scrolls independently. Review Skills, incremental/burst/atomic delivery, steering, cancellation, Retry, public activity, Tool chronology, bounded editor mutations, and native Undo.
 9. Open Settings to review the grouped Application, AI, Editors, and Review navigation. General owns Light/Dark/System Appearance. Agent owns the AI feature gate. AI Provider uses a password Token field and reveals its Model select only after the current Base URL and Token pass Test connection; changing either input invalidates that result.
 10. Open the Command Palette for recent files, Open Workspace, Settings, new documents, Save, Save As, panel toggles, reset, and simulated application exit.
 
@@ -40,7 +40,7 @@ Open the Command Palette with `Command/Ctrl+K` and run **Reset review scenario**
 
 Open **Settings → Review Scenarios**. Each choice resets platform fixtures before applying one deterministic contract, so scenarios do not accumulate.
 
-- **Filesystem:** read-only Workspace, document-save failure with Recovery, and document success with a Workspace-state warning.
+- **Filesystem:** document-scoped read-only protection, document-save failure with Recovery, and document success with a Workspace-state warning.
 - **External changes:** clean reload, dirty conflict with Save As / Reload / Cancel, rename, file deletion, and missing Workspace root.
 - **Recovery:** restorable draft and corrupt recovery while the source remains preserved.
 - **Documents:** unsupported file fallback, mixed Markdown line endings, and missing Recent target.
@@ -61,7 +61,7 @@ All displayed file paths are under `/Mock`. Provider tokens never enter saved br
 
 See [CAPABILITY_MATRIX.md](./CAPABILITY_MATRIX.md) for the interaction-to-contract map and `screenshots/` for the refreshed review frames.
 
-The four current screenshots deliberately cover different acceptance states: Radix-backed Workspace overflow at 1440×900 Light, the conversation selector and bottom composer at 1200×850 Dark, tested Provider settings at 1100×850, and the minimum 850×850 Agent layout.
+The four current screenshots deliberately cover different acceptance states: compact action-only Workspace overflow at 1440×900 Light, the headerless conversation selector and aligned row menu at 1200×850 Dark, single-title Provider settings at 1100×850, and the minimum 850×850 Agent layout.
 
 ## Migration gate
 

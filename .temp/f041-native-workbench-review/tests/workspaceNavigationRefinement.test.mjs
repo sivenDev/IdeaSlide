@@ -21,6 +21,8 @@ test("Workspace rows own create actions while files expose overflow only", async
   assert.match(source, /tree-entry--file/);
   assert.equal(source.includes('recent.kind === "workspace"'), false);
   assert.match(source, /Standalone files you open will appear here/);
+  assert.equal(source.includes("workspace.readOnly"), false);
+  assert.equal(source.includes("Read-only"), false);
 });
 
 test("Open Workspace remains available outside the section header", async () => {

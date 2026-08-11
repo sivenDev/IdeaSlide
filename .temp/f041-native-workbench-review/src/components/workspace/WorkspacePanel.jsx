@@ -44,7 +44,6 @@ function EntryRow({ entry, depth, workspace, state, dispatch, onOpen, onCreate, 
         <div className="tree-row-actions">
           {isDirectory && (
             <AppMenu
-              label={`Create in ${entry.name}`}
               align="end"
               trigger={<button className="row-action row-action--create" type="button" aria-label={`Create in ${entry.name}`}><Plus size={14} /></button>}
             >
@@ -55,7 +54,6 @@ function EntryRow({ entry, depth, workspace, state, dispatch, onOpen, onCreate, 
             </AppMenu>
           )}
           <AppMenu
-            label={entry.name}
             align="end"
             trigger={<button className="row-action" type="button" aria-label={`Actions for ${entry.name}`}><MoreHorizontal size={14} /></button>}
           >
@@ -96,13 +94,11 @@ export function WorkspacePanel({ state, dispatch, onOpen, onOpenRecent, onAddWor
                   {expanded ? <FolderOpen size={14} /> : <Folder size={14} />}
                   <span>{workspace.name}</span>
                   {workspace.missing && <span className="workspace-pill workspace-pill--danger">Missing</span>}
-                  {workspace.readOnly && <span className="workspace-pill">Read-only</span>}
                 </button>
                 <div className="tree-row-actions tree-row-actions--workspace">
                   <AppMenu
-                    label={`Create in ${workspace.name}`}
                     align="end"
-                    trigger={<button className="row-action row-action--create" type="button" aria-label={`Create in ${workspace.name}`} disabled={workspace.readOnly || workspace.missing}><Plus size={14} /></button>}
+                    trigger={<button className="row-action row-action--create" type="button" aria-label={`Create in ${workspace.name}`} disabled={workspace.missing}><Plus size={14} /></button>}
                   >
                     <AppMenuItem onSelect={() => onCreate({ workspaceId: workspace.id, directoryPath: "", label: workspace.name }, "ideasketch")}><span className="file-glyph file-glyph--blue">IS</span>New IdeaSketch</AppMenuItem>
                     <AppMenuItem onSelect={() => onCreate({ workspaceId: workspace.id, directoryPath: "", label: workspace.name }, "markdown")}><span className="file-glyph file-glyph--slate">MD</span>New Markdown</AppMenuItem>
@@ -110,7 +106,6 @@ export function WorkspacePanel({ state, dispatch, onOpen, onOpenRecent, onAddWor
                     <AppMenuItem icon={FolderPlus} onSelect={() => onCreate({ workspaceId: workspace.id, directoryPath: "", label: workspace.name }, "directory")}>New Folder</AppMenuItem>
                   </AppMenu>
                   <AppMenu
-                    label={workspace.name}
                     align="end"
                     trigger={<button className="row-action" type="button" aria-label={`Actions for ${workspace.name}`}><MoreHorizontal size={14} /></button>}
                   >

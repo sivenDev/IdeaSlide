@@ -15,7 +15,6 @@ export const baselineFixtures = {
       id: "ws-product",
       name: "Product Studio",
       path: "/Mock/Workspaces/Product Studio",
-      readOnly: false,
       expanded: true,
       entries: [
         {
@@ -89,7 +88,6 @@ export const baselineFixtures = {
       id: "ws-research",
       name: "Research Library",
       path: "/Mock/Workspaces/Research Library",
-      readOnly: false,
       expanded: false,
       entries: [
         {
@@ -106,7 +104,6 @@ export const baselineFixtures = {
       id: "ws-operations",
       name: "Operations Hub",
       path: "/Mock/Workspaces/Operations Hub",
-      readOnly: true,
       expanded: false,
       entries: [
         {
@@ -115,8 +112,7 @@ export const baselineFixtures = {
           name: "launch-runbook.md",
           path: "launch-runbook.md",
           type: "markdown",
-          readOnly: true,
-          content: "# Launch runbook\n\nThis mock workspace is read-only for reliability review.\n",
+          content: "# Launch runbook\n\nCoordinate release operations from one shared workspace.\n",
         },
       ],
     },

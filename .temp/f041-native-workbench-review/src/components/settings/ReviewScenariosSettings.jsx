@@ -5,7 +5,6 @@ export function ReviewScenariosSettings({ activeScenario, onScenario }) {
   const groups = [...new Set(reviewScenarios.map((scenario) => scenario.group))];
   return (
     <section className="settings-section settings-section--wide review-scenarios">
-      <span className="settings-kicker">Prototype only</span>
       <h2>Review Scenarios</h2>
       <p>Switch deterministic mock contracts through the same product UI. These controls are excluded from any production migration.</p>
       <div className="settings-callout review-scenarios__boundary"><FlaskConical size={18} /><span><strong>Backend results are simulated</strong><small>Files, watchers, recovery, credentials, runtimes, Tools, and application exit stay inside this browser review.</small></span></div>

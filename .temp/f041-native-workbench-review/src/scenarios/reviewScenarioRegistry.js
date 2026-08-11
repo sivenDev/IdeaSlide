@@ -1,6 +1,6 @@
 export const reviewScenarios = [
   { id: "normal", group: "Baseline", label: "Normal workspace", description: "Reset all fixtures, failures, document patches, and review preferences." },
-  { id: "read-only", group: "Filesystem", label: "Read-only Workspace", description: "Open a writable-looking document through a read-only Workspace contract." },
+  { id: "read-only", group: "Filesystem", label: "Read-only document", description: "Protect the active document while keeping its Workspace writable." },
   { id: "save-failure", group: "Filesystem", label: "Save failure", description: "The next manual or automatic document save fails and writes mock recovery." },
   { id: "metadata-failure", group: "Filesystem", label: "Workspace-state warning", description: "Document save succeeds while simulated Workspace metadata persistence warns." },
   { id: "external-clean", group: "External changes", label: "External change · clean", description: "Mark the active clean source as externally modified and offer reload." },
@@ -78,8 +78,6 @@ export async function applyReviewScenario(id, { desktopApi, settings, activeDocu
   }
   if (!activeDocument && documentScenarioIds.has(id)) openTarget = { mode: "workspace", workspaceId: "ws-product", path: "Planning/product-brief.md" };
   if (id === "read-only") {
-    const workspace = desktopApi.data.workspaces.find((item) => item.id === "ws-product");
-    if (workspace) workspace.readOnly = true;
     documentPatch = { ...documentPatch, readOnly: true, status: "read-only" };
   }
   if (id === "save-failure") desktopApi.injectFailure("saveDocument", "The simulated disk rejected this save. A recovery draft remains available.");

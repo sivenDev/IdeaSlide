@@ -17,6 +17,14 @@ test("every review scenario resolves through generic fixture overlays", async ()
   }
 });
 
+test("read-only review remains document-scoped", async () => {
+  const api = new MockDesktopApi({ latency: 0 });
+  const result = await applyReviewScenario("read-only", { desktopApi: api, settings: structuredClone(defaultSettings), activeDocument: document });
+  assert.equal(result.documentPatch.readOnly, true);
+  assert.equal(api.snapshot().workspaces.every((workspace) => !("readOnly" in workspace)), true);
+  assert.equal(reviewScenarios.some((scenario) => scenario.label === "Read-only Workspace"), false);
+});
+
 test("reset is deterministic and clears only namespaced review storage", async () => {
   const api = new MockDesktopApi({ latency: 0 });
   const initial = api.snapshot();

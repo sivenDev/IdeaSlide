@@ -38,7 +38,10 @@ test("Provider testing returns a model catalog without retaining the token", asy
 });
 
 test("Settings source groups navigation and gates model selection on Test", async () => {
-  const source = await readFile(new URL("../src/components/settings/SettingsCenter.jsx", import.meta.url), "utf8");
+  const source = [
+    await readFile(new URL("../src/components/settings/SettingsCenter.jsx", import.meta.url), "utf8"),
+    await readFile(new URL("../src/components/settings/ReviewScenariosSettings.jsx", import.meta.url), "utf8"),
+  ].join("\n");
 
   assert.match(source, /APPLICATION/);
   assert.match(source, /AI/);
@@ -49,4 +52,5 @@ test("Settings source groups navigation and gates model selection on Test", asyn
   assert.match(source, /testState\.status === "success"/);
   assert.equal(source.includes("Remove configured credential"), false);
   assert.equal(source.includes("credential-card"), false);
+  assert.equal(source.includes("settings-kicker"), false);
 });

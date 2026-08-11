@@ -112,7 +112,7 @@ export class MockDesktopApi {
     const workspace = this.data.workspaces.find((item) => item.id === workspaceId);
     const found = workspace && walk(workspace.entries, (entry) => entry.kind === "file" && entry.path === path);
     if (!workspace || !found) throw new Error("The mock file could not be found.");
-    return clone({ ...found.entry, workspaceId, workspaceName: workspace.name, mode: "workspace", readOnly: workspace.readOnly || found.entry.readOnly });
+    return clone({ ...found.entry, workspaceId, workspaceName: workspace.name, mode: "workspace" });
   }
 
   async openStandalone(standaloneId) {
@@ -127,7 +127,6 @@ export class MockDesktopApi {
     await this.step("createEntry");
     const workspace = this.data.workspaces.find((item) => item.id === workspaceId);
     if (!workspace) throw new Error("Choose a workspace first.");
-    if (workspace.readOnly) throw new Error("This mock workspace is read-only.");
     const directory = findDirectory(workspace.entries, directoryPath);
     const children = directory?.children ?? (directoryPath ? null : workspace.entries);
     if (!children) throw new Error("The destination folder is missing.");
@@ -174,7 +173,6 @@ export class MockDesktopApi {
     const workspace = this.data.workspaces.find((item) => item.id === workspaceId);
     const found = workspace && walk(workspace.entries, (entry) => entry.path === path);
     if (!workspace || !found) throw new Error("The item is no longer available.");
-    if (workspace.readOnly) throw new Error("This mock workspace is read-only.");
     const siblings = found.parent?.children ?? workspace.entries;
     if (siblings.some((entry) => entry !== found.entry && entry.name.toLowerCase() === nextName.toLowerCase())) throw new Error("An item with this name already exists.");
     const parentPath = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";

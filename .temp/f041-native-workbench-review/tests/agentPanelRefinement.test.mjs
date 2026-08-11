@@ -13,6 +13,9 @@ test("Agent crown uses conversation history as its primary selector", async () =
   assert.equal(source.includes("Thread history"), false);
   assert.equal(source.includes("Show archived"), false);
   assert.equal(source.includes("Archive Thread"), false);
+  assert.equal(source.includes("conversation-popover__header"), false);
+  assert.match(source, /contentClassName="app-menu--compact"/);
+  assert.match(source, /side="right"[\s\S]*?align="start"/);
 });
 
 test("Runtime Inspector is a dialog and the transcript owns remaining height", async () => {
