@@ -82,6 +82,7 @@ parent: ""
 - [x] Keep the editor crown focused on file identity and path without exposing the internal document revision counter.
 - [x] Replace Recent-file dismiss controls with Rename, Show in Finder, and Remove menus; hide secondary metadata and sort by latest opened time.
 - [x] Present sorted Recent files on a compact Today/Yesterday/Previous 7 Days/Older timeline without restoring per-file secondary copy.
+- [x] Keep Bundled Skills permanently enabled, expose enable/disable only for valid imported Skills, and unify Settings switches on the maintained Radix primitive.
 
 ## Task 3: Connect Workspace Tree Dragging to the Mock Desktop Boundary
 

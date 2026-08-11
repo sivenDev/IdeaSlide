@@ -15,19 +15,29 @@ export const defaultSettings = {
 
 const clone = (value) => structuredClone(value);
 
+function normalizeSettings(settings) {
+  const safe = clone(settings);
+  const suppliedSkills = Array.isArray(safe.skills) ? safe.skills : [];
+  const suppliedById = new Map(suppliedSkills.map((skill) => [skill.id, skill]));
+  const bundled = defaultSettings.skills.map((skill) => ({ ...skill, ...suppliedById.get(skill.id), source: "bundled", enabled: true }));
+  const custom = suppliedSkills.filter((skill) => skill.source === "custom");
+  safe.skills = [...bundled, ...custom];
+  return safe;
+}
+
 export class MockSettingsApi {
   constructor() { this.failure = null; }
 
   async load() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) return clone(defaultSettings);
-    try { return { ...clone(defaultSettings), ...JSON.parse(saved) }; } catch { return clone(defaultSettings); }
+    try { return normalizeSettings({ ...clone(defaultSettings), ...JSON.parse(saved) }); } catch { return clone(defaultSettings); }
   }
 
   async save(settings) {
     await new Promise((resolve) => setTimeout(resolve, 120));
     if (this.failure) throw new Error(this.failure);
-    const safe = clone(settings);
+    const safe = normalizeSettings(settings);
     safe.provider.credentialConfigured = Boolean(settings.provider.credentialConfigured);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(safe));
     return safe;
@@ -57,7 +67,7 @@ export class MockSettingsApi {
     return { id: `custom-${Date.now()}`, name: "Editorial Clarity", source: "custom", enabled: true, scope: "markdown", autonomous: false, valid: true, path: "/Mock/Skills/editorial-clarity/SKILL.md" };
   }
 
-  reset() { localStorage.removeItem(STORAGE_KEY); return clone(defaultSettings); }
+  reset() { localStorage.removeItem(STORAGE_KEY); return normalizeSettings(defaultSettings); }
 }
 
 export const mockSettingsApi = new MockSettingsApi();

@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { mockSettingsApi } from "../../mock/mockSettingsApi.js";
 import { runtimeCatalog } from "../../mock/mockAgentRuntime.js";
 import { ReviewScenariosSettings } from "./ReviewScenariosSettings.jsx";
+import { SettingsSwitch } from "./SettingsSwitch.jsx";
 
 const sectionGroups = [
   { label: "APPLICATION", items: [["general", "General"]] },
@@ -10,10 +11,6 @@ const sectionGroups = [
   { label: "EDITORS", items: [["ideasketch", "IdeaSketch"]] },
   { label: "REVIEW", items: [["review", "Review Scenarios"]] },
 ];
-
-function Toggle({ checked, onChange, label }) {
-  return <button className={`settings-toggle ${checked ? "is-on" : ""}`} type="button" role="switch" aria-checked={checked} aria-label={label} onClick={() => onChange(!checked)}><span /></button>;
-}
 
 function Field({ label, description, children }) {
   return <div className="settings-field"><div><strong>{label}</strong>{description && <small>{description}</small>}</div><div className="settings-field__control">{children}</div></div>;
@@ -84,7 +81,7 @@ function ProviderSettings({ draft, setDraft }) {
           </select>
         </Field>
       )}
-      <Field label="Automatic retry"><Toggle label="Automatic retry" checked={provider.retryEnabled} onChange={(value) => update({ retryEnabled: value })} /></Field>
+      <Field label="Automatic retry"><SettingsSwitch label="Automatic retry" checked={provider.retryEnabled} onChange={(value) => update({ retryEnabled: value })} /></Field>
       <Field label="Maximum attempts"><input type="number" min="1" max="6" value={provider.maxAttempts} onChange={(event) => update({ maxAttempts: Math.max(1, Math.min(6, Number(event.target.value))) })} /></Field>
     </section>
   );
@@ -97,7 +94,7 @@ function AgentSettings({ draft, setDraft }) {
   return (
     <section className="settings-section">
       <h2>Agent</h2>
-      <Field label="AI features"><Toggle label="Enable AI features" checked={draft.aiEnabled} onChange={(value) => setDraft({ ...draft, aiEnabled: value })} /></Field>
+      <Field label="AI features"><SettingsSwitch label="Enable AI features" checked={draft.aiEnabled} onChange={(value) => setDraft({ ...draft, aiEnabled: value })} /></Field>
       <div className="runtime-list">
         {runtimeCatalog.map((runtime) => (
           <button type="button" aria-pressed={selectedId === runtime.id} className={`runtime-row ${selectedId === runtime.id ? "is-selected" : ""}`} key={runtime.id} onClick={() => update({ runtime: runtime.id === "codex" ? "automatic" : "compatibility" })}>
@@ -110,7 +107,7 @@ function AgentSettings({ draft, setDraft }) {
       <Field label="Maximum Tool steps"><input type="number" min="2" max="40" value={agent.maxSteps} onChange={(event) => update({ maxSteps: Math.max(2, Math.min(40, Number(event.target.value))) })} /></Field>
       <Field label="New Thread warning"><input type="number" min="45" max="95" value={agent.exactContextWarning} onChange={(event) => update({ exactContextWarning: Math.max(45, Math.min(95, Number(event.target.value))) })} /></Field>
       <Field label="Answer delivery"><select value={agent.deliveryMode} onChange={(event) => update({ deliveryMode: event.target.value })}><option value="incremental">Incremental</option><option value="burst">Burst</option><option value="atomic">Atomic</option></select></Field>
-      <Field label="Tool Activity"><Toggle label="Show Tool Activity" checked={agent.showToolActivity} onChange={(value) => update({ showToolActivity: value })} /></Field>
+      <Field label="Tool Activity"><SettingsSwitch label="Show Tool Activity" checked={agent.showToolActivity} onChange={(value) => update({ showToolActivity: value })} /></Field>
       <button className="settings-secondary" type="button" onClick={() => update({ runtime: "automatic", maxSteps: 12, exactContextWarning: 78, showToolActivity: true, deliveryMode: "incremental", diagnostics: 20, replayEvents: 200 })}><RefreshCw size={13} />Reset Agent policy</button>
     </section>
   );
@@ -128,8 +125,10 @@ function SkillSettings({ draft, setDraft }) {
             <span className={`skill-source skill-source--${skill.source}`}>{skill.valid === false ? "invalid" : skill.source}</span>
             <div><strong>{skill.name}</strong><small className={skill.valid === false ? "text-danger" : ""}>{skill.error ?? skill.path ?? skill.scope}</small></div>
             <select aria-label={`Scope for ${skill.name}`} value={skill.scope} onChange={(event) => updateSkill(skill.id, { scope: event.target.value })} disabled={skill.valid === false}><option value="all">All editors</option><option value="ideasketch">IdeaSketch</option><option value="markdown">Markdown</option></select>
-            <Toggle label={`Enable ${skill.name}`} checked={skill.enabled} onChange={(value) => updateSkill(skill.id, { enabled: value })} />
-            {skill.source === "custom" && <button type="button" aria-label={`Remove ${skill.name}`} onClick={() => setDraft({ ...draft, skills: draft.skills.filter((item) => item.id !== skill.id) })}><Trash2 size={14} /></button>}
+            {skill.source === "custom"
+              ? <SettingsSwitch label={`Enable ${skill.name}`} checked={skill.enabled} disabled={skill.valid === false} onChange={(value) => updateSkill(skill.id, { enabled: value })} />
+              : <span className="skill-always-on"><Check size={11} />Always on</span>}
+            {skill.source === "custom" && <button className="skill-remove" type="button" aria-label={`Remove ${skill.name}`} onClick={() => setDraft({ ...draft, skills: draft.skills.filter((item) => item.id !== skill.id) })}><Trash2 size={14} /></button>}
           </div>
         ))}
       </div>
@@ -139,7 +138,7 @@ function SkillSettings({ draft, setDraft }) {
 }
 
 function IdeaSketchSettings({ draft, setDraft }) {
-  return <section className="settings-section"><h2>Presentation</h2><Field label="Laser pointer"><Toggle label="Enable presentation laser" checked={draft.ideaSketch.laserEnabled} onChange={(value) => setDraft({ ...draft, ideaSketch: { ...draft.ideaSketch, laserEnabled: value } })} /></Field></section>;
+  return <section className="settings-section"><h2>Presentation</h2><Field label="Laser pointer"><SettingsSwitch label="Enable presentation laser" checked={draft.ideaSketch.laserEnabled} onChange={(value) => setDraft({ ...draft, ideaSketch: { ...draft.ideaSketch, laserEnabled: value } })} /></Field></section>;
 }
 
 export function SettingsCenter({ settings, onSettings, onTheme, onClose, activeScenario = "normal", onScenario }) {

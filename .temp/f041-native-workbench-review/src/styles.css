@@ -419,10 +419,12 @@ kbd { font-size: 9px; color: var(--muted); }
 .settings-field__control { display: flex; justify-content: flex-end; }
 .settings-field input, .settings-field select { width: 100%; height: 29px; border: 1px solid var(--line-strong); border-radius: 4px; padding: 0 8px; background: var(--paper); font-size: 9px; }
 .settings-value { color: var(--muted); font: 8px/1 ui-monospace, monospace; }
-.settings-toggle { width: 31px; height: 18px; display: flex; align-items: center; border: 0; border-radius: 9px; padding: 2px; background: var(--line-strong); cursor: pointer; }
-.settings-toggle span { width: 14px; height: 14px; border-radius: 50%; background: var(--paper); box-shadow: 0 1px 3px rgb(0 0 0 / 22%); transition: transform 120ms ease; }
-.settings-toggle.is-on { background: var(--cobalt); }
-.settings-toggle.is-on span { transform: translateX(13px); }
+.settings-switch { position: relative; flex: 0 0 auto; width: 32px; height: 18px; border: 0; border-radius: 9px; padding: 0; background: var(--line-strong); cursor: pointer; transition: background 120ms ease; }
+.settings-switch[data-state="checked"] { background: var(--cobalt); }
+.settings-switch:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.settings-switch:disabled { opacity: .46; cursor: not-allowed; }
+.settings-switch__thumb { display: block; width: 14px; height: 14px; border-radius: 50%; background: var(--paper); box-shadow: 0 1px 3px rgb(0 0 0 / 22%); transform: translateX(2px); transition: transform 120ms ease; }
+.settings-switch__thumb[data-state="checked"] { transform: translateX(16px); }
 .provider-test-row { display: flex; align-items: center; gap: 10px; min-height: 52px; border-top: 1px solid var(--line); }
 .settings-test, .text-danger, .settings-secondary { min-height: 29px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); font-size: 8px; cursor: pointer; }
 .settings-test { border-color: var(--graphite); padding: 0 10px; background: var(--graphite); color: var(--paper); }
@@ -442,12 +444,15 @@ kbd { font-size: 9px; color: var(--muted); }
 .runtime-dot--healthy { background: var(--success); }
 .settings-secondary { margin-top: 14px; padding: 0 9px; }
 .skills-list { margin-bottom: 10px; border-top: 1px solid var(--line); }
-.skill-row { min-height: 52px; display: grid; grid-template-columns: 48px minmax(0,1fr) 93px 35px 27px; align-items: center; gap: 7px; border-bottom: 1px solid var(--line); }
+.skill-row { min-height: 52px; display: grid; grid-template-columns: 48px minmax(0,1fr) 93px 64px 27px; align-items: center; gap: 7px; border-bottom: 1px solid var(--line); }
 .skill-row strong, .skill-row small { display: block; }
 .skill-row strong { font-size: 9px; }
 .skill-row small { margin-top: 2px; color: var(--muted); font-size: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .skill-row select { height: 27px; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); font-size: 7px; }
-.skill-row > button { display: grid; place-items: center; width: 25px; height: 25px; border: 0; border-radius: 4px; background: transparent; color: var(--danger); cursor: pointer; }
+.skill-row .settings-switch { justify-self: center; }
+.skill-always-on { display: inline-flex; align-items: center; justify-content: center; gap: 3px; color: var(--muted); font-size: 7px; white-space: nowrap; }
+.skill-remove { display: grid; place-items: center; width: 25px; height: 25px; border: 0; border-radius: 4px; background: transparent; color: var(--danger); cursor: pointer; }
+.skill-remove:hover { background: var(--hover); }
 .skill-source { padding: 3px 4px; border: 1px solid var(--line); border-radius: 3px; color: var(--muted); font: 7px/1 ui-monospace, monospace; text-align: center; text-transform: uppercase; }
 .skill-source--custom { border-color: color-mix(in srgb, var(--cobalt) 45%, var(--line)); color: var(--cobalt); }
 .skill-row.is-invalid { background: color-mix(in srgb, var(--danger) 6%, transparent); }
