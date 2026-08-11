@@ -250,3 +250,10 @@ Agent editing Turns can skip read_active_page because the full active Page scene
 - created: 2026-08-09
 
 The Agent answer still appears as one complete block instead of growing visibly like Teable. A direct Codex app-server trace reproduced 149 genuine `item/agentMessage/delta` events arriving within roughly 4 ms, followed by Turn completion about 63 ms later; the frontend then frame-batches the burst into one visible React update. A Teable comparison showed answer text growing over roughly 5.3 seconds in repeated visible increments after its Preparing/Working state. Preserve authoritative source events and chronology, add Codex delivery telemetry, and introduce bounded answer-only presentation pacing for burst or atomic delivery without presenting it as hidden reasoning or live model-token generation. Tool, lifecycle, cancellation, error, and terminal state must remain immediate and authoritative.
+
+## B030: Fix transient menus, simplify AI Provider settings, and refine Agent history
+
+- status: done
+- created: 2026-08-11
+
+Refine only .temp/f041-native-workbench-review from the latest review feedback. Workspace three-dot menus must dismiss on focus loss and use an established open-source menu primitive instead of a custom implementation; remove Move to Archive and Cancel from those menus. Simplify Settings: AI Provider uses a normal password input for token entry, removes configured-credential removal and explanatory copy, adds a Test action, and only exposes a model select after a successful test; move the AI features switch into Agent settings, reduce navigation and explanatory density, and keep controls visually consistent. In Agent, replace the static Agent mark with a conversation-history select, give each history record a three-dot menu with Rename and Delete, remove the separate history button, replace the Runtime Inspector side rail with a dialog that closes on focus loss/Escape, and pin the composer to the bottom of the panel. Preserve English copy, Light/Dark/System, deterministic mocks, responsive behavior, and the no-production-migration boundary.

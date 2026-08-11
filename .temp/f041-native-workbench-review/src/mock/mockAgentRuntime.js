@@ -27,7 +27,9 @@ export class MockAgentRuntime {
   constructor() { this.sequence = 1; }
 
   createThread(document) {
-    return { id: `thread-${this.sequence++}`, title: `Review ${document.name}`, documentId: document.sessionId, createdAt: Date.now(), updatedAt: Date.now(), archived: false, items: [] };
+    const sequence = this.sequence++;
+    const unique = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${sequence}`;
+    return { id: `thread-${unique}`, title: `Review ${document.name}`, documentId: document.sessionId, createdAt: Date.now(), updatedAt: Date.now(), items: [] };
   }
 
   async run({ prompt, document, deliveryMode = "incremental", signal, onEvent, toolExecutor }) {

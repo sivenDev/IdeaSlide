@@ -39,6 +39,14 @@ export class MockSettingsApi {
     return { configured: true };
   }
 
+  async testProvider({ baseUrl, token, hasConfiguredCredential = false }) {
+    await new Promise((resolve) => setTimeout(resolve, 180));
+    if (!baseUrl?.trim()) throw new Error("Enter a Provider Base URL.");
+    if (!token?.trim() && !hasConfiguredCredential) throw new Error("Enter a Provider token.");
+    if (!/^https?:\/\//i.test(baseUrl) || /offline|invalid|fail/i.test(baseUrl)) throw new Error("Could not reach Provider. Check the Base URL and token.");
+    return { ok: true, configured: true, models: ["gpt-5.2", "gpt-5.2-mini", "gpt-4.1"] };
+  }
+
   async deleteCredential() {
     await new Promise((resolve) => setTimeout(resolve, 100));
     return { configured: false };

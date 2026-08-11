@@ -4,6 +4,13 @@ import { MockAgentRuntime } from "../src/mock/mockAgentRuntime.js";
 
 const document = { sessionId: "s", name: "note.md", type: "markdown", revision: 2 };
 
+test("mock Agent creates unique conversation identities", () => {
+  const runtime = new MockAgentRuntime();
+  const first = runtime.createThread(document);
+  const second = runtime.createThread(document);
+  assert.notEqual(first.id, second.id);
+});
+
 test("mock Agent emits public activity, Tool chronology, and completion", async () => {
   const runtime = new MockAgentRuntime();
   const events = [];

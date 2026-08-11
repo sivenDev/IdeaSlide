@@ -1,5 +1,4 @@
 import {
-  ArrowRight,
   ChevronRight,
   ExternalLink,
   Folder,
@@ -14,18 +13,11 @@ import {
   X,
 } from "lucide-react";
 import { fileTypeRegistry, isVisibleEntry } from "../../lib/fileTypeRegistry.js";
+import { AppMenu, AppMenuItem, AppMenuSeparator } from "../primitives/AppMenu.jsx";
 
 function FileBadge({ type }) {
   const definition = fileTypeRegistry[type] ?? fileTypeRegistry.unsupported;
   return <span className={`file-glyph file-glyph--${definition.tone}`}>{definition.badge}</span>;
-}
-
-function menuAnchor(event) {
-  const rect = event.currentTarget.getBoundingClientRect();
-  return {
-    left: Math.max(8, Math.min(rect.right + 6, window.innerWidth - 230)),
-    top: Math.max(8, Math.min(rect.top, window.innerHeight - 248)),
-  };
 }
 
 function EntryRow({ entry, depth, workspace, state, dispatch, onOpen, onCreate, onEntryAction }) {
@@ -50,8 +42,28 @@ function EntryRow({ entry, depth, workspace, state, dispatch, onOpen, onCreate, 
           {state.sessions[`workspace:${workspace.id}:${entry.path}`]?.dirty && <span className="dirty-dot" aria-label="Unsaved changes" />}
         </button>
         <div className="tree-row-actions">
-          {isDirectory && <button className="row-action row-action--create" type="button" aria-label={`Create in ${entry.name}`} onClick={(event) => onCreate({ workspaceId: workspace.id, directoryPath: entry.path, label: entry.name }, menuAnchor(event))}><Plus size={14} /></button>}
-          <button className="row-action" type="button" aria-label={`Actions for ${entry.name}`} onClick={(event) => onEntryAction(workspace, entry, menuAnchor(event))}><MoreHorizontal size={14} /></button>
+          {isDirectory && (
+            <AppMenu
+              label={`Create in ${entry.name}`}
+              align="end"
+              trigger={<button className="row-action row-action--create" type="button" aria-label={`Create in ${entry.name}`}><Plus size={14} /></button>}
+            >
+              <AppMenuItem onSelect={() => onCreate({ workspaceId: workspace.id, directoryPath: entry.path, label: entry.name }, "ideasketch")}><span className="file-glyph file-glyph--blue">IS</span>New IdeaSketch</AppMenuItem>
+              <AppMenuItem onSelect={() => onCreate({ workspaceId: workspace.id, directoryPath: entry.path, label: entry.name }, "markdown")}><span className="file-glyph file-glyph--slate">MD</span>New Markdown</AppMenuItem>
+              <AppMenuSeparator />
+              <AppMenuItem icon={FolderPlus} onSelect={() => onCreate({ workspaceId: workspace.id, directoryPath: entry.path, label: entry.name }, "directory")}>New Folder</AppMenuItem>
+            </AppMenu>
+          )}
+          <AppMenu
+            label={entry.name}
+            align="end"
+            trigger={<button className="row-action" type="button" aria-label={`Actions for ${entry.name}`}><MoreHorizontal size={14} /></button>}
+          >
+            <AppMenuItem icon={Pencil} onSelect={() => onEntryAction(workspace, entry, "rename")}>Rename</AppMenuItem>
+            <AppMenuItem icon={ExternalLink} onSelect={() => onEntryAction(workspace, entry, "reveal")}>Show in Finder</AppMenuItem>
+            <AppMenuSeparator />
+            <AppMenuItem icon={Trash2} danger onSelect={() => onEntryAction(workspace, entry, "trash")}>Move to Trash</AppMenuItem>
+          </AppMenu>
         </div>
       </div>
       {isDirectory && expanded && (
@@ -87,8 +99,26 @@ export function WorkspacePanel({ state, dispatch, onOpen, onOpenRecent, onAddWor
                   {workspace.readOnly && <span className="workspace-pill">Read-only</span>}
                 </button>
                 <div className="tree-row-actions tree-row-actions--workspace">
-                  <button className="row-action row-action--create" type="button" aria-label={`Create in ${workspace.name}`} disabled={workspace.readOnly || workspace.missing} onClick={(event) => onCreate({ workspaceId: workspace.id, directoryPath: "", label: workspace.name }, menuAnchor(event))}><Plus size={14} /></button>
-                  <button className="row-action" type="button" aria-label={`Actions for ${workspace.name}`} onClick={(event) => onWorkspaceAction(workspace, menuAnchor(event))}><MoreHorizontal size={14} /></button>
+                  <AppMenu
+                    label={`Create in ${workspace.name}`}
+                    align="end"
+                    trigger={<button className="row-action row-action--create" type="button" aria-label={`Create in ${workspace.name}`} disabled={workspace.readOnly || workspace.missing}><Plus size={14} /></button>}
+                  >
+                    <AppMenuItem onSelect={() => onCreate({ workspaceId: workspace.id, directoryPath: "", label: workspace.name }, "ideasketch")}><span className="file-glyph file-glyph--blue">IS</span>New IdeaSketch</AppMenuItem>
+                    <AppMenuItem onSelect={() => onCreate({ workspaceId: workspace.id, directoryPath: "", label: workspace.name }, "markdown")}><span className="file-glyph file-glyph--slate">MD</span>New Markdown</AppMenuItem>
+                    <AppMenuSeparator />
+                    <AppMenuItem icon={FolderPlus} onSelect={() => onCreate({ workspaceId: workspace.id, directoryPath: "", label: workspace.name }, "directory")}>New Folder</AppMenuItem>
+                  </AppMenu>
+                  <AppMenu
+                    label={workspace.name}
+                    align="end"
+                    trigger={<button className="row-action" type="button" aria-label={`Actions for ${workspace.name}`}><MoreHorizontal size={14} /></button>}
+                  >
+                    <AppMenuItem icon={Pencil} onSelect={() => onWorkspaceAction(workspace, "rename")}>Rename</AppMenuItem>
+                    <AppMenuItem icon={ExternalLink} onSelect={() => onWorkspaceAction(workspace, "reveal")}>Show in Finder</AppMenuItem>
+                    <AppMenuSeparator />
+                    <AppMenuItem icon={FolderMinus} danger disabled={Boolean(state.sessions && Object.values(state.sessions).some((session) => session.workspaceId === workspace.id && session.dirty))} onSelect={() => onWorkspaceAction(workspace, "remove")}>Remove from Workspaces</AppMenuItem>
+                  </AppMenu>
                 </div>
               </div>
               {workspace.missing && <p className="workspace-root-problem">Choose the Workspace again or remove this unavailable root. No files were discarded.</p>}
@@ -126,42 +156,5 @@ export function WorkspacePanel({ state, dispatch, onOpen, onOpenRecent, onAddWor
         <button className="foot-action" type="button" onClick={onSettings}><Settings size={15} /><span>Settings</span><kbd>⌘,</kbd></button>
       </div>
     </aside>
-  );
-}
-
-export function NewEntryMenu({ target, anchor, onChoose, onClose }) {
-  return (
-    <div className="popover-menu new-entry-menu" role="menu" style={anchor}>
-      <div className="popover-label">Create in {target?.label ?? "Workspace"}</div>
-      <button type="button" role="menuitem" onClick={() => onChoose("ideasketch")}><span className="file-glyph file-glyph--blue">IS</span>New IdeaSketch</button>
-      <button type="button" role="menuitem" onClick={() => onChoose("markdown")}><span className="file-glyph file-glyph--slate">MD</span>New Markdown</button>
-      <button type="button" role="menuitem" onClick={() => onChoose("directory")}><FolderPlus size={15} />New Folder</button>
-      <button type="button" role="menuitem" onClick={onClose}><X size={15} />Cancel</button>
-    </div>
-  );
-}
-
-export function WorkspaceActionMenu({ workspace, anchor, onRename, onReveal, onRemove, removeDisabled, onClose }) {
-  return (
-    <div className="popover-menu workspace-action-menu" role="menu" style={anchor}>
-      <div className="popover-label">{workspace.name}</div>
-      <button type="button" role="menuitem" onClick={onRename}><Pencil size={14} />Rename Workspace</button>
-      <button type="button" role="menuitem" onClick={onReveal}><ExternalLink size={14} />Show in Finder</button>
-      <button className="danger-action" type="button" role="menuitem" disabled={removeDisabled} onClick={onRemove}><FolderMinus size={14} />Remove from Workspaces</button>
-      <button type="button" role="menuitem" onClick={onClose}><X size={15} />Cancel</button>
-    </div>
-  );
-}
-
-export function EntryActionMenu({ entry, anchor, onRename, onMove, onReveal, onTrash, onClose }) {
-  return (
-    <div className="popover-menu entry-action-menu" role="menu" style={anchor}>
-      <div className="popover-label">{entry.name}</div>
-      <button type="button" role="menuitem" onClick={onRename}><Pencil size={14} />Rename</button>
-      {!entry.path.startsWith("Archive") && <button type="button" role="menuitem" onClick={onMove}><ArrowRight size={14} />Move to Archive</button>}
-      <button type="button" role="menuitem" onClick={onReveal}><ExternalLink size={14} />Show in Finder</button>
-      <button className="danger-action" type="button" role="menuitem" onClick={onTrash}><Trash2 size={14} />Move to Trash</button>
-      <button type="button" role="menuitem" onClick={onClose}><X size={15} />Cancel</button>
-    </div>
   );
 }

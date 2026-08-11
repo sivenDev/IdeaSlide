@@ -17,7 +17,6 @@ export const initialState = {
   modal: null,
   pendingOpen: null,
   notice: null,
-  contextMenu: null,
   commandOpen: false,
   activeScenario: "normal",
 };
@@ -36,8 +35,6 @@ export function demoReducer(state, action) {
       return { ...state, notice: action.notice };
     case "set-modal":
       return { ...state, modal: action.modal };
-    case "set-context-menu":
-      return { ...state, contextMenu: action.menu };
     case "set-command":
       return { ...state, commandOpen: action.open };
     case "set-scenario":
