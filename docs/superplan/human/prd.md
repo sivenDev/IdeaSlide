@@ -3,7 +3,7 @@
 - status: accepted
 - document_version: 1.0
 - created: 2026-08-03
-- last_updated: 2026-08-10
+- last_updated: 2026-08-11
 - product: IdeaNote
 - predecessor: IdeaSlide
 - implementation_authorized: true
@@ -25,7 +25,7 @@ IdeaNote 同时支持：
 
 长期产品布局为左、中、右三栏：
 
-- 左侧：始终存在的 Workspace 命令栏；有 Workspace 时显示 Explorer，无会话或 Single File Mode 时显示 New、Open、Settings 与 Recent 入口。
+- 左侧：可折叠的 Workspaces 导航；按最近打开顺序显示 Workspace，活动 Workspace 在其下展开真实文件树，Recents 只显示从 Workspace 之外单独打开的文件，底部提供 Settings。
 - 中间：当前文件的单一 Editor。
 - 右侧：AI Agent。
 
@@ -50,13 +50,13 @@ IdeaNote 同时支持：
 15. 新编辑器不需要等待 Agent 重构：它们通过 File Type Registry 关联自己的 Agent Extension，直接复用 Rust Agent Core、Settings、Provider、会话、Tool Bridge 和通用 Tool Activity 界面。
 16. Workspace Explorer 始终显示可导航的真实目录，但文件只显示当前 File Type Registry 明确支持打开的类型；当前阶段显示 `.is` 和 `.md`。
 17. Workspace Mode 产生的临时写入文件和其他应用内部临时产物统一放在 Workspace Root 的 `.ideanote/` 子目录中，不在用户文件旁生成 `.is.tmp` 等临时文件。
-18. Settings Center 同时从 Workspace 命令栏和编辑器 Toolbar 打开，配置 General、AI Provider、Agent 和编辑器贡献的设置区段。
+18. Settings Center 从 Workspaces 底部、Welcome 页面、命令面板和系统快捷键打开，配置 General、AI Provider、Agent 和编辑器贡献的设置区段；编辑器外层不保留独立 Toolbar。
 19. AI 默认开启；关闭后不挂载 Agent UI、不初始化 Runtime、不发现 Skill、不暴露 Tool、不访问 Provider，也不保留后台 Agent 生命周期。
 20. AI 开启但 Provider Credential 未配置时，只显示配置引导，不发起模型请求。
 21. API Key 由 Rust 使用 AES-256-GCM 保存在应用配置目录的版本化加密凭据文件中，随机密钥单独保存并限制为当前用户访问；不读取、迁移或删除旧 Keychain 数据，也不触发 Keychain 授权。该边界防止明文落盘和仅复制凭据文件造成泄露，但不能抵御可同时读取密钥与密文的同一操作系统用户进程。
 22. 已保存 API Key 不返回前端；Settings 的显示/隐藏按钮只影响当前输入内容。自动重试默认开启、默认最多三次总尝试、可关闭并限制在一至五次，只允许发生在可重试错误且尚无文本、公开 Runtime Summary 或 Tool 进度时。
 23. API Key、密钥和明文不得进入 `.ideanote/`、文档、Recovery、日志、前端持久化设置或对话历史。
-24. 所有 Agent 修改都先形成绑定文档 revision、source fingerprint 和外部状态的 ChangeSet；用户明确批准后才通过现有 Editor/Document Session 应用，并提供一步 Undo。
+24. 所有 Agent 修改都先形成绑定文档 revision、source fingerprint 和外部状态的 ChangeSet；只有受信的活动编辑器复核通过后，才通过现有 Editor SDK 的一次原生事务应用，并进入该编辑器的 Undo/Redo、Auto-save、Recovery 和冲突保护生命周期。
 25. 旧 MCP stdio Server、`--mcp` 启动模式、隐藏 MCP Renderer 和前端 MCP Bridge 已退休；当前 AI 自动化只通过应用内 Agent Extension 架构提供。
 26. Rust 自动选择通过版本和编辑器 Tool 安全检查的 Codex `0.147.0` app-server；缺失、不兼容、初始化失败或尚未产生可见进度时崩溃，透明回退到 OpenAI-compatible Compatibility Runtime。已经产生文本、公开活动、Plan 或 Tool 进度后崩溃则明确失败并要求显式重试，避免重复副作用。Grok 继续作为已评估候选，不进入当前生产选择。
 27. Agent 保留真实增量答案、确定性的 Preparing/Working/elapsed 活动，以及 Runtime 明确标记为公开的过程信息。对于上游在极短时间内突发或原子交付的 assistant answer，可以使用有界的展示节奏让内容可感知地逐步出现，但必须保留并区分真实来源时序，不得把展示节奏描述为模型仍在生成、token 直播或隐藏思考；不得展示或推断 hidden chain-of-thought。
@@ -546,7 +546,8 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 - Settings 只允许查看当前正在输入的 API Key，不返回已保存值；自动重试可关闭，总尝试次数限制为一至五次并在 Turn 开始时捕获。
 - Settings 显示自动 Runtime 选择状态；通过安全门的已安装 Codex `0.147.0` 优先，缺失、不兼容、初始化失败或 pre-progress crash 时回退 Compatibility，并显示有界诊断原因。
 - Agent Settings 提供最大 Tool step（默认 8，范围 1–20）、context warning（默认 75%，范围 50–90%）、New Thread 建议（默认 90%，范围 60–100% 且严格高于 warning）、每 Thread 诊断保留数（默认 20，范围 5–100）、Compatibility replay message 数（默认 60，范围 10–200）和 source-delivery telemetry 可见性。执行相关值在 Turn 开始时捕获，活动 Turn 不受后续 Settings 修改影响。
-- 本地 Thread 支持创建、恢复、重命名、归档和确认后的永久删除；运行中的 Thread 不允许删除，删除当前 Thread 前必须先建立有效替代 Thread。
+- Agent crown 只保留一个真实 Conversation selector，以及右对齐的 New、Inspector、Settings 和关闭按钮；Conversation 菜单只提供 Rename/Delete。历史归档数据可以继续兼容持久化，但 Archive 不属于主要导航交互。
+- 本地 Thread 支持创建、恢复、重命名和确认后的永久删除；运行中的 Thread 不允许删除，删除当前 Thread 前必须先建立有效替代 Thread。
 - Codex upstream Thread id 与有效 Runtime/model/fallback metadata 随本地 Thread 持久化，用于后续 Turn 恢复和历史解释。
 - 每个 Thread 的 Runtime Inspector 显示有效 Runtime、Model、能力、健康状态、有效 Turn policy、source-delivery telemetry、最新安全诊断与 context 状态；Tool Activity 仍保留在对话时间线中，不与 Inspector 混合。
 - Context 使用量仅在 Runtime 或 Provider 提供精确 token 数时记录；只有同时提供精确 `modelContextWindow` 时才计算百分比并应用 warning/New Thread 阈值。不得估算 token、硬编码模型 context window，或把账户用量当作 Thread context。
@@ -556,9 +557,9 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 - 可展开 Tool Activity 只显示经过 Rust Tool Broker 限界和脱敏的参数/结果；call id、schema、重复调用、超时和结果大小由 Rust 统一治理。
 - 只显示 Runtime 明确分类为公开的过程摘要；隐藏 chain-of-thought 不进入事件、UI 或持久化。缺少公开过程信息时不显示误导性提示。
 - Bundled editor Skill 与 managed custom Skill 共享同一 Rust registry contract。活动编辑器 Extension 的 bundled Skill 必须始终加载且不可关闭；custom Skill 只能作为附加指令，不能替换 editor Skill、注册 Tool 或扩大权限。
-- Settings > Agent 支持从标准 `SKILL.md` 目录导入 managed copy、查看来源/版本/校验结果/引用、启用或关闭、配置自主激活、限制兼容 editor scope、显式刷新和确认后删除。AI 关闭时仍可管理已有 copy，但不得进入 Turn discovery、激活、reference serving 或模型注入。
+- Settings > Agent 支持从标准 `SKILL.md` 目录导入 managed copy、查看来源/版本/校验结果/引用、启用或关闭 custom Skill、配置自主激活、限制兼容 editor scope、显式刷新和确认后删除。Bundled system/editor Skill 始终启用且不可关闭。AI 关闭时仍可管理已有 copy，但不得进入 Turn discovery、激活、reference serving 或模型注入。
 - Custom Skill import 必须拒绝 symlink、路径穿越、脚本、依赖 manifest、MCP、Tool/permission/command 声明和 reserved/duplicate identity；使用 staging + rename 原子提交，不监视或修改原始导入目录。每个 copy 最多 64 个文件、4 层目录、单文件 256 KiB、总计 2 MiB，`SKILL.md` 最多 64 KiB，单个可读取文本 reference 最多 32 KiB，最多保留 64 个 managed Skills。
-- Turn 开始时只向模型提供最多 32 项且 8 KiB 的兼容 custom Skill metadata catalog，超出时记录安全诊断；composer 显式选择的 Skill 在模型工作前加载，允许自主调用的 Skill 只有在模型调用 `activate_skill` 后才加载完整指令。`read_skill_reference` 只能读取已激活 immutable snapshot 中的 opaque `ref-N` 文本资源。
+- Turn 开始时只向模型提供最多 32 项且 8 KiB 的兼容 custom Skill metadata catalog，超出时记录安全诊断；Composer 不提供 Automatic Skill 或 Skill picker，mandatory/implicit editor Skill 由 Runtime 注入，允许自主调用的 custom Skill 只有在模型调用 `activate_skill` 后才加载完整指令。`read_skill_reference` 只能读取已激活 immutable snapshot 中的 opaque `ref-N` 文本资源。
 - Explicit、implicit 和 mandatory activation 都记录 id、name、origin、digest、activation mode 与 editor scope。刷新、关闭或删除不会改变已激活的 Turn snapshot；尚未激活但版本已变化的 catalog entry 必须拒绝并要求新 Turn。完整指令与 reference 内容不进入 Thread、Inspector、诊断或可持久化 Tool output。
 - Codex dynamic Tools 与 Compatibility Tool loop 使用同一 host Skill Tool contract、Tool Broker step/cancellation 约束和 chronology。Compatibility 同一模型响应若混合 Skill host Tool 与 editor Tool，必须先只处理 Skill host Tool，再以新指令重新请求模型，不能执行基于旧指令生成的 editor mutation。
 - Runtime、Panel、Settings 不直接包含 `.is` 或未来编辑器的解析、验证、读写逻辑。
@@ -636,7 +637,7 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 - 当前文件 Dirty 状态必须在标题栏清晰显示；非活动受保护 Session 的状态必须在 Workspace Explorer 中可识别。
 - 左侧 Explorer 和中间 Editor 之间支持有最小、最大宽度限制的拖动调整。
 - 左侧 Explorer 可以折叠。
-- 在 1180px 及以上可同时展开 Workspace 与 Agent；960–1179px 默认收起 Workspace 详情；850–959px 默认收起两侧详情并保留独立的 48px 恢复栏，页面不得产生横向溢出。
+- 在 1180px 及以上可同时展开 Workspace 与 Agent；较窄窗口可折叠任一侧栏，恢复入口位于应用 crown，关闭侧栏后中间编辑区继续占满可用空间且页面不得产生横向溢出。
 - AI 关闭时不显示 Agent 栏或空占位；AI 开启但未配置 Provider 时，独立 Agent 栏显示可进入 Settings 的配置状态。
 - 应用级右侧 Agent 栏可折叠、可调整宽度；编辑器内部 Navigator 与 Agent 分属不同布局区域并可独立控制。
 - Light、Dark、System 主题必须保持 Shell、Settings、菜单、Markdown 与 Agent 的文字、边界、焦点、禁用、警告和错误状态可读；System 跟随操作系统变化。
@@ -729,7 +730,7 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 - Runtime Inspector 对精确 usage、不可用 usage、Runtime compaction 和本地 Compatibility replay 截断作不同说明；只有精确 context window 达到配置阈值时才提示压力或建议 New Thread。
 - Agent policy 默认值为 8 maximum steps、75% warning、90% New Thread、20 diagnostics、60 Compatibility messages 和显示 source delivery；边界与阈值关系在 TypeScript 和 Rust 两侧归一化，maximum steps 对 Codex 与 Compatibility 的所有编辑器 Tool 生效。
 - Agent 答案在上游提供增量时于完成前持续增长；上游缓冲、突发或原子交付时，Preparing、Working 和 elapsed activity 仍由真实生命周期驱动，assistant answer 可使用有界展示节奏逐步出现，但 UI 与诊断不得声称这是实时 token 生成或模型思考。
-- 本地 Thread 历史支持恢复、重命名、归档和确认永久删除；运行中的 Thread 不可删除，删除不会触及文档、Workspace、Recovery、凭据或其他 Thread。
+- Conversation selector 支持恢复、重命名和确认永久删除；主界面不显示 Archive/History 导航，运行中的 Thread 不可删除，删除不会触及文档、Workspace、Recovery、凭据或其他 Thread。
 - Tool 请求通过 Rust ledger 与 TypeScript 活动编辑器 executor 往返；所有修改生成目标绑定 ChangeSet，经活动编辑器复核后直接作为一次原生事务应用，并可通过编辑器原生历史一步 Undo/Redo。
 - Hidden reasoning 不显示、不推断、不持久化；只有 Runtime 明确标记为公开的过程信息才可流式呈现。
 - IdeaSketch 与 Markdown Agent 修改都不直接写磁盘；陈旧、只读、冲突、外部修改、已切换或未挂载目标拒绝应用。

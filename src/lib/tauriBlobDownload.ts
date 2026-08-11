@@ -1,5 +1,6 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { isTauri } from "@tauri-apps/api/core";
 import { message, save } from "@tauri-apps/plugin-dialog";
+import { writeFileBytes } from "./tauriCommands.ts";
 
 export type ImageDownloadExtension = "png" | "svg";
 
@@ -71,15 +72,11 @@ async function readBlobBytes(url: string) {
   return Array.from(new Uint8Array(buffer));
 }
 
-async function writeNativeBytes(path: string, data: number[]) {
-  await invoke("write_file_bytes", { path, data });
-}
-
 const defaultPersistDependencies: PersistBlobDownloadDependencies = {
   choosePath: chooseNativePath,
   readBytes: readBlobBytes,
   revokeUrl: (url) => URL.revokeObjectURL(url),
-  writeBytes: writeNativeBytes,
+  writeBytes: writeFileBytes,
 };
 
 export async function persistTauriBlobDownload(

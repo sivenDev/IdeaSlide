@@ -36,6 +36,7 @@ interface WorkspaceExplorerProps {
   onTrash: (path: string) => Promise<void>;
   onReveal: (path: string) => void;
   onRefresh: () => Promise<void>;
+  onError: (action: string, error: unknown) => void;
   onExpandedPathsChange: (paths: string[]) => void;
 }
 
@@ -96,6 +97,7 @@ export function WorkspaceExplorer({
   onTrash,
   onReveal,
   onRefresh,
+  onError,
   onExpandedPathsChange,
 }: WorkspaceExplorerProps) {
   const [renamePath, setRenamePath] = useState<string>();
@@ -117,15 +119,23 @@ export function WorkspaceExplorer({
     setExpanded(next);
   };
   const createFolder = async (parentPath: string) => {
-    const entry = await onCreateFolder(parentPath);
-    setRenamePath(entry.path);
-    if (parentPath) setExpanded(new Set(expanded).add(parentPath));
+    try {
+      const entry = await onCreateFolder(parentPath);
+      setRenamePath(entry.path);
+      if (parentPath) setExpanded(new Set(expanded).add(parentPath));
+    } catch (error) {
+      onError("Folder could not be created", error);
+    }
   };
   const createDocument = async (parentPath: string, fileType: string) => {
-    const entry = await onCreateDocument(parentPath, fileType);
-    if (!entry) return;
-    setRenamePath(entry.path);
-    if (parentPath) setExpanded(new Set(expanded).add(parentPath));
+    try {
+      const entry = await onCreateDocument(parentPath, fileType);
+      if (!entry) return;
+      setRenamePath(entry.path);
+      if (parentPath) setExpanded(new Set(expanded).add(parentPath));
+    } catch (error) {
+      onError("Document could not be created", error);
+    }
   };
 
   const renderEntries = (): React.ReactNode => visibleRows.map(({ entry, depth }) => (
@@ -145,7 +155,7 @@ export function WorkspaceExplorer({
         onSelect={() => onSelect(entry.path)}
         onOpen={() => onOpen(entry)}
         onToggleExpanded={() => toggleExpanded(entry.path)}
-        onRename={(name) => void onRename(entry.path, name)}
+        onRename={(name) => void onRename(entry.path, name).catch((error) => onError("Item could not be renamed", error))}
         onReveal={() => onReveal(entry.path)}
         onCreateFolder={() => void createFolder(entry.path)}
         onCreateDocument={(fileType) => void createDocument(entry.path, fileType)}
@@ -156,7 +166,7 @@ export function WorkspaceExplorer({
             okLabel: "Move to Trash",
             cancelLabel: "Cancel",
           });
-          if (confirmed) await onTrash(entry.path);
+          if (confirmed) await onTrash(entry.path).catch((error) => onError("Item could not be moved to Trash", error));
         })()}
       />
     </div>
@@ -183,7 +193,7 @@ export function WorkspaceExplorer({
             <div className="px-3 py-4 text-xs leading-5 text-gray-400">This Workspace is empty.</div>
           )}
         </div>
-        <button className="idea-slide-workspace-refresh" type="button" onClick={() => void onRefresh()}>Refresh</button>
+        <button className="idea-slide-workspace-refresh" type="button" onClick={() => void onRefresh().catch((error) => onError("Workspace could not be refreshed", error))}>Refresh</button>
       </div>
     </DndContext>
   );

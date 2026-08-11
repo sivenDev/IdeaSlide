@@ -339,7 +339,7 @@ Refine only .temp/f041-native-workbench-review after human review. Remove creati
 
 ## F046: Migrate Reviewed Demo Frontend into Tauri
 
-- status: accepted
+- status: done
 - created: 2026-08-11
 
 Migrate every user-facing product capability and the approved desktop interaction/layout from .temp/f041-native-workbench-review into the production Tauri application. Replace mock desktop/settings/agent boundaries with real Tauri v2 commands, persistence, permissions, and existing production services while preserving the registry-driven Workspace + Single File core, real-file safety, local-first recovery, responsive shell, themes, Settings, Markdown, Agent, menus, recents, window chrome, and Workspace file operations. Keep the existing production IdeaSketch/Excalidraw editor implementation and its editor-owned navigation; do not migrate the demo Excalidraw editor. Demo-only review scenarios, deterministic fixtures, failure injection, and reset controls remain test infrastructure rather than production UI.

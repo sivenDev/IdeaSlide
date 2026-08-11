@@ -1,4 +1,3 @@
-import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import {
   ExternalLink,
   File,
@@ -63,6 +62,7 @@ export function WorkspaceSidebar({
   workspaces,
   recents,
   loading,
+  error,
   activeWorkspaceTree,
   onToggle,
   onOpenWorkspace,
@@ -72,6 +72,9 @@ export function WorkspaceSidebar({
   onOpenRecent,
   onRenameRecent,
   onRemoveRecent,
+  onRevealWorkspace,
+  onRevealRecent,
+  onRetry,
   onOpenSettings,
 }: {
   frame: NativeWindowFrame;
@@ -79,6 +82,7 @@ export function WorkspaceSidebar({
   workspaces: RecentWorkspace[];
   recents: RecentFile[];
   loading: boolean;
+  error?: string;
   activeWorkspaceTree?: ReactNode;
   onToggle: () => void;
   onOpenWorkspace: (path?: string) => void;
@@ -88,6 +92,9 @@ export function WorkspaceSidebar({
   onOpenRecent: (path: string) => void;
   onRenameRecent: (path: string, name: string) => void;
   onRemoveRecent: (path: string) => void;
+  onRevealWorkspace: (path: string) => void;
+  onRevealRecent: (path: string) => void;
+  onRetry: () => void;
   onOpenSettings: () => void;
 }) {
   const [renaming, setRenaming] = useState<{ kind: "workspace" | "recent"; path: string }>();
@@ -117,6 +124,12 @@ export function WorkspaceSidebar({
       </header>
       <div className="ideanote-workspace-section-title">Workspaces</div>
       <nav className="ideanote-workspace-scroll" aria-label="Workspaces and recent files">
+        {error && (
+          <div className="ideanote-navigation-error" role="alert">
+            <span>{error}</span>
+            <button type="button" onClick={onRetry}>Retry</button>
+          </div>
+        )}
         {loading && workspaces.length === 0 && <p className="ideanote-sidebar-empty">Loading…</p>}
         {!loading && workspaces.length === 0 && (
           <button className="ideanote-open-workspace-empty" type="button" onClick={() => onOpenWorkspace()}>
@@ -166,7 +179,7 @@ export function WorkspaceSidebar({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent side="right" align="start" sideOffset={3} className="ideanote-compact-menu ideanote-workspace-menu">
                         <DropdownMenuItem onSelect={() => beginRename("workspace", workspace.path, workspace.name)}><Pencil {...iconProps} />Rename</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => void revealItemInDir(workspace.path)}><ExternalLink {...iconProps} />Show in Finder</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onRevealWorkspace(workspace.path)}><ExternalLink {...iconProps} />Show in Finder</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-red-700 focus:text-red-800" onSelect={() => onRemoveWorkspace(workspace.path)}><Trash2 {...iconProps} />Remove from Workspaces</DropdownMenuItem>
                       </DropdownMenuContent>
@@ -216,7 +229,7 @@ export function WorkspaceSidebar({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent side="right" align="start" sideOffset={3} className="ideanote-compact-menu">
                           <DropdownMenuItem onSelect={() => beginRename("recent", recent.path, recent.name)}><Pencil {...iconProps} />Rename</DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => void revealItemInDir(recent.path)}><ExternalLink {...iconProps} />Show in Finder</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => onRevealRecent(recent.path)}><ExternalLink {...iconProps} />Show in Finder</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem className="text-red-700 focus:text-red-800" onSelect={() => onRemoveRecent(recent.path)}><Trash2 {...iconProps} />Remove</DropdownMenuItem>
                         </DropdownMenuContent>

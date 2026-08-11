@@ -3498,6 +3498,27 @@ body,
     scrollbar-width: thin;
 }
 
+.ideanote-navigation-error {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 2px 1px 9px;
+    border: 1px solid rgb(184 76 67 / 20%);
+    border-radius: 7px;
+    background: rgb(184 76 67 / 5%);
+    color: #8b4b46;
+    font-size: 10px;
+    line-height: 1.45;
+    padding: 7px 8px;
+}
+
+.ideanote-navigation-error > button {
+    flex: 0 0 auto;
+    color: var(--ideanote-cobalt);
+    font-weight: 650;
+}
+
 .ideanote-workspace-root { margin-bottom: 2px; }
 .ideanote-workspace-root__row,
 .ideanote-recent-row {
@@ -3813,6 +3834,11 @@ html[data-theme="dark"] .ideanote-workbench-welcome__actions > button { color: #
 html[data-theme="dark"] .ideanote-workbench-welcome__actions > button:hover,
 html[data-theme="dark"] .ideanote-workspace-footer > button:hover,
 html[data-theme="dark"] .ideanote-open-workspace-empty:hover { background: rgb(255 255 255 / 6%); }
+html[data-theme="dark"] .ideanote-navigation-error {
+    border-color: rgb(223 117 109 / 26%);
+    background: rgb(223 117 109 / 8%);
+    color: #e3a29c;
+}
 html[data-theme="dark"] .ideanote-document-status-close:hover,
 html[data-theme="dark"] .ideanote-document-status-close:focus-visible { background: #363a40; }
 html[data-theme="dark"] .ideanote-document-status-close__close { color: #d4d7dc; }

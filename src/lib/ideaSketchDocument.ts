@@ -1,9 +1,7 @@
 import type {
   IdeaSketchDocument,
   IdeaSketchPage,
-  WorkspaceDocument,
 } from "../types";
-import { getOrderedCanvasResources } from "./workspaceResources.ts";
 
 export const IDEA_SKETCH_FORMAT_VERSION = "1.0" as const;
 export const LEGACY_WORKSPACE_FORMAT_VERSION = "2.0" as const;
@@ -225,65 +223,5 @@ export function serializeIdeaSketchDocument(
       },
     })),
     media: [],
-  };
-}
-
-export function ideaSketchDocumentToWorkspace(
-  document: IdeaSketchDocument,
-): WorkspaceDocument {
-  const resources = document.pages.map((page, order) => ({
-    id: page.id,
-    type: "canvas",
-    name: page.title,
-    parentId: null,
-    order,
-    contentRef: `slides/${page.id}.json`,
-  }));
-  return {
-    resources,
-    contents: Object.fromEntries(document.pages.map((page) => [page.id, {
-      type: "excalidraw",
-      version: 2,
-      elements: page.elements,
-      appState: page.appState,
-      files: page.files,
-    }])),
-    activeResourceId: resources[0]?.id ?? "",
-    manifestExtra: {
-      created: document.created,
-      modified: document.modified,
-    },
-  };
-}
-
-export function workspaceToIdeaSketchDocument(
-  workspace: WorkspaceDocument,
-  created?: string,
-): IdeaSketchDocument {
-  if (workspace.resources.some(
-    (resource) => resource.type !== "canvas" || resource.parentId !== null,
-  )) {
-    throw new Error("Cannot serialize a hierarchical workspace as .is v1");
-  }
-  const ordered = getOrderedCanvasResources(workspace.resources);
-  if (ordered.length === 0) {
-    throw new Error("IdeaSketch must contain at least one Page");
-  }
-  const now = new Date().toISOString();
-  return {
-    type: "ideasketch",
-    formatVersion: IDEA_SKETCH_FORMAT_VERSION,
-    created: created
-      ?? (typeof workspace.manifestExtra?.created === "string" ? workspace.manifestExtra.created : now),
-    modified: now,
-    pages: ordered.map((resource, index) => {
-      const content = workspace.contents[resource.id];
-      const scene = normalizeScene(content);
-      return {
-        id: resource.id,
-        title: resource.name.trim() || `Page ${index + 1}`,
-        ...scene,
-      };
-    }),
   };
 }

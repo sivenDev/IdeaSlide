@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ask, message } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { useAppStore } from "../hooks/useAppStore";
 import { useSettings } from "../hooks/useSettings";
 import { useUnsavedChangesDialog } from "../hooks/useUnsavedChangesDialog";
@@ -17,12 +16,14 @@ import {
   getRecentFiles,
   getRecentWorkspaces,
   inspectFile,
+  isDesktopOperationCancelled,
   loadRecoveryDraft,
   moveWorkspaceEntry,
   openStandaloneDocument,
   openWorkspace,
   openWorkspaceDocument,
   refreshWorkspace,
+  revealPath,
   removeRecentFile,
   removeRecentWorkspace,
   renameStandalonePath,
@@ -185,6 +186,7 @@ export function EditorLayout({
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [recentWorkspaces, setRecentWorkspaces] = useState<RecentWorkspace[]>([]);
   const [navigationLoading, setNavigationLoading] = useState(true);
+  const [navigationError, setNavigationError] = useState<string>();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [recoveryCandidate, setRecoveryCandidate] = useState<{ sessionId: string; draft: RecoveryDraft; sourceChanged: boolean }>();
   const {
@@ -225,10 +227,14 @@ export function EditorLayout({
 
   const refreshNavigation = useCallback(async () => {
     setNavigationLoading(true);
+    setNavigationError(undefined);
     try {
       const [files, workspaces] = await Promise.all([getRecentFiles(), getRecentWorkspaces()]);
       setRecentFiles(files);
       setRecentWorkspaces(workspaces);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      setNavigationError(`Navigation could not be loaded. ${detail}`);
     } finally {
       setNavigationLoading(false);
     }
@@ -553,7 +559,15 @@ export function EditorLayout({
       await clearRecoveryForDocument(document);
       dispatch({ type: "UPDATE_DOCUMENT_PATH", sessionId: document.id, filePath: path, mode: "standalone" });
       dispatch({ type: "MARK_DOCUMENT_SAVED", sessionId: document.id, sourceModified: inspection.modified ?? undefined });
-      addRecentFile(path).catch(console.error);
+      try {
+        await addRecentFile(path);
+      } catch (error) {
+        await message(`The document was saved, but Recents could not be updated: ${error instanceof Error ? error.message : String(error)}`, {
+          title: "Document Saved",
+          kind: "warning",
+        });
+      }
+      await refreshNavigation();
       return true;
     } catch (cause) {
       await message(`Failed to save file: ${cause instanceof Error ? cause.message : String(cause)}`, { title: "Save Error", kind: "error" });
@@ -561,7 +575,7 @@ export function EditorLayout({
     } finally {
       setIsSaving(false);
     }
-  }, [clearRecoveryForDocument, dispatch, inspectDocumentTarget, saveStandaloneDocumentWithTracking, state.workspace]);
+  }, [clearRecoveryForDocument, dispatch, inspectDocumentTarget, refreshNavigation, saveStandaloneDocumentWithTracking, state.workspace]);
 
   const handleRegisterSnapshot = useCallback((sessionId: string, provider?: () => DocumentModel) => {
     if (provider) documentSnapshotProviders.current.set(sessionId, provider);
@@ -641,14 +655,14 @@ export function EditorLayout({
         : await openStandaloneDocument(targetPath);
       dispatch({ type: "OPEN_DOCUMENT", document: sessionFromOpened(targetPath, activeDocument.mode, opened) });
       if (activeDocument.mode === "workspace") dispatch({ type: "SELECT_WORKSPACE_PATH", path: targetPath });
-      else addRecentFile(targetPath).catch(console.error);
+      else await refreshNavigation();
     } catch (error) {
       await message(`The linked document could not be opened: ${error instanceof Error ? error.message : String(error)}`, {
         title: "Link Not Opened",
         kind: "warning",
       });
     }
-  }, [activeDocument, dispatch, prepareActiveDocumentTransition, state.workspace]);
+  }, [activeDocument, dispatch, prepareActiveDocumentTransition, refreshNavigation, state.workspace]);
 
   const openEntry = useCallback(async (entry: WorkspaceEntry) => {
     if (!state.workspace || entry.kind !== "file") return;
@@ -721,18 +735,33 @@ export function EditorLayout({
 
   const handleOpenFile = useCallback(async () => {
     if (!await confirmSessionExit()) return;
-    const { path, document } = await chooseAndOpenStandaloneDocument();
-    dispatch({ type: "OPEN_DOCUMENT", document: sessionFromOpened(path, "standalone", document) });
-    addRecentFile(path).catch(console.error);
-    await refreshNavigation();
+    try {
+      const { path, document } = await chooseAndOpenStandaloneDocument();
+      dispatch({ type: "OPEN_DOCUMENT", document: sessionFromOpened(path, "standalone", document) });
+      await refreshNavigation();
+    } catch (error) {
+      if (isDesktopOperationCancelled(error)) return;
+      await message(`The file could not be opened: ${error instanceof Error ? error.message : String(error)}`, {
+        title: "File Not Opened",
+        kind: "error",
+      });
+    }
   }, [confirmSessionExit, dispatch, refreshNavigation]);
 
   const handleOpenWorkspace = useCallback(async (root?: string) => {
     if (!await confirmSessionExit()) return;
-    const workspace = await openWorkspace(root);
-    const restored = restoreWorkspaceDocuments(workspace);
-    dispatch({ type: "OPEN_WORKSPACE", workspace, restoredDocuments: restored.documents, activePath: restored.activePath });
-    await refreshNavigation();
+    try {
+      const workspace = await openWorkspace(root);
+      const restored = restoreWorkspaceDocuments(workspace);
+      dispatch({ type: "OPEN_WORKSPACE", workspace, restoredDocuments: restored.documents, activePath: restored.activePath });
+      await refreshNavigation();
+    } catch (error) {
+      if (isDesktopOperationCancelled(error)) return;
+      await message(`The Workspace could not be opened: ${error instanceof Error ? error.message : String(error)}`, {
+        title: "Workspace Not Opened",
+        kind: "error",
+      });
+    }
   }, [confirmSessionExit, dispatch, refreshNavigation]);
 
   const handleOpenRecent = useCallback(async (path: string) => {
@@ -776,13 +805,13 @@ export function EditorLayout({
     root: string,
     fileType: "ideasketch" | "markdown" | "directory",
   ) => {
-    if (state.workspace?.root === root) {
-      if (fileType === "directory") await handleCreateFolder("");
-      else await handleCreateDocument("", fileType);
-      return;
-    }
-    if (!await confirmSessionExit()) return;
     try {
+      if (state.workspace?.root === root) {
+        if (fileType === "directory") await handleCreateFolder("");
+        else await handleCreateDocument("", fileType);
+        return;
+      }
+      if (!await confirmSessionExit()) return;
       const result = fileType === "directory"
         ? await createWorkspaceFolder(root, "")
         : await createWorkspaceDocument(root, "", fileType);
@@ -852,9 +881,16 @@ export function EditorLayout({
     });
     if (!confirmed) return;
     if (state.workspace?.root === root && !await confirmSessionExit()) return;
-    await removeRecentWorkspace(root);
-    if (state.workspace?.root === root) dispatch({ type: "RESET_SESSION" });
-    await refreshNavigation();
+    try {
+      await removeRecentWorkspace(root);
+      if (state.workspace?.root === root) dispatch({ type: "RESET_SESSION" });
+      await refreshNavigation();
+    } catch (error) {
+      await message(`The Workspace could not be removed from navigation: ${error instanceof Error ? error.message : String(error)}`, {
+        title: "Workspace Not Removed",
+        kind: "error",
+      });
+    }
   }, [confirmSessionExit, dispatch, refreshNavigation, state.workspace?.root]);
 
   const handleRenameRecent = useCallback(async (path: string, newName: string) => {
@@ -885,8 +921,15 @@ export function EditorLayout({
   }, [dispatch, refreshNavigation, state.documents]);
 
   const handleRemoveRecent = useCallback(async (path: string) => {
-    await removeRecentFile(path);
-    await refreshNavigation();
+    try {
+      await removeRecentFile(path);
+      await refreshNavigation();
+    } catch (error) {
+      await message(`The file could not be removed from Recents: ${error instanceof Error ? error.message : String(error)}`, {
+        title: "Recent Not Removed",
+        kind: "error",
+      });
+    }
   }, [refreshNavigation]);
 
   useEffect(() => {
@@ -901,10 +944,12 @@ export function EditorLayout({
           type: "OPEN_DOCUMENT",
           document: sessionFromOpened(pendingStandalonePath, "standalone", opened),
         });
-        addRecentFile(pendingStandalonePath).catch(console.error);
         await refreshNavigation();
       } catch (error) {
-        console.error("Failed to open requested file:", error);
+        await message(`The requested file could not be opened: ${error instanceof Error ? error.message : String(error)}`, {
+          title: "File Not Opened",
+          kind: "error",
+        }).catch((dialogError) => console.error("Failed to show file-open error:", dialogError));
       } finally {
         if (!disposed) onPendingStandalonePathHandled();
       }
@@ -914,9 +959,35 @@ export function EditorLayout({
   }, [dispatch, onPendingStandalonePathHandled, pendingStandalonePath, refreshNavigation]);
 
   const handleRelocateWorkspace = useCallback(async () => {
-    const workspace = await openWorkspace();
-    dispatch({ type: "REPLACE_WORKSPACE", workspace, reloadDocuments: true });
+    try {
+      const workspace = await openWorkspace();
+      dispatch({ type: "REPLACE_WORKSPACE", workspace, reloadDocuments: true });
+    } catch (error) {
+      if (isDesktopOperationCancelled(error)) return;
+      await message(`The Workspace could not be relocated: ${error instanceof Error ? error.message : String(error)}`, {
+        title: "Workspace Not Relocated",
+        kind: "error",
+      });
+    }
   }, [dispatch]);
+
+  const handleRevealPath = useCallback(async (path: string) => {
+    try {
+      await revealPath(path);
+    } catch (error) {
+      await message(`The item could not be shown in Finder: ${error instanceof Error ? error.message : String(error)}`, {
+        title: "Item Not Revealed",
+        kind: "error",
+      });
+    }
+  }, []);
+
+  const handleWorkspaceActionError = useCallback((action: string, error: unknown) => {
+    void message(`${action}: ${error instanceof Error ? error.message : String(error)}`, {
+      title: "Workspace Error",
+      kind: "error",
+    }).catch((dialogError) => console.error("Failed to show Workspace error:", dialogError));
+  }, []);
 
   const handleRetryWorkspaceState = useCallback(async () => {
     if (!state.workspace) return;
@@ -1130,6 +1201,7 @@ export function EditorLayout({
               workspaces={workspaceRoots}
               recents={recentFiles}
               loading={navigationLoading}
+              error={navigationError}
               onToggle={() => setShowWorkspace(false)}
               onOpenWorkspace={(path) => void handleOpenWorkspace(path)}
               onCreateInWorkspace={(root, fileType) => void handleCreateInWorkspace(root, fileType)}
@@ -1138,6 +1210,9 @@ export function EditorLayout({
               onOpenRecent={(path) => void handleOpenRecent(path)}
               onRenameRecent={(path, name) => void handleRenameRecent(path, name)}
               onRemoveRecent={(path) => void handleRemoveRecent(path)}
+              onRevealWorkspace={(path) => void handleRevealPath(path)}
+              onRevealRecent={(path) => void handleRevealPath(path)}
+              onRetry={() => void refreshNavigation()}
               onOpenSettings={onOpenSettings}
               activeWorkspaceTree={state.workspace ? (
                 <WorkspaceExplorer
@@ -1153,8 +1228,9 @@ export function EditorLayout({
                   onRename={handleRename}
                   onMove={handleMove}
                   onTrash={handleTrash}
-                  onReveal={(path) => void revealItemInDir(joinWorkspacePath(state.workspace!.root, path))}
+                  onReveal={(path) => void handleRevealPath(joinWorkspacePath(state.workspace!.root, path))}
                   onRefresh={refreshTree}
+                  onError={handleWorkspaceActionError}
                   onExpandedPathsChange={(paths) => dispatch({ type: "SET_EXPANDED_PATHS", paths })}
                 />
               ) : undefined}

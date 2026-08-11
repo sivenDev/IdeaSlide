@@ -1,5 +1,6 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { isTauri } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
+import { writeFileBytes } from "./tauriCommands.ts";
 import {
   convertExcalidrawToDrawio,
   type DrawioConversionResult,
@@ -47,10 +48,6 @@ async function chooseNativePath(fileName: string) {
   });
 }
 
-async function writeNativeBytes(path: string, data: number[]) {
-  await invoke("write_file_bytes", { path, data });
-}
-
 function downloadInBrowser(fileName: string, xml: string) {
   const blob = new Blob([xml], { type: "application/vnd.jgraph.mxfile;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -65,7 +62,7 @@ const defaultDependencies: DrawioExportDependencies = {
   convert: convertExcalidrawToDrawio,
   isTauriRuntime: isTauri,
   choosePath: chooseNativePath,
-  writeBytes: writeNativeBytes,
+  writeBytes: writeFileBytes,
   download: downloadInBrowser,
 };
 

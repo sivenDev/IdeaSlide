@@ -3,8 +3,16 @@ use std::fs;
 use std::path::PathBuf;
 use tauri::command;
 
+use crate::safe_write::{self, WriteMode};
+
 #[cfg(test)]
 use std::sync::{Mutex, OnceLock};
+
+const USER_CONFIG_SCHEMA_VERSION: u8 = 1;
+
+fn user_config_schema_version() -> u8 {
+    USER_CONFIG_SCHEMA_VERSION
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RecentFile {
@@ -21,12 +29,24 @@ pub struct RecentWorkspace {
     pub opened_at: String,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserConfig {
+    #[serde(default = "user_config_schema_version")]
+    pub schema_version: u8,
     #[serde(default)]
     pub recent_files: Vec<RecentFile>,
     #[serde(default)]
     pub recent_workspaces: Vec<RecentWorkspace>,
+}
+
+impl Default for UserConfig {
+    fn default() -> Self {
+        Self {
+            schema_version: USER_CONFIG_SCHEMA_VERSION,
+            recent_files: Vec::new(),
+            recent_workspaces: Vec::new(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -52,14 +72,31 @@ fn load_user_config() -> Result<UserConfig, String> {
     }
     let content =
         fs::read_to_string(&path).map_err(|e| format!("Failed to read user config: {e}"))?;
-    serde_json::from_str(&content).map_err(|e| format!("Failed to parse user config: {e}"))
+    let config: UserConfig =
+        serde_json::from_str(&content).map_err(|e| format!("Failed to parse user config: {e}"))?;
+    if config.schema_version != USER_CONFIG_SCHEMA_VERSION {
+        return Err(format!(
+            "Unsupported user config schema version: {}",
+            config.schema_version
+        ));
+    }
+    Ok(config)
 }
 
 fn save_user_config(config: &UserConfig) -> Result<(), String> {
     let path = user_config_path()?;
     let json = serde_json::to_string_pretty(config)
         .map_err(|e| format!("Failed to serialize user config: {e}"))?;
-    fs::write(&path, json).map_err(|e| format!("Failed to write user config: {e}"))
+    let staging_directory = path
+        .parent()
+        .ok_or_else(|| "User config path has no parent directory".to_string())?
+        .join(".tmp");
+    safe_write::write_bytes(
+        &path,
+        &staging_directory,
+        json.as_bytes(),
+        WriteMode::Replace,
+    )
 }
 
 pub fn remap_recent_file(old_path: &str, new_path: &str) -> Result<(), String> {
@@ -271,6 +308,7 @@ mod tests {
         std::env::set_var("IDEASLIDE_CONFIG_DIR", config_dir.path());
 
         let config = load_user_config().unwrap();
+        assert_eq!(config.schema_version, USER_CONFIG_SCHEMA_VERSION);
         assert_eq!(config.recent_files.len(), 1);
         assert!(config.recent_workspaces.is_empty());
 

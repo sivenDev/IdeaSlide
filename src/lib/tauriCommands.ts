@@ -1,33 +1,20 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import type {
   DocumentModel,
-  IdeaSketchDocument,
   RecentFile,
   RecentWorkspace,
-  Slide,
   WorkspaceEntry,
   WorkspaceChangeEvent,
   WorkspaceMetadataSnapshot,
-  WorkspaceDocument,
   WorkspaceSession,
 } from "../types";
-import {
-  createEmptyIdeaSketchDocument,
-  ideaSketchDocumentToWorkspace,
-  LegacyIdeaSketchFormatError,
-  parseIdeaSketchFile,
-  serializeIdeaSketchDocument,
-  workspaceToIdeaSketchDocument,
-  type IdeaSketchFileData,
-} from "./ideaSketchDocument.ts";
 import {
   getFileTypeDefinition,
   getFileTypeDefinitionByPath,
   getOpenableFileTypeDefinitions,
 } from "./fileTypeRegistry.ts";
-
-const createdTimestampByPath = new Map<string, string>();
 
 interface BackendDocumentData {
   type: string;
@@ -43,139 +30,22 @@ type BackendOpenDocumentResult =
       message: string;
     };
 
-function wrapIdeaSketchData(data: IdeaSketchFileData): BackendDocumentData {
-  return { type: "ideasketch", data };
-}
+export class DesktopOperationCancelledError extends Error {
+  readonly kind = "cancelled";
 
-function unwrapIdeaSketchData(data: unknown): IdeaSketchFileData {
-  if (data && typeof data === "object" && "type" in data && "data" in data) {
-    const envelope = data as Partial<BackendDocumentData>;
-    if (envelope.type !== "ideasketch") {
-      throw new Error(`Unsupported backend document type: ${String(envelope.type)}`);
-    }
-    return envelope.data as IdeaSketchFileData;
-  }
-  return data as IdeaSketchFileData;
-}
-
-function unwrapOpenResult(result: BackendOpenDocumentResult): IdeaSketchFileData {
-  if (result.status === "legacy-protected") {
-    const error = new LegacyIdeaSketchFormatError(result.version);
-    error.message = result.message;
-    throw error;
-  }
-  return unwrapIdeaSketchData(result.document);
-}
-
-function rememberCreatedTimestamp(path: string, data: IdeaSketchFileData): void {
-  if (typeof data?.manifest?.created === "string" && data.manifest.created.length > 0) {
-    createdTimestampByPath.set(path, data.manifest.created);
+  constructor(message: string) {
+    super(message);
+    this.name = "DesktopOperationCancelledError";
   }
 }
 
-function requireIdeaSketchDefinition(path: string) {
-  const definition = getFileTypeDefinitionByPath(path);
-  if (!definition || definition.type !== "ideasketch") {
-    throw new Error(`Unsupported file type: ${path}`);
-  }
-  return definition;
-}
-
-export function convertFromIsFileData(data: unknown): WorkspaceDocument {
-  return ideaSketchDocumentToWorkspace(parseIdeaSketchFile(unwrapIdeaSketchData(data)));
-}
-
-export function convertToIsFileData(
-  workspace: WorkspaceDocument,
-  createdTimestamp?: string,
-): IdeaSketchFileData {
-  const document = workspaceToIdeaSketchDocument(workspace, createdTimestamp);
-  return serializeIdeaSketchDocument(document);
-}
-
-export async function createNewFile(): Promise<{
-  path: string;
-  workspace: WorkspaceDocument;
-}> {
-  const filePath = await save({
-    filters: [{ name: "IdeaNote IdeaSketch", extensions: ["is"] }],
-    defaultPath: "Untitled.is",
-  });
-
-  if (!filePath) {
-    throw new Error("File creation cancelled");
-  }
-
-  requireIdeaSketchDefinition(filePath);
-  const data = unwrapIdeaSketchData(
-    await invoke<BackendDocumentData>("create_file", { path: filePath }),
-  );
-  rememberCreatedTimestamp(filePath, data);
-  return { path: filePath, workspace: convertFromIsFileData(data) };
-}
-
-export async function openFile(): Promise<{
-  path: string;
-  workspace: WorkspaceDocument;
-}> {
-  const filePath = await open({
-    filters: [{ name: "IdeaNote IdeaSketch", extensions: ["is"] }],
-    multiple: false,
-  });
-
-  if (!filePath || typeof filePath !== "string") {
-    throw new Error("File selection cancelled");
-  }
-
-  requireIdeaSketchDefinition(filePath);
-  const data = unwrapOpenResult(
-    await invoke<BackendOpenDocumentResult>("open_file", { path: filePath }),
-  );
-  rememberCreatedTimestamp(filePath, data);
-  return { path: filePath, workspace: convertFromIsFileData(data) };
-}
-
-export function createNewPresentation(): { workspace: WorkspaceDocument } {
-  return { workspace: ideaSketchDocumentToWorkspace(createEmptyIdeaSketchDocument()) };
-}
-
-function ideaSketchFromSlides(
-  slides: Slide[],
-  createdTimestamp?: string,
-): IdeaSketchDocument {
-  const now = new Date().toISOString();
-  return {
-    type: "ideasketch",
-    formatVersion: "1.0",
-    created: createdTimestamp ?? now,
-    modified: now,
-    pages: slides.map((slide, index) => ({
-      ...slide,
-      title: slide.title?.trim() || `Page ${index + 1}`,
-    })),
-  };
-}
-
-export async function saveFile(
-  path: string,
-  workspaceOrSlides: WorkspaceDocument | Slide[],
-): Promise<void> {
-  requireIdeaSketchDefinition(path);
-  const createdTimestamp = createdTimestampByPath.get(path);
-  const document = Array.isArray(workspaceOrSlides)
-    ? ideaSketchFromSlides(workspaceOrSlides, createdTimestamp)
-    : workspaceToIdeaSketchDocument(workspaceOrSlides, createdTimestamp);
-  const data = serializeIdeaSketchDocument(document);
-  await invoke("save_file", { path, data: wrapIdeaSketchData(data) });
-  rememberCreatedTimestamp(path, data);
+export function isDesktopOperationCancelled(error: unknown): error is DesktopOperationCancelledError {
+  return error instanceof DesktopOperationCancelledError
+    || (Boolean(error) && typeof error === "object" && (error as { kind?: unknown }).kind === "cancelled");
 }
 
 export async function getRecentFiles(): Promise<RecentFile[]> {
-  try {
-    return await invoke<RecentFile[]>("get_recent_files");
-  } catch {
-    return [];
-  }
+  return invoke<RecentFile[]>("get_recent_files");
 }
 
 export async function addRecentFile(path: string): Promise<void> {
@@ -187,11 +57,7 @@ export async function removeRecentFile(path: string): Promise<void> {
 }
 
 export async function getRecentWorkspaces(): Promise<RecentWorkspace[]> {
-  try {
-    return await invoke<RecentWorkspace[]>("get_recent_workspaces");
-  } catch {
-    return [];
-  }
+  return invoke<RecentWorkspace[]>("get_recent_workspaces");
 }
 
 export async function removeRecentWorkspace(path: string): Promise<void> {
@@ -224,15 +90,6 @@ export async function renameWorkspaceRoot(root: string, newName: string): Promis
 
 export async function getOpenedFile(): Promise<string | null> {
   return await invoke<string | null>("get_opened_file");
-}
-
-export async function openRecentFile(path: string): Promise<WorkspaceDocument> {
-  requireIdeaSketchDefinition(path);
-  const data = unwrapOpenResult(
-    await invoke<BackendOpenDocumentResult>("open_file", { path }),
-  );
-  rememberCreatedTimestamp(path, data);
-  return convertFromIsFileData(data);
 }
 
 export type OpenedDocument =
@@ -291,7 +148,7 @@ async function parseBackendOpenResult(result: BackendOpenDocumentResult): Promis
 export async function chooseWorkspaceDirectory(): Promise<string> {
   const directory = await open({ directory: true, multiple: false });
   if (!directory || typeof directory !== "string") {
-    throw new Error("Workspace selection cancelled");
+    throw new DesktopOperationCancelledError("Workspace selection was cancelled.");
   }
   return directory;
 }
@@ -348,7 +205,9 @@ export async function chooseAndOpenStandaloneDocument(): Promise<{ path: string;
     ],
     multiple: false,
   });
-  if (!path || typeof path !== "string") throw new Error("File selection cancelled");
+  if (!path || typeof path !== "string") {
+    throw new DesktopOperationCancelledError("File selection was cancelled.");
+  }
   return { path, document: await openStandaloneDocument(path) };
 }
 
@@ -420,6 +279,14 @@ export async function inspectFile(path: string): Promise<FileInspection> {
 
 export async function readDocumentImage(documentPath: string, href: string): Promise<string> {
   return invoke<string>("read_document_image", { documentPath, href });
+}
+
+export async function writeFileBytes(path: string, data: number[]): Promise<void> {
+  await invoke("write_file_bytes", { path, data });
+}
+
+export async function revealPath(path: string): Promise<void> {
+  await revealItemInDir(path);
 }
 
 export async function chooseStandaloneSavePath(

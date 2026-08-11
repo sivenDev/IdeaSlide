@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Approved | In Progress | Complete |
-| --- | --- | --- | --- | --- |
-| `required` | 6 | 0 | 0 | 6 |
-| `feature` | 59 | 1 | 0 | 58 |
-| `bugfix` | 33 | 0 | 1 | 32 |
+| Type | Plans | In Progress | Complete |
+| --- | --- | --- | --- |
+| `required` | 6 | 0 | 6 |
+| `feature` | 59 | 0 | 59 |
+| `bugfix` | 33 | 1 | 32 |
 
 ## Execution Order
 
@@ -94,7 +94,7 @@
 | `F046-01` | [Migrate the Reviewed Shell, Workspaces, and Recents](features/F046-migrate-reviewed-demo-frontend-into-tauri/F046-01-production-shell-workspaces-and-recents.md) | `complete` | 2026-08-11 |
 | `F046-02` | [Align Settings, Themes, and the Production Markdown Editor](features/F046-migrate-reviewed-demo-frontend-into-tauri/F046-02-settings-themes-and-markdown.md) | `complete` | 2026-08-11 |
 | `F046-03` | [Migrate the Reviewed Agent Panel onto the Real Agent Core](features/F046-migrate-reviewed-demo-frontend-into-tauri/F046-03-real-agent-panel.md) | `complete` | 2026-08-11 |
-| `F046-04` | [Complete Native Integration, Cleanup, and End-to-End Verification](features/F046-migrate-reviewed-demo-frontend-into-tauri/F046-04-native-integration-cleanup-and-verification.md) | `approved` | 2026-08-11 |
+| `F046-04` | [Complete Native Integration, Cleanup, and End-to-End Verification](features/F046-migrate-reviewed-demo-frontend-into-tauri/F046-04-native-integration-cleanup-and-verification.md) | `complete` | 2026-08-11 |
 
 ### Bugfix Plans
 

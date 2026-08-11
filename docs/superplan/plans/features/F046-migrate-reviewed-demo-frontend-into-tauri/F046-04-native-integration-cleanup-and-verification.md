@@ -2,7 +2,7 @@
 id: "F046-04"
 title: "Complete Native Integration, Cleanup, and End-to-End Verification"
 type: "feature"
-status: "approved"
+status: "complete"
 summary: "Close remaining Tauri boundaries, remove obsolete shell assumptions, and verify the migrated workbench against production file, editor, settings, Agent, and native-window behavior."
 source: "docs/superplan/human/features.md"
 created: "2026-08-11"
@@ -54,9 +54,9 @@ parent: "F046"
 - `cd src-tauri && cargo test`
 - Static audit: every exported migrated wrapper has a registered command/plugin path and required capability; every new Rust command is covered by serialization/error tests.
 
-- [ ] Build a complete cross-boundary inventory and add missing contract/migration regressions.
-- [ ] Fill only the narrow commands and permissions required by the approved interaction plans.
-- [ ] Verify legacy settings/Threads/Turns and all failure classes before cleanup.
+- [x] Build a complete cross-boundary inventory and add missing contract/migration regressions.
+- [x] Fill only the narrow commands and permissions required by the approved interaction plans.
+- [x] Verify legacy settings/Threads/Turns and all failure classes before cleanup.
 
 ## Task 2: Remove Obsolete and Mock-derived Production Paths
 
@@ -84,9 +84,9 @@ parent: "F046"
 - `git diff --check`
 - Cases: production bundle contains no demo imports or mock user-facing copy; TypeScript strict emits no unused locals/parameters.
 
-- [ ] Remove legacy code only after replacement behavior and migrations are covered.
-- [ ] Update the product contract without copying implementation detail into the PRD.
-- [ ] Prove the production build and source inventory contain no review-demo leakage.
+- [x] Remove legacy code only after replacement behavior and migrations are covered.
+- [x] Update the product contract without copying implementation detail into the PRD.
+- [x] Prove the production build and source inventory contain no review-demo leakage.
 
 ## Task 3: Run High-risk End-to-End Acceptance
 
@@ -122,9 +122,21 @@ parent: "F046"
 - `git diff --check`
 - `git status --short`
 
-- [ ] Run focused checks during delivery and one relevant full regression/build/native matrix after implementation stabilizes.
-- [ ] Complete browser and native acceptance with disposable data and map every exit criterion to current evidence.
-- [ ] Mark all F046 plans complete and F046 done, refresh the generated index, and create separate task commits containing only F046 changes.
+- [x] Run focused checks during delivery and one relevant full regression/build/native matrix after implementation stabilizes.
+- [x] Complete browser and native acceptance with disposable data and map every exit criterion to current evidence.
+- [x] Mark all F046 plans complete and F046 done, refresh the generated index, and create separate task commits containing only F046 changes.
+
+## Delivery Evidence
+
+- Frontend regression suite: `node --test --test-concurrency=1 --test-reporter=dot tests/*.test.mjs` passed `365/365`; the default-concurrency dot-reporter rerun also passed after one non-reproducing intermittent result in an earlier concurrent run.
+- Focused native-boundary and shell regressions passed `26/26`, including typed command registration, permissions, atomic binary exports, reviewed shell composition, Recents, settings, and Agent contracts.
+- Rust regression suite: `cd src-tauri && cargo test` passed `153/153`.
+- Production builds: `npm run build` and `cd src-tauri && cargo build` passed.
+- Native smoke check: `npm run tauri dev` completed native compilation and launched `target/debug/idea-slide`.
+- User acceptance: the human reviewed the live Tauri result and approved the migrated interface on `2026-08-11`.
+- Source and persistence audit: production `invoke()` calls are restricted to typed boundary modules; every invoked command is registered; binary exports and user-config persistence use atomic safe-write paths; legacy user config defaults to schema version 1 and unsupported newer schemas fail explicitly.
+- Source hygiene: `git diff --check` passed, the production source contains no review-demo imports or mock interaction paths, and obsolete unregistered camera-thumbnail and temporary IdeaSketch bridge code was removed.
+- Automated browser/computer screenshot capture was unavailable because the shared UI-control transport closed; native startup plus explicit human review supplies the visual acceptance evidence without claiming automated screenshot coverage.
 
 ## References
 

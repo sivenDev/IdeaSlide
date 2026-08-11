@@ -1,4 +1,5 @@
 use crate::document_formats::{self, DocumentFileData, OpenDocumentResult};
+use crate::safe_write::{self, WriteMode};
 use crate::workspace::{
     WorkspaceEntry, WorkspaceMutationResult, WorkspaceOpenResult, WorkspaceSaveResult,
     WorkspaceService, WorkspaceState,
@@ -102,7 +103,12 @@ pub fn save_file(path: String, data: DocumentFileData) -> Result<(), String> {
 
 #[command]
 pub fn write_file_bytes(path: String, data: Vec<u8>) -> Result<(), String> {
-    std::fs::write(&path, &data).map_err(|e| format!("Failed to write file: {e}"))
+    let target = PathBuf::from(path);
+    let staging_directory = target
+        .parent()
+        .ok_or_else(|| "Export path has no parent directory".to_string())?
+        .to_path_buf();
+    safe_write::write_bytes(&target, &staging_directory, &data, WriteMode::Replace)
 }
 
 #[command]
@@ -402,5 +408,17 @@ mod tests {
         )
         .unwrap_err()
         .contains("stay inside"));
+    }
+
+    #[test]
+    fn binary_export_replaces_atomically_without_leaving_staging_files() {
+        let directory = TempDir::new().unwrap();
+        let target = directory.path().join("diagram.drawio");
+        std::fs::write(&target, b"before").unwrap();
+
+        write_file_bytes(target.to_string_lossy().to_string(), b"after".to_vec()).unwrap();
+
+        assert_eq!(std::fs::read(&target).unwrap(), b"after");
+        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
     }
 }
