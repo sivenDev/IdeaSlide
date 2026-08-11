@@ -71,8 +71,10 @@ export function WorkspacePanel({ state, dispatch, onOpen, onOpenRecent, onAddWor
                 <ChevronRight className={`tree-chevron ${expanded ? "is-open" : ""}`} size={13} />
                 {expanded ? <FolderOpen size={14} /> : <Folder size={14} />}
                 <span>{workspace.name}</span>
+                {workspace.missing && <span className="workspace-pill workspace-pill--danger">Missing</span>}
                 {workspace.readOnly && <span className="workspace-pill">Read-only</span>}
               </button>
+              {workspace.missing && <p className="workspace-root-problem">Choose the Workspace again or remove this unavailable root. No files were discarded.</p>}
               {expanded && (
                 <div className="workspace-children">
                   {workspace.entries.filter(isVisibleEntry).map((entry) => (

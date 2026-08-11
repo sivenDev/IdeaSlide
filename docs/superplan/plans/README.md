@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Draft | Complete |
-| --- | --- | --- | --- |
-| `required` | 6 | 0 | 6 |
-| `feature` | 54 | 1 | 53 |
-| `bugfix` | 29 | 0 | 29 |
+| Type | Plans | Complete |
+| --- | --- | --- |
+| `required` | 6 | 6 |
+| `feature` | 54 | 54 |
+| `bugfix` | 29 | 29 |
 
 ## Execution Order
 
@@ -89,7 +89,7 @@
 | `F044-01` | [Build the Mock Desktop Platform and Workspace Session Demo](features/F044-complete-mocked-tauri-review-demo/F044-01-mock-desktop-platform-and-workspace-session-demo.md) | `complete` | 2026-08-11 |
 | `F044-02` | [Add Complete IdeaSketch and Markdown Editor Experiences](features/F044-complete-mocked-tauri-review-demo/F044-02-ideasketch-and-markdown-editor-experiences.md) | `complete` | 2026-08-11 |
 | `F044-03` | [Add Complete Settings and Agent Experiences](features/F044-complete-mocked-tauri-review-demo/F044-03-settings-agent-and-editor-tool-experience.md) | `complete` | 2026-08-11 |
-| `F044-04` | [Add Reliability Scenarios and Package the Complete Review Demo](features/F044-complete-mocked-tauri-review-demo/F044-04-reliability-scenarios-browser-qa-and-review-package.md) | `draft` | 2026-08-11 |
+| `F044-04` | [Add Reliability Scenarios and Package the Complete Review Demo](features/F044-complete-mocked-tauri-review-demo/F044-04-reliability-scenarios-browser-qa-and-review-package.md) | `complete` | 2026-08-11 |
 
 ### Bugfix Plans
 

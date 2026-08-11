@@ -325,7 +325,7 @@ Refine only the isolated review prototype. Remove the IdeaNote Lab brand/workspa
 
 ## F044: Build a complete mocked Tauri frontend experience in the review demo
 
-- status: accepted
+- status: done
 - created: 2026-08-11
 
 Expand only .temp/f041-native-workbench-review into a complete interactive review replica of the currently implemented Tauri frontend. Preserve the approved outer shell while adding realistic Workspace and Recent flows, Workspace and Single File document lifecycles, file operations, IdeaSketch and Markdown editor experiences, save/recovery/conflict states, full Settings, and the generic Agent experience including threads, runtime visibility, Skills, Tool activity, streaming, cancellation, and editor-bound mutations. Route every backend-dependent operation through an isolated mock desktop API with deterministic fixtures and failure scenarios. Do not import changes into production src, tests, src-tauri, or Tauri capabilities; the result must remain a browser-runnable demo for human UX review before any separately approved production migration.

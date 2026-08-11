@@ -2,7 +2,7 @@
 id: "F044-04"
 title: "Add Reliability Scenarios and Package the Complete Review Demo"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Expose deterministic reliability and failure scenarios, complete responsive interaction QA, and package the full mocked desktop experience for human review."
 source: "docs/superplan/human/features.md"
 created: "2026-08-11"
@@ -42,9 +42,9 @@ parent: "F044"
 - `node --test .temp/f041-native-workbench-review/tests/reviewScenarios.test.mjs`
 - Cases: every scenario resolves; reset is idempotent; normal flow restored; no scenario name reaches product components; failures affect only their declared contract.
 
-- [ ] Implement the registry, complete scenario catalog, and deterministic reset.
-- [ ] Surface scenarios inside Settings without adding a permanent demo toolbar.
-- [ ] Keep mock/failure policy below component and editor boundaries.
+- [x] Implement the registry, complete scenario catalog, and deterministic reset.
+- [x] Surface scenarios inside Settings without adding a permanent demo toolbar.
+- [x] Keep mock/failure policy below component and editor boundaries.
 
 ## Task 2: Complete Recovery, External-change, Missing, and Exit UX
 
@@ -69,9 +69,9 @@ parent: "F044"
 - `node --test .temp/f041-native-workbench-review/tests/reliabilityInteractions.test.mjs`
 - Browser cases: each scenario action; no silent overwrite; successful document save with metadata warning; selection rollback; focus return; explicit recovery next steps.
 
-- [ ] Deliver every protected and failure-state decision path.
-- [ ] Verify no scenario can silently discard or overwrite a dirty mock document.
-- [ ] Keep shell status concise and editor-specific explanations inside Editor Host.
+- [x] Deliver every protected and failure-state decision path.
+- [x] Verify no scenario can silently discard or overwrite a dirty mock document.
+- [x] Keep shell status concise and editor-specific explanations inside Editor Host.
 
 ## Task 3: Finish Resizing, Keyboard, Command, and Responsive Behavior
 
@@ -94,9 +94,9 @@ parent: "F044"
 - Browser inspection at 1440x900, 1200x850, 1100x850, and 850x850 with Workspace/Agent/editor navigator open and closed combinations.
 - Cases: keyboard divider; palette actions; shortcut priority; presentation capture; modal Escape order; zero page overflow.
 
-- [ ] Implement bounded independent resizing and complete command routing.
-- [ ] Prove every target viewport and panel combination remains usable.
-- [ ] Preserve context-gated Agent controls and editor-owned internal navigation.
+- [x] Implement bounded independent resizing and complete command routing.
+- [x] Prove every target viewport and panel combination remains usable.
+- [x] Preserve context-gated Agent controls and editor-owned internal navigation.
 
 ## Task 4: Package the Complete Demo for Human Review
 
@@ -127,9 +127,9 @@ parent: "F044"
 - `git diff --check`
 - Superplan registry/index validation.
 
-- [ ] Complete the capability matrix and refreshed real-PNG review evidence.
-- [ ] Run the full demo verification matrix and leave the live default Welcome open.
-- [ ] Complete F044 only after all four plans and separate commits are delivered.
+- [x] Complete the capability matrix and refreshed real-PNG review evidence.
+- [x] Run the full demo verification matrix and leave the live default Welcome open.
+- [x] Complete F044 only after all four plans and separate commits are delivered.
 
 ## References
 

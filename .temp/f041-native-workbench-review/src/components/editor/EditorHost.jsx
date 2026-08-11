@@ -1,8 +1,11 @@
-import { AlertTriangle, Bot, FileQuestion, MoreHorizontal, PanelRight, Save, X } from "lucide-react";
+import { Bot, FileQuestion, MoreHorizontal, PanelRight, Save, X } from "lucide-react";
 import { IdeaSketchEditor } from "../../editors/ideasketch/IdeaSketchEditor.jsx";
 import { MarkdownEditor } from "../../editors/markdown/MarkdownEditor.jsx";
 import { fileTypeRegistry } from "../../lib/fileTypeRegistry.js";
 import { documentCondition } from "../../lib/documentSessions.js";
+import { RecoveryPrompt } from "../dialogs/RecoveryPrompt.jsx";
+import { DocumentProblemNotice } from "../notices/DocumentProblemNotice.jsx";
+import { ExternalChangeNotice } from "../notices/ExternalChangeNotice.jsx";
 
 function Welcome({ onOpenRecent, onOpenFile, onNewFile }) {
   return (
@@ -38,7 +41,7 @@ function EditorSurface({ document, onChange, onRegisterAdapter, laserEnabled }) 
   return <IdeaSketchEditor document={document} onChange={onChange} onRegisterAdapter={onRegisterAdapter} laserEnabled={laserEnabled} />;
 }
 
-export function EditorHost({ document, onSave, onClose, onChange, onOpenRecent, onOpenFile, onNewFile, agentOpen, onToggleAgent, onRegisterAdapter, laserEnabled = true, agentEnabled = true }) {
+export function EditorHost({ document, onSave, onSaveAs, onClose, onChange, onOpenRecent, onOpenFile, onNewFile, agentOpen, onToggleAgent, onRegisterAdapter, laserEnabled = true, agentEnabled = true, onPatchDocument, onReloadDocument }) {
   const definition = document ? fileTypeRegistry[document.type] ?? fileTypeRegistry.unsupported : null;
   const condition = documentCondition(document);
   return (
@@ -58,7 +61,7 @@ export function EditorHost({ document, onSave, onClose, onChange, onOpenRecent, 
           {document && <button className="icon-button" type="button" aria-label="Document actions"><MoreHorizontal size={16} /></button>}
         </div>
       </header>
-      {document && agentEnabled && (
+      {document && (
         <div className={`document-status-rail document-status-rail--${condition.tone}`} role="status">
           <span className="status-pulse" />
           <span>{condition.label}</span>
@@ -70,12 +73,16 @@ export function EditorHost({ document, onSave, onClose, onChange, onOpenRecent, 
       <div className="editor-aperture">
         {!document ? <Welcome onOpenRecent={onOpenRecent} onOpenFile={onOpenFile} onNewFile={onNewFile} /> : <EditorSurface key={document.sessionId} document={document} onChange={onChange} onRegisterAdapter={onRegisterAdapter} laserEnabled={laserEnabled} />}
       </div>
-      {document && (
+      {document && agentEnabled && (
         <button className="panel-toggle panel-toggle--agent" type="button" aria-label={agentOpen ? "Hide Agent" : "Show Agent"} aria-pressed={agentOpen} data-tooltip={agentOpen ? "Hide Agent" : "Show Agent"} onClick={onToggleAgent}>
           {agentOpen ? <PanelRight size={16} /> : <Bot size={16} />}
         </button>
       )}
-      {document?.conflict && <div className="editor-problem"><AlertTriangle size={14} />The mock source changed outside this review. Save As or discard before continuing.</div>}
+      <div className="editor-problem-stack">
+        <RecoveryPrompt document={document} onRestore={() => onPatchDocument({ content: document.recoveryContent, dirty: true, status: "dirty", recoveryAvailable: false, recoveryError: null, revision: document.revision + 1 })} onDiscard={() => onPatchDocument({ recoveryAvailable: false, recoveryError: null, recoveryContent: null })} />
+        <ExternalChangeNotice document={document} onReload={onReloadDocument} onKeep={() => onPatchDocument({ sourceModified: false, externalClean: false, renamedFrom: null })} onSaveAs={onSaveAs} onCancel={() => onPatchDocument({ problemDismissed: true })} />
+        <DocumentProblemNotice document={document} onClose={onClose} onSaveAs={onSaveAs} onDismiss={() => onPatchDocument({ metadataWarning: null })} />
+      </div>
     </section>
   );
 }

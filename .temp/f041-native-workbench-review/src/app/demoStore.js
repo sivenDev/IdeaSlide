@@ -19,6 +19,7 @@ export const initialState = {
   notice: null,
   contextMenu: null,
   commandOpen: false,
+  activeScenario: "normal",
 };
 
 export function demoReducer(state, action) {
@@ -39,6 +40,16 @@ export function demoReducer(state, action) {
       return { ...state, contextMenu: action.menu };
     case "set-command":
       return { ...state, commandOpen: action.open };
+    case "set-scenario":
+      return { ...state, activeScenario: action.id };
+    case "reset-review":
+      return {
+        ...initialState,
+        ...action.payload,
+        ready: true,
+        theme: action.theme ?? state.theme,
+        activeScenario: "normal",
+      };
     case "refresh-home":
       return { ...state, workspaces: action.payload.workspaces, recents: action.payload.recents, standalone: action.payload.standalone };
     case "toggle-workspace-root": {
@@ -57,7 +68,7 @@ export function demoReducer(state, action) {
       const session = createDocumentSession(action.file);
       return {
         ...state,
-        sessions: { ...state.sessions, [session.sessionId]: state.sessions[session.sessionId] ?? session },
+        sessions: { ...state.sessions, [session.sessionId]: action.replace ? session : state.sessions[session.sessionId] ?? session },
         activeSessionId: session.sessionId,
         selectedPath: action.file.mode === "workspace" ? `${action.file.workspaceId}:${action.file.path}` : null,
         activeWorkspaceId: action.file.workspaceId ?? state.activeWorkspaceId,
@@ -65,6 +76,17 @@ export function demoReducer(state, action) {
         modal: null,
         pendingOpen: null,
         notice: null,
+      };
+    }
+    case "patch-document": {
+      const current = state.sessions[action.sessionId];
+      if (!current) return state;
+      return {
+        ...state,
+        sessions: {
+          ...state.sessions,
+          [action.sessionId]: { ...current, ...action.patch },
+        },
       };
     }
     case "close-document":

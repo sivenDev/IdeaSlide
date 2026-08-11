@@ -111,7 +111,7 @@ export function MarkdownEditor({ document, onChange, onRegisterAdapter }) {
         {outlineOpen && <aside className="markdown-outline"><span>Outline</span>{outline.map((item) => <button key={`${item.line}-${item.text}`} type="button" style={{ paddingLeft: 9 + (item.level - 1) * 11 }} onClick={() => jumpToLine(item.line)}>{item.text}</button>)}{!outline.length && <p>No headings yet.</p>}</aside>}
         <div className={`markdown-panes markdown-panes--${mode}`} style={{ "--source-width": `${sourceWidth}%` }}>
           {mode !== "preview" && <div className="markdown-source" ref={mountRef} />}
-          {mode === "split" && <input className="markdown-resize" aria-label="Markdown split width" type="range" min="35" max="70" value={sourceWidth} onChange={(event) => setSourceWidth(Number(event.target.value))} />}
+          {mode === "split" && <input className="markdown-resize" aria-label="Resize Markdown source and preview" aria-valuetext={`${sourceWidth}% source width`} type="range" min="35" max="70" value={sourceWidth} onChange={(event) => setSourceWidth(Number(event.target.value))} />}
           {mode !== "edit" && <article className="markdown-preview"><ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: SafeLink }}>{document.content}</ReactMarkdown></article>}
         </div>
       </div>

@@ -4,9 +4,14 @@ const wait = (ms, signal) => new Promise((resolve, reject) => {
 });
 
 export const runtimeCatalog = [
-  { id: "codex", label: "Codex app-server", status: "healthy", selected: true, capabilities: ["streaming", "threads", "skills", "editor-tools"] },
-  { id: "compatibility", label: "OpenAI-compatible", status: "standby", selected: false, capabilities: ["streaming", "threads"] },
+  { id: "codex", label: "Codex app-server", status: "healthy", capabilities: ["streaming", "threads", "skills", "editor-tools"] },
+  { id: "compatibility", label: "OpenAI-compatible", status: "standby", capabilities: ["streaming", "threads"] },
 ];
+
+export function resolveRuntime(selection = "automatic") {
+  const id = selection === "compatibility" ? "compatibility" : "codex";
+  return runtimeCatalog.find((runtime) => runtime.id === id);
+}
 
 function responseFor(prompt, document) {
   const lower = prompt.toLowerCase();
