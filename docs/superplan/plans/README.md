@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | `required` | 6 | 0 | 6 |
 | `feature` | 55 | 0 | 55 |
-| `bugfix` | 32 | 1 | 31 |
+| `bugfix` | 33 | 1 | 32 |
 
 ## Execution Order
 
@@ -128,3 +128,4 @@
 | `B030` | [Fix Transient Menus, Settings, and Agent History](bugs/B030-fix-transient-menus-settings-and-agent-history.md) | `complete` | 2026-08-11 |
 | `B031` | [Compact Workspace and Agent Menus and Remove Redundant Labels](bugs/B031-compact-workspace-agent-menus-and-labels.md) | `complete` | 2026-08-11 |
 | `B032` | [Refine Agent Controls, Window Chrome, Menus, and Workspace Dragging](bugs/B032-refine-agent-window-chrome-menus-and-workspace-dragging.md) | `in_progress` | 2026-08-11 |
+| `B033` | [Refine Markdown Editor Navigation, View Switching, and Controls](bugs/B033-refine-markdown-editor-navigation-view-switching-and-controls.md) | `complete` | 2026-08-11 |

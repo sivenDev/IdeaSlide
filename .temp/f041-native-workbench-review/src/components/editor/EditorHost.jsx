@@ -35,13 +35,13 @@ function UnsupportedFileView({ document }) {
   );
 }
 
-function EditorSurface({ document, onChange, onRegisterAdapter, laserEnabled }) {
+function EditorSurface({ document, onChange, onRegisterAdapter, laserEnabled, markdownLineNumbers }) {
   if (document.type === "unsupported") return <UnsupportedFileView document={document} />;
-  if (document.type === "markdown") return <MarkdownEditor document={document} onChange={onChange} onRegisterAdapter={onRegisterAdapter} />;
+  if (document.type === "markdown") return <MarkdownEditor document={document} onChange={onChange} onRegisterAdapter={onRegisterAdapter} showLineNumbers={markdownLineNumbers} />;
   return <IdeaSketchEditor document={document} onChange={onChange} onRegisterAdapter={onRegisterAdapter} laserEnabled={laserEnabled} />;
 }
 
-export function EditorHost({ document, onSaveAs, onClose, onChange, onOpenRecent, onOpenFile, onNewFile, agentOpen, onToggleAgent, onRegisterAdapter, laserEnabled = true, agentEnabled = true, onPatchDocument, onReloadDocument }) {
+export function EditorHost({ document, onSaveAs, onClose, onChange, onOpenRecent, onOpenFile, onNewFile, agentOpen, onToggleAgent, onRegisterAdapter, laserEnabled = true, markdownLineNumbers = false, agentEnabled = true, onPatchDocument, onReloadDocument }) {
   const definition = document ? fileTypeRegistry[document.type] ?? fileTypeRegistry.unsupported : null;
   const condition = documentCondition(document);
   return (
@@ -63,7 +63,7 @@ export function EditorHost({ document, onSaveAs, onClose, onChange, onOpenRecent
       </header>
       {document && <span className="sr-only" role="status" aria-live="polite">{condition.label}</span>}
       <div className="editor-aperture">
-        {!document ? <Welcome onOpenRecent={onOpenRecent} onOpenFile={onOpenFile} onNewFile={onNewFile} /> : <EditorSurface key={document.sessionId} document={document} onChange={onChange} onRegisterAdapter={onRegisterAdapter} laserEnabled={laserEnabled} />}
+        {!document ? <Welcome onOpenRecent={onOpenRecent} onOpenFile={onOpenFile} onNewFile={onNewFile} /> : <EditorSurface key={document.sessionId} document={document} onChange={onChange} onRegisterAdapter={onRegisterAdapter} laserEnabled={laserEnabled} markdownLineNumbers={markdownLineNumbers} />}
       </div>
       {document && agentEnabled && !agentOpen && (
         <button className="panel-toggle panel-toggle--agent" type="button" aria-label="Show Agent" aria-pressed="false" data-tooltip="Show Agent" onClick={onToggleAgent}>

@@ -8,7 +8,7 @@ import { SettingsSwitch } from "./SettingsSwitch.jsx";
 const sectionGroups = [
   { label: "APPLICATION", items: [["general", "General"]] },
   { label: "AI", items: [["provider", "AI Provider"], ["agent", "Agent"], ["skills", "Skills"]] },
-  { label: "EDITORS", items: [["ideasketch", "IdeaSketch"]] },
+  { label: "EDITORS", items: [["ideasketch", "IdeaSketch"], ["markdown", "Markdown"]] },
   { label: "REVIEW", items: [["review", "Review Scenarios"]] },
 ];
 
@@ -141,6 +141,10 @@ function IdeaSketchSettings({ draft, setDraft }) {
   return <section className="settings-section"><h2>Presentation</h2><Field label="Laser pointer"><SettingsSwitch label="Enable presentation laser" checked={draft.ideaSketch.laserEnabled} onChange={(value) => setDraft({ ...draft, ideaSketch: { ...draft.ideaSketch, laserEnabled: value } })} /></Field></section>;
 }
 
+function MarkdownSettings({ draft, setDraft }) {
+  return <section className="settings-section"><h2>Markdown</h2><Field label="Line numbers"><SettingsSwitch label="Show Markdown line numbers" checked={draft.markdown.showLineNumbers} onChange={(value) => setDraft({ ...draft, markdown: { ...draft.markdown, showLineNumbers: value } })} /></Field></section>;
+}
+
 export function SettingsCenter({ settings, onSettings, onTheme, onClose, activeScenario = "normal", onScenario }) {
   const [section, setSection] = useState("general");
   const [draft, setDraft] = useState(() => structuredClone(settings));
@@ -177,6 +181,7 @@ export function SettingsCenter({ settings, onSettings, onTheme, onClose, activeS
             {section === "agent" && <AgentSettings draft={draft} setDraft={setDraft} />}
             {section === "skills" && <SkillSettings draft={draft} setDraft={setDraft} />}
             {section === "ideasketch" && <IdeaSketchSettings draft={draft} setDraft={setDraft} />}
+            {section === "markdown" && <MarkdownSettings draft={draft} setDraft={setDraft} />}
             {section === "review" && <ReviewScenariosSettings activeScenario={activeScenario} onScenario={async (id) => { const next = await onScenario(id); if (next) setDraft(structuredClone(next)); }} />}
           </div>
         </div>

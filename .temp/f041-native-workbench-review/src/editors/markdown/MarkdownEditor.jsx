@@ -1,13 +1,13 @@
 import { defaultKeymap, history, historyKeymap, redo, undo } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { searchKeymap } from "@codemirror/search";
-import { EditorState } from "@codemirror/state";
+import { Compartment, EditorState } from "@codemirror/state";
 import { drawSelection, EditorView, highlightActiveLine, keymap, lineNumbers } from "@codemirror/view";
-import { Bold, Braces, Columns2, Eye, Heading2, Italic, Link, List, PanelLeftClose, Redo2, Search, Undo2 } from "lucide-react";
+import { Braces, Columns2, Eye, PanelLeftClose, PanelLeftOpen, Redo2, Undo2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { buildOutline, insertMarkdown, normalizeLineEndings } from "./markdownModel.js";
+import { buildOutline, normalizeLineEndings } from "./markdownModel.js";
 
 function SafeLink({ href = "", children }) {
   const blocked = /^(javascript|data|file):/i.test(href);
@@ -16,10 +16,11 @@ function SafeLink({ href = "", children }) {
   return <a href={href} target={external ? "_blank" : undefined} rel={external ? "noreferrer" : undefined}>{children}</a>;
 }
 
-export function MarkdownEditor({ document, onChange, onRegisterAdapter }) {
+export function MarkdownEditor({ document, onChange, onRegisterAdapter, showLineNumbers = false }) {
   const mountRef = useRef(null);
   const viewRef = useRef(null);
   const onChangeRef = useRef(onChange);
+  const lineNumberCompartment = useMemo(() => new Compartment(), []);
   const [mode, setMode] = useState("split");
   const [outlineOpen, setOutlineOpen] = useState(true);
   const [sourceWidth, setSourceWidth] = useState(52);
@@ -30,7 +31,7 @@ export function MarkdownEditor({ document, onChange, onRegisterAdapter }) {
   useEffect(() => {
     const theme = EditorView.theme({
       "&": { height: "100%", backgroundColor: "transparent", color: "var(--graphite)" },
-      ".cm-content": { padding: "24px 30px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: "12px", lineHeight: "1.7" },
+      ".cm-content": { padding: "24px 30px 64px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: "12px", lineHeight: "1.7" },
       ".cm-gutters": { backgroundColor: "var(--frost)", color: "var(--muted)", border: "0", fontSize: "9px" },
       ".cm-activeLine, .cm-activeLineGutter": { backgroundColor: "color-mix(in srgb, var(--selection) 42%, transparent)" },
       ".cm-scroller": { overflow: "auto" },
@@ -38,7 +39,8 @@ export function MarkdownEditor({ document, onChange, onRegisterAdapter }) {
     const state = EditorState.create({
       doc: document.content,
       extensions: [
-        lineNumbers(), highlightActiveLine(), drawSelection(), history(), markdown(), EditorView.lineWrapping,
+        lineNumberCompartment.of(showLineNumbers ? lineNumbers() : []),
+        highlightActiveLine(), drawSelection(), history(), markdown(), EditorView.lineWrapping,
         keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]), theme,
         EditorView.editable.of(!document.readOnly),
         EditorView.updateListener.of((update) => {
@@ -49,7 +51,19 @@ export function MarkdownEditor({ document, onChange, onRegisterAdapter }) {
     const view = new EditorView({ state, parent: mountRef.current });
     viewRef.current = view;
     return () => { view.destroy(); viewRef.current = null; };
-  }, [document.sessionId, document.readOnly]);
+  }, [document.sessionId, document.readOnly, lineNumberCompartment]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: lineNumberCompartment.reconfigure(showLineNumbers ? lineNumbers() : []),
+    });
+  }, [lineNumberCompartment, showLineNumbers]);
+
+  useEffect(() => {
+    if (mode !== "preview") viewRef.current?.requestMeasure();
+  }, [mode]);
 
   useEffect(() => {
     const view = viewRef.current;
@@ -73,7 +87,6 @@ export function MarkdownEditor({ document, onChange, onRegisterAdapter }) {
     return () => onRegisterAdapter?.(null);
   }, [document.sessionId, document.readOnly, onRegisterAdapter]);
 
-  const format = (before, after, placeholder) => viewRef.current && insertMarkdown(viewRef.current, before, after, placeholder);
   const jumpToLine = (line) => {
     const view = viewRef.current;
     if (!view) return;
@@ -90,29 +103,26 @@ export function MarkdownEditor({ document, onChange, onRegisterAdapter }) {
   return (
     <div className="markdown-editor">
       <div className="editor-native-toolbar">
+        <button className="markdown-outline-toggle" type="button" aria-label={outlineOpen ? "Hide Outline" : "Show Outline"} title={outlineOpen ? "Hide Outline" : "Show Outline"} onClick={() => setOutlineOpen((value) => !value)}>
+          {outlineOpen ? <PanelLeftClose size={14} /> : <PanelLeftOpen size={14} />}
+          <span>Outline</span>
+        </button>
         <div className="segmented-control" aria-label="Markdown view mode">{[
           ["edit", Braces, "Edit"], ["split", Columns2, "Split"], ["preview", Eye, "Preview"],
         ].map(([value, Icon, label]) => <button key={value} type="button" className={mode === value ? "is-active" : ""} onClick={() => setMode(value)}><Icon size={13} />{label}</button>)}</div>
-        <span className="toolbar-separator" />
-        <button type="button" title="Heading" onClick={() => format("## ", "", "Heading")}><Heading2 size={14} /></button>
-        <button type="button" title="Bold" onClick={() => format("**", "**", "bold text")}><Bold size={14} /></button>
-        <button type="button" title="Italic" onClick={() => format("_", "_", "italic text")}><Italic size={14} /></button>
-        <button type="button" title="Link" onClick={() => format("[", "](https://example.com)", "link text")}><Link size={14} /></button>
-        <button type="button" title="List" onClick={() => format("- ", "", "list item")}><List size={14} /></button>
-        <span className="toolbar-separator" />
-        <button type="button" title="Undo" onClick={() => viewRef.current && undo(viewRef.current)}><Undo2 size={14} /></button>
-        <button type="button" title="Redo" onClick={() => viewRef.current && redo(viewRef.current)}><Redo2 size={14} /></button>
-        <button type="button" title="Search" onClick={() => viewRef.current?.focus()}><Search size={14} /></button>
         <span className="toolbar-spacer" />
         {lineEnding === "mixed" ? <label className="line-ending-choice">Mixed endings<select value={lineEnding} onChange={(event) => normalize(event.target.value)}><option value="mixed">Choose on save</option><option value="lf">Normalize LF</option><option value="crlf">Normalize CRLF</option></select></label> : <span className="toolbar-meta">{lineEnding.toUpperCase()}</span>}
-        <button type="button" title={outlineOpen ? "Hide Outline" : "Show Outline"} onClick={() => setOutlineOpen((value) => !value)}><PanelLeftClose size={14} /></button>
       </div>
       <div className="markdown-workspace">
         {outlineOpen && <aside className="markdown-outline"><span>Outline</span>{outline.map((item) => <button key={`${item.line}-${item.text}`} type="button" style={{ paddingLeft: 9 + (item.level - 1) * 11 }} onClick={() => jumpToLine(item.line)}>{item.text}</button>)}{!outline.length && <p>No headings yet.</p>}</aside>}
         <div className={`markdown-panes markdown-panes--${mode}`} style={{ "--source-width": `${sourceWidth}%` }}>
-          {mode !== "preview" && <div className="markdown-source" ref={mountRef} />}
+          <div className="markdown-source" ref={mountRef} />
           {mode === "split" && <input className="markdown-resize" aria-label="Resize Markdown source and preview" aria-valuetext={`${sourceWidth}% source width`} type="range" min="35" max="70" value={sourceWidth} onChange={(event) => setSourceWidth(Number(event.target.value))} />}
           {mode !== "edit" && <article className="markdown-preview"><ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: SafeLink }}>{document.content}</ReactMarkdown></article>}
+          <div className="markdown-history-controls" aria-label="Markdown history controls">
+            <button type="button" aria-label="Undo Markdown edit" title="Undo" onClick={() => viewRef.current && undo(viewRef.current)}><Undo2 size={14} /></button>
+            <button type="button" aria-label="Redo Markdown edit" title="Redo" onClick={() => viewRef.current && redo(viewRef.current)}><Redo2 size={14} /></button>
+          </div>
         </div>
       </div>
     </div>

@@ -38,6 +38,17 @@ test("Bundled Skills remain enabled while custom Skills preserve their setting",
   assert.equal(loaded.skills.find((skill) => skill.id === "custom-review").enabled, false);
 });
 
+test("Markdown line numbers default off and persist when enabled", async () => {
+  memory.clear();
+  const api = new MockSettingsApi();
+  const initial = await api.load();
+  assert.equal(initial.markdown.showLineNumbers, false);
+
+  initial.markdown.showLineNumbers = true;
+  await api.save(initial);
+  assert.equal((await api.load()).markdown.showLineNumbers, true);
+});
+
 test("Provider testing returns a model catalog without retaining the token", async () => {
   memory.clear();
   const api = new MockSettingsApi();

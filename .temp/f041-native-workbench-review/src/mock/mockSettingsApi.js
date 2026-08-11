@@ -6,6 +6,7 @@ export const defaultSettings = {
   provider: { baseUrl: "https://api.openai.com/v1", model: "gpt-5.2", retryEnabled: true, maxAttempts: 3, credentialConfigured: true },
   agent: { runtime: "automatic", model: "gpt-5.6-sol", reasoningEffort: "medium", maxSteps: 12, exactContextWarning: 78, showToolActivity: true, deliveryMode: "incremental", diagnostics: 20, replayEvents: 200 },
   ideaSketch: { laserEnabled: true },
+  markdown: { showLineNumbers: false },
   skills: [
     { id: "workspace-review", name: "Workspace Review", source: "bundled", enabled: true, scope: "all", autonomous: true, valid: true },
     { id: "ideasketch-structure", name: "IdeaSketch Structure", source: "bundled", enabled: true, scope: "ideasketch", autonomous: true, valid: true },
@@ -17,6 +18,7 @@ const clone = (value) => structuredClone(value);
 
 function normalizeSettings(settings) {
   const safe = clone(settings);
+  safe.markdown = { ...defaultSettings.markdown, ...(safe.markdown ?? {}) };
   const suppliedSkills = Array.isArray(safe.skills) ? safe.skills : [];
   const suppliedById = new Map(suppliedSkills.map((skill) => [skill.id, skill]));
   const bundled = defaultSettings.skills.map((skill) => ({ ...skill, ...suppliedById.get(skill.id), source: "bundled", enabled: true }));

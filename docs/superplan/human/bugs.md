@@ -277,3 +277,10 @@ Symptoms and acceptance:
 - Make the upper-left Workspace toggle respect desktop window chrome: macOS windowed traffic-light safe area, macOS fullscreen without traffic lights, and Windows/non-macOS caption-button space.
 - Re-anchor Workspace overflow menus beside their three-dot triggers with collision-safe fallback instead of opening as a wide dropdown under the row.
 - Add maintained-library drag interactions for visible Workspace files/folders. A file or directory may be dragged from any tree depth into another directory, including moving outward from a nested directory into its parent, a different branch, or back to the current Workspace root through the existing mock desktop boundary; same-parent ordering, cross-Workspace moves, external filesystem drops, invalid targets, and self-descendant drops remain inert or are rejected, and the active document identity is preserved.
+
+## B033: Refine Markdown Editor Navigation, View Switching, and Controls
+
+- status: done
+- created: 2026-08-11
+
+In the review demo Markdown editor: move the Outline navigation control to the far left; fix Preview -> Split/Edit transitions that leave the editor blank; add an IdeaSketch-adjacent Markdown setting controlling line-number visibility with line numbers off by default; remove the Markdown formatting Tool menu and place Undo/Redo controls at the editor's lower-left like the IdeaSketch surface.
