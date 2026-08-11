@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | In Progress | Complete |
-| --- | --- | --- | --- |
-| `required` | 6 | 0 | 6 |
-| `feature` | 55 | 0 | 55 |
-| `bugfix` | 33 | 1 | 32 |
+| Type | Plans | Draft | In Progress | Complete |
+| --- | --- | --- | --- | --- |
+| `required` | 6 | 0 | 0 | 6 |
+| `feature` | 59 | 4 | 0 | 55 |
+| `bugfix` | 33 | 0 | 1 | 32 |
 
 ## Execution Order
 
@@ -91,6 +91,10 @@
 | `F044-03` | [Add Complete Settings and Agent Experiences](features/F044-complete-mocked-tauri-review-demo/F044-03-settings-agent-and-editor-tool-experience.md) | `complete` | 2026-08-11 |
 | `F044-04` | [Add Reliability Scenarios and Package the Complete Review Demo](features/F044-complete-mocked-tauri-review-demo/F044-04-reliability-scenarios-browser-qa-and-review-package.md) | `complete` | 2026-08-11 |
 | `F045` | [Refine Review Demo Workspace Actions and Document Chrome](features/F045-refine-review-demo-workspace-actions-and-document-chrome.md) | `complete` | 2026-08-11 |
+| `F046-01` | [Migrate the Reviewed Shell, Workspaces, and Recents](features/F046-migrate-reviewed-demo-frontend-into-tauri/F046-01-production-shell-workspaces-and-recents.md) | `draft` | 2026-08-11 |
+| `F046-02` | [Align Settings, Themes, and the Production Markdown Editor](features/F046-migrate-reviewed-demo-frontend-into-tauri/F046-02-settings-themes-and-markdown.md) | `draft` | 2026-08-11 |
+| `F046-03` | [Migrate the Reviewed Agent Panel onto the Real Agent Core](features/F046-migrate-reviewed-demo-frontend-into-tauri/F046-03-real-agent-panel.md) | `draft` | 2026-08-11 |
+| `F046-04` | [Complete Native Integration, Cleanup, and End-to-End Verification](features/F046-migrate-reviewed-demo-frontend-into-tauri/F046-04-native-integration-cleanup-and-verification.md) | `draft` | 2026-08-11 |
 
 ### Bugfix Plans
 
