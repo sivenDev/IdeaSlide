@@ -284,3 +284,10 @@ Symptoms and acceptance:
 - created: 2026-08-11
 
 In the review demo Markdown editor: move the Outline navigation control to the far left; fix Preview -> Split/Edit transitions that leave the editor blank; add an IdeaSketch-adjacent Markdown setting controlling line-number visibility with line numbers off by default; remove the Markdown formatting Tool menu and place Undo/Redo controls at the editor's lower-left like the IdeaSketch surface.
+
+## B035: Restore editor Tool rebinding and terminal Agent response actions
+
+- status: done
+- created: 2026-08-12
+
+Reproduce by reusing one Agent conversation across a Markdown document and an IdeaSketch .is document, then request an IdeaSketch read or mutation: the Agent UI reports the current editor Tools, but Codex resumes an upstream Thread whose persisted dynamic Tools belong to the previous editor, so read_active_page and replace_page_elements are unavailable. On successful completion, remove the terminal Completed-in label from the Working lifecycle row and render the elapsed duration beside Copy on the final assistant response only. Copy and final response metadata must remain hidden while the Turn or paced text presentation is still running. Preserve local conversation history, editor Tool safety prerequisites, cancellation, direct reversible edits, and the reviewed B034 Agent layout.

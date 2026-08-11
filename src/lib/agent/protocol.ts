@@ -179,6 +179,7 @@ export interface AgentThreadRuntimeMetadata {
   model: string;
   reasoningEffort?: AgentReasoningEffort;
   upstreamThreadId?: string;
+  upstreamToolSignature?: string;
   localReplayTruncatedBeforeTurnId?: string;
   /** Legacy persisted name retained for migration only. */
   compactedBeforeTurnId?: string;

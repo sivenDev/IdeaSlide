@@ -19,6 +19,7 @@ use crate::settings;
 use repository::{AgentThreadPage, AgentThreadRecord, AgentThreadRepository};
 use serde_json::{json, Value};
 use session::AgentSessionState;
+use sha2::{Digest, Sha256};
 use skill_registry::{SkillRegistry, SkillTurnState};
 use tauri::{ipc::Channel, Manager};
 use telemetry::TextDeliveryTelemetryCollector;
@@ -758,6 +759,7 @@ async fn run_codex_driver(
     editor_tools: &[types::AgentToolDescriptor],
     skill_turn: &Arc<Mutex<SkillTurnState>>,
     model: &str,
+    upstream_tool_signature: &str,
     options: CodexRunOptions,
     mut cancellation: tokio::sync::watch::Receiver<bool>,
 ) -> Result<
@@ -783,6 +785,7 @@ async fn run_codex_driver(
                 "model": model,
                 "reasoningEffort": "standard",
                 "upstreamThreadId": upstream_thread_id,
+                "upstreamToolSignature": upstream_tool_signature,
                 "diagnostic": format!("Pinned Codex {} selected automatically.", adapters::PINNED_CODEX_VERSION),
                 "degraded": false,
                 "health": "healthy",
@@ -1151,6 +1154,7 @@ pub(crate) async fn run_agent(
     );
     request.skill_id = None;
     request.tools.extend(host_tools);
+    let upstream_tool_signature = stable_tool_signature(&request.tools)?;
     let run_id = request.run_id.clone();
     let thread_id = request.thread_id.clone();
     let retry_of_turn_id = request.retry_of_turn_id.clone();
@@ -1294,9 +1298,31 @@ pub(crate) async fn run_agent(
             .map_err(|error| format!("Agent runtime directory could not be created: {error}"))?;
         let preamble =
             runtime::prompt_with_context(&request).map_err(|failure| failure.diagnostic.message)?;
+        let codex_conversation_id = codex_conversation_for_tools(
+            request.upstream_thread_id.as_deref(),
+            request.upstream_tool_signature.as_deref(),
+            &upstream_tool_signature,
+        );
+        let rebinding_upstream =
+            request.upstream_thread_id.is_some() && codex_conversation_id.is_none();
+        let rich_prompt = if rebinding_upstream {
+            runtime::visible_conversation_replay(
+                &request.messages,
+                policy.compatibility_replay_message_limit as usize,
+            )
+            .map(|replay| {
+                format!(
+                    "{preamble}\n\n{replay}\n\nCURRENT USER REQUEST:\n{}",
+                    request.prompt
+                )
+            })
+            .unwrap_or_else(|| format!("{preamble}\n\nUSER REQUEST:\n{}", request.prompt))
+        } else {
+            format!("{preamble}\n\nUSER REQUEST:\n{}", request.prompt)
+        };
         let rich_input = adapters::RuntimeTurnInput {
-            conversation_id: request.upstream_thread_id.clone(),
-            prompt: format!("{preamble}\n\nUSER REQUEST:\n{}", request.prompt),
+            conversation_id: codex_conversation_id,
+            prompt: rich_prompt,
             model: request.model.clone(),
             cwd: runtime_root,
             tools: tool_definitions.clone(),
@@ -1313,6 +1339,7 @@ pub(crate) async fn run_agent(
                     &editor_tool_definitions,
                     &skill_turn,
                     &request.model,
+                    &upstream_tool_signature,
                     CodexRunOptions {
                         started: codex_started,
                         request_ms,
@@ -1667,13 +1694,82 @@ fn now_millis() -> u64 {
     chrono::Utc::now().timestamp_millis().max(0) as u64
 }
 
+fn stable_tool_signature(tools: &[types::AgentToolDescriptor]) -> Result<String, String> {
+    let mut descriptors = tools
+        .iter()
+        .map(|tool| {
+            let mut requires = tool.requires.clone();
+            requires.sort();
+            requires.dedup();
+            serde_json::to_vec(&(
+                &tool.name,
+                &tool.description,
+                canonical_json(&tool.input_schema)?,
+                requires,
+            ))
+            .map_err(|error| format!("Agent Tool signature could not be encoded: {error}"))
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    descriptors.sort();
+    let mut hasher = Sha256::new();
+    for descriptor in descriptors {
+        hasher.update((descriptor.len() as u64).to_le_bytes());
+        hasher.update(descriptor);
+    }
+    Ok(format!("sha256-{:x}", hasher.finalize()))
+}
+
+fn canonical_json(value: &Value) -> Result<String, String> {
+    match value {
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {
+            serde_json::to_string(value)
+                .map_err(|error| format!("Agent Tool schema could not be encoded: {error}"))
+        }
+        Value::Array(values) => {
+            let values = values
+                .iter()
+                .map(canonical_json)
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(format!("[{}]", values.join(",")))
+        }
+        Value::Object(values) => {
+            let mut entries = values
+                .iter()
+                .map(|(key, value)| {
+                    Ok(format!(
+                        "{}:{}",
+                        serde_json::to_string(key).map_err(|error| {
+                            format!("Agent Tool schema key could not be encoded: {error}")
+                        })?,
+                        canonical_json(value)?,
+                    ))
+                })
+                .collect::<Result<Vec<_>, String>>()?;
+            entries.sort();
+            Ok(format!("{{{}}}", entries.join(",")))
+        }
+    }
+}
+
+fn codex_conversation_for_tools(
+    upstream_thread_id: Option<&str>,
+    persisted_tool_signature: Option<&str>,
+    current_tool_signature: &str,
+) -> Option<String> {
+    let upstream_thread_id = upstream_thread_id?.trim();
+    let persisted_tool_signature = persisted_tool_signature?.trim();
+    (!upstream_thread_id.is_empty() && persisted_tool_signature == current_tool_signature)
+        .then(|| upstream_thread_id.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        can_fallback_after_codex_failure, emit_tool_result, emit_tool_started, finalize_turn,
-        validate_agent_selection, NativeTurnEmitter,
+        can_fallback_after_codex_failure, codex_conversation_for_tools, emit_tool_result,
+        emit_tool_started, finalize_turn, stable_tool_signature, validate_agent_selection,
+        NativeTurnEmitter,
     };
-    use crate::agent::types::{AgentRunEvent, AgentToolCall};
+    use crate::agent::types::{AgentRunEvent, AgentToolCall, AgentToolDescriptor};
     use serde_json::{json, Value};
     use std::sync::{Arc, Mutex};
     use tauri::ipc::{Channel, InvokeResponseBody};
@@ -1682,6 +1778,59 @@ mod tests {
     fn codex_failure_falls_back_only_before_visible_or_tool_progress() {
         assert!(can_fallback_after_codex_failure(false));
         assert!(!can_fallback_after_codex_failure(true));
+    }
+
+    #[test]
+    fn codex_resumes_only_when_the_persisted_tool_signature_matches() {
+        let markdown = vec![
+            AgentToolDescriptor {
+                name: "read_markdown_document".to_string(),
+                description: "Read Markdown".to_string(),
+                input_schema: json!({"type": "object"}),
+                requires: Vec::new(),
+            },
+            AgentToolDescriptor {
+                name: "replace_markdown_range".to_string(),
+                description: "Replace Markdown".to_string(),
+                input_schema: json!({"type": "object", "properties": {"text": {"type": "string"}}}),
+                requires: vec!["read_markdown_document".to_string()],
+            },
+        ];
+        let idea_sketch = vec![AgentToolDescriptor {
+            name: "read_active_page".to_string(),
+            description: "Read active Page".to_string(),
+            input_schema: json!({"type": "object"}),
+            requires: Vec::new(),
+        }];
+        let markdown_signature = stable_tool_signature(&markdown).unwrap();
+        let mut reordered_markdown = markdown.clone();
+        reordered_markdown.reverse();
+        assert_eq!(
+            markdown_signature,
+            stable_tool_signature(&reordered_markdown).unwrap()
+        );
+        let idea_sketch_signature = stable_tool_signature(&idea_sketch).unwrap();
+        assert_ne!(markdown_signature, idea_sketch_signature);
+        assert_eq!(
+            codex_conversation_for_tools(
+                Some("upstream-markdown"),
+                Some(markdown_signature.as_str()),
+                &markdown_signature,
+            ),
+            Some("upstream-markdown".to_string()),
+        );
+        assert_eq!(
+            codex_conversation_for_tools(
+                Some("upstream-markdown"),
+                Some(markdown_signature.as_str()),
+                &idea_sketch_signature,
+            ),
+            None,
+        );
+        assert_eq!(
+            codex_conversation_for_tools(Some("legacy-upstream"), None, &idea_sketch_signature),
+            None,
+        );
     }
 
     #[test]
@@ -1695,9 +1844,11 @@ mod tests {
 
         let mut stale_model = "model-c".to_string();
         let mut standard = "standard".to_string();
-        assert!(validate_agent_selection(&mut stale_model, &models, &mut standard)
-            .unwrap_err()
-            .contains("no longer"));
+        assert!(
+            validate_agent_selection(&mut stale_model, &models, &mut standard)
+                .unwrap_err()
+                .contains("no longer")
+        );
 
         let mut supported_model = "model-a".to_string();
         let mut unsupported_reasoning = "high".to_string();

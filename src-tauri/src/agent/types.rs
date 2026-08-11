@@ -9,6 +9,8 @@ pub(crate) struct AgentRunRequest {
     pub retry_of_turn_id: Option<String>,
     #[serde(default)]
     pub upstream_thread_id: Option<String>,
+    #[serde(default)]
+    pub upstream_tool_signature: Option<String>,
     pub prompt: String,
     pub binding: serde_json::Value,
     pub base_url: String,

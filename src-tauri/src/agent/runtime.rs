@@ -6,6 +6,9 @@ use super::{
     types::{AgentErrorCode, AgentErrorDiagnostic, AgentRunRequest},
 };
 
+const MAX_CODEX_REPLAY_BYTES: usize = 64 * 1024;
+const MAX_CODEX_REPLAY_MESSAGE_BYTES: usize = 12 * 1024;
+
 pub(crate) async fn complete(
     request: AgentRunRequest,
     api_key: String,
@@ -52,6 +55,51 @@ pub(crate) fn prompt_with_context(
     Ok(preamble)
 }
 
+pub(crate) fn visible_conversation_replay(
+    messages: &[super::types::AgentMessageInput],
+    max_messages: usize,
+) -> Option<String> {
+    let first = messages.len().saturating_sub(max_messages);
+    let mut entries = messages[first..]
+        .iter()
+        .filter_map(|message| {
+            let content = bounded_utf8(message.content.trim(), MAX_CODEX_REPLAY_MESSAGE_BYTES);
+            if content.is_empty() {
+                return None;
+            }
+            let role = match message.role {
+                super::types::AgentMessageRole::User => "User",
+                super::types::AgentMessageRole::Assistant => "Assistant",
+            };
+            Some(format!("{role}:\n{content}"))
+        })
+        .collect::<Vec<_>>();
+    while entries.len() > 1
+        && entries.iter().map(String::len).sum::<usize>() > MAX_CODEX_REPLAY_BYTES
+    {
+        entries.remove(0);
+    }
+    if entries.is_empty() {
+        None
+    } else {
+        Some(format!(
+            "VISIBLE LOCAL CONVERSATION REPLAY:\n{}",
+            entries.join("\n\n")
+        ))
+    }
+}
+
+fn bounded_utf8(value: &str, max_bytes: usize) -> String {
+    if value.len() <= max_bytes {
+        return value.to_string();
+    }
+    let mut end = max_bytes.saturating_sub("…[truncated]".len());
+    while end > 0 && !value.is_char_boundary(end) {
+        end -= 1;
+    }
+    format!("{}…[truncated]", &value[..end])
+}
+
 fn runtime_failure(message: impl Into<String>) -> provider::ProviderFailure {
     provider::ProviderFailure {
         diagnostic: AgentErrorDiagnostic {
@@ -88,6 +136,7 @@ mod tests {
             thread_id: "test-thread".to_string(),
             retry_of_turn_id: None,
             upstream_thread_id: None,
+            upstream_tool_signature: None,
             prompt: "Current question".to_string(),
             binding: serde_json::json!({"documentId": "doc", "revision": 1}),
             base_url,
@@ -130,6 +179,29 @@ mod tests {
         assert!(prompt.contains("do not ask for approval, confirmation, or review"));
         assert!(prompt.contains("complete its required reads"));
         assert!(prompt.contains("call exactly one matching mutation Tool"));
+    }
+
+    #[test]
+    fn codex_rebind_replay_is_bounded_visible_conversation_only() {
+        let messages = vec![
+            AgentMessageInput {
+                role: AgentMessageRole::User,
+                content: "Older visible question".to_string(),
+            },
+            AgentMessageInput {
+                role: AgentMessageRole::Assistant,
+                content: "Visible answer".to_string(),
+            },
+            AgentMessageInput {
+                role: AgentMessageRole::User,
+                content: "Newest visible question".to_string(),
+            },
+        ];
+        let replay = visible_conversation_replay(&messages, 2).unwrap();
+        assert!(!replay.contains("Older visible question"));
+        assert!(replay.contains("Assistant:\nVisible answer"));
+        assert!(replay.contains("User:\nNewest visible question"));
+        assert!(!replay.contains("AVAILABLE EDITOR TOOLS"));
     }
 
     struct TestResponse {

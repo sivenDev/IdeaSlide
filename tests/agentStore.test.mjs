@@ -147,7 +147,32 @@ test('assistant Markdown grows from genuine deltas before completion and reconci
   }));
   const turn = state.thread.turns.at(-1);
   assert.equal(turn.items.find((item) => item.id === 'turn-1:assistant').content, '# Live\n\n- first');
-  assert.match(turn.items.find((item) => item.id === 'turn-1:activity').label, /Completed in/);
+  assert.equal(turn.items.find((item) => item.id === 'turn-1:activity'), undefined);
+});
+
+test('Compatibility fallback preserves a healthy Codex Tool binding for a later Turn', () => {
+  let state = reduceAgentEvent(initial(), started());
+  state = reduceAgentEvent(state, event('runtimeUpdated', 1, {
+    runtime: {
+      kind: 'codexAppServer',
+      label: 'Codex',
+      model: 'test-model',
+      upstreamThreadId: 'upstream-1',
+      upstreamToolSignature: 'sha256-0123456789abcdef',
+      degraded: false,
+    },
+  }));
+  state = reduceAgentEvent(state, event('runtimeUpdated', 2, {
+    runtime: {
+      kind: 'compatibility',
+      label: 'Compatibility',
+      model: 'test-model',
+      degraded: true,
+    },
+  }));
+  assert.equal(state.runtime.kind, 'compatibility');
+  assert.equal(state.runtime.upstreamThreadId, 'upstream-1');
+  assert.equal(state.runtime.upstreamToolSignature, 'sha256-0123456789abcdef');
 });
 
 test('assistant segments and real Tool rows retain chronological transcript order', () => {

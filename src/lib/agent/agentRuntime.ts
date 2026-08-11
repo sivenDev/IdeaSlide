@@ -24,6 +24,7 @@ export interface StartAgentTurnInput {
   turnId: string;
   retryOfTurnId?: string;
   upstreamThreadId?: string;
+  upstreamToolSignature?: string;
   prompt: string;
   binding: AgentTurnBindingSnapshot;
   baseUrl: string;
@@ -100,6 +101,7 @@ export function createNativeAgentRuntime(): AgentRuntime {
         threadId: input.threadId,
         retryOfTurnId: input.retryOfTurnId,
         upstreamThreadId: input.upstreamThreadId,
+        upstreamToolSignature: input.upstreamToolSignature,
         prompt: input.prompt,
         binding: input.binding,
         baseUrl: input.baseUrl,

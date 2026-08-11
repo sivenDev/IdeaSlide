@@ -31,6 +31,8 @@ pub(crate) struct AgentThreadRuntimeMetadata {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub upstream_thread_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub upstream_tool_signature: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub local_replay_truncated_before_turn_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub compacted_before_turn_id: Option<String>,
@@ -308,6 +310,11 @@ fn normalize_record(mut record: AgentThreadRecord) -> Result<AgentThreadRecord, 
         .runtime
         .upstream_thread_id
         .map(|value| bounded_string(value, 256));
+    record.runtime.upstream_tool_signature =
+        record.runtime.upstream_tool_signature.and_then(|value| {
+            let value = bounded_string(value.trim().to_string(), 256);
+            (!value.is_empty()).then_some(value)
+        });
     record.runtime.local_replay_truncated_before_turn_id = record
         .runtime
         .local_replay_truncated_before_turn_id
@@ -614,6 +621,7 @@ mod tests {
                 model: "test-model".to_string(),
                 reasoning_effort: None,
                 upstream_thread_id: None,
+                upstream_tool_signature: None,
                 local_replay_truncated_before_turn_id: None,
                 compacted_before_turn_id: None,
                 diagnostic: None,
@@ -709,6 +717,7 @@ mod tests {
         let repository = AgentThreadRepository::new(root.path().join("agent"));
         let mut value = record("diagnostics", 1);
         value.runtime.compacted_before_turn_id = Some("turn-legacy".to_string());
+        value.runtime.upstream_tool_signature = Some("sha256-0123456789abcdef".to_string());
         value.thread["turns"][0]["effectivePolicy"] = json!({"diagnosticRetention": 5});
         value.context = Some(AgentContextSnapshot {
             status: "available".to_string(),
@@ -753,6 +762,10 @@ mod tests {
             Some("turn-legacy")
         );
         assert!(saved.runtime.compacted_before_turn_id.is_none());
+        assert_eq!(
+            saved.runtime.upstream_tool_signature.as_deref(),
+            Some("sha256-0123456789abcdef")
+        );
         assert_eq!(saved.runtime_diagnostics.len(), 5);
         assert_eq!(
             saved.runtime_diagnostics.last().unwrap().message,

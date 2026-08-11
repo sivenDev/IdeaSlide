@@ -124,6 +124,7 @@ export interface AgentRunRequest {
   threadId: string;
   retryOfTurnId?: string;
   upstreamThreadId?: string;
+  upstreamToolSignature?: string;
   prompt: string;
   binding: AgentTurnBindingSnapshot;
   baseUrl: string;

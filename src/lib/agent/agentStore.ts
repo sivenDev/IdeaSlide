@@ -78,7 +78,10 @@ export function hydrateAgentThreadState(record: AgentThreadRecord): AgentThreadS
       ...turn,
       skillProvenance: turn.skillProvenance ?? [],
       ...(turn.telemetry ? { telemetry: normalizeStreamingTelemetry(turn.telemetry) } : {}),
-      items: turn.items.filter((item) => item.kind !== "changeReview"),
+      items: turn.items.filter((item) => (
+        item.kind !== "changeReview"
+        && !(turn.status === "completed" && item.id === `${turn.id}:activity`)
+      )),
     })),
   };
   return {
@@ -262,7 +265,11 @@ function applyOrderedEvent(state: AgentThreadState, event: AgentEvent): AgentThr
               capturedAt: event.at,
             },
           }),
-        runtime: normalizeRuntimeMetadata(event.runtime),
+        runtime: normalizeRuntimeMetadata({
+          ...event.runtime,
+          upstreamThreadId: event.runtime.upstreamThreadId ?? state.runtime.upstreamThreadId,
+          upstreamToolSignature: event.runtime.upstreamToolSignature ?? state.runtime.upstreamToolSignature,
+        }),
       };
     case "runtimeDiagnosticRecorded": {
       const turn = state.thread.turns.find((candidate) => candidate.id === event.turnId);
@@ -361,14 +368,11 @@ function applyOrderedEvent(state: AgentThreadState, event: AgentEvent): AgentThr
               createdAt: event.at,
             }],
           };
-        const elapsed = Math.max(0, event.at - turn.createdAt);
         return {
           ...withMessage,
           status: "completed",
           completedAt: event.at,
-          items: withMessage.items.map((item) => item.id === `${event.turnId}:activity`
-            ? { ...item, label: `Completed in ${(elapsed / 1000).toFixed(1)}s`, status: "completed" as const }
-            : item),
+          items: withMessage.items.filter((item) => item.id !== `${event.turnId}:activity`),
         };
       });
       return {

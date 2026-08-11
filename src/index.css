@@ -4077,10 +4077,15 @@ html[data-theme="dark"] .ideanote-markdown-history { border-color: #464b52; back
     font: 8px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
     padding-top: 6px;
 }
-.ideanote-agent-response-evidence > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ideanote-agent-response-evidence > span:nth-child(3) { min-width: 0; }
-.ideanote-agent-response-evidence > button { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; margin-left: auto; border-radius: 5px; color: #747a74; font-family: inherit; padding: 3px 4px; }
-.ideanote-agent-response-evidence > button:hover { color: #303531; background: #eceeea; }
+.ideanote-agent-response-evidence__runtime,
+.ideanote-agent-response-evidence__actions { display: flex; min-width: 0; align-items: center; gap: 5px; }
+.ideanote-agent-response-evidence__runtime { flex: 1 1 auto; overflow: hidden; }
+.ideanote-agent-response-evidence__runtime > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ideanote-agent-response-evidence__runtime > span:nth-child(3) { min-width: 0; }
+.ideanote-agent-response-evidence__actions { flex: 0 0 auto; margin-left: auto; }
+.ideanote-agent-response-evidence__actions > button { display: inline-flex; align-items: center; gap: 4px; border-radius: 5px; color: #747a74; font-family: inherit; padding: 3px 4px; }
+.ideanote-agent-response-evidence__actions > button:hover { color: #303531; background: #eceeea; }
+.ideanote-agent-response-evidence__actions > time { white-space: nowrap; }
 
 html[data-theme="dark"] .ideanote-right-sidebar,
 html[data-theme="dark"] .ideanote-agent-panel,

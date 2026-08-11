@@ -20,7 +20,9 @@ test('transcript stays anchored, offers Jump to latest, and bounds long historie
   assert.match(source, /scrollHeight - viewport\.scrollTop - viewport\.clientHeight < 48/);
   assert.match(source, /Jump to latest/);
   assert.match(source, /allEntries\.slice\(-MAX_VISIBLE_ITEMS\)/);
-  assert.match(source, /evidence: index === lastAssistantIndex \? turn\.evidence/);
+  assert.match(source, /const isFinalResponse = hasUserMessage && index === lastAssistantIndex/);
+  assert.match(source, /evidence: isFinalResponse \? turn\.evidence/);
+  assert.match(source, /turnStatus: isFinalResponse \? turn\.status/);
 });
 
 test('source deltas remain frame-batched while a separate presentation clock owns visible pacing', async () => {

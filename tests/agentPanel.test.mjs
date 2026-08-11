@@ -10,7 +10,8 @@ test('Agent panel uses the real runtime with reviewed navigation, model evidence
   assert.match(source, /useAgentThread\(\{/);
   assert.match(source, /runtime\.startTurn\(\{/);
   assert.match(source, /retryOfTurnId/);
-  assert.match(source, /upstreamThreadId: state\.runtime\.kind === "codexAppServer"/);
+  assert.match(source, /upstreamThreadId: state\.runtime\.upstreamThreadId/);
+  assert.match(source, /upstreamToolSignature: state\.runtime\.upstreamToolSignature/);
   assert.match(source, /const capturedBinding = binding/);
   assert.match(source, /capturedBinding\.createToolExecutor/);
   assert.match(source, /createDirectApplyToolExecutor/);

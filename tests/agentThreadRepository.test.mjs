@@ -19,7 +19,7 @@ test('persisted records hydrate only durable Thread state and reset transport bo
     capabilities: initial.capabilities,
     runtime: {
       kind: 'codexAppServer', label: 'Codex app-server', model: 'test',
-      upstreamThreadId: 'upstream-1', degraded: false,
+      upstreamThreadId: 'upstream-1', upstreamToolSignature: 'sha256-0123456789abcdef', degraded: false,
     },
   });
   assert.deepEqual(hydrated.thread, initial.thread);
@@ -28,6 +28,7 @@ test('persisted records hydrate only durable Thread state and reset transport bo
   assert.deepEqual(hydrated.pendingEventsByTurn, {});
   assert.equal(hydrated.capabilities.persistence, true);
   assert.equal(hydrated.runtime.upstreamThreadId, 'upstream-1');
+  assert.equal(hydrated.runtime.upstreamToolSignature, 'sha256-0123456789abcdef');
 });
 
 test('model context compaction leaves visible history intact', () => {

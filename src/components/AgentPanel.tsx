@@ -179,9 +179,8 @@ export function AgentPanel({
         threadId: state.thread.id,
         turnId,
         retryOfTurnId,
-        upstreamThreadId: state.runtime.kind === "codexAppServer"
-          ? state.runtime.upstreamThreadId
-          : undefined,
+        upstreamThreadId: state.runtime.upstreamThreadId,
+        upstreamToolSignature: state.runtime.upstreamToolSignature,
         prompt,
         binding: {
           documentId: capturedDocument.id,
