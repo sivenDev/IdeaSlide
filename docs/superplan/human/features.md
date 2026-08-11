@@ -322,3 +322,10 @@ Refine the isolated F041 review prototype so the left Workspace and right Agent 
 - created: 2026-08-10
 
 Refine only the isolated review prototype. Remove the IdeaNote Lab brand/workspace-switcher block. Rebuild the left navigation as a Workspaces section containing added workspace roots with an add action and no search, followed by a Recents section listing recently opened editor files. Replace the bottom sync/preferences area with one Settings action that opens a real configuration dialog. Start with no selected file and render a restrained shell-owned Welcome page in Editor Host. While Welcome is active, keep Agent closed and hide its top-right toggle; after a file opens, show the Agent toggle. Use a robot icon when Agent is closed and the right-panel navigation icon when Agent is open. Preserve independent Workspace behavior, themes, responsiveness, editor-format neutrality, and the .temp-only no-migration boundary.
+
+## F044: Build a complete mocked Tauri frontend experience in the review demo
+
+- status: accepted
+- created: 2026-08-11
+
+Expand only .temp/f041-native-workbench-review into a complete interactive review replica of the currently implemented Tauri frontend. Preserve the approved outer shell while adding realistic Workspace and Recent flows, Workspace and Single File document lifecycles, file operations, IdeaSketch and Markdown editor experiences, save/recovery/conflict states, full Settings, and the generic Agent experience including threads, runtime visibility, Skills, Tool activity, streaming, cancellation, and editor-bound mutations. Route every backend-dependent operation through an isolated mock desktop API with deterministic fixtures and failure scenarios. Do not import changes into production src, tests, src-tauri, or Tauri capabilities; the result must remain a browser-runnable demo for human UX review before any separately approved production migration.
