@@ -22,7 +22,6 @@ import {
   Plus,
   Settings,
   Trash2,
-  X,
 } from "lucide-react";
 import { useState } from "react";
 import { fileTypeRegistry, isVisibleEntry } from "../../lib/fileTypeRegistry.js";
@@ -159,7 +158,7 @@ function validDrop(source, target) {
   return true;
 }
 
-export function WorkspacePanel({ state, dispatch, onOpen, onOpenRecent, onAddWorkspace, onCreate, onWorkspaceAction, onEntryAction, onMoveEntry, onSettings, onRemoveRecent }) {
+export function WorkspacePanel({ state, dispatch, onOpen, onOpenRecent, onAddWorkspace, onCreate, onWorkspaceAction, onEntryAction, onRecentAction, onMoveEntry, onSettings }) {
   const [activeDrag, setActiveDrag] = useState(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -211,9 +210,20 @@ export function WorkspacePanel({ state, dispatch, onOpen, onOpenRecent, onAddWor
                 <div className="recent-row" key={recent.id}>
                   <button type="button" className="recent-main" onClick={() => onOpenRecent(recent)}>
                     <FileBadge type={recent.label.endsWith(".is") ? "ideasketch" : recent.label.endsWith(".md") ? "markdown" : "unsupported"} />
-                    <span><strong>{recent.label}</strong><small>{recent.detail}</small></span>
+                    <span><strong>{recent.label}</strong></span>
                   </button>
-                  <button className="row-action" type="button" aria-label={`Remove ${recent.label} from Recents`} onClick={() => onRemoveRecent(recent.id)}><X size={13} /></button>
+                  <AppMenu
+                    side="right"
+                    align="start"
+                    sideOffset={3}
+                    contentClassName="app-menu--compact"
+                    trigger={<button className="row-action" type="button" aria-label={`Actions for ${recent.label}`}><MoreHorizontal size={14} /></button>}
+                  >
+                    <AppMenuItem icon={Pencil} onSelect={() => onRecentAction(recent, "rename")}>Rename</AppMenuItem>
+                    <AppMenuItem icon={ExternalLink} onSelect={() => onRecentAction(recent, "reveal")}>Show in Finder</AppMenuItem>
+                    <AppMenuSeparator />
+                    <AppMenuItem icon={Trash2} danger onSelect={() => onRecentAction(recent, "remove")}>Remove</AppMenuItem>
+                  </AppMenu>
                 </div>
               ))}
               {!state.recents.length && <p className="empty-copy">Standalone files you open will appear here.</p>}

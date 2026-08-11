@@ -40,7 +40,21 @@ test("row menus hand only pending action targets to dialogs", async () => {
   assert.match(workspace, /AppMenu/);
   assert.match(app, /workspaceActionTarget/);
   assert.match(app, /entryActionTarget/);
+  assert.match(app, /recentActionTarget/);
   assert.match(app, /title="Rename item"/);
+  assert.match(app, /title="Rename Recent File"/);
   assert.match(app, /title="Move item to Trash\?"/);
   assert.equal(app.includes("contextMenu"), false);
+});
+
+test("Recents use a compact action menu without secondary metadata", async () => {
+  const source = await readFile(new URL("../src/components/workspace/WorkspacePanel.jsx", import.meta.url), "utf8");
+  assert.match(source, /onRecentAction\(recent, "rename"\)/);
+  assert.match(source, /onRecentAction\(recent, "reveal"\)/);
+  assert.match(source, /onRecentAction\(recent, "remove"\)/);
+  assert.match(source, />Rename</);
+  assert.match(source, />Show in Finder</);
+  assert.match(source, />Remove</);
+  assert.equal(source.includes("recent.detail"), false);
+  assert.equal(source.includes("onRemoveRecent"), false);
 });

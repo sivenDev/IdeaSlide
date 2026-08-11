@@ -105,7 +105,7 @@ export async function applyReviewScenario(id, { desktopApi, settings, activeDocu
   if (id === "recovery-corrupt") documentPatch = { ...documentPatch, recoveryError: "The mock recovery record is corrupt. The source document is still unchanged." };
   if (id === "unsupported") openTarget = { mode: "standalone", standaloneId: "standalone-unsupported" };
   if (id === "mixed-endings") openTarget = { mode: "workspace", workspaceId: "ws-product", path: "Research/field-notes.md" };
-  if (id === "recent-missing") desktopApi.data.recents.unshift({ id: "recent-missing-target", kind: "standalone", standaloneId: "missing-target", label: "missing-review.md", detail: "Single File · unavailable" });
+  if (id === "recent-missing") desktopApi.touchRecent({ kind: "standalone", standaloneId: "missing-target", label: "missing-review.md", path: "/Mock/Documents/missing-review.md" });
   if (id === "ai-disabled") nextSettings.aiEnabled = false;
   if (id === "provider-required") { nextSettings.aiEnabled = true; nextSettings.provider.credentialConfigured = false; }
   if (id === "runtime-fallback") nextSettings.agent.runtime = "compatibility";

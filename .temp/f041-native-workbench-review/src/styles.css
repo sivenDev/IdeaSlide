@@ -150,10 +150,9 @@ kbd { font-size: 9px; color: var(--muted); }
 .recents-heading { padding: 0 7px 7px; color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .recent-row { display: grid; grid-template-columns: minmax(0,1fr) 25px; align-items: center; border-radius: 4px; }
 .recent-row:hover { background: var(--hover); }
-.recent-main { min-width: 0; min-height: 37px; display: grid; grid-template-columns: 23px minmax(0,1fr); align-items: center; gap: 7px; border: 0; padding: 4px 7px; background: transparent; text-align: left; cursor: pointer; }
-.recent-main strong, .recent-main small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent-main { min-width: 0; min-height: 31px; display: grid; grid-template-columns: 23px minmax(0,1fr); align-items: center; gap: 7px; border: 0; padding: 3px 7px; background: transparent; text-align: left; cursor: pointer; }
+.recent-main strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .recent-main strong { font-size: 10px; font-weight: 620; }
-.recent-main small { margin-top: 2px; color: var(--muted); font-size: 8px; }
 .empty-copy { margin: 7px; color: var(--muted); font-size: 9px; }
 .workspace-notice { margin: 12px 7px 0; padding: 8px 9px; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); color: var(--steel); font-size: 9px; line-height: 1.45; }
 .workspace-notice--danger { border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); color: var(--danger); }

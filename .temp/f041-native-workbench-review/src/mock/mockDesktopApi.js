@@ -25,6 +25,10 @@ function uniquePath(directory, name) {
   return directory ? `${directory}/${name}` : name;
 }
 
+function sortRecents(recents) {
+  return [...recents].sort((left, right) => (right.openedAt ?? 0) - (left.openedAt ?? 0));
+}
+
 function updateDescendantPaths(entry, oldPrefix, newPrefix) {
   if (entry.path === oldPrefix || entry.path.startsWith(`${oldPrefix}/`)) {
     entry.path = `${newPrefix}${entry.path.slice(oldPrefix.length)}`;
@@ -43,13 +47,15 @@ export class MockDesktopApi {
   reset() {
     this.data = cloneFixtures();
     this.workspaceCatalog = clone(this.data.workspaces);
-    this.sequence = 1;
+    this.sequence = Math.max(0, ...this.data.recents.map((recent) => recent.openedAt ?? 0)) + 1;
     this.emit({ type: "reset" });
     return this.snapshot();
   }
 
   snapshot() {
-    return clone(this.data);
+    const snapshot = clone(this.data);
+    snapshot.recents = sortRecents(snapshot.recents);
+    return snapshot;
   }
 
   subscribe(listener) {
@@ -119,7 +125,7 @@ export class MockDesktopApi {
     await this.step("openDocument");
     const file = this.data.standalone.find((item) => item.id === standaloneId);
     if (!file) throw new Error("The mock standalone file could not be found.");
-    this.touchRecent({ kind: "standalone", standaloneId, label: file.name, detail: "Single File · now" });
+    this.touchRecent({ kind: "standalone", standaloneId, label: file.name, path: file.path });
     return clone({ ...file, mode: "standalone" });
   }
 
@@ -166,6 +172,22 @@ export class MockDesktopApi {
   async revealInFinder(path) {
     await this.step("revealInFinder");
     return { path, simulated: true };
+  }
+
+  async renameStandalone(standaloneId, nextName) {
+    await this.step("renameStandalone");
+    const file = this.data.standalone.find((item) => item.id === standaloneId);
+    const name = nextName.trim();
+    if (!file) throw new Error("The mock standalone file could not be found.");
+    if (!name) throw new Error("File name is required.");
+    if (this.data.standalone.some((item) => item !== file && item.name.toLowerCase() === name.toLowerCase())) throw new Error("A file with this name already exists.");
+    const directory = file.path.includes("/") ? file.path.slice(0, file.path.lastIndexOf("/")) : "";
+    file.name = name;
+    file.path = uniquePath(directory, name);
+    this.data.recents = this.data.recents.map((recent) => recent.standaloneId === standaloneId
+      ? { ...recent, label: file.name, path: file.path }
+      : recent);
+    return clone(file);
   }
 
   async renameEntry(workspaceId, path, nextName) {
@@ -249,8 +271,9 @@ export class MockDesktopApi {
     this.data.recents = this.data.recents.filter((item) => !(
       item.kind === recent.kind && item.standaloneId === recent.standaloneId
     ));
-    this.data.recents.unshift({ id: `recent-${this.sequence++}`, ...recent });
-    this.data.recents = this.data.recents.slice(0, 7);
+    const openedAt = this.sequence++;
+    this.data.recents.push({ id: `recent-${openedAt}`, ...recent, openedAt });
+    this.data.recents = sortRecents(this.data.recents).slice(0, 7);
   }
 
   describeFile(name) {

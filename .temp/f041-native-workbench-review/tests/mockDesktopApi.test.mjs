@@ -73,6 +73,7 @@ test("Recents contain standalone files only", async () => {
   const api = new MockDesktopApi({ latency: 0 });
   const initial = api.snapshot().recents;
   assert.equal(initial.every((recent) => recent.kind === "standalone"), true);
+  assert.deepEqual(initial.map((recent) => recent.openedAt), [...initial.map((recent) => recent.openedAt)].sort((a, b) => b - a));
   await api.openWorkspace("ws-product");
   await api.openWorkspaceFile("ws-product", "Planning/product-brief.md");
   assert.deepEqual(api.snapshot().recents, initial);
@@ -81,6 +82,23 @@ test("Recents contain standalone files only", async () => {
   assert.equal(recents[0].standaloneId, "standalone-notes");
   assert.equal(recents.filter((recent) => recent.standaloneId === "standalone-notes").length, 1);
   assert.equal(recents.every((recent) => recent.kind === "standalone"), true);
+  assert.equal(recents.every((recent) => !Object.hasOwn(recent, "detail")), true);
+});
+
+test("Recent standalone actions rename metadata, preserve time order, and remove only the Recent", async () => {
+  const api = new MockDesktopApi({ latency: 0 });
+  const before = api.snapshot().recents.find((recent) => recent.standaloneId === "standalone-notes");
+  const renamed = await api.renameStandalone("standalone-notes", "ideas.md");
+  const renamedRecent = api.snapshot().recents.find((recent) => recent.standaloneId === "standalone-notes");
+  assert.equal(renamed.name, "ideas.md");
+  assert.equal(renamed.path, "/Mock/Documents/ideas.md");
+  assert.equal(renamedRecent.label, "ideas.md");
+  assert.equal(renamedRecent.path, "/Mock/Documents/ideas.md");
+  assert.equal(renamedRecent.openedAt, before.openedAt);
+
+  await api.removeRecent(renamedRecent.id);
+  assert.equal(api.snapshot().recents.some((recent) => recent.standaloneId === "standalone-notes"), false);
+  assert.equal((await api.openStandalone("standalone-notes")).name, "ideas.md");
 });
 
 test("Workspace roots can be renamed, removed, and reopened from the mock catalog", async () => {

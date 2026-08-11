@@ -80,6 +80,7 @@ parent: ""
 - [x] Give the Workspace-root action menu enough width for its longest approved action without widening file or Agent menus.
 - [x] Expose macOS fullscreen and Windows windowed chrome states through deterministic Settings review scenarios, resetting other scenarios to macOS windowed.
 - [x] Keep the editor crown focused on file identity and path without exposing the internal document revision counter.
+- [x] Replace Recent-file dismiss controls with Rename, Show in Finder, and Remove menus; hide secondary metadata and sort by latest opened time.
 
 ## Task 3: Connect Workspace Tree Dragging to the Mock Desktop Boundary
 

@@ -50,6 +50,7 @@ export function DemoApp() {
   const [createTarget, setCreateTarget] = useState(null);
   const [workspaceActionTarget, setWorkspaceActionTarget] = useState(null);
   const [entryActionTarget, setEntryActionTarget] = useState(null);
+  const [recentActionTarget, setRecentActionTarget] = useState(null);
   const [editorAdapter, setEditorAdapter] = useState(null);
   const [settings, setSettings] = useState(defaultSettings);
   const [layout, setLayout] = useState(() => initialLayout(frame?.width));
@@ -154,6 +155,37 @@ export function DemoApp() {
     } catch (error) {
       dispatch({ type: "set-notice", notice: { tone: "danger", message: error.message } });
     }
+  };
+
+  const executeRecentAction = async (action, target = recentActionTarget) => {
+    const recent = target?.recent ?? target;
+    if (!recent) return;
+    try {
+      if (action === "rename") {
+        const renamed = await mockDesktopApi.renameStandalone(recent.standaloneId, entryName.trim());
+        if (document?.mode === "standalone" && document.id === recent.standaloneId) patchDocument({ name: renamed.name, path: renamed.path });
+      }
+      if (action === "reveal") {
+        await mockDesktopApi.revealInFinder(recent.path ?? recent.label);
+        dispatch({ type: "set-notice", notice: { tone: "info", message: `Show in Finder is simulated for ${recent.label}.` } });
+      }
+      if (action === "remove") await mockDesktopApi.removeRecent(recent.id);
+      dispatch({ type: "set-modal", modal: null });
+      setRecentActionTarget(null);
+      setEntryName("");
+      await refresh();
+    } catch (error) {
+      dispatch({ type: "set-notice", notice: { tone: "danger", message: error.message } });
+    }
+  };
+
+  const beginRecentAction = (recent, action) => {
+    const target = { recent };
+    setRecentActionTarget(target);
+    if (action === "rename") {
+      setEntryName(recent.label);
+      dispatch({ type: "set-modal", modal: "rename-recent" });
+    } else executeRecentAction(action, target);
   };
 
   const applyScenario = async (id) => {
@@ -376,7 +408,7 @@ export function DemoApp() {
   return (
     <main className={shellClass} data-document={document ? "file" : "welcome"} data-window-platform={windowState.platform} data-window-fullscreen={windowState.fullscreen ? "true" : "false"} style={shellStyle}>
       <WindowChrome state={windowState} workspaceOpen={state.workspaceOpen} onToggleWorkspace={() => dispatch({ type: "toggle-workspace" })} />
-      {state.workspaceOpen && <WorkspacePanel state={state} dispatch={dispatch} onOpen={(workspaceId, path) => openFile({ mode: "workspace", workspaceId, path })} onOpenRecent={openRecent} onAddWorkspace={() => dispatch({ type: "set-modal", modal: "workspace-picker" })} onCreate={beginCreate} onWorkspaceAction={beginWorkspaceAction} onEntryAction={beginEntryAction} onMoveEntry={moveWorkspaceEntry} onSettings={() => dispatch({ type: "set-modal", modal: "settings" })} onRemoveRecent={async (id) => { await mockDesktopApi.removeRecent(id); refresh(); }} />}
+      {state.workspaceOpen && <WorkspacePanel state={state} dispatch={dispatch} onOpen={(workspaceId, path) => openFile({ mode: "workspace", workspaceId, path })} onOpenRecent={openRecent} onAddWorkspace={() => dispatch({ type: "set-modal", modal: "workspace-picker" })} onCreate={beginCreate} onWorkspaceAction={beginWorkspaceAction} onEntryAction={beginEntryAction} onRecentAction={beginRecentAction} onMoveEntry={moveWorkspaceEntry} onSettings={() => dispatch({ type: "set-modal", modal: "settings" })} />}
       <EditorHost document={document} onSaveAs={() => saveAsDocument()} onClose={() => document?.dirty ? dispatch({ type: "request-open", target: { close: true } }) : dispatch({ type: "close-document" })} onChange={(content) => dispatch({ type: "update-document", sessionId: document.sessionId, content })} onOpenRecent={() => state.recents[0] && openRecent(state.recents[0])} onOpenFile={() => dispatch({ type: "set-modal", modal: "file-picker" })} onNewFile={() => beginCreate(activeWorkspace && { workspaceId: activeWorkspace.id, directoryPath: "", label: activeWorkspace.name })} agentOpen={state.agentOpen} onToggleAgent={() => dispatch({ type: "toggle-agent" })} onRegisterAdapter={setEditorAdapter} laserEnabled={settings.ideaSketch.laserEnabled} agentEnabled={settings.aiEnabled} onPatchDocument={patchDocument} onReloadDocument={reloadDocument} />
       {state.agentOpen && document && settings.aiEnabled && <AgentPanel document={document} settings={settings} editorAdapter={editorAdapter} onOpenSettings={() => dispatch({ type: "set-modal", modal: "settings" })} onToggleAgent={() => dispatch({ type: "toggle-agent" })} />}
 
@@ -390,6 +422,7 @@ export function DemoApp() {
       {state.modal === "create-entry" && <TextEntryDialog title={entryKind === "directory" ? "New Folder" : entryKind === "ideasketch" ? "New IdeaSketch" : "New Markdown"} description={`Create inside ${createTarget?.label ?? "Workspace"}`} label="Name" value={entryName} setValue={setEntryName} confirmLabel="Create" onConfirm={handleCreate} onClose={() => { dispatch({ type: "set-modal", modal: null }); setCreateTarget(null); }} />}
       {state.modal === "rename-workspace" && <TextEntryDialog title="Rename Workspace" description={workspaceActionTarget?.workspace.path} label="Name" value={entryName} setValue={setEntryName} confirmLabel="Rename" onConfirm={() => executeWorkspaceAction("rename")} onClose={() => { dispatch({ type: "set-modal", modal: null }); setWorkspaceActionTarget(null); }} />}
       {state.modal === "rename-entry" && <TextEntryDialog title="Rename item" description={entryActionTarget?.entry.path} label="Name" value={entryName} setValue={setEntryName} confirmLabel="Rename" onConfirm={() => executeEntryAction("rename")} onClose={() => { dispatch({ type: "set-modal", modal: null }); setEntryActionTarget(null); }} />}
+      {state.modal === "rename-recent" && <TextEntryDialog title="Rename Recent File" description={recentActionTarget?.recent.path} label="Name" value={entryName} setValue={setEntryName} confirmLabel="Rename" onConfirm={() => executeRecentAction("rename")} onClose={() => { dispatch({ type: "set-modal", modal: null }); setRecentActionTarget(null); }} />}
       {state.modal === "trash-entry" && <ConfirmDialog title="Move item to Trash?" message="This removes the item from the in-memory mock workspace. Resetting the review restores it." confirmLabel="Move to Trash" danger onConfirm={() => executeEntryAction("trash")} onClose={() => { dispatch({ type: "set-modal", modal: null }); setEntryActionTarget(null); }} />}
       {state.modal === "remove-workspace" && <ConfirmDialog title="Remove Workspace?" message="This removes the Workspace from the review sidebar only. It does not represent deleting files from disk." confirmLabel="Remove Workspace" danger onConfirm={() => executeWorkspaceAction("remove")} onClose={() => { dispatch({ type: "set-modal", modal: null }); setWorkspaceActionTarget(null); }} />}
       {state.modal === "unsaved" && <UnsavedChangesDialog document={document} onCancel={() => dispatch({ type: "cancel-open" })} onDiscard={() => { dispatch({ type: "discard-document", sessionId: document.sessionId }); completePending("discarding changes"); }} onSave={async () => { if (await saveDocument(document)) await completePending("saving changes"); }} />}
