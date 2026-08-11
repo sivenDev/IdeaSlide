@@ -79,6 +79,7 @@ parent: ""
 - [x] Re-anchor only Workspace overflow menus beside the three-dot trigger and validate collision behavior through focused layout contracts.
 - [x] Give the Workspace-root action menu enough width for its longest approved action without widening file or Agent menus.
 - [x] Expose macOS fullscreen and Windows windowed chrome states through deterministic Settings review scenarios, resetting other scenarios to macOS windowed.
+- [x] Keep the editor crown focused on file identity and path without exposing the internal document revision counter.
 
 ## Task 3: Connect Workspace Tree Dragging to the Mock Desktop Boundary
 

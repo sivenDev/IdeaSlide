@@ -17,6 +17,7 @@ test("document status and close share one leading control", async () => {
   assert.equal(source.includes("Save document"), false);
   assert.equal(source.includes("document-status-rail"), false);
   assert.equal(source.includes("owns editor"), false);
+  assert.equal(source.includes(" · Revision "), false);
   assert.match(source, /agentEnabled && !agentOpen/);
 });
 

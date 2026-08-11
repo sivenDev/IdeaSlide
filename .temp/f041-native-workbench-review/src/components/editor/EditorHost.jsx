@@ -57,7 +57,7 @@ export function EditorHost({ document, onSaveAs, onClose, onChange, onOpenRecent
           {document && <span className={`document-icon file-glyph file-glyph--${definition.tone}`}>{definition.badge}</span>}
           <span className="document-copy">
             <strong>{document?.name ?? "Welcome"}</strong>
-            <small>{document ? `${document.mode === "workspace" ? `${document.workspaceName} / ${document.path}` : document.path} · Revision ${document.revision}` : "Choose a file to begin"}</small>
+            <small>{document ? (document.mode === "workspace" ? `${document.workspaceName} / ${document.path}` : document.path) : "Choose a file to begin"}</small>
           </span>
         </div>
       </header>
