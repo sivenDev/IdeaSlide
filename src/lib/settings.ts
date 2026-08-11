@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { load, type Store } from "@tauri-apps/plugin-store";
 
-export const SETTINGS_SCHEMA_VERSION = 3;
+export const SETTINGS_SCHEMA_VERSION = 4;
 const SETTINGS_STORE_PATH = "settings.json";
 const SETTINGS_STORE_KEY = "settings";
 const BROWSER_STORAGE_KEY = "ideanote.settings.v1";
@@ -33,6 +33,9 @@ export interface AppSettings {
   };
   ideaSketch: {
     previewLaserEnabled: boolean;
+  };
+  markdown: {
+    showLineNumbers: boolean;
   };
 }
 
@@ -68,6 +71,9 @@ export const DEFAULT_SETTINGS = Object.freeze({
   ideaSketch: {
     previewLaserEnabled: true,
   },
+  markdown: {
+    showLineNumbers: false,
+  },
 } satisfies AppSettings);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -87,6 +93,7 @@ export function normalizeSettings(value: unknown): AppSettings {
   const retry = isRecord(ai.retry) ? ai.retry : {};
   const agent = isRecord(value.agent) ? value.agent : {};
   const ideaSketch = isRecord(value.ideaSketch) ? value.ideaSketch : {};
+  const markdown = isRecord(value.markdown) ? value.markdown : {};
   const maxSteps = boundedInteger(agent.maxSteps, DEFAULT_SETTINGS.agent.maxSteps, 1, 20);
   const contextWarningPercent = boundedInteger(
     agent.contextWarningPercent,
@@ -151,6 +158,11 @@ export function normalizeSettings(value: unknown): AppSettings {
       previewLaserEnabled: typeof ideaSketch.previewLaserEnabled === "boolean"
         ? ideaSketch.previewLaserEnabled
         : true,
+    },
+    markdown: {
+      showLineNumbers: typeof markdown.showLineNumbers === "boolean"
+        ? markdown.showLineNumbers
+        : false,
     },
   };
 }

@@ -2,7 +2,7 @@
 id: "F046-03"
 title: "Migrate the Reviewed Agent Panel onto the Real Agent Core"
 type: "feature"
-status: "draft"
+status: "approved"
 summary: "Adopt the reviewed conversation, composer, model, inspector, and response layout while preserving the production Rust Agent Core, Tools, Skills, Threads, and Turn chronology."
 source: "docs/superplan/human/features.md"
 created: "2026-08-11"

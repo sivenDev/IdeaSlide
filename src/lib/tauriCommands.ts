@@ -203,6 +203,17 @@ export interface RenamedPathResult {
   metadataError?: string | null;
 }
 
+export interface ProviderProbeResult {
+  models: string[];
+}
+
+export async function probeAiProvider(baseUrl: string, apiKey?: string): Promise<ProviderProbeResult> {
+  return await invoke<ProviderProbeResult>("probe_ai_provider", {
+    baseUrl,
+    apiKey: apiKey?.trim() || null,
+  });
+}
+
 export async function renameStandalonePath(path: string, newName: string): Promise<RenamedPathResult> {
   return await invoke<RenamedPathResult>("rename_standalone_path", { path, newName });
 }

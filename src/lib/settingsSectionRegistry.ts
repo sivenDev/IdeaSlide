@@ -6,6 +6,7 @@ export interface SettingsSectionDefinition {
   description: string;
   order: number;
   owner: "application" | "editor";
+  group: "Application" | "AI" | "Editors";
 }
 
 const sections = new Map<SettingsSectionId, SettingsSectionDefinition>();
@@ -21,8 +22,9 @@ export function getSettingsSections(): SettingsSectionDefinition[] {
 }
 
 [
-  { id: "general", label: "General", description: "Application appearance and behavior", order: 10, owner: "application" },
-  { id: "ai-provider", label: "AI Provider", description: "Model endpoint and secure credential", order: 20, owner: "application" },
-  { id: "agent", label: "Agent", description: "Agent availability and runtime limits", order: 30, owner: "application" },
-  { id: "ideasketch", label: "IdeaSketch", description: "Visual editor preferences", order: 100, owner: "editor" },
+  { id: "general", label: "Appearance", description: "Application theme", order: 10, owner: "application", group: "Application" },
+  { id: "ai-provider", label: "Provider", description: "Endpoint and model", order: 20, owner: "application", group: "AI" },
+  { id: "agent", label: "Agent", description: "Availability and policy", order: 30, owner: "application", group: "AI" },
+  { id: "ideasketch", label: "IdeaSketch", description: "Visual editor preferences", order: 100, owner: "editor", group: "Editors" },
+  { id: "markdown", label: "Markdown", description: "Text editor preferences", order: 110, owner: "editor", group: "Editors" },
 ].forEach((definition) => registerSettingsSection(definition as SettingsSectionDefinition));

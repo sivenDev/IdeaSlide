@@ -6,42 +6,16 @@ export function SettingsField({
   children,
 }: {
   title: string;
-  description: string;
+  description?: string;
   children: ReactNode;
 }) {
   return (
     <div className="ideanote-settings-field">
       <div className="min-w-0 flex-1">
         <div className="text-sm font-semibold text-gray-900">{title}</div>
-        <div className="mt-1 max-w-xl text-xs leading-5 text-gray-500">{description}</div>
+        {description && <div className="ideanote-settings-field__description">{description}</div>}
       </div>
       <div className="flex shrink-0 items-center">{children}</div>
     </div>
-  );
-}
-
-export function SettingsToggle({
-  checked,
-  onChange,
-  label,
-  disabled = false,
-}: {
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  label: string;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      disabled={disabled}
-      className={`ideanote-settings-toggle ${checked ? "is-on" : ""}`}
-      onClick={() => onChange(!checked)}
-    >
-      <span />
-    </button>
   );
 }

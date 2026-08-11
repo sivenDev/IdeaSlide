@@ -4,7 +4,8 @@ import { listAgentRuntimes } from "../../lib/agent/agentClient";
 import { selectAgentRuntime } from "../../lib/agent/runtimeSelection";
 import type { AgentRuntimeDescriptor } from "../../lib/agent/types";
 import { DEFAULT_SETTINGS, type AppSettings } from "../../lib/settings";
-import { SettingsField, SettingsToggle } from "./SettingsField";
+import { SettingsField } from "./SettingsField";
+import { SettingsSwitch } from "./SettingsSwitch";
 import { AgentSkillManager } from "./AgentSkillManager";
 
 function AgentNumberInput({
@@ -70,19 +71,15 @@ export function AgentSettings() {
   return (
     <section aria-labelledby="settings-agent-title">
       <h2 id="settings-agent-title" className="ideanote-settings-title">Agent</h2>
-      <p className="ideanote-settings-lead">The Agent is application-wide. Editors contribute their own Skills and Tools.</p>
       <div className={`ideanote-settings-status is-${activationState}`}>
         <span className="ideanote-settings-status__dot" />
         <span>{status}</span>
       </div>
-      <SettingsField
-        title="Enable AI"
-        description="Enabled by default. When off, IdeaNote does not mount the Agent, initialize its runtime, load Skills or Tools, or call a model."
-      >
-        <SettingsToggle
+      <SettingsField title="Enable AI">
+        <SettingsSwitch
           label="Enable AI"
           checked={settings.ai.enabled}
-          onChange={(enabled) => void updateSettings((current) => ({
+          onCheckedChange={(enabled) => void updateSettings((current) => ({
             ...current,
             ai: { ...current.ai, enabled },
           }))}
@@ -90,7 +87,7 @@ export function AgentSettings() {
       </SettingsField>
       <SettingsField
         title="Runtime selection"
-        description="IdeaNote automatically uses the pinned Codex app-server when it passes compatibility and editor Tool safety checks, then falls back to the configured OpenAI-compatible provider."
+        description="Codex when compatible, otherwise the configured provider."
       >
         <div className="ideanote-settings-readout" role="status">
           <strong>{runtimeSelection.descriptor?.label ?? "Automatic selection"}</strong>
@@ -99,7 +96,7 @@ export function AgentSettings() {
             : "Runtime availability is checked by the desktop app.")}</span>
         </div>
       </SettingsField>
-      <SettingsField title="Maximum steps" description="Bound each Agent run to prevent unbounded Tool activity.">
+      <SettingsField title="Maximum steps">
         <AgentNumberInput
           label="Maximum Agent steps"
           value={settings.agent.maxSteps}
@@ -110,7 +107,7 @@ export function AgentSettings() {
       </SettingsField>
       <SettingsField
         title="Context warning"
-        description="Show an approaching-limit state only when the runtime supplies an exact context window. Range: 50–90%."
+        description="50–90%"
       >
         <AgentNumberInput
           label="Context warning percent"
@@ -122,7 +119,7 @@ export function AgentSettings() {
       </SettingsField>
       <SettingsField
         title="New Thread recommendation"
-        description="Recommend a new Thread at this exact context percentage. It is always normalized above the warning threshold. Range: 60–100%."
+        description="60–100%, above the warning threshold"
       >
         <AgentNumberInput
           label="New Thread recommendation percent"
@@ -134,7 +131,7 @@ export function AgentSettings() {
       </SettingsField>
       <SettingsField
         title="Runtime diagnostics retained"
-        description="Keep this many safe, classified diagnostics per Thread. Credentials and raw provider payloads are never retained. Range: 5–100."
+        description="5–100 per conversation"
       >
         <AgentNumberInput
           label="Runtime diagnostics retained"
@@ -146,7 +143,7 @@ export function AgentSettings() {
       </SettingsField>
       <SettingsField
         title="Compatibility replay messages"
-        description="Limit how many settled messages are sent with a Compatibility request. This is not a model context-window setting. Range: 10–200."
+        description="10–200 messages"
       >
         <AgentNumberInput
           label="Compatibility replay message limit"
@@ -156,24 +153,24 @@ export function AgentSettings() {
           onChange={(compatibilityReplayMessageLimit) => updateAgent({ compatibilityReplayMessageLimit })}
         />
       </SettingsField>
-      <SettingsField title="Show source delivery" description="Show exact delivery timing and stream behavior in the Runtime Inspector.">
-        <SettingsToggle
+      <SettingsField title="Show source delivery">
+        <SettingsSwitch
           label="Show source delivery telemetry"
           checked={settings.agent.showDeliveryTelemetry}
-          onChange={(showDeliveryTelemetry) => updateAgent({ showDeliveryTelemetry })}
+          onCheckedChange={(showDeliveryTelemetry) => updateAgent({ showDeliveryTelemetry })}
         />
       </SettingsField>
-      <SettingsField title="Show Tool Activity" description="Display editor Tool calls and results in the Agent panel.">
-        <SettingsToggle
+      <SettingsField title="Show Tool Activity">
+        <SettingsSwitch
           label="Show Tool Activity"
           checked={settings.agent.showToolActivity}
-          onChange={(showToolActivity) => updateAgent({ showToolActivity })}
+          onCheckedChange={(showToolActivity) => updateAgent({ showToolActivity })}
         />
       </SettingsField>
-      <SettingsField title="Custom Skills" description="Import and manage standard instruction-only Skill folders. Managed Skills cannot add Tools, scripts, MCP, or system permissions.">
+      <SettingsField title="Skills">
         <AgentSkillManager activationState={activationState} />
       </SettingsField>
-      <SettingsField title="Reset Agent policy" description="Restore the maximum-step, context, diagnostics, replay, and delivery-visibility defaults.">
+      <SettingsField title="Reset policy">
         <button
           type="button"
           className="ideanote-settings-button"

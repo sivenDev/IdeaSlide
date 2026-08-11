@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef } from "react";
-import { defaultKeymap, history, historyKeymap, redo, undo } from "@codemirror/commands";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { defaultKeymap, history, historyKeymap, redo, redoDepth, undo, undoDepth } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { searchKeymap } from "@codemirror/search";
 import { Compartment, EditorState, Transaction } from "@codemirror/state";
@@ -16,6 +16,7 @@ import {
 interface UseCodeMirrorEditorOptions {
   value: string;
   readOnly: boolean;
+  showLineNumbers: boolean;
   onChange: (value: string) => void;
   onScroll?: (ratio: number) => void;
 }
@@ -25,7 +26,10 @@ export interface CodeMirrorEditorHandle {
   getView: () => EditorView | undefined;
   undo: () => boolean;
   redo: () => boolean;
+  canUndo: boolean;
+  canRedo: boolean;
   focus: () => void;
+  requestMeasure: () => void;
   replaceSelection: (text: string) => void;
   wrapSelection: (before: string, after?: string) => void;
   scrollToRatio: (ratio: number) => void;
@@ -34,15 +38,18 @@ export interface CodeMirrorEditorHandle {
 export function useCodeMirrorEditor({
   value,
   readOnly,
+  showLineNumbers,
   onChange,
   onScroll,
 }: UseCodeMirrorEditorOptions): CodeMirrorEditorHandle {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | undefined>(undefined);
   const readOnlyCompartment = useRef(new Compartment());
+  const lineNumbersCompartment = useRef(new Compartment());
   const onChangeRef = useRef(onChange);
   const onScrollRef = useRef(onScroll);
   const applyingExternalValue = useRef(false);
+  const [historyAvailability, setHistoryAvailability] = useState({ canUndo: false, canRedo: false });
   onChangeRef.current = onChange;
   onScrollRef.current = onScroll;
 
@@ -53,8 +60,9 @@ export function useCodeMirrorEditor({
       state: EditorState.create({
         doc: value,
         extensions: [
-          lineNumbers(),
-          highlightActiveLineGutter(),
+          lineNumbersCompartment.current.of(showLineNumbers
+            ? [lineNumbers(), highlightActiveLineGutter()]
+            : []),
           history(),
           drawSelection(),
           dropCursor(),
@@ -67,6 +75,13 @@ export function useCodeMirrorEditor({
             if (update.docChanged && !applyingExternalValue.current) {
               onChangeRef.current(update.state.doc.toString());
             }
+            const next = {
+              canUndo: undoDepth(update.state) > 0,
+              canRedo: redoDepth(update.state) > 0,
+            };
+            setHistoryAvailability((current) => current.canUndo === next.canUndo && current.canRedo === next.canRedo
+              ? current
+              : next);
           }),
           EditorView.domEventHandlers({
             scroll: (_event, mountedView) => {
@@ -76,13 +91,13 @@ export function useCodeMirrorEditor({
             },
           }),
           EditorView.theme({
-            "&": { height: "100%", backgroundColor: "#fbfbfc", color: "#22242b" },
+            "&": { height: "100%", backgroundColor: "var(--ideanote-editor-bg, #fbfbfc)", color: "var(--ideanote-editor-text, #22242b)" },
             ".cm-scroller": { fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", fontSize: "13px", lineHeight: "1.72" },
             ".cm-content": { padding: "24px 20px 96px" },
-            ".cm-gutters": { backgroundColor: "#f4f5f7", color: "#a0a5ae", borderRight: "1px solid #e4e6eb" },
-            ".cm-activeLine": { backgroundColor: "#f0efff70" },
-            ".cm-activeLineGutter": { backgroundColor: "#e8e7fb", color: "#625dd6" },
-            ".cm-selectionBackground, ::selection": { backgroundColor: "#d9d7ff !important" },
+            ".cm-gutters": { backgroundColor: "var(--ideanote-editor-gutter, #f4f5f7)", color: "var(--ideanote-editor-muted, #a0a5ae)", borderRight: "1px solid var(--ideanote-editor-line, #e4e6eb)" },
+            ".cm-activeLine": { backgroundColor: "var(--ideanote-editor-active, #f0efff70)" },
+            ".cm-activeLineGutter": { backgroundColor: "var(--ideanote-editor-active-gutter, #e8e7fb)", color: "var(--ideanote-cobalt, #625dd6)" },
+            ".cm-selectionBackground, ::selection": { backgroundColor: "var(--ideanote-editor-selection, #d9d7ff) !important" },
             ".cm-focused": { outline: "none" },
           }),
         ],
@@ -100,6 +115,17 @@ export function useCodeMirrorEditor({
     if (!view) return;
     view.dispatch({ effects: readOnlyCompartment.current.reconfigure(EditorState.readOnly.of(readOnly)) });
   }, [readOnly]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: lineNumbersCompartment.current.reconfigure(showLineNumbers
+        ? [lineNumbers(), highlightActiveLineGutter()]
+        : []),
+    });
+    view.requestMeasure();
+  }, [showLineNumbers]);
 
   useEffect(() => {
     const view = viewRef.current;
@@ -138,7 +164,10 @@ export function useCodeMirrorEditor({
     getView: () => viewRef.current,
     undo: () => Boolean(viewRef.current && undo(viewRef.current)),
     redo: () => Boolean(viewRef.current && redo(viewRef.current)),
+    canUndo: historyAvailability.canUndo,
+    canRedo: historyAvailability.canRedo,
     focus: () => viewRef.current?.focus(),
+    requestMeasure: () => viewRef.current?.requestMeasure(),
     replaceSelection,
     wrapSelection,
     scrollToRatio: (ratio) => {

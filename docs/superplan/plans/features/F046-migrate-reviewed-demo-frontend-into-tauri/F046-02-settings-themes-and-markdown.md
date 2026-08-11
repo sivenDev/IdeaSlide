@@ -2,7 +2,7 @@
 id: "F046-02"
 title: "Align Settings, Themes, and the Production Markdown Editor"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Migrate the reviewed Settings and Markdown interaction model onto the existing persistent settings and production CodeMirror/document services."
 source: "docs/superplan/human/features.md"
 created: "2026-08-11"
@@ -47,9 +47,9 @@ parent: "F046"
 - `node --test tests/settings.test.mjs tests/settingsCenter.test.mjs tests/agentSkillManager.test.mjs`
 - Cases: legacy migration; Light/Dark/System; AI gate; keyboard navigation; unified checkbox/switch states; bundled Skill immutable; custom Skill toggle; Settings save/error/reopen.
 
-- [ ] Add settings migration and UI contracts for the reviewed hierarchy and control rules.
-- [ ] Recompose registered sections without duplicating settings state in components.
-- [ ] Verify persistence, accessibility, themes, and immutable bundled Skills.
+- [x] Add settings migration and UI contracts for the reviewed hierarchy and control rules.
+- [x] Recompose registered sections without duplicating settings state in components.
+- [x] Verify persistence, accessibility, themes, and immutable bundled Skills.
 
 ## Task 2: Add Secure Provider Testing and Model Discovery
 
@@ -77,9 +77,9 @@ parent: "F046"
 - `cd src-tauri && cargo test provider_probe settings`
 - Cases with a controlled local HTTP fixture: success catalog; auth failure; invalid URL; timeout; malformed/oversized response; changed credentials invalidate catalog; cancellation/close; logs and command payload results contain no token.
 
-- [ ] Add failing frontend/Rust contracts for Test-before-Model and secret-free failures.
-- [ ] Implement the narrow Tauri provider-probe boundary and reviewed compact form.
-- [ ] Verify real success/error states without contacting or mutating an unintended provider account.
+- [x] Add failing frontend/Rust contracts for Test-before-Model and secret-free failures.
+- [x] Implement the narrow Tauri provider-probe boundary and reviewed compact form.
+- [x] Verify real success/error states without contacting or mutating an unintended provider account.
 
 ## Task 3: Migrate the Reviewed Markdown Interaction Model
 
@@ -104,9 +104,17 @@ parent: "F046"
 - `node --test tests/markdownEditorContract.test.mjs tests/markdownEditorRefinement.test.mjs tests/settingsCenter.test.mjs`
 - Cases: type/select; Preview -> Split/Edit repeatedly; Undo/Redo before/after transitions; Outline open/closed; split resize; default-off and live line-number changes; Markdown Agent read/edit plus native Undo; links/images; scroll sync; LF/CRLF; read-only/conflict/recovery states; themes and target widths.
 
-- [ ] Capture production regressions for the blank-host risk and default-off line-number preference.
-- [ ] Preserve the production Markdown model/preview/Agent boundaries while changing only editor composition.
-- [ ] Verify native history, selection, session identity, and rendering across every view transition.
+- [x] Capture production regressions for the blank-host risk and default-off line-number preference.
+- [x] Preserve the production Markdown model/preview/Agent boundaries while changing only editor composition.
+- [x] Verify native history, selection, session identity, and rendering across every view transition.
+
+## Delivery Evidence
+
+- `node --test tests/*.test.mjs`: 360 frontend tests passed, including Settings control, theme, provider, Markdown host-lifetime, line-number, history, Agent binding, save/recovery, and existing IdeaSketch contracts.
+- `npm run build`: strict TypeScript and Vite production build completed successfully.
+- `cd src-tauri && cargo test provider_probe --quiet`: 4 provider-probe tests passed, covering bounded catalogs, classified failures, invalid URLs, oversized responses, and credential-safe redirect rejection.
+- `cd src-tauri && cargo test --quiet`: 151 Rust tests passed.
+- `npm run tauri dev`: Vite started, the native application compiled, and `target/debug/idea-slide` reached the running process.
 
 ## References
 

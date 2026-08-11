@@ -50,6 +50,21 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const applyTheme = () => {
+      const resolved = settings.general.theme === "system"
+        ? (media.matches ? "dark" : "light")
+        : settings.general.theme;
+      document.documentElement.dataset.theme = resolved;
+      document.documentElement.style.colorScheme = resolved;
+    };
+    applyTheme();
+    if (settings.general.theme !== "system") return;
+    media.addEventListener("change", applyTheme);
+    return () => media.removeEventListener("change", applyTheme);
+  }, [settings.general.theme]);
+
   const updateSettings = useCallback(async (updater: (current: AppSettings) => AppSettings) => {
     setSaving(true);
     setError(undefined);

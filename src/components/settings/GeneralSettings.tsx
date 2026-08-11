@@ -5,9 +5,8 @@ export function GeneralSettings() {
   const { settings, updateSettings } = useSettings();
   return (
     <section aria-labelledby="settings-general-title">
-      <h2 id="settings-general-title" className="ideanote-settings-title">General</h2>
-      <p className="ideanote-settings-lead">Application-wide preferences stay outside Workspace files.</p>
-      <SettingsField title="Appearance" description="Follow the operating system or select an application theme.">
+      <h2 id="settings-general-title" className="ideanote-settings-title">Appearance</h2>
+      <SettingsField title="Theme">
         <select
           aria-label="Appearance"
           className="ideanote-settings-control"

@@ -26,7 +26,7 @@ test('AI defaults to enabled and requires configuration before runtime activatio
 
 test('settings normalization is versioned and bounds Agent policy and Provider retries', async () => {
   const { SETTINGS_SCHEMA_VERSION, normalizeSettings } = await loadSettingsModule();
-  assert.equal(SETTINGS_SCHEMA_VERSION, 3);
+  assert.equal(SETTINGS_SCHEMA_VERSION, 4);
   const normalized = normalizeSettings({
     schemaVersion: 999,
     ai: {
@@ -53,12 +53,15 @@ test('settings normalization is versioned and bounds Agent policy and Provider r
   assert.equal(normalized.agent.diagnosticRetention, 100);
   assert.equal(normalized.agent.compatibilityReplayMessageLimit, 10);
   assert.equal(normalized.agent.showDeliveryTelemetry, false);
+  assert.equal(normalized.markdown.showLineNumbers, false);
 
   const migrated = normalizeSettings({
     schemaVersion: 1,
     ai: { enabled: true, baseUrl: 'https://example.test/v1' },
   });
   assert.deepEqual(migrated.ai.retry, { enabled: true, maxAttempts: 3 });
+  assert.deepEqual(migrated.markdown, { showLineNumbers: false });
+  assert.equal(normalizeSettings({ markdown: { showLineNumbers: true } }).markdown.showLineNumbers, true);
   assert.equal(normalizeSettings({ ai: { retry: { maxAttempts: 0 } } }).ai.retry.maxAttempts, 1);
   assert.deepEqual(normalizeSettings(undefined).agent, {
     maxSteps: 8,
@@ -89,14 +92,15 @@ test('credentials use native commands and are not part of persisted settings', a
   assert.doesNotMatch(cargo, /\bkeyring\s*=/);
 });
 
-test('Agent settings explain automatic Codex selection and Compatibility fallback', async () => {
+test('Agent settings keep automatic runtime selection concise and move the AI gate here', async () => {
   const agentSettings = await readFile(
     new URL('../src/components/settings/AgentSettings.tsx', import.meta.url),
     'utf8',
   );
   assert.match(agentSettings, /title="Runtime selection"/);
-  assert.match(agentSettings, /automatically uses the pinned Codex app-server/);
-  assert.match(agentSettings, /falls back to the configured OpenAI-compatible provider/);
+  assert.match(agentSettings, /Codex when compatible, otherwise the configured provider/);
+  assert.match(agentSettings, /title="Enable AI"/);
+  assert.match(agentSettings, /checked=\{settings\.ai\.enabled\}/);
   assert.match(agentSettings, /listAgentRuntimes\(\)/);
   assert.match(agentSettings, /selectAgentRuntime\(runtimes/);
   assert.match(agentSettings, /title="Context warning"/);

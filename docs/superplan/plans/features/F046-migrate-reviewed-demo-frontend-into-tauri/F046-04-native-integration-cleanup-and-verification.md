@@ -2,7 +2,7 @@
 id: "F046-04"
 title: "Complete Native Integration, Cleanup, and End-to-End Verification"
 type: "feature"
-status: "draft"
+status: "approved"
 summary: "Close remaining Tauri boundaries, remove obsolete shell assumptions, and verify the migrated workbench against production file, editor, settings, Agent, and native-window behavior."
 source: "docs/superplan/human/features.md"
 created: "2026-08-11"

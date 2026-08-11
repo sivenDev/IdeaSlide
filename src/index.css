@@ -205,18 +205,21 @@ body,
 }
 
 .ideanote-settings-toggle {
-    position: relative;
+    display: inline-flex;
     width: 38px;
     height: 22px;
+    flex: 0 0 auto;
+    align-items: center;
+    border: 0;
     border-radius: 999px;
     background: #cdd1d8;
-    transition: background 140ms ease;
+    cursor: pointer;
+    padding: 3px;
+    transition: background 140ms ease, box-shadow 140ms ease;
 }
 
-.ideanote-settings-toggle > span {
-    position: absolute;
-    top: 3px;
-    left: 3px;
+.ideanote-settings-toggle__thumb {
+    display: block;
     width: 16px;
     height: 16px;
     border-radius: 50%;
@@ -225,12 +228,24 @@ body,
     transition: transform 140ms ease;
 }
 
-.ideanote-settings-toggle.is-on {
+.ideanote-settings-toggle[data-state="checked"] {
     background: #6965db;
 }
 
-.ideanote-settings-toggle.is-on > span {
+.ideanote-settings-toggle[data-state="checked"] > .ideanote-settings-toggle__thumb {
     transform: translateX(16px);
+}
+
+.ideanote-settings-toggle:focus-visible,
+.ideanote-settings-checkbox:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgb(105 101 219 / 18%);
+}
+
+.ideanote-settings-toggle:disabled,
+.ideanote-settings-checkbox:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
 }
 
 .ideanote-settings-button {
@@ -3687,4 +3702,175 @@ body,
 
 @media (prefers-reduced-motion: reduce) {
     .ideanote-document-status-close.is-saving .ideanote-document-status-close__state { animation: none; }
+}
+
+/* Reviewed Settings, theme, and Markdown refinements */
+.ideanote-settings-dialog__title {
+    color: #252930;
+    font-size: 15px;
+    font-weight: 680;
+    letter-spacing: -0.02em;
+}
+
+.ideanote-settings-nav__group + .ideanote-settings-nav__group { margin-top: 17px; }
+.ideanote-settings-nav__group-label {
+    color: #969b95;
+    font-size: 9px;
+    font-weight: 720;
+    letter-spacing: 0.09em;
+    padding: 0 9px 6px;
+    text-transform: uppercase;
+}
+
+.ideanote-settings-field__description {
+    max-width: 32rem;
+    margin-top: 3px;
+    color: #858b84;
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.ideanote-settings-checkbox {
+    display: inline-flex;
+    width: 14px;
+    height: 14px;
+    flex: 0 0 14px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #b9beb7;
+    border-radius: 4px;
+    color: #fff;
+    background: #fff;
+    transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+
+.ideanote-settings-checkbox[data-state="checked"] {
+    border-color: var(--ideanote-cobalt, #2f5dcc);
+    background: var(--ideanote-cobalt, #2f5dcc);
+}
+
+.ideanote-settings-checkbox__indicator {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ideanote-provider-form { margin-top: 17px; }
+.ideanote-provider-control { width: min(320px, 42vw); }
+.ideanote-provider-token-row,
+.ideanote-provider-test-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.ideanote-provider-test-row span { max-width: 250px; color: #8a433e; font-size: 11px; }
+.ideanote-provider-test-row span.is-success { color: #347354; }
+
+.ideanote-markdown-editor {
+    --ideanote-editor-bg: #fbfbfc;
+    --ideanote-editor-text: #22242b;
+    --ideanote-editor-gutter: #f4f5f7;
+    --ideanote-editor-muted: #a0a5ae;
+    --ideanote-editor-line: #e4e6eb;
+    --ideanote-editor-active: #edf2ff;
+    --ideanote-editor-active-gutter: #e5ebfb;
+    --ideanote-editor-selection: #cfdcff;
+}
+
+.ideanote-markdown-history {
+    position: absolute;
+    z-index: 12;
+    bottom: 10px;
+    left: 10px;
+    display: flex;
+    gap: 2px;
+    border: 1px solid #d9dcd7;
+    border-radius: 8px;
+    background: rgb(255 255 255 / 94%);
+    box-shadow: 0 4px 14px rgb(37 41 48 / 10%);
+    padding: 2px;
+}
+
+html[data-theme="dark"] body { background: #1e2126; }
+html[data-theme="dark"] .idea-slide-editor-shell {
+    --ideanote-paper: #22252b;
+    --ideanote-workspace: #292c31;
+    --ideanote-workspace-hover: #34383e;
+    --ideanote-agent: #272a2f;
+    --ideanote-graphite: #e7e9ed;
+    --ideanote-muted: #a5aaa4;
+    --ideanote-line: #3b3f45;
+    --ideanote-cobalt: #7ea2ff;
+    --ideanote-danger: #df756d;
+}
+
+html[data-theme="dark"] .ideanote-workspace-root__main,
+html[data-theme="dark"] .ideanote-recent-row__main,
+html[data-theme="dark"] .ideanote-workspace-footer > button,
+html[data-theme="dark"] .ideanote-open-workspace-empty,
+html[data-theme="dark"] .ideanote-document-identity,
+html[data-theme="dark"] .ideanote-workbench-welcome__actions > button { color: #d6d9de; }
+html[data-theme="dark"] .ideanote-workbench-welcome__actions > button:hover,
+html[data-theme="dark"] .ideanote-workspace-footer > button:hover,
+html[data-theme="dark"] .ideanote-open-workspace-empty:hover { background: rgb(255 255 255 / 6%); }
+html[data-theme="dark"] .ideanote-document-status-close:hover,
+html[data-theme="dark"] .ideanote-document-status-close:focus-visible { background: #363a40; }
+html[data-theme="dark"] .ideanote-document-status-close__close { color: #d4d7dc; }
+html[data-theme="dark"] .ideanote-compact-menu,
+html[data-theme="dark"] .ideanote-command-dialog { border-color: #464a51 !important; background: #292c31 !important; color: #e1e3e7; }
+html[data-theme="dark"] .ideanote-compact-menu [role="menuitem"]:focus { background: #383d45; }
+html[data-theme="dark"] .ideanote-command-title,
+html[data-theme="dark"] .ideanote-command-search { border-color: #41454c; color: #b9bec5; }
+html[data-theme="dark"] .ideanote-command-search input,
+html[data-theme="dark"] .ideanote-command-list > button { color: #d9dce1; }
+html[data-theme="dark"] .ideanote-command-list > button.is-active { color: #dce6ff; background: #344466; }
+
+html[data-theme="dark"] .ideanote-settings-overlay { background: rgb(6 8 12 / 58%); }
+html[data-theme="dark"] .ideanote-settings-dialog,
+html[data-theme="dark"] .ideanote-settings-content { border-color: #41454c; background: #24272d; color: #e2e5e9; }
+html[data-theme="dark"] .ideanote-settings-header { border-color: #41454c; }
+html[data-theme="dark"] .ideanote-settings-dialog__title,
+html[data-theme="dark"] .ideanote-settings-title,
+html[data-theme="dark"] .ideanote-settings-field .text-gray-900 { color: #eef0f3; }
+html[data-theme="dark"] .ideanote-settings-nav { border-color: #41454c; background: #292c32; }
+html[data-theme="dark"] .ideanote-settings-nav__item { color: #aeb3ba; }
+html[data-theme="dark"] .ideanote-settings-nav__item:hover { color: #eef0f3; background: #353941; }
+html[data-theme="dark"] .ideanote-settings-nav__item.is-active { color: #dce6ff; background: #354469; }
+html[data-theme="dark"] .ideanote-settings-field { border-color: #3b3f46; }
+html[data-theme="dark"] .ideanote-settings-control { border-color: #4a4f57; background: #2d3037; color: #e8eaed; }
+html[data-theme="dark"] .ideanote-settings-control:focus { border-color: #7ea2ff; box-shadow: 0 0 0 3px rgb(126 162 255 / 14%); }
+html[data-theme="dark"] .ideanote-settings-checkbox { border-color: #60666f; background: #2d3037; }
+html[data-theme="dark"] .ideanote-settings-checkbox[data-state="checked"] { border-color: #5f83dc; background: #5f83dc; }
+html[data-theme="dark"] .ideanote-settings-button { color: #dfe2e6; background: #353941; }
+html[data-theme="dark"] .ideanote-settings-button.is-primary { color: #fff; background: #4d70c8; }
+html[data-theme="dark"] .ideanote-agent-skill-card { border-color: #41454c; background: #292c32; }
+
+html[data-theme="dark"] .ideanote-markdown-editor {
+    --ideanote-editor-bg: #22252b;
+    --ideanote-editor-text: #e2e5e9;
+    --ideanote-editor-gutter: #292c32;
+    --ideanote-editor-muted: #777e87;
+    --ideanote-editor-line: #3d4148;
+    --ideanote-editor-active: #2c3548;
+    --ideanote-editor-active-gutter: #354469;
+    --ideanote-editor-selection: #3f5687;
+    background: #22252b !important;
+}
+html[data-theme="dark"] .ideanote-markdown-toolbar,
+html[data-theme="dark"] .ideanote-markdown-outline,
+html[data-theme="dark"] .ideanote-markdown-preview { border-color: #3d4148 !important; background: #25282e !important; color: #dfe2e6; }
+html[data-theme="dark"] .ideanote-markdown-preview h1,
+html[data-theme="dark"] .ideanote-markdown-preview h2,
+html[data-theme="dark"] .ideanote-markdown-preview h3,
+html[data-theme="dark"] .ideanote-markdown-preview h4,
+html[data-theme="dark"] .ideanote-markdown-preview h5,
+html[data-theme="dark"] .ideanote-markdown-preview h6 { color: #f0f2f5; }
+html[data-theme="dark"] .ideanote-markdown-preview code,
+html[data-theme="dark"] .ideanote-markdown-preview pre,
+html[data-theme="dark"] .ideanote-markdown-preview th { border-color: #454a52; background: #2e3239; color: #e0e3e8; }
+html[data-theme="dark"] .ideanote-markdown-history { border-color: #464b52; background: rgb(42 45 51 / 95%); }
+
+@media (max-width: 760px) {
+    .ideanote-provider-control { width: min(100%, 280px); }
+    .ideanote-provider-token-row { align-items: stretch; flex-direction: column; }
 }

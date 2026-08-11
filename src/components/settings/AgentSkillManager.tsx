@@ -9,7 +9,8 @@ import {
 } from "../../lib/agent/agentClient";
 import type { AgentSkillMetadata } from "../../lib/agent/types";
 import type { AgentActivationState } from "../../lib/settings";
-import { SettingsToggle } from "./SettingsField";
+import { SettingsCheckbox } from "./SettingsCheckbox";
+import { SettingsSwitch } from "./SettingsSwitch";
 
 function desktopRuntime(): boolean {
   return "__TAURI_INTERNALS__" in window;
@@ -126,7 +127,7 @@ export function AgentSkillManager({ activationState }: { activationState: AgentA
             <article key={skill.id} className={`ideanote-agent-skill-card ${skill.valid ? "is-valid" : "is-invalid"}`}>
               <div className="ideanote-agent-skill-card__title">
                 <div><strong>{skill.name}</strong><span>{skill.description}</span></div>
-                <SettingsToggle label={`Enable ${skill.name}`} checked={skill.enabled} disabled={busy || !skill.valid} onChange={(enabled) => void update(skill, { enabled })} />
+                <SettingsSwitch label={`Enable ${skill.name}`} checked={skill.enabled} disabled={busy || !skill.valid} onCheckedChange={(enabled) => void update(skill, { enabled })} />
               </div>
               <dl>
                 <div><dt>Source</dt><dd>{skill.sourceLabel}</dd></div>
@@ -135,26 +136,31 @@ export function AgentSkillManager({ activationState }: { activationState: AgentA
                 <div><dt>Status</dt><dd>{skill.valid ? "Valid" : skill.validationMessage ?? "Invalid"}</dd></div>
               </dl>
               <label className="ideanote-agent-skill-card__implicit">
-                <input type="checkbox" checked={skill.implicitInvocation} disabled={busy || !skill.enabled || !skill.valid} onChange={(event) => void update(skill, { implicitInvocation: event.target.checked })} />
+                <SettingsCheckbox
+                  label={`Allow ${skill.name} to activate autonomously`}
+                  checked={skill.implicitInvocation}
+                  disabled={busy || !skill.enabled || !skill.valid}
+                  onCheckedChange={(implicitInvocation) => void update(skill, { implicitInvocation })}
+                />
                 Allow the Agent to activate this Skill autonomously
               </label>
               <fieldset disabled={busy || !skill.valid}>
                 <legend>Compatible editor Skills</legend>
                 <label>
-                  <input
-                    type="checkbox"
+                  <SettingsCheckbox
+                    label={`Use ${skill.name} with all supported editors`}
                     checked={skill.editorScopes.length === 0}
                     disabled={bundled.length === 0}
-                    onChange={(event) => void update(skill, {
-                      editorScopes: event.target.checked ? [] : bundled.slice(0, 1).map((item) => item.id),
+                    onCheckedChange={(checked) => void update(skill, {
+                      editorScopes: checked ? [] : bundled.slice(0, 1).map((item) => item.id),
                     })}
                   />
                   All supported editors
                 </label>
                 {bundled.map((editor) => (
                   <label key={editor.id}>
-                    <input
-                      type="checkbox"
+                    <SettingsCheckbox
+                      label={`Use ${skill.name} with ${editor.name}`}
                       checked={skill.editorScopes.includes(editor.id)}
                       disabled={skill.editorScopes.length === 0 || busy || (
                         skill.editorScopes.length === 1 && skill.editorScopes[0] === editor.id
@@ -162,8 +168,8 @@ export function AgentSkillManager({ activationState }: { activationState: AgentA
                       title={skill.editorScopes.length === 1 && skill.editorScopes[0] === editor.id
                         ? "Select another editor or All supported editors before removing this scope."
                         : undefined}
-                      onChange={(event) => void update(skill, {
-                        editorScopes: event.target.checked
+                      onCheckedChange={(checked) => void update(skill, {
+                        editorScopes: checked
                           ? [...skill.editorScopes, editor.id]
                           : skill.editorScopes.filter((scope) => scope !== editor.id),
                       })}

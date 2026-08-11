@@ -1,6 +1,7 @@
 mod agent;
 mod commands;
 pub(crate) mod document_formats;
+mod provider_probe;
 mod recent_files;
 mod recovery;
 pub(crate) mod safe_write;
@@ -90,6 +91,7 @@ pub fn run() {
             settings::get_ai_credential_status,
             settings::set_ai_credential,
             settings::delete_ai_credential,
+            provider_probe::probe_ai_provider,
             agent::discover_agent_skills,
             agent::import_agent_skill,
             agent::update_agent_skill,

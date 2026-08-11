@@ -2,13 +2,7 @@ import { createElement, useCallback, useEffect, useMemo, useRef, useState } from
 import { EditorView } from "@codemirror/view";
 import GithubSlugger from "github-slugger";
 import {
-  Bold,
-  Braces,
   Eye,
-  Heading2,
-  Italic,
-  Link,
-  List,
   ListTree,
   PanelLeftClose,
   PanelLeftOpen,
@@ -28,6 +22,7 @@ import type {
 } from "../types";
 import { useAutoSave } from "../hooks/useAutoSave";
 import { useCodeMirrorEditor } from "../hooks/useCodeMirrorEditor";
+import { useSettings } from "../hooks/useSettings";
 import { normalizeMarkdownLineEndings, updateMarkdownText } from "../lib/markdownDocument";
 import { readDocumentImage } from "../lib/tauriCommands";
 import { createAgentToolHost } from "../lib/agent/agentToolHost";
@@ -164,6 +159,7 @@ export function MarkdownEditor({
   onOpenDocumentLink,
   documentFullPath,
 }: MarkdownEditorProps) {
+  const { settings } = useSettings();
   const model = document.model;
   if (!model) throw new Error("Markdown document model is missing");
   const modelRef = useRef(model);
@@ -249,9 +245,19 @@ export function MarkdownEditor({
   const editor = useCodeMirrorEditor({
     value: model.text,
     readOnly,
+    showLineNumbers: settings.markdown.showLineNumbers,
     onChange: handleTextChange,
     onScroll: handleSourceScroll,
   });
+
+  useEffect(() => {
+    if (viewMode === "preview") return;
+    const frame = requestAnimationFrame(() => {
+      editor.requestMeasure();
+      editor.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [viewMode]);
 
   useEffect(() => {
     onRegisterSnapshot(document.id, () => modelRef.current);
@@ -413,22 +419,12 @@ export function MarkdownEditor({
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#f7f8fa]">
-      <div className="flex h-10 flex-none items-center justify-between border-b border-gray-200 bg-white px-2.5">
+    <div className="ideanote-markdown-editor flex h-full min-h-0 flex-col bg-[#f7f8fa]">
+      <div className="ideanote-markdown-toolbar flex h-10 flex-none items-center justify-between border-b border-gray-200 bg-white px-2.5">
         <div className="flex items-center gap-0.5">
           <ToolbarButton label={showOutline ? "Hide outline" : "Show outline"} onClick={() => updateEditorState({ showOutline: !showOutline })}>
             {showOutline ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}
           </ToolbarButton>
-          <span className="mx-1 h-4 w-px bg-gray-200" />
-          <ToolbarButton label="Undo" disabled={readOnly} onClick={editor.undo}><Undo2 size={14} /></ToolbarButton>
-          <ToolbarButton label="Redo" disabled={readOnly} onClick={editor.redo}><Redo2 size={14} /></ToolbarButton>
-          <span className="mx-1 h-4 w-px bg-gray-200" />
-          <ToolbarButton label="Heading" disabled={readOnly} onClick={() => editor.replaceSelection("## ")}><Heading2 size={14} /></ToolbarButton>
-          <ToolbarButton label="Bold" disabled={readOnly} onClick={() => editor.wrapSelection("**")}><Bold size={14} /></ToolbarButton>
-          <ToolbarButton label="Italic" disabled={readOnly} onClick={() => editor.wrapSelection("_")}><Italic size={14} /></ToolbarButton>
-          <ToolbarButton label="Link" disabled={readOnly} onClick={() => editor.wrapSelection("[", "](https://)")}><Link size={14} /></ToolbarButton>
-          <ToolbarButton label="Bullet list" disabled={readOnly} onClick={() => editor.replaceSelection("- ")}><List size={14} /></ToolbarButton>
-          <ToolbarButton label="Code block" disabled={readOnly} onClick={() => editor.wrapSelection("```\n", "\n```")}><Braces size={14} /></ToolbarButton>
         </div>
         <div className="flex items-center gap-2">
           {model.lineEnding === "mixed" && !model.normalization && (
@@ -467,7 +463,7 @@ export function MarkdownEditor({
 
       <div className="flex min-h-0 flex-1">
         {showOutline && (
-          <aside className="w-52 flex-none overflow-auto border-r border-gray-200 bg-[#f4f5f7] px-2 py-3" aria-label="Document outline">
+          <aside className="ideanote-markdown-outline w-52 flex-none overflow-auto border-r border-gray-200 bg-[#f4f5f7] px-2 py-3" aria-label="Document outline">
             <div className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-400">Outline</div>
             {headings.length === 0 ? (
               <div className="px-2 py-6 text-xs leading-5 text-gray-400">Add headings to navigate this document.</div>
@@ -479,11 +475,19 @@ export function MarkdownEditor({
           </aside>
         )}
         <div ref={splitContainerRef} className={`relative flex min-w-0 flex-1 ${resizingSplit ? "select-none" : ""}`}>
-          {(viewMode === "edit" || viewMode === "split") && (
-            <div className="min-w-0" style={{ width: viewMode === "split" ? `${splitRatio * 100}%` : "100%" }}>
-              <div ref={editor.hostRef} className="h-full" aria-label="Markdown source editor" />
-            </div>
-          )}
+          <div
+            className={`relative min-w-0 overflow-hidden ${viewMode === "preview" ? "invisible" : ""}`}
+            aria-hidden={viewMode === "preview"}
+            style={{ width: viewMode === "preview" ? 0 : viewMode === "split" ? `${splitRatio * 100}%` : "100%" }}
+          >
+            <div ref={editor.hostRef} className="h-full" aria-label="Markdown source editor" />
+            {viewMode !== "preview" && (
+              <div className="ideanote-markdown-history" aria-label="Markdown history">
+                <ToolbarButton label="Undo" disabled={readOnly || !editor.canUndo} onClick={editor.undo}><Undo2 size={14} /></ToolbarButton>
+                <ToolbarButton label="Redo" disabled={readOnly || !editor.canRedo} onClick={editor.redo}><Redo2 size={14} /></ToolbarButton>
+              </div>
+            )}
+          </div>
           {viewMode === "split" && (
             <div
               role="separator"
