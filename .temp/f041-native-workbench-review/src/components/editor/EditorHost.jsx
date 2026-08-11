@@ -38,7 +38,7 @@ function EditorSurface({ document, onChange, onRegisterAdapter, laserEnabled }) 
   return <IdeaSketchEditor document={document} onChange={onChange} onRegisterAdapter={onRegisterAdapter} laserEnabled={laserEnabled} />;
 }
 
-export function EditorHost({ document, onSave, onClose, onChange, onOpenRecent, onOpenFile, onNewFile, agentOpen, onToggleAgent, onRegisterAdapter, laserEnabled = true }) {
+export function EditorHost({ document, onSave, onClose, onChange, onOpenRecent, onOpenFile, onNewFile, agentOpen, onToggleAgent, onRegisterAdapter, laserEnabled = true, agentEnabled = true }) {
   const definition = document ? fileTypeRegistry[document.type] ?? fileTypeRegistry.unsupported : null;
   const condition = documentCondition(document);
   return (
@@ -58,7 +58,7 @@ export function EditorHost({ document, onSave, onClose, onChange, onOpenRecent, 
           {document && <button className="icon-button" type="button" aria-label="Document actions"><MoreHorizontal size={16} /></button>}
         </div>
       </header>
-      {document && (
+      {document && agentEnabled && (
         <div className={`document-status-rail document-status-rail--${condition.tone}`} role="status">
           <span className="status-pulse" />
           <span>{condition.label}</span>

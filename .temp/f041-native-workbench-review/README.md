@@ -22,7 +22,16 @@ F044-02 adds the real editor-owned surfaces:
 - Markdown mounts CodeMirror 6 with Edit/Split/Preview, GFM, formatting, Outline, search and native Undo/Redo;
 - both editors participate in the shared Dirty/Save/Recovery lifecycle and expose bounded Agent adapters.
 
-F044-03 will replace the reserved Agent and Settings placeholders. F044-04 will expose deterministic reliability scenarios and finish the review package.
+F044-03 adds the complete application-owned AI experience:
+
+- Settings categories for General, AI Provider, Agent, Skills, and IdeaSketch;
+- truthful configured/unconfigured credential status with no saved-key readback;
+- automatic Runtime evidence, policy controls, delivery modes and managed custom Skills;
+- persistent local Threads, history, rename/archive/delete, Skill selection, streaming, steering, cancellation, retry and Runtime Inspector;
+- chronological public activity and Tool rows without hidden reasoning;
+- bounded Agent reads and one native CodeMirror or Excalidraw mutation with normal Dirty/Save and native Undo.
+
+F044-04 will expose deterministic reliability scenarios and finish the review package.
 
 ## Run
 

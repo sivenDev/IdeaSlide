@@ -1,0 +1,55 @@
+const STORAGE_KEY = "ideanote-complete-review-settings-v1";
+
+export const defaultSettings = {
+  theme: "light",
+  aiEnabled: true,
+  provider: { baseUrl: "https://api.openai.com/v1", model: "gpt-5.2", retryEnabled: true, maxAttempts: 3, credentialConfigured: true },
+  agent: { runtime: "automatic", maxSteps: 12, exactContextWarning: 78, showToolActivity: true, deliveryMode: "incremental", diagnostics: 20, replayEvents: 200 },
+  ideaSketch: { laserEnabled: true },
+  skills: [
+    { id: "workspace-review", name: "Workspace Review", source: "bundled", enabled: true, scope: "all", autonomous: true, valid: true },
+    { id: "ideasketch-structure", name: "IdeaSketch Structure", source: "bundled", enabled: true, scope: "ideasketch", autonomous: true, valid: true },
+    { id: "markdown-editor", name: "Markdown Editor", source: "bundled", enabled: true, scope: "markdown", autonomous: true, valid: true },
+  ],
+};
+
+const clone = (value) => structuredClone(value);
+
+export class MockSettingsApi {
+  constructor() { this.failure = null; }
+
+  async load() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return clone(defaultSettings);
+    try { return { ...clone(defaultSettings), ...JSON.parse(saved) }; } catch { return clone(defaultSettings); }
+  }
+
+  async save(settings) {
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    if (this.failure) throw new Error(this.failure);
+    const safe = clone(settings);
+    safe.provider.credentialConfigured = Boolean(settings.provider.credentialConfigured);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(safe));
+    return safe;
+  }
+
+  async setCredential(value) {
+    await new Promise((resolve) => setTimeout(resolve, 160));
+    if (!value?.trim()) throw new Error("Enter a mock credential value first.");
+    return { configured: true };
+  }
+
+  async deleteCredential() {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    return { configured: false };
+  }
+
+  async importSkill() {
+    await new Promise((resolve) => setTimeout(resolve, 180));
+    return { id: `custom-${Date.now()}`, name: "Editorial Clarity", source: "custom", enabled: true, scope: "markdown", autonomous: false, valid: true, path: "/Mock/Skills/editorial-clarity/SKILL.md" };
+  }
+
+  reset() { localStorage.removeItem(STORAGE_KEY); return clone(defaultSettings); }
+}
+
+export const mockSettingsApi = new MockSettingsApi();

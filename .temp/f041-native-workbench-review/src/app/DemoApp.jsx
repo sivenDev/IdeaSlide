@@ -6,6 +6,7 @@ import { EditorHost } from "../components/editor/EditorHost.jsx";
 import { SettingsCenter } from "../components/settings/SettingsCenter.jsx";
 import { EntryActionMenu, NewEntryMenu, WorkspacePanel } from "../components/workspace/WorkspacePanel.jsx";
 import { mockDesktopApi } from "../mock/mockDesktopApi.js";
+import { defaultSettings, mockSettingsApi } from "../mock/mockSettingsApi.js";
 import { activeDocument, demoReducer, initialState } from "./demoStore.js";
 
 function effectiveTheme(theme) {
@@ -18,6 +19,7 @@ export function DemoApp() {
   const [entryName, setEntryName] = useState("");
   const [entryKind, setEntryKind] = useState("markdown");
   const [editorAdapter, setEditorAdapter] = useState(null);
+  const [settings, setSettings] = useState(defaultSettings);
   const document = activeDocument(state);
   const activeWorkspace = state.workspaces.find((item) => item.id === state.activeWorkspaceId) ?? state.workspaces[0];
 
@@ -27,7 +29,9 @@ export function DemoApp() {
   }, [state.ready]);
 
   useEffect(() => { refresh(); }, []);
+  useEffect(() => { mockSettingsApi.load().then((loaded) => { setSettings(loaded); dispatch({ type: "set-theme", theme: loaded.theme }); }); }, []);
   useEffect(() => mockDesktopApi.subscribe(() => refresh()), [refresh]);
+  useEffect(() => { if (!settings.aiEnabled && state.agentOpen) dispatch({ type: "toggle-agent" }); }, [settings.aiEnabled, state.agentOpen]);
   useEffect(() => {
     const root = window.document.documentElement;
     const apply = () => root.dataset.theme = effectiveTheme(state.theme);
@@ -136,20 +140,19 @@ export function DemoApp() {
 
   const pendingOpen = state.pendingOpen;
   const shellClass = `app-shell ${state.workspaceOpen ? "" : "workspace-closed"} ${state.agentOpen && document ? "" : "agent-closed"}`;
-  const loadedTheme = localStorage.getItem("ideanote-review-theme") || state.theme;
   if (!state.ready) return <div className="loading-screen">Preparing deterministic mock workspace…</div>;
 
   return (
     <main className={shellClass} data-document={document ? "file" : "welcome"}>
       <div className="window-controls"><div className="traffic-lights" aria-hidden="true"><span /><span /><span /></div><button className="panel-toggle panel-toggle--workspace" type="button" aria-label={state.workspaceOpen ? "Hide Workspaces" : "Show Workspaces"} aria-pressed={state.workspaceOpen} data-tooltip={state.workspaceOpen ? "Hide Workspaces" : "Show Workspaces"} onClick={() => dispatch({ type: "toggle-workspace" })}><PanelLeft size={16} /></button></div>
       {state.workspaceOpen && <WorkspacePanel state={state} dispatch={dispatch} onOpen={(workspaceId, path) => openFile({ mode: "workspace", workspaceId, path })} onOpenRecent={openRecent} onAddWorkspace={() => dispatch({ type: "set-modal", modal: "workspace-picker" })} onCreate={() => dispatch({ type: "set-context-menu", menu: { kind: "new" } })} onEntryAction={(workspace, entry) => dispatch({ type: "set-context-menu", menu: { kind: "entry", workspace, entry } })} onSettings={() => dispatch({ type: "set-modal", modal: "settings" })} onRemoveRecent={async (id) => { await mockDesktopApi.removeRecent(id); refresh(); }} />}
-      <EditorHost document={document} onSave={() => saveDocument()} onClose={() => document?.dirty ? dispatch({ type: "request-open", target: { close: true } }) : dispatch({ type: "close-document" })} onChange={(content) => dispatch({ type: "update-document", sessionId: document.sessionId, content })} onOpenRecent={() => state.recents[0] && openRecent(state.recents[0])} onOpenFile={() => dispatch({ type: "set-modal", modal: "file-picker" })} onNewFile={() => dispatch({ type: "set-context-menu", menu: { kind: "new" } })} agentOpen={state.agentOpen} onToggleAgent={() => dispatch({ type: "toggle-agent" })} onRegisterAdapter={setEditorAdapter} />
-      {state.agentOpen && document && <AgentPanel document={document} />}
+      <EditorHost document={document} onSave={() => saveDocument()} onClose={() => document?.dirty ? dispatch({ type: "request-open", target: { close: true } }) : dispatch({ type: "close-document" })} onChange={(content) => dispatch({ type: "update-document", sessionId: document.sessionId, content })} onOpenRecent={() => state.recents[0] && openRecent(state.recents[0])} onOpenFile={() => dispatch({ type: "set-modal", modal: "file-picker" })} onNewFile={() => dispatch({ type: "set-context-menu", menu: { kind: "new" } })} agentOpen={state.agentOpen} onToggleAgent={() => dispatch({ type: "toggle-agent" })} onRegisterAdapter={setEditorAdapter} laserEnabled={settings.ideaSketch.laserEnabled} agentEnabled={settings.aiEnabled} />
+      {state.agentOpen && document && settings.aiEnabled && <AgentPanel document={document} settings={settings} editorAdapter={editorAdapter} onOpenSettings={() => dispatch({ type: "set-modal", modal: "settings" })} />}
 
       {state.contextMenu?.kind === "new" && <NewEntryMenu workspace={activeWorkspace} onChoose={(kind) => { setEntryKind(kind); setEntryName(kind === "directory" ? "New Folder" : kind === "ideasketch" ? "Untitled Sketch" : "Untitled Note"); dispatch({ type: "set-modal", modal: "create-entry" }); }} onClose={() => dispatch({ type: "set-context-menu", menu: null })} />}
       {state.contextMenu?.kind === "entry" && <EntryActionMenu workspace={state.contextMenu.workspace} entry={state.contextMenu.entry} onRename={() => { setEntryName(state.contextMenu.entry.name); dispatch({ type: "set-modal", modal: "rename-entry" }); }} onMove={() => executeEntryAction("move")} onTrash={() => dispatch({ type: "set-modal", modal: "trash-entry" })} onClose={() => dispatch({ type: "set-context-menu", menu: null })} />}
 
-      {state.modal === "settings" && <SettingsCenter theme={loadedTheme} onTheme={(theme) => dispatch({ type: "set-theme", theme })} onClose={() => dispatch({ type: "set-modal", modal: null })} />}
+      {state.modal === "settings" && <SettingsCenter settings={settings} onSettings={(saved) => { setSettings(saved); dispatch({ type: "set-theme", theme: saved.theme }); }} onTheme={(theme) => dispatch({ type: "set-theme", theme })} onClose={() => dispatch({ type: "set-modal", modal: null })} />}
       {state.modal === "workspace-picker" && <MockPickerDialog kind="workspace" onChoose={async () => { const workspace = await mockDesktopApi.chooseWorkspace(); dispatch({ type: "set-modal", modal: null }); dispatch({ type: "toggle-workspace-root", id: workspace.id }); refresh(); }} onClose={() => dispatch({ type: "set-modal", modal: null })} />}
       {state.modal === "file-picker" && <MockPickerDialog kind="file" onChoose={async () => { const file = await mockDesktopApi.chooseFile(); dispatch({ type: "set-modal", modal: null }); openFile({ mode: "standalone", standaloneId: file.id }); }} onClose={() => dispatch({ type: "set-modal", modal: null })} />}
       {state.modal === "create-entry" && <TextEntryDialog title={entryKind === "directory" ? "New Folder" : entryKind === "ideasketch" ? "New IdeaSketch" : "New Markdown"} description={`Create inside ${activeWorkspace?.name}`} label="Name" value={entryName} setValue={setEntryName} confirmLabel="Create" onConfirm={handleCreate} onClose={() => dispatch({ type: "set-modal", modal: null })} />}

@@ -2,7 +2,7 @@
 id: "F044-03"
 title: "Add Complete Settings and Agent Experiences"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Recreate the current Settings Center and generic Agent lifecycle with deterministic mocked credentials, runtimes, Threads, Skills, streaming, Tools, and editor-native edits."
 source: "docs/superplan/human/features.md"
 created: "2026-08-11"
@@ -46,9 +46,9 @@ parent: "F044"
 - `node --test .temp/f041-native-workbench-review/tests/settingsExperience.test.mjs`
 - Browser cases: all entry/close paths; persistence across reload; System change; range/relationship normalization; credential replace/remove; saving/error; AI gate unmount.
 
-- [ ] Replace the placeholder modal with all current Settings sections and validation.
-- [ ] Implement mock settings/credential APIs with truthful security language.
-- [ ] Preserve the restrained F043 modal geometry and native token system.
+- [x] Replace the placeholder modal with all current Settings sections and validation.
+- [x] Implement mock settings/credential APIs with truthful security language.
+- [x] Preserve the restrained F043 modal geometry and native token system.
 
 ## Task 2: Add Managed Skill and Runtime Selection Experiences
 
@@ -71,9 +71,9 @@ parent: "F044"
 - `node --test .temp/f041-native-workbench-review/tests/agentCatalogExperience.test.mjs`
 - Browser cases: import valid/invalid Skill; refresh; enable/disable; all/specific editor scopes; AI-disabled management; Runtime catalog variants.
 
-- [ ] Implement deterministic Runtime discovery/selection evidence.
-- [ ] Recreate managed Skill administration and composer selection.
-- [ ] Keep Skills instruction-only and unable to widen mock editor Tools.
+- [x] Implement deterministic Runtime discovery/selection evidence.
+- [x] Recreate managed Skill administration and composer selection.
+- [x] Keep Skills instruction-only and unable to widen mock editor Tools.
 
 ## Task 3: Implement Threads, Transcript, Composer, and Runtime Inspector
 
@@ -104,9 +104,9 @@ parent: "F044"
 - `node --test .temp/f041-native-workbench-review/tests/agentInteraction.test.mjs .temp/f041-native-workbench-review/tests/agentThreadHistory.test.mjs .temp/f041-native-workbench-review/tests/agentRuntimeInspector.test.mjs`
 - Browser cases: incremental/burst/atomic scripts; steer; cancel; retry; configuration failure; fallback; context pressure; history lifecycle; running delete disabled; Tool Activity visibility.
 
-- [ ] Implement normalized mock Agent events and the complete application-owned panel.
-- [ ] Deliver Thread/history/composer/Inspector flows with honest lifecycle states.
-- [ ] Preserve event chronology and never display or imply hidden reasoning.
+- [x] Implement normalized mock Agent events and the complete application-owned panel.
+- [x] Deliver Thread/history/composer/Inspector flows with honest lifecycle states.
+- [x] Preserve event chronology and never display or imply hidden reasoning.
 
 ## Task 4: Route Mock Agent Tools Through Both Active Editors
 
@@ -130,9 +130,9 @@ parent: "F044"
 - `node --test .temp/f041-native-workbench-review/tests/agentEditorTools.test.mjs`
 - Browser cases: read then mutate; stale/restricted rejection; switch target during Turn; cancel during Tool; direct editor transaction; dirty/autosave; one-step native Undo in both editors.
 
-- [ ] Implement one generic mock Tool broker and editor-specific adapters.
-- [ ] Prove both editors receive safe direct edits without Agent-owned persistence or history.
-- [ ] Deliver F044-03 in a separate commit after complete Agent/Settings browser QA.
+- [x] Implement one generic mock Tool broker and editor-specific adapters.
+- [x] Prove both editors receive safe direct edits without Agent-owned persistence or history.
+- [x] Deliver F044-03 in a separate commit after complete Agent/Settings browser QA.
 
 ## References
 
@@ -146,4 +146,3 @@ parent: "F044"
 - `src/components/settings/AgentSettings.tsx`
 - `src/components/settings/AgentSkillManager.tsx`
 - `src/components/agent/AgentRuntimeInspector.tsx`
-
