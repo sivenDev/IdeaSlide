@@ -23,6 +23,31 @@ test("workspace mutations share one authoritative tree", async () => {
   await assert.rejects(() => api.openWorkspaceFile("ws-product", moved.path), /could not be found/);
 });
 
+test("Recents contain standalone files only", async () => {
+  const api = new MockDesktopApi({ latency: 0 });
+  const initial = api.snapshot().recents;
+  assert.equal(initial.every((recent) => recent.kind === "standalone"), true);
+  await api.openWorkspace("ws-product");
+  await api.openWorkspaceFile("ws-product", "Planning/product-brief.md");
+  assert.deepEqual(api.snapshot().recents, initial);
+  await api.openStandalone("standalone-notes");
+  const recents = api.snapshot().recents;
+  assert.equal(recents[0].standaloneId, "standalone-notes");
+  assert.equal(recents.filter((recent) => recent.standaloneId === "standalone-notes").length, 1);
+  assert.equal(recents.every((recent) => recent.kind === "standalone"), true);
+});
+
+test("Workspace roots can be renamed, removed, and reopened from the mock catalog", async () => {
+  const api = new MockDesktopApi({ latency: 0 });
+  const renamed = await api.renameWorkspace("ws-research", "Research Desk");
+  assert.equal(renamed.name, "Research Desk");
+  await api.removeWorkspace("ws-research");
+  assert.equal(api.snapshot().workspaces.some((workspace) => workspace.id === "ws-research"), false);
+  const reopened = await api.chooseWorkspace();
+  assert.equal(reopened.id, "ws-research");
+  assert.equal(api.snapshot().workspaces.some((workspace) => workspace.id === "ws-research"), true);
+});
+
 test("save failures are injectable and recovery is isolated", async () => {
   const api = new MockDesktopApi({ latency: 0 });
   const file = await api.openStandalone("standalone-notes");

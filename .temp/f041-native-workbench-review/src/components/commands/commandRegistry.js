@@ -1,6 +1,7 @@
 export function buildCommandCatalog({ document, recents = [], workspaceOpen, agentOpen, aiEnabled = true }) {
   return [
     { id: "open-recent", label: "Open most recent file", detail: recents[0]?.label ?? "No recent file", disabled: !recents.length },
+    { id: "open-workspace", label: "Open Workspace…" },
     { id: "open-settings", label: "Open Settings", shortcut: "⌘," },
     { id: "new-ideasketch", label: "New IdeaSketch" },
     { id: "new-markdown", label: "New Markdown" },

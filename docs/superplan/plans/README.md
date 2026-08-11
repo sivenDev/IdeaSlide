@@ -7,7 +7,7 @@
 | Type | Plans | Complete |
 | --- | --- | --- |
 | `required` | 6 | 6 |
-| `feature` | 54 | 54 |
+| `feature` | 55 | 55 |
 | `bugfix` | 29 | 29 |
 
 ## Execution Order
@@ -90,6 +90,7 @@
 | `F044-02` | [Add Complete IdeaSketch and Markdown Editor Experiences](features/F044-complete-mocked-tauri-review-demo/F044-02-ideasketch-and-markdown-editor-experiences.md) | `complete` | 2026-08-11 |
 | `F044-03` | [Add Complete Settings and Agent Experiences](features/F044-complete-mocked-tauri-review-demo/F044-03-settings-agent-and-editor-tool-experience.md) | `complete` | 2026-08-11 |
 | `F044-04` | [Add Reliability Scenarios and Package the Complete Review Demo](features/F044-complete-mocked-tauri-review-demo/F044-04-reliability-scenarios-browser-qa-and-review-package.md) | `complete` | 2026-08-11 |
+| `F045` | [Refine Review Demo Workspace Actions and Document Chrome](features/F045-refine-review-demo-workspace-actions-and-document-chrome.md) | `complete` | 2026-08-11 |
 
 ### Bugfix Plans
 

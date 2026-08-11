@@ -138,10 +138,8 @@ export const baselineFixtures = {
     },
   ],
   recents: [
-    { id: "recent-launch", kind: "file", workspaceId: "ws-product", path: "Planning/launch-plan.is", label: "launch-plan.is", detail: "Product Studio · 4 min" },
-    { id: "recent-brief", kind: "file", workspaceId: "ws-product", path: "Planning/product-brief.md", label: "product-brief.md", detail: "Product Studio · 18 min" },
     { id: "recent-personal", kind: "standalone", standaloneId: "standalone-notes", label: "personal-notes.md", detail: "Single File · yesterday" },
-    { id: "recent-workspace", kind: "workspace", workspaceId: "ws-research", label: "Research Library", detail: "Workspace · Monday" },
+    { id: "recent-dataset", kind: "standalone", standaloneId: "standalone-unsupported", label: "dataset.csv", detail: "Single File · Monday" },
   ],
   recovery: {},
 };

@@ -42,6 +42,7 @@ export class MockDesktopApi {
 
   reset() {
     this.data = cloneFixtures();
+    this.workspaceCatalog = clone(this.data.workspaces);
     this.sequence = 1;
     this.emit({ type: "reset" });
     return this.snapshot();
@@ -82,13 +83,18 @@ export class MockDesktopApi {
     await this.step("openWorkspace");
     const workspace = this.data.workspaces.find((item) => item.id === workspaceId);
     if (!workspace) throw new Error("The mock workspace is no longer available.");
-    this.touchRecent({ kind: "workspace", workspaceId, label: workspace.name, detail: "Workspace · now" });
     return clone(workspace);
   }
 
   async chooseWorkspace() {
     await this.step("chooseWorkspace");
-    return this.openWorkspace("ws-research");
+    const workspace = this.workspaceCatalog.find((candidate) => !this.data.workspaces.some((item) => item.id === candidate.id));
+    if (workspace) {
+      this.data.workspaces.push(clone(workspace));
+      this.emit({ type: "workspace-changed", workspaceId: workspace.id, operation: "add-workspace" });
+      return clone(workspace);
+    }
+    return clone(this.data.workspaces[0]);
   }
 
   async chooseFile() {
@@ -106,7 +112,6 @@ export class MockDesktopApi {
     const workspace = this.data.workspaces.find((item) => item.id === workspaceId);
     const found = workspace && walk(workspace.entries, (entry) => entry.kind === "file" && entry.path === path);
     if (!workspace || !found) throw new Error("The mock file could not be found.");
-    this.touchRecent({ kind: "file", workspaceId, path, label: found.entry.name, detail: `${workspace.name} · now` });
     return clone({ ...found.entry, workspaceId, workspaceName: workspace.name, mode: "workspace", readOnly: workspace.readOnly || found.entry.readOnly });
   }
 
@@ -138,6 +143,30 @@ export class MockDesktopApi {
     children.push(entry);
     this.emit({ type: "workspace-changed", workspaceId, operation: "create", path });
     return clone(entry);
+  }
+
+  async renameWorkspace(workspaceId, nextName) {
+    await this.step("renameWorkspace");
+    const workspace = this.data.workspaces.find((item) => item.id === workspaceId);
+    if (!workspace) throw new Error("The mock workspace is no longer available.");
+    if (!nextName.trim()) throw new Error("Workspace name is required.");
+    workspace.name = nextName.trim();
+    this.emit({ type: "workspace-changed", workspaceId, operation: "rename-workspace" });
+    return clone(workspace);
+  }
+
+  async removeWorkspace(workspaceId) {
+    await this.step("removeWorkspace");
+    const index = this.data.workspaces.findIndex((item) => item.id === workspaceId);
+    if (index < 0) throw new Error("The mock workspace is no longer available.");
+    const [workspace] = this.data.workspaces.splice(index, 1);
+    this.emit({ type: "workspace-changed", workspaceId, operation: "remove-workspace" });
+    return clone(workspace);
+  }
+
+  async revealInFinder(path) {
+    await this.step("revealInFinder");
+    return { path, simulated: true };
   }
 
   async renameEntry(workspaceId, path, nextName) {
@@ -215,8 +244,9 @@ export class MockDesktopApi {
   }
 
   touchRecent(recent) {
+    if (recent.kind !== "standalone") return;
     this.data.recents = this.data.recents.filter((item) => !(
-      item.kind === recent.kind && item.workspaceId === recent.workspaceId && item.path === recent.path && item.standaloneId === recent.standaloneId
+      item.kind === recent.kind && item.standaloneId === recent.standaloneId
     ));
     this.data.recents.unshift({ id: `recent-${this.sequence++}`, ...recent });
     this.data.recents = this.data.recents.slice(0, 7);

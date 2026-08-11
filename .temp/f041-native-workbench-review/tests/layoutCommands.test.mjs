@@ -7,6 +7,7 @@ test("command routing reflects document and panel context", () => {
   assert.equal(commandById(clean, "save"), null);
   assert.equal(commandById(clean, "toggle-agent"), null);
   assert.equal(commandById(clean, "open-settings").shortcut, "⌘,");
+  assert.equal(commandById(clean, "open-workspace").label, "Open Workspace…");
 
   const dirtyDocument = { dirty: true, readOnly: false, conflict: false, missing: false };
   const active = buildCommandCatalog({ document: dirtyDocument, recents: [{ label: "one.md" }], workspaceOpen: false, agentOpen: true, aiEnabled: true });

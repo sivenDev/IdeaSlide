@@ -1,4 +1,4 @@
-import { Bot, FileQuestion, MoreHorizontal, PanelRight, Save, X } from "lucide-react";
+import { Bot, FileQuestion, X } from "lucide-react";
 import { IdeaSketchEditor } from "../../editors/ideasketch/IdeaSketchEditor.jsx";
 import { MarkdownEditor } from "../../editors/markdown/MarkdownEditor.jsx";
 import { fileTypeRegistry } from "../../lib/fileTypeRegistry.js";
@@ -41,41 +41,33 @@ function EditorSurface({ document, onChange, onRegisterAdapter, laserEnabled }) 
   return <IdeaSketchEditor document={document} onChange={onChange} onRegisterAdapter={onRegisterAdapter} laserEnabled={laserEnabled} />;
 }
 
-export function EditorHost({ document, onSave, onSaveAs, onClose, onChange, onOpenRecent, onOpenFile, onNewFile, agentOpen, onToggleAgent, onRegisterAdapter, laserEnabled = true, agentEnabled = true, onPatchDocument, onReloadDocument }) {
+export function EditorHost({ document, onSaveAs, onClose, onChange, onOpenRecent, onOpenFile, onNewFile, agentOpen, onToggleAgent, onRegisterAdapter, laserEnabled = true, agentEnabled = true, onPatchDocument, onReloadDocument }) {
   const definition = document ? fileTypeRegistry[document.type] ?? fileTypeRegistry.unsupported : null;
   const condition = documentCondition(document);
   return (
     <section className="editor-region" aria-label="Editor Host">
       <header className="editor-crown" data-tauri-drag-region>
         <div className="document-identity">
+          {document && (
+            <button className={`document-status-close document-status-close--${condition.tone}`} type="button" aria-label={`${condition.label}. Close ${document.name}`} data-tooltip={`${condition.label} · Close document`} onClick={onClose}>
+              <span className="document-status-close__state" aria-hidden="true" />
+              <X className="document-status-close__close" size={13} aria-hidden="true" />
+            </button>
+          )}
           {document && <span className={`document-icon file-glyph file-glyph--${definition.tone}`}>{definition.badge}</span>}
           <span className="document-copy">
             <strong>{document?.name ?? "Welcome"}</strong>
-            <small>{document ? (document.mode === "workspace" ? `${document.workspaceName} / ${document.path}` : document.path) : "Choose a file to begin"}</small>
+            <small>{document ? `${document.mode === "workspace" ? `${document.workspaceName} / ${document.path}` : document.path} · Revision ${document.revision}` : "Choose a file to begin"}</small>
           </span>
         </div>
-        <div className="editor-shell-actions">
-          {document && <button className="icon-button" type="button" aria-label="Save document" onClick={onSave} disabled={!document.dirty || document.readOnly}><Save size={15} /></button>}
-          {document && <button className="icon-button" type="button" aria-label="Close document" onClick={onClose}><X size={15} /></button>}
-          <span className="editor-owner"><span /><span>{document ? `${definition.label} owns editor` : "Workspace shell"}</span></span>
-          {document && <button className="icon-button" type="button" aria-label="Document actions"><MoreHorizontal size={16} /></button>}
-        </div>
       </header>
-      {document && (
-        <div className={`document-status-rail document-status-rail--${condition.tone}`} role="status">
-          <span className="status-pulse" />
-          <span>{condition.label}</span>
-          <span className="status-spacer" />
-          <span>{document.mode === "workspace" ? "Workspace" : "Single File"}</span>
-          <span>Revision {document.revision}</span>
-        </div>
-      )}
+      {document && <span className="sr-only" role="status" aria-live="polite">{condition.label}</span>}
       <div className="editor-aperture">
         {!document ? <Welcome onOpenRecent={onOpenRecent} onOpenFile={onOpenFile} onNewFile={onNewFile} /> : <EditorSurface key={document.sessionId} document={document} onChange={onChange} onRegisterAdapter={onRegisterAdapter} laserEnabled={laserEnabled} />}
       </div>
-      {document && agentEnabled && (
-        <button className="panel-toggle panel-toggle--agent" type="button" aria-label={agentOpen ? "Hide Agent" : "Show Agent"} aria-pressed={agentOpen} data-tooltip={agentOpen ? "Hide Agent" : "Show Agent"} onClick={onToggleAgent}>
-          {agentOpen ? <PanelRight size={16} /> : <Bot size={16} />}
+      {document && agentEnabled && !agentOpen && (
+        <button className="panel-toggle panel-toggle--agent" type="button" aria-label="Show Agent" aria-pressed="false" data-tooltip="Show Agent" onClick={onToggleAgent}>
+          <Bot size={16} />
         </button>
       )}
       <div className="editor-problem-stack">

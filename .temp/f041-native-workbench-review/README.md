@@ -28,12 +28,13 @@ Open the Command Palette with `Command/Ctrl+K` and run **Reset review scenario**
 1. Start on Welcome. Agent is intentionally unavailable until a document opens.
 2. Open `launch-plan.is` for the Excalidraw-based IdeaSketch editor. Review Pages, Cameras, reordering, presentation, laser pointer, clean-diagram conversion, and PNG/SVG/draw.io browser exports.
 3. Open `product-brief.md` for CodeMirror 6 Markdown. Review Edit/Split/Preview, GFM, Outline, formatting, search, line-ending choice, and native Undo/Redo.
-4. Edit a document and observe the document status rail move through Unsaved, Saving, and Saved. Switch or close while dirty to exercise Save, Discard, and Cancel.
-5. Use Workspaces to create IdeaSketch, Markdown, or Folder entries. Rename, move to Archive, move to Trash, remove a Recent, add a Workspace, or open a Single File through the clearly labeled mock picker.
-6. Resize Workspaces, IdeaSketch Navigator, Markdown split, and Agent with a pointer or keyboard. Each boundary remains independent.
-7. Open Agent after selecting a document. Review local Threads, history, rename/archive/delete, Runtime Inspector, Skills, incremental/burst/atomic delivery, steering, cancellation, Retry, public activity, Tool chronology, bounded editor mutations, and native Undo.
-8. Open Settings to review General, AI Provider, Agent, Skills, IdeaSketch, and prototype-only Review Scenarios. Light, Dark, and System apply immediately.
-9. Open the Command Palette for recent files, Settings, new documents, Save, Save As, panel toggles, reset, and simulated application exit.
+4. Edit a document and observe the leading status/close lens move through Unsaved, Saving, Saved, warning, and error states. Hover or focus it to reveal Close, then close while dirty to exercise Save, Discard, and Cancel. Manual save remains available through `Command/Ctrl+S` and the Command Palette.
+5. Use each Workspace root or directory `+` to create IdeaSketch, Markdown, or Folder entries at that exact location. Use row overflow to rename, move to Archive, simulate Show in Finder, move entries to Trash, or remove a Workspace from the sidebar without claiming to delete disk content. Files intentionally have overflow only.
+6. Confirm Recents contains only standalone files opened outside a Workspace. Workspace roots and Workspace-owned files never enter the list; Open Workspace remains available through the Command Palette and the empty-Workspaces action.
+7. Collapse Workspaces on Welcome and with an active editor. The Editor Host remains visible, interactive, and expands into the released width. Resize Workspaces, IdeaSketch Navigator, Markdown split, and Agent with a pointer or keyboard.
+8. Open Agent after selecting a document. Its compact title-only crown right-aligns New Thread, History, Runtime Inspector, and Hide Agent. Review local Threads, Skills, incremental/burst/atomic delivery, steering, cancellation, Retry, public activity, Tool chronology, bounded editor mutations, and native Undo.
+9. Open Settings to review General, AI Provider, Agent, Skills, IdeaSketch, and prototype-only Review Scenarios. Light, Dark, and System apply immediately.
+10. Open the Command Palette for recent files, Open Workspace, Settings, new documents, Save, Save As, panel toggles, reset, and simulated application exit.
 
 ## Reliability scenario walkthrough
 
@@ -59,6 +60,8 @@ The frontend interactions, editor transactions, state machines, keyboard routing
 All displayed file paths are under `/Mock`. No credential value is returned after save. No model request, local filesystem access, process launch, or Tauri command occurs.
 
 See [CAPABILITY_MATRIX.md](./CAPABILITY_MATRIX.md) for the interaction-to-contract map and `screenshots/` for the refreshed review frames.
+
+The four current screenshots deliberately cover different acceptance states: object-scoped Workspace overflow at 1440×900 Light, the open Agent crown at 1200×850 Dark, an active editor with Workspaces collapsed at 1100×850, and a directory-scoped create menu on Welcome at the 850×850 minimum.
 
 ## Migration gate
 

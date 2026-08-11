@@ -2,11 +2,11 @@
 
 | Capability | Review interaction | Real frontend behavior | Mocked platform boundary | Evidence |
 | --- | --- | --- | --- | --- |
-| Open Frame shell | Launch directly into Welcome | Three-region shell, context-gated Agent affordance, document status rail | Native window chrome and drag regions are visual only | Light and minimum screenshots |
-| Workspaces and Recents | Expand roots, folders, and recent files | Shared navigation, selection, supported-file filtering, dirty badges | Directory enumeration and Recent persistence | Browser walkthrough; `MockDesktopApi` tests |
+| Open Frame shell | Launch directly into Welcome; collapse either outer panel | Explicit grid areas keep Editor Host visible and expanded; Agent remains context-gated on documents | Native window chrome and drag regions are visual only | Compact and minimum screenshots; shell chrome tests |
+| Workspaces and Recents | Expand roots and folders; open standalone Recents | Shared navigation, selection, supported-file filtering, row actions, standalone-only Recent invariant | Directory enumeration and Recent persistence | Browser walkthrough; navigation and `MockDesktopApi` tests |
 | Workspace and Single File sessions | Open tree file or `personal-notes.md` | One document-session core and editor registry | Native open dialogs and real path access | Session and desktop API tests |
-| File operations | Create, rename, move to Archive, Trash, remove Recent | Dialogs, menus, validation, authoritative in-memory tree | Real filesystem mutation and system Trash | Desktop API tests |
-| Save lifecycle | Edit, manual Save, autosave, switch while dirty | Dirty/Saving/Saved/error transitions and Save/Discard/Cancel gate | Atomic write, external fingerprint, recovery write | Session and reliability tests |
+| File operations | Use a root/directory `+`; use root/directory/file overflow | Target-relative creation, contextual menus, rename, Archive, simulated Finder reveal, Trash, Workspace removal, and confirmation | Real filesystem mutation, Finder, and system Trash | Light/minimum screenshots; navigation and desktop API tests |
+| Save lifecycle | Edit, use `Command/Ctrl+S`, autosave, switch or close while dirty | Leading status/close lens communicates clean/dirty/saving/warning/error and preserves Save/Discard/Cancel | Atomic write, external fingerprint, recovery write | Shell chrome, session, and reliability tests |
 | Save As and exit | Command Palette or protected-state action | Explicit copy decision and dirty application-exit gate | Native save dialog and actual app termination | Command and browser QA |
 | Recovery | Select Recovery available/corrupt | Restore/Discard decisions, dirty restored draft, preserved source | Recovery-file discovery and parsing | Scenario and browser QA |
 | External changes | Select clean/dirty/rename/delete/root-missing | Reload, Keep, Save As, Reload/Discard, Cancel, Close; no silent overwrite | Filesystem watcher events and root availability | Reliability tests; browser QA |
@@ -17,7 +17,7 @@
 | Themes | Choose Light, Dark, System | CSS tokens and system preference response | None beyond browser preference | Light/dark screenshots |
 | Runtime selection | Settings → Agent | Automatic Codex selection or honest Compatibility capability reduction | Real app-server/process health | Agent Tool tests; Runtime Inspector |
 | Skills | Settings → Skills | Managed list, scope, enable/disable, invalid-state explanation | Folder picker, Skill parser, persisted registry | Settings and scenario QA |
-| Agent Threads | Open Agent and Thread history | Local Thread state, rename, archive, delete, steering, cancel, retry | Provider conversation persistence | Agent interaction tests |
+| Agent Threads | Open Agent and Thread history | Title-only crown with right-aligned New Thread, History, Inspector, and Hide; local Thread lifecycle, steering, cancel, retry | Provider conversation persistence | Dark screenshot; Agent interaction tests |
 | Agent activity and Tools | Ask for outline or native edit | Public chronology, bounded adapters, native editor transaction and Undo | Model output, Tool planning, token counts | Agent interaction and Tool policy tests |
 | Protected Agent edits | Select Editor Tool rejected | Read-only/conflict/missing/stale adapter rejection | Real backend Tool execution | Agent Tool tests; scenario QA |
 | Command Palette | `Command/Ctrl+K` | Search, keyboard navigation, contextual disablement, routing | Actual application exit only | Layout/command tests; browser QA |
