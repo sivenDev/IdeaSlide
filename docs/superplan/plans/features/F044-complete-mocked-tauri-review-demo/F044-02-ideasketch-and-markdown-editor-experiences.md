@@ -2,7 +2,7 @@
 id: "F044-02"
 title: "Add Complete IdeaSketch and Markdown Editor Experiences"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Mount realistic IdeaSketch and Markdown editors in the demo with their navigators, editing, preview, presentation, export, and native-history interactions."
 source: "docs/superplan/human/features.md"
 created: "2026-08-11"
@@ -46,9 +46,9 @@ parent: "F044"
 - `node --test .temp/f041-native-workbench-review/tests/ideaSketchEditor.test.mjs`
 - Browser cases: draw/edit/undo; switch Pages without draft contamination; reorder Pages/Cameras; dirty/autosave; navigator independence; active editor remount stability.
 
-- [ ] Embed Excalidraw with a Page-scoped mock document model and native history.
-- [ ] Implement complete Pages and Cameras management in the editor-owned navigator.
-- [ ] Preserve shell/editor/Agent ownership boundaries at every panel state.
+- [x] Embed Excalidraw with a Page-scoped mock document model and native history.
+- [x] Implement complete Pages and Cameras management in the editor-owned navigator.
+- [x] Preserve shell/editor/Agent ownership boundaries at every panel state.
 
 ## Task 2: Add Presentation, Laser, Conversion, and Export Workflows
 
@@ -72,9 +72,9 @@ parent: "F044"
 - `node --test .temp/f041-native-workbench-review/tests/ideaSketchPresentationExport.test.mjs`
 - Browser cases: no-Camera presentation; first-Camera start; laser on/off; Escape/arrow capture; convert then one-step Undo; export success/cancel/failure.
 
-- [ ] Implement the production-shaped Camera presentation and laser interaction.
-- [ ] Add selection conversion and all current export entry points with honest mock boundaries.
-- [ ] Keep presentation events isolated from Excalidraw editing and shell shortcuts.
+- [x] Implement the production-shaped Camera presentation and laser interaction.
+- [x] Add selection conversion and all current export entry points with honest mock boundaries.
+- [x] Keep presentation events isolated from Excalidraw editing and shell shortcuts.
 
 ## Task 3: Mount the Markdown Source, Preview, and Outline Experience
 
@@ -99,9 +99,9 @@ parent: "F044"
 - `node --test .temp/f041-native-workbench-review/tests/markdownEditor.test.mjs`
 - Browser cases: type/format/search/undo; mode switching; pane resize; outline jump; GFM; safe/unsafe links; local image bounds; mixed-ending save decision; autosave and recovery.
 
-- [ ] Implement the CodeMirror-authoritative Markdown editor and safe preview.
-- [ ] Add complete mode, outline, formatting, link/image, and line-ending interactions.
-- [ ] Reuse the F044-01 session and save pipeline without editor-specific shell branches.
+- [x] Implement the CodeMirror-authoritative Markdown editor and safe preview.
+- [x] Add complete mode, outline, formatting, link/image, and line-ending interactions.
+- [x] Reuse the F044-01 session and save pipeline without editor-specific shell branches.
 
 ## Task 4: Expose Editor Context and Native Transaction Adapters
 
@@ -123,9 +123,9 @@ parent: "F044"
 - `node --test .temp/f041-native-workbench-review/tests/editorAgentAdapters.test.mjs`
 - Cases: read-before-mutate; stale revision; read-only/conflict/missing; inactive target; IdeaSketch transaction Undo; Markdown transaction Undo; no direct persistence write.
 
-- [ ] Add format-aware context/read/mutation adapters behind one generic contract.
-- [ ] Prove both editors apply Agent-shaped changes through native history and normal saving.
-- [ ] Deliver F044-02 in a separate commit after browser editor QA.
+- [x] Add format-aware context/read/mutation adapters behind one generic contract.
+- [x] Prove both editors apply Agent-shaped changes through native history and normal saving.
+- [x] Deliver F044-02 in a separate commit after browser editor QA.
 
 ## References
 
@@ -138,4 +138,3 @@ parent: "F044"
 - `src/components/PageOrganizer.tsx`
 - `src/components/PresentationMode.tsx`
 - `src/components/MarkdownEditor.tsx`
-

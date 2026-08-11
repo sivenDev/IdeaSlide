@@ -17,4 +17,5 @@ test("dirty save and discard transitions preserve observable status", () => {
   assert.equal(saved.dirty, false);
   assert.equal(saved.originalContent, "two");
   assert.equal(discardSession(updateSessionContent(saved, "three")).content, "two");
+  assert.equal(updateSessionContent(saved, "two").dirty, false);
 });

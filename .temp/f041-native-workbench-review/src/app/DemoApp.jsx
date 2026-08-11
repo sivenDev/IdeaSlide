@@ -17,6 +17,7 @@ export function DemoApp() {
   const [state, dispatch] = useReducer(demoReducer, initialState);
   const [entryName, setEntryName] = useState("");
   const [entryKind, setEntryKind] = useState("markdown");
+  const [editorAdapter, setEditorAdapter] = useState(null);
   const document = activeDocument(state);
   const activeWorkspace = state.workspaces.find((item) => item.id === state.activeWorkspaceId) ?? state.workspaces[0];
 
@@ -142,7 +143,7 @@ export function DemoApp() {
     <main className={shellClass} data-document={document ? "file" : "welcome"}>
       <div className="window-controls"><div className="traffic-lights" aria-hidden="true"><span /><span /><span /></div><button className="panel-toggle panel-toggle--workspace" type="button" aria-label={state.workspaceOpen ? "Hide Workspaces" : "Show Workspaces"} aria-pressed={state.workspaceOpen} data-tooltip={state.workspaceOpen ? "Hide Workspaces" : "Show Workspaces"} onClick={() => dispatch({ type: "toggle-workspace" })}><PanelLeft size={16} /></button></div>
       {state.workspaceOpen && <WorkspacePanel state={state} dispatch={dispatch} onOpen={(workspaceId, path) => openFile({ mode: "workspace", workspaceId, path })} onOpenRecent={openRecent} onAddWorkspace={() => dispatch({ type: "set-modal", modal: "workspace-picker" })} onCreate={() => dispatch({ type: "set-context-menu", menu: { kind: "new" } })} onEntryAction={(workspace, entry) => dispatch({ type: "set-context-menu", menu: { kind: "entry", workspace, entry } })} onSettings={() => dispatch({ type: "set-modal", modal: "settings" })} onRemoveRecent={async (id) => { await mockDesktopApi.removeRecent(id); refresh(); }} />}
-      <EditorHost document={document} onSave={() => saveDocument()} onClose={() => document?.dirty ? dispatch({ type: "request-open", target: { close: true } }) : dispatch({ type: "close-document" })} onChange={(content) => dispatch({ type: "update-document", sessionId: document.sessionId, content })} onOpenRecent={() => state.recents[0] && openRecent(state.recents[0])} onOpenFile={() => dispatch({ type: "set-modal", modal: "file-picker" })} onNewFile={() => dispatch({ type: "set-context-menu", menu: { kind: "new" } })} agentOpen={state.agentOpen} onToggleAgent={() => dispatch({ type: "toggle-agent" })} />
+      <EditorHost document={document} onSave={() => saveDocument()} onClose={() => document?.dirty ? dispatch({ type: "request-open", target: { close: true } }) : dispatch({ type: "close-document" })} onChange={(content) => dispatch({ type: "update-document", sessionId: document.sessionId, content })} onOpenRecent={() => state.recents[0] && openRecent(state.recents[0])} onOpenFile={() => dispatch({ type: "set-modal", modal: "file-picker" })} onNewFile={() => dispatch({ type: "set-context-menu", menu: { kind: "new" } })} agentOpen={state.agentOpen} onToggleAgent={() => dispatch({ type: "toggle-agent" })} onRegisterAdapter={setEditorAdapter} />
       {state.agentOpen && document && <AgentPanel document={document} />}
 
       {state.contextMenu?.kind === "new" && <NewEntryMenu workspace={activeWorkspace} onChoose={(kind) => { setEntryKind(kind); setEntryName(kind === "directory" ? "New Folder" : kind === "ideasketch" ? "Untitled Sketch" : "Untitled Note"); dispatch({ type: "set-modal", modal: "create-entry" }); }} onClose={() => dispatch({ type: "set-context-menu", menu: null })} />}

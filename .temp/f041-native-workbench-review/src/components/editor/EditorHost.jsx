@@ -1,4 +1,6 @@
 import { AlertTriangle, Bot, FileQuestion, MoreHorizontal, PanelRight, Save, X } from "lucide-react";
+import { IdeaSketchEditor } from "../../editors/ideasketch/IdeaSketchEditor.jsx";
+import { MarkdownEditor } from "../../editors/markdown/MarkdownEditor.jsx";
 import { fileTypeRegistry } from "../../lib/fileTypeRegistry.js";
 import { documentCondition } from "../../lib/documentSessions.js";
 
@@ -30,24 +32,13 @@ function UnsupportedFileView({ document }) {
   );
 }
 
-function PlaceholderEditor({ document, onChange }) {
+function EditorSurface({ document, onChange, onRegisterAdapter, laserEnabled }) {
   if (document.type === "unsupported") return <UnsupportedFileView document={document} />;
-  return (
-    <div className="typed-placeholder">
-      <span>{fileTypeRegistry[document.type].label} editor loads in F044-02</span>
-      {document.type === "markdown" ? (
-        <textarea aria-label="Temporary Markdown editor" value={document.content} readOnly={document.readOnly} onChange={(event) => onChange(event.target.value)} />
-      ) : (
-        <div className="canvas-blueprint" role="img" aria-label="IdeaSketch loading boundary">
-          <div /><div /><div />
-          <strong>Editor-owned canvas boundary</strong>
-        </div>
-      )}
-    </div>
-  );
+  if (document.type === "markdown") return <MarkdownEditor document={document} onChange={onChange} onRegisterAdapter={onRegisterAdapter} />;
+  return <IdeaSketchEditor document={document} onChange={onChange} onRegisterAdapter={onRegisterAdapter} laserEnabled={laserEnabled} />;
 }
 
-export function EditorHost({ document, onSave, onClose, onChange, onOpenRecent, onOpenFile, onNewFile, agentOpen, onToggleAgent }) {
+export function EditorHost({ document, onSave, onClose, onChange, onOpenRecent, onOpenFile, onNewFile, agentOpen, onToggleAgent, onRegisterAdapter, laserEnabled = true }) {
   const definition = document ? fileTypeRegistry[document.type] ?? fileTypeRegistry.unsupported : null;
   const condition = documentCondition(document);
   return (
@@ -77,7 +68,7 @@ export function EditorHost({ document, onSave, onClose, onChange, onOpenRecent, 
         </div>
       )}
       <div className="editor-aperture">
-        {!document ? <Welcome onOpenRecent={onOpenRecent} onOpenFile={onOpenFile} onNewFile={onNewFile} /> : <PlaceholderEditor document={document} onChange={onChange} />}
+        {!document ? <Welcome onOpenRecent={onOpenRecent} onOpenFile={onOpenFile} onNewFile={onNewFile} /> : <EditorSurface key={document.sessionId} document={document} onChange={onChange} onRegisterAdapter={onRegisterAdapter} laserEnabled={laserEnabled} />}
       </div>
       {document && (
         <button className="panel-toggle panel-toggle--agent" type="button" aria-label={agentOpen ? "Hide Agent" : "Show Agent"} aria-pressed={agentOpen} data-tooltip={agentOpen ? "Hide Agent" : "Show Agent"} onClick={onToggleAgent}>

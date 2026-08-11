@@ -16,7 +16,13 @@ F044-01 provides the application foundation:
 - explicit Save, automatic Save, unsaved-switch decisions, and mock recovery writes;
 - Light, Dark, and System appearance.
 
-F044-02 will replace the temporary editor boundaries with Excalidraw and CodeMirror. F044-03 will replace the reserved Agent and Settings placeholders. F044-04 will expose deterministic reliability scenarios and finish the review package.
+F044-02 adds the real editor-owned surfaces:
+
+- IdeaSketch mounts Excalidraw with Pages, Cameras, reordering, duplication, presentation, laser pointer, clean-diagram conversion, and browser PNG/SVG/draw.io exports;
+- Markdown mounts CodeMirror 6 with Edit/Split/Preview, GFM, formatting, Outline, search and native Undo/Redo;
+- both editors participate in the shared Dirty/Save/Recovery lifecycle and expose bounded Agent adapters.
+
+F044-03 will replace the reserved Agent and Settings placeholders. F044-04 will expose deterministic reliability scenarios and finish the review package.
 
 ## Run
 

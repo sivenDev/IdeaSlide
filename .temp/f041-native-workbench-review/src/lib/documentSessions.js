@@ -18,11 +18,12 @@ export function createDocumentSession(file) {
 }
 
 export function updateSessionContent(session, content) {
+  const matchesSaved = JSON.stringify(content) === JSON.stringify(session.originalContent);
   return {
     ...session,
     content,
-    dirty: true,
-    status: session.readOnly ? "read-only" : "dirty",
+    dirty: !matchesSaved,
+    status: session.readOnly ? "read-only" : matchesSaved ? "clean" : "dirty",
     revision: session.revision + 1,
     error: null,
   };
