@@ -18,6 +18,7 @@ interface ResizableDividerProps {
   onResizeStart?: () => void;
   onResizeEnd?: () => void;
   panelLabel?: string;
+  showToggle?: boolean;
 }
 
 interface DragState {
@@ -38,6 +39,7 @@ export function ResizableDivider({
   onResizeStart,
   onResizeEnd,
   panelLabel,
+  showToggle = true,
 }: ResizableDividerProps) {
   const [dragState, setDragState] = useState<DragState>();
   const isLeft = side === "left";
@@ -108,24 +110,26 @@ export function ResizableDivider({
       onPointerCancel={finishResize}
     >
       <span className="idea-slide-resize-rail__line" aria-hidden="true" />
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={onToggle}
-              aria-label={tooltipLabel}
-              className="idea-slide-resize-rail__toggle"
-            >
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                <path d={arrowPath} />
-              </svg>
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side={isLeft ? "right" : "left"}>{tooltipLabel}</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      {showToggle && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={onToggle}
+                aria-label={tooltipLabel}
+                className="idea-slide-resize-rail__toggle"
+              >
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <path d={arrowPath} />
+                </svg>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side={isLeft ? "right" : "left"}>{tooltipLabel}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
     </div>
   );
 }

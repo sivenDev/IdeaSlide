@@ -24,7 +24,7 @@ test('document synchronization stays non-captured while Agent replacement is cap
 
 test('editor shell leaves Undo and Redo entirely to the active editor', async () => {
   const layout = await readFile(new URL('../src/components/EditorLayout.tsx', import.meta.url), 'utf8');
-  const toolbar = await readFile(new URL('../src/components/Toolbar.tsx', import.meta.url), 'utf8');
+  const crown = await readFile(new URL('../src/components/WorkbenchCrown.tsx', import.meta.url), 'utf8');
   assert.doesNotMatch(layout, /handleAgentHistoryKeyDown|agentBinding\?\.canUndo|agentBinding\?\.canRedo|agentBinding\.undo\(|agentBinding\.redo\(/);
-  assert.doesNotMatch(toolbar, /Undo Agent edit|Redo Agent edit|onUndoAgentEdit|onRedoAgentEdit|canUndoAgentEdit|canRedoAgentEdit/);
+  assert.doesNotMatch(crown, /Undo Agent edit|Redo Agent edit|onUndoAgentEdit|onRedoAgentEdit|canUndoAgentEdit|canRedoAgentEdit/);
 });

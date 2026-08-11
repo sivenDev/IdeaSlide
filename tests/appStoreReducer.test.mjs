@@ -15,6 +15,14 @@ function document(id, path, mode = 'workspace') {
   }, '/workspace');
 }
 
+test('fresh state is the empty workbench and RESET_SESSION returns to it', () => {
+  const initial = createInitialAppState();
+  assert.equal(initial.mode, 'empty');
+  const reset = appStoreReducer({ ...initial, mode: 'standalone', documents: [document('one', '/one.is', 'standalone')] }, { type: 'RESET_SESSION' });
+  assert.equal(reset.mode, 'empty');
+  assert.deepEqual(reset.documents, []);
+});
+
 test('canonical Workspace paths activate one foreground document without duplicates', () => {
   let state = {
     ...createInitialAppState(),

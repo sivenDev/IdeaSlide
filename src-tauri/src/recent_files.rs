@@ -62,6 +62,34 @@ fn save_user_config(config: &UserConfig) -> Result<(), String> {
     fs::write(&path, json).map_err(|e| format!("Failed to write user config: {e}"))
 }
 
+pub fn remap_recent_file(old_path: &str, new_path: &str) -> Result<(), String> {
+    let mut config = load_user_config()?;
+    if let Some(file) = config.recent_files.iter_mut().find(|file| file.path == old_path) {
+        file.path = new_path.to_string();
+        file.name = PathBuf::from(new_path)
+            .file_name()
+            .map(|name| name.to_string_lossy().to_string())
+            .unwrap_or_else(|| new_path.to_string());
+    }
+    save_user_config(&config)
+}
+
+pub fn remap_recent_workspace(old_path: &str, new_path: &str) -> Result<(), String> {
+    let mut config = load_user_config()?;
+    if let Some(workspace) = config
+        .recent_workspaces
+        .iter_mut()
+        .find(|workspace| workspace.path == old_path)
+    {
+        workspace.path = new_path.to_string();
+        workspace.name = PathBuf::from(new_path)
+            .file_name()
+            .map(|name| name.to_string_lossy().to_string())
+            .unwrap_or_else(|| new_path.to_string());
+    }
+    save_user_config(&config)
+}
+
 #[command]
 pub fn get_recent_files() -> Result<Vec<RecentFile>, String> {
     let config = load_user_config()?;

@@ -1,4 +1,5 @@
 import type { DocumentSession } from "../types";
+import type { ReactNode } from "react";
 import { getFileTypeDefinition } from "../lib/fileTypeRegistry";
 import { getEditorContribution, type DocumentEditorContributionProps } from "../lib/editorRegistry";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -8,15 +9,12 @@ interface DocumentEditorHostProps {
   document?: DocumentSession;
   fullPath?: string;
   editorProps: Omit<DocumentEditorContributionProps, "document">;
+  emptyState?: ReactNode;
 }
 
-export function DocumentEditorHost({ document, fullPath, editorProps }: DocumentEditorHostProps) {
+export function DocumentEditorHost({ document, fullPath, editorProps, emptyState }: DocumentEditorHostProps) {
   if (!document) {
-    return (
-      <div className="flex h-full items-center justify-center bg-[#f7f8fa] text-sm text-gray-400">
-        Open a file from the Workspace Explorer.
-      </div>
-    );
+    return <div className="h-full bg-[#f7f8fa]">{emptyState}</div>;
   }
   if (document.status === "loading") {
     return <div className="flex h-full items-center justify-center bg-[#f7f8fa] text-sm text-gray-500">Loading {document.displayName}…</div>;

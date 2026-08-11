@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ask, message } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { useAppStore } from "../hooks/useAppStore";
 import { useSettings } from "../hooks/useSettings";
 import { useUnsavedChangesDialog } from "../hooks/useUnsavedChangesDialog";
@@ -13,6 +14,8 @@ import {
   createWorkspaceFolder,
   deleteRecoveryDraft,
   exitApplication,
+  getRecentFiles,
+  getRecentWorkspaces,
   inspectFile,
   loadRecoveryDraft,
   moveWorkspaceEntry,
@@ -20,7 +23,11 @@ import {
   openWorkspace,
   openWorkspaceDocument,
   refreshWorkspace,
+  removeRecentFile,
+  removeRecentWorkspace,
+  renameStandalonePath,
   renameWorkspaceEntry,
+  renameWorkspaceRoot,
   saveStandaloneDocument,
   saveWorkspaceDocument,
   saveWorkspaceState,
@@ -53,17 +60,28 @@ import {
   type UnsavedDocumentResolution,
 } from "../lib/unsavedChanges";
 import { isProtectedDocumentSession } from "../lib/appStoreReducer";
-import { getFileTypeDefinitionByPath } from "../lib/fileTypeRegistry";
+import { getFileTypeDefinition, getFileTypeDefinitionByPath } from "../lib/fileTypeRegistry";
 import {
   projectWorkspaceEntryDrop,
   workspaceParentPath,
   type WorkspaceDropRequest,
 } from "../lib/workspaceOrdering";
-import type { DocumentEditorState, DocumentModel, DocumentSession, IdeaSketchPage, WorkspaceEntry } from "../types";
+import type {
+  DocumentEditorState,
+  DocumentModel,
+  DocumentSession,
+  IdeaSketchPage,
+  RecentFile,
+  RecentWorkspace,
+  WorkspaceEntry,
+} from "../types";
 import type { ActiveAgentEditorBinding } from "../lib/agent/types";
-import { Toolbar } from "./Toolbar";
 import { WorkspaceExplorer } from "./WorkspaceExplorer";
+import { WorkspaceSidebar } from "./WorkspaceSidebar";
 import { DocumentEditorHost } from "./DocumentEditorHost";
+import { WorkbenchCrown } from "./WorkbenchCrown";
+import { WorkbenchWelcome } from "./WorkbenchWelcome";
+import { CommandPalette, type WorkbenchCommand } from "./CommandPalette";
 import { ResizableDivider } from "./ResizableDivider";
 import { ExternalChangeNotice } from "./ExternalChangeNotice";
 import { RecoveryPrompt } from "./RecoveryPrompt";
@@ -71,13 +89,28 @@ import { WorkspaceStatusNotice } from "./WorkspaceStatusNotice";
 import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 import { AgentPanel } from "./AgentPanel";
 import { RightSidebarHost } from "./RightSidebarHost";
+import { useNativeWindowFrame } from "../hooks/useNativeWindowFrame";
 
 const AGENT_PANEL_DEFAULT_WIDTH = 300;
 const AGENT_PANEL_MIN_WIDTH = 260;
 const AGENT_PANEL_MAX_WIDTH = 420;
+const PANEL_STATE_KEY = "ideanote.workbench.panels.v1";
+
+interface StoredPanelState {
+  workspaceOpen?: boolean;
+  workspaceWidth?: number;
+  agentWidth?: number;
+}
+
+function loadPanelState(): StoredPanelState {
+  try {
+    return JSON.parse(window.localStorage.getItem(PANEL_STATE_KEY) ?? "{}") as StoredPanelState;
+  } catch {
+    return {};
+  }
+}
 
 interface EditorLayoutProps {
-  onGoHome: () => void;
   onOpenSettings: () => void;
   readOnly?: boolean;
   pendingStandalonePath?: string;
@@ -126,7 +159,6 @@ function resolveRelativeDocumentPath(basePath: string, href: string): string | u
 }
 
 export function EditorLayout({
-  onGoHome,
   onOpenSettings,
   readOnly = false,
   pendingStandalonePath,
@@ -134,15 +166,26 @@ export function EditorLayout({
 }: EditorLayoutProps) {
   const { state, dispatch } = useAppStore();
   const { activationState } = useSettings();
+  const nativeFrame = useNativeWindowFrame();
+  const initialPanelState = useMemo(loadPanelState, []);
   const [isSaving, setIsSaving] = useState(false);
-  const [showWorkspace, setShowWorkspace] = useState(state.mode === "workspace");
-  const [workspacePanelWidth, setWorkspacePanelWidth] = useState(WORKSPACE_PANEL_DEFAULT_WIDTH);
+  const [showWorkspace, setShowWorkspace] = useState(initialPanelState.workspaceOpen ?? true);
+  const [workspacePanelWidth, setWorkspacePanelWidth] = useState(() => clampWorkspacePanelWidth(
+    initialPanelState.workspaceWidth ?? WORKSPACE_PANEL_DEFAULT_WIDTH,
+  ));
   const [showAgent, setShowAgent] = useState(true);
-  const [agentPanelWidth, setAgentPanelWidth] = useState(AGENT_PANEL_DEFAULT_WIDTH);
+  const [agentPanelWidth, setAgentPanelWidth] = useState(() => Math.max(
+    AGENT_PANEL_MIN_WIDTH,
+    Math.min(AGENT_PANEL_MAX_WIDTH, initialPanelState.agentWidth ?? AGENT_PANEL_DEFAULT_WIDTH),
+  ));
   const [agentBinding, setAgentBinding] = useState<ActiveAgentEditorBinding>();
   const [isResizingWorkspace, setIsResizingWorkspace] = useState(false);
   const [hiddenExternalNotices, setHiddenExternalNotices] = useState<Set<string>>(() => new Set());
   const [workspaceDiagnosticsHidden, setWorkspaceDiagnosticsHidden] = useState(false);
+  const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
+  const [recentWorkspaces, setRecentWorkspaces] = useState<RecentWorkspace[]>([]);
+  const [navigationLoading, setNavigationLoading] = useState(true);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [recoveryCandidate, setRecoveryCandidate] = useState<{ sessionId: string; draft: RecoveryDraft; sourceChanged: boolean }>();
   const {
     unsavedChangesDialog,
@@ -164,19 +207,43 @@ export function EditorLayout({
     || Boolean(activeDocument?.readOnly)
     || activeDocument?.status === "read-only";
 
-  useEffect(() => setShowWorkspace(state.mode === "workspace"), [state.mode]);
   useEffect(() => setWorkspaceDiagnosticsHidden(false), [state.workspace?.root, state.workspace?.metadata.diagnostics]);
   useEffect(() => {
     if (activationState === "disabled") {
       setShowAgent(false);
       setAgentBinding(undefined);
-    } else if (activationState === "ready" || activationState === "configuration-required") {
+    } else if (activeDocument && (activationState === "ready" || activationState === "configuration-required")) {
       setShowAgent(true);
     }
-  }, [activationState]);
+  }, [activationState, activeDocument?.id]);
+  useEffect(() => {
+    if (!activeDocument) setShowAgent(false);
+  }, [activeDocument?.id]);
   useEffect(() => {
     setAgentBinding((current) => current?.document.id === activeDocument?.id ? current : undefined);
   }, [activeDocument?.id]);
+
+  const refreshNavigation = useCallback(async () => {
+    setNavigationLoading(true);
+    try {
+      const [files, workspaces] = await Promise.all([getRecentFiles(), getRecentWorkspaces()]);
+      setRecentFiles(files);
+      setRecentWorkspaces(workspaces);
+    } finally {
+      setNavigationLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshNavigation();
+  }, [refreshNavigation]);
+  useEffect(() => {
+    window.localStorage.setItem(PANEL_STATE_KEY, JSON.stringify({
+      workspaceOpen: showWorkspace,
+      workspaceWidth: workspacePanelWidth,
+      agentWidth: agentPanelWidth,
+    } satisfies StoredPanelState));
+  }, [agentPanelWidth, showWorkspace, workspacePanelWidth]);
 
   const handleAgentBindingChange = useCallback((binding: ActiveAgentEditorBinding | undefined, documentId: string) => {
     setAgentBinding((current) => {
@@ -657,14 +724,170 @@ export function EditorLayout({
     const { path, document } = await chooseAndOpenStandaloneDocument();
     dispatch({ type: "OPEN_DOCUMENT", document: sessionFromOpened(path, "standalone", document) });
     addRecentFile(path).catch(console.error);
-  }, [confirmSessionExit, dispatch]);
+    await refreshNavigation();
+  }, [confirmSessionExit, dispatch, refreshNavigation]);
 
-  const handleOpenWorkspace = useCallback(async () => {
+  const handleOpenWorkspace = useCallback(async (root?: string) => {
     if (!await confirmSessionExit()) return;
-    const workspace = await openWorkspace();
+    const workspace = await openWorkspace(root);
     const restored = restoreWorkspaceDocuments(workspace);
     dispatch({ type: "OPEN_WORKSPACE", workspace, restoredDocuments: restored.documents, activePath: restored.activePath });
+    await refreshNavigation();
+  }, [confirmSessionExit, dispatch, refreshNavigation]);
+
+  const handleOpenRecent = useCallback(async (path: string) => {
+    if (!await confirmSessionExit()) return;
+    try {
+      const opened = await openStandaloneDocument(path);
+      dispatch({ type: "OPEN_DOCUMENT", document: sessionFromOpened(path, "standalone", opened) });
+      await refreshNavigation();
+    } catch (error) {
+      await message(`The recent file could not be opened: ${error instanceof Error ? error.message : String(error)}`, {
+        title: "File Not Opened",
+        kind: "warning",
+      });
+      await refreshNavigation();
+    }
+  }, [confirmSessionExit, dispatch, refreshNavigation]);
+
+  const handleNewStandaloneDocument = useCallback(async (fileType: string) => {
+    if (!await confirmSessionExit()) return;
+    const definition = getFileTypeDefinition(fileType);
+    if (!definition?.creatable) throw new Error(`${fileType} is not registered for creation`);
+    const model = await definition.createEmpty();
+    const extension = definition.extensions[0] ?? "txt";
+    dispatch({
+      type: "OPEN_DOCUMENT",
+      document: {
+        id: crypto.randomUUID(),
+        mode: "standalone",
+        filePath: "",
+        displayName: `Untitled.${extension}`,
+        fileType: definition.type,
+        status: "editable",
+        model,
+        isDirty: true,
+        revision: 1,
+      },
+    });
   }, [confirmSessionExit, dispatch]);
+
+  const handleCreateInWorkspace = useCallback(async (
+    root: string,
+    fileType: "ideasketch" | "markdown" | "directory",
+  ) => {
+    if (state.workspace?.root === root) {
+      if (fileType === "directory") await handleCreateFolder("");
+      else await handleCreateDocument("", fileType);
+      return;
+    }
+    if (!await confirmSessionExit()) return;
+    try {
+      const result = fileType === "directory"
+        ? await createWorkspaceFolder(root, "")
+        : await createWorkspaceDocument(root, "", fileType);
+      const workspace = await openWorkspace(root);
+      dispatch({ type: "OPEN_WORKSPACE", workspace });
+      dispatch({ type: "SELECT_WORKSPACE_PATH", path: result.value.path });
+      if (result.value.kind === "file") {
+        dispatch({
+          type: "OPEN_DOCUMENT",
+          document: {
+            id: crypto.randomUUID(),
+            mode: "workspace",
+            filePath: result.value.path,
+            displayName: result.value.name,
+            fileType: result.value.fileType ?? "unsupported",
+            status: result.value.fileType ? "loading" : "unsupported",
+            isDirty: false,
+            revision: 0,
+          },
+        });
+      }
+      if (result.metadataError) {
+        await message(`The item was created, but Workspace state could not be saved: ${result.metadataError}`, {
+          title: "Workspace State Warning",
+          kind: "warning",
+        });
+      }
+      await refreshNavigation();
+    } catch (error) {
+      await message(`The Workspace item could not be created: ${error instanceof Error ? error.message : String(error)}`, {
+        title: "Create Error",
+        kind: "error",
+      });
+    }
+  }, [confirmSessionExit, dispatch, handleCreateDocument, handleCreateFolder, refreshNavigation, state.workspace?.root]);
+
+  const handleRenameWorkspaceRoot = useCallback(async (root: string, newName: string) => {
+    try {
+      const active = state.workspace?.root === root;
+      if (active) await stopWorkspaceWatcher().catch(() => undefined);
+      const result = await renameWorkspaceRoot(root, newName);
+      if (active) {
+        const workspace = await openWorkspace(result.path);
+        dispatch({ type: "REPLACE_WORKSPACE", workspace });
+      }
+      if (result.metadataError) {
+        await message(`The Workspace was renamed, but its navigation entry could not be updated: ${result.metadataError}`, {
+          title: "Workspace Renamed",
+          kind: "warning",
+        });
+      }
+      await refreshNavigation();
+    } catch (error) {
+      await message(`The Workspace could not be renamed: ${error instanceof Error ? error.message : String(error)}`, {
+        title: "Rename Error",
+        kind: "error",
+      });
+    }
+  }, [dispatch, refreshNavigation, state.workspace?.root]);
+
+  const handleRemoveWorkspace = useCallback(async (root: string) => {
+    const confirmed = await ask("Remove this Workspace from the navigation? Files will remain on disk.", {
+      title: "Remove Workspace",
+      kind: "warning",
+      okLabel: "Remove",
+      cancelLabel: "Cancel",
+    });
+    if (!confirmed) return;
+    if (state.workspace?.root === root && !await confirmSessionExit()) return;
+    await removeRecentWorkspace(root);
+    if (state.workspace?.root === root) dispatch({ type: "RESET_SESSION" });
+    await refreshNavigation();
+  }, [confirmSessionExit, dispatch, refreshNavigation, state.workspace?.root]);
+
+  const handleRenameRecent = useCallback(async (path: string, newName: string) => {
+    try {
+      const result = await renameStandalonePath(path, newName);
+      const openDocument = state.documents.find((document) => document.mode === "standalone" && document.filePath === path);
+      if (openDocument) {
+        dispatch({
+          type: "UPDATE_DOCUMENT_PATH",
+          sessionId: openDocument.id,
+          filePath: result.path,
+          displayName: result.path.replace(/\\/g, "/").split("/").pop(),
+        });
+      }
+      if (result.metadataError) {
+        await message(`The file was renamed, but Recents could not be updated: ${result.metadataError}`, {
+          title: "File Renamed",
+          kind: "warning",
+        });
+      }
+      await refreshNavigation();
+    } catch (error) {
+      await message(`The file could not be renamed: ${error instanceof Error ? error.message : String(error)}`, {
+        title: "Rename Error",
+        kind: "error",
+      });
+    }
+  }, [dispatch, refreshNavigation, state.documents]);
+
+  const handleRemoveRecent = useCallback(async (path: string) => {
+    await removeRecentFile(path);
+    await refreshNavigation();
+  }, [refreshNavigation]);
 
   useEffect(() => {
     if (!pendingStandalonePath || !onPendingStandalonePathHandled) return;
@@ -679,6 +902,7 @@ export function EditorLayout({
           document: sessionFromOpened(pendingStandalonePath, "standalone", opened),
         });
         addRecentFile(pendingStandalonePath).catch(console.error);
+        await refreshNavigation();
       } catch (error) {
         console.error("Failed to open requested file:", error);
       } finally {
@@ -687,7 +911,7 @@ export function EditorLayout({
     };
     void openPendingPath();
     return () => { disposed = true; };
-  }, [dispatch, onPendingStandalonePathHandled, pendingStandalonePath]);
+  }, [dispatch, onPendingStandalonePathHandled, pendingStandalonePath, refreshNavigation]);
 
   const handleRelocateWorkspace = useCallback(async () => {
     const workspace = await openWorkspace();
@@ -773,11 +997,6 @@ export function EditorLayout({
     setRecoveryCandidate(undefined);
   }, [clearRecoveryForDocument, recoveryCandidate, state.documents]);
 
-  const handleGoHome = useCallback(async () => {
-    if (!await confirmSessionExit()) return;
-    onGoHome();
-  }, [confirmSessionExit, onGoHome]);
-
   useEffect(() => {
     if (!("__TAURI_INTERNALS__" in window)) return;
     let disposed = false;
@@ -819,19 +1038,29 @@ export function EditorLayout({
   useEffect(() => {
     const isMac = navigator.platform.toUpperCase().includes("MAC");
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!(isMac ? event.metaKey : event.ctrlKey) || event.key.toLowerCase() !== "s") return;
+      if (!(isMac ? event.metaKey : event.ctrlKey)) return;
+      if (event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandPaletteOpen(true);
+        return;
+      }
+      if (event.key === ",") {
+        event.preventDefault();
+        onOpenSettings();
+        return;
+      }
+      if (event.key.toLowerCase() !== "s") return;
       event.preventDefault();
       if (event.shiftKey) void handleSaveAs();
       else void handleSave();
     };
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [handleSave, handleSaveAs]);
+  }, [handleSave, handleSaveAs, onOpenSettings]);
 
   const activeFullPath = activeDocument?.mode === "workspace" && state.workspace
     ? joinWorkspacePath(state.workspace.root, activeDocument.filePath)
     : activeDocument?.filePath;
-  const dirty = activeDocument?.isDirty ?? false;
   const documentIndicators = state.documents
     .filter((document) => document.mode === "workspace" && Boolean(document.filePath))
     .map((document) => ({
@@ -842,26 +1071,75 @@ export function EditorLayout({
       status: document.status,
     }));
   const agentAvailable = activationState === "ready" || activationState === "configuration-required";
+  const workspaceRoots = useMemo(() => {
+    if (!state.workspace || recentWorkspaces.some((workspace) => workspace.path === state.workspace?.root)) {
+      return recentWorkspaces;
+    }
+    return [{
+      path: state.workspace.root,
+      name: state.workspace.name,
+      opened_at: new Date().toISOString(),
+    }, ...recentWorkspaces];
+  }, [recentWorkspaces, state.workspace]);
+  const firstRecent = recentFiles[0];
+  const commands = useMemo<WorkbenchCommand[]>(() => [
+    {
+      id: "open-recent",
+      label: "Open most recent file",
+      detail: firstRecent?.name ?? "No recent file",
+      disabled: !firstRecent,
+      run: () => { if (firstRecent) void handleOpenRecent(firstRecent.path); },
+    },
+    { id: "open-workspace", label: "Open Workspace…", run: () => void handleOpenWorkspace() },
+    { id: "open-file", label: "Open File…", run: () => void handleOpenFile() },
+    { id: "new-ideasketch", label: "New IdeaSketch", run: () => void handleNewStandaloneDocument("ideasketch") },
+    { id: "new-markdown", label: "New Markdown", run: () => void handleNewStandaloneDocument("markdown") },
+    { id: "save", label: "Save document", shortcut: "⌘S", disabled: !activeDocument || !activeDocument.isDirty, run: () => void handleSave() },
+    { id: "save-as", label: "Save As…", shortcut: "⇧⌘S", disabled: !activeDocument, run: () => void handleSaveAs() },
+    { id: "toggle-workspaces", label: showWorkspace ? "Hide Workspaces" : "Show Workspaces", run: () => setShowWorkspace((visible) => !visible) },
+    {
+      id: "toggle-agent",
+      label: showAgent ? "Hide Agent" : "Show Agent",
+      disabled: !activeDocument || !agentAvailable,
+      run: () => setShowAgent((visible) => !visible),
+    },
+    { id: "settings", label: "Open Settings", shortcut: "⌘,", run: onOpenSettings },
+  ], [
+    activeDocument,
+    agentAvailable,
+    firstRecent,
+    handleNewStandaloneDocument,
+    handleOpenFile,
+    handleOpenRecent,
+    handleOpenWorkspace,
+    handleSave,
+    handleSaveAs,
+    onOpenSettings,
+    showAgent,
+    showWorkspace,
+  ]);
 
   return (
     <div className="idea-slide-editor-shell flex h-screen flex-col">
-      <Toolbar
-        fileName={activeDocument?.displayName || state.workspace?.name}
-        fileType={activeDocument?.fileType}
-        isDirty={dirty}
-        isSaving={isSaving}
-        onOpenFile={() => void handleOpenFile()}
-        onOpenWorkspace={() => void handleOpenWorkspace()}
-        onSave={() => void handleSave()}
-        onSaveAs={() => void handleSaveAs()}
-        onGoHome={() => void handleGoHome()}
-        onOpenSettings={onOpenSettings}
-      />
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        {state.workspace && (
-          <>
-            <div className={`h-full flex-shrink-0 overflow-hidden ${isResizingWorkspace ? "" : "transition-[width] duration-200"}`} style={{ width: showWorkspace ? workspacePanelWidth : 0 }}>
-              <div className="h-full" style={{ width: workspacePanelWidth }}>
+        <div className={`h-full flex-shrink-0 overflow-hidden ${isResizingWorkspace ? "" : "transition-[width] duration-200"}`} style={{ width: showWorkspace ? workspacePanelWidth : 0 }}>
+          <div className="h-full" style={{ width: workspacePanelWidth }}>
+            <WorkspaceSidebar
+              frame={nativeFrame}
+              activeRoot={state.workspace?.root}
+              workspaces={workspaceRoots}
+              recents={recentFiles}
+              loading={navigationLoading}
+              onToggle={() => setShowWorkspace(false)}
+              onOpenWorkspace={(path) => void handleOpenWorkspace(path)}
+              onCreateInWorkspace={(root, fileType) => void handleCreateInWorkspace(root, fileType)}
+              onRenameWorkspace={(root, name) => void handleRenameWorkspaceRoot(root, name)}
+              onRemoveWorkspace={(root) => void handleRemoveWorkspace(root)}
+              onOpenRecent={(path) => void handleOpenRecent(path)}
+              onRenameRecent={(path, name) => void handleRenameRecent(path, name)}
+              onRemoveRecent={(path) => void handleRemoveRecent(path)}
+              onOpenSettings={onOpenSettings}
+              activeWorkspaceTree={state.workspace ? (
                 <WorkspaceExplorer
                   entries={state.workspace.entries}
                   selectedPath={state.workspace.selectedPath}
@@ -875,25 +1153,40 @@ export function EditorLayout({
                   onRename={handleRename}
                   onMove={handleMove}
                   onTrash={handleTrash}
+                  onReveal={(path) => void revealItemInDir(joinWorkspacePath(state.workspace!.root, path))}
                   onRefresh={refreshTree}
                   onExpandedPathsChange={(paths) => dispatch({ type: "SET_EXPANDED_PATHS", paths })}
                 />
-              </div>
-            </div>
-            <ResizableDivider
-              side="left"
-              isVisible={showWorkspace}
-              size={workspacePanelWidth}
-              minSize={WORKSPACE_PANEL_MIN_WIDTH}
-              maxSize={WORKSPACE_PANEL_MAX_WIDTH}
-              onResize={(width) => setWorkspacePanelWidth(clampWorkspacePanelWidth(width))}
-              onResizeStart={() => setIsResizingWorkspace(true)}
-              onResizeEnd={() => setIsResizingWorkspace(false)}
-              onToggle={() => setShowWorkspace((visible) => !visible)}
+              ) : undefined}
             />
-          </>
+          </div>
+        </div>
+        {showWorkspace && (
+          <ResizableDivider
+            side="left"
+            isVisible
+            size={workspacePanelWidth}
+            minSize={WORKSPACE_PANEL_MIN_WIDTH}
+            maxSize={WORKSPACE_PANEL_MAX_WIDTH}
+            showToggle={false}
+            onResize={(width) => setWorkspacePanelWidth(clampWorkspacePanelWidth(width))}
+            onResizeStart={() => setIsResizingWorkspace(true)}
+            onResizeEnd={() => setIsResizingWorkspace(false)}
+            onToggle={() => setShowWorkspace(false)}
+          />
         )}
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <WorkbenchCrown
+            document={activeDocument}
+            isSaving={isSaving}
+            workspaceOpen={showWorkspace}
+            agentOpen={showAgent}
+            agentAvailable={agentAvailable}
+            frame={nativeFrame}
+            onToggleWorkspace={() => setShowWorkspace((visible) => !visible)}
+            onToggleAgent={() => setShowAgent((visible) => !visible)}
+            onCloseDocument={() => { if (activeDocument) void requestClose(activeDocument.id); }}
+          />
           {state.workspace && (
             <WorkspaceStatusNotice
               rootMissing={state.workspace.status === "root-missing"}
@@ -931,6 +1224,16 @@ export function EditorLayout({
               <DocumentEditorHost
                 document={activeDocument}
                 fullPath={activeFullPath}
+                emptyState={(
+                  <WorkbenchWelcome
+                    hasRecents={Boolean(firstRecent)}
+                    onOpenRecent={() => { if (firstRecent) void handleOpenRecent(firstRecent.path); }}
+                    onOpenFile={() => void handleOpenFile()}
+                    onOpenWorkspace={() => void handleOpenWorkspace()}
+                    onNewFile={() => void handleNewStandaloneDocument("ideasketch")}
+                    onOpenSettings={onOpenSettings}
+                  />
+                )}
                 editorProps={{
                   readOnly: readOnly || Boolean(state.workspace?.readOnly) || Boolean(activeDocument?.readOnly) || activeDocument?.status === "read-only",
                   editorRefreshToken: state.editorRefreshToken,
@@ -954,21 +1257,22 @@ export function EditorLayout({
             </div>
           </div>
         </main>
-        {agentAvailable && (
+        {activeDocument && agentAvailable && showAgent && (
           <>
             <ResizableDivider
               side="right"
               panelLabel="Agent"
-              isVisible={showAgent}
-              onToggle={() => setShowAgent((visible) => !visible)}
+              isVisible
+              onToggle={() => setShowAgent(false)}
               size={agentPanelWidth}
               minSize={AGENT_PANEL_MIN_WIDTH}
               maxSize={AGENT_PANEL_MAX_WIDTH}
+              showToggle={false}
               onResize={(nextSize) => setAgentPanelWidth(Math.max(AGENT_PANEL_MIN_WIDTH, Math.min(AGENT_PANEL_MAX_WIDTH, nextSize)))}
             />
-            <div className="h-full flex-shrink-0 overflow-hidden transition-[width] duration-200" style={{ width: showAgent ? agentPanelWidth : 0 }}>
+            <div className="h-full flex-shrink-0 overflow-hidden transition-[width] duration-200" style={{ width: agentPanelWidth }}>
               <div className="h-full" style={{ width: agentPanelWidth }}>
-                <RightSidebarHost>
+                <RightSidebarHost onClose={() => setShowAgent(false)}>
                   <AgentPanel binding={agentBinding} onOpenSettings={onOpenSettings} />
                 </RightSidebarHost>
               </div>
@@ -976,6 +1280,7 @@ export function EditorLayout({
           </>
         )}
       </div>
+      <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} commands={commands} />
       <UnsavedChangesDialog
         open={Boolean(unsavedChangesDialog)}
         fileName={unsavedChangesDialog?.fileName ?? "Untitled.is"}

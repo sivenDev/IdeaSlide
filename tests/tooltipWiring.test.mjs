@@ -25,20 +25,13 @@ test('SlidePreviewPanel wires action buttons through the shared Tooltip primitiv
   assert.doesNotMatch(source, /<TooltipContent>Add slide<\/TooltipContent>/);
 });
 
-test('Toolbar wires icon actions through the shared Tooltip primitives instead of native titles', async () => {
-  const source = await readSource('src/components/Toolbar.tsx');
+test('workbench crown exposes direct accessible labels for panel and document actions', async () => {
+  const source = await readSource('src/components/WorkbenchCrown.tsx');
 
-  assert.match(source, /from "\.\/ui\/ToolbarAction"/);
-  assert.match(source, /<ToolbarAction/);
-  assert.match(source, /from "\.\/ui\/Tooltip"/);
-  assert.match(source, /TooltipProvider/);
-  assert.doesNotMatch(source, /tooltip="New File" aria-label="New File"/);
-  assert.match(source, /const \[openMenuOpen, setOpenMenuOpen\] = useState\(false\)/);
-  assert.match(source, /<DropdownMenu open=\{openMenuOpen\} onOpenChange=\{setOpenMenuOpen\}>/);
-  assert.match(source, /tooltip=\{openMenuOpen \? undefined : "Open"\} aria-label="Open"/);
-  assert.match(source, /<DropdownMenuContent align="start" className="w-52">/);
-  assert.equal((source.match(/className="whitespace-nowrap"/g) ?? []).length, 2);
-  assert.doesNotMatch(source, /title="/);
+  assert.match(source, /aria-label="Show Workspaces"/);
+  assert.match(source, /aria-label="Show Agent"/);
+  assert.match(source, /Close \$\{document\.displayName\}/);
+  assert.doesNotMatch(source, /ToolbarAction|DropdownMenu/);
 });
 
 test('ResizableDivider uses the shared Tooltip for dynamic panel guidance', async () => {
@@ -55,11 +48,12 @@ test('ResizableDivider uses the shared Tooltip for dynamic panel guidance', asyn
   assert.doesNotMatch(source, /title=/);
 });
 
-test('Toolbar does not expose presentation actions', async () => {
-  const source = await readSource('src/components/Toolbar.tsx');
+test('workbench crown does not expose presentation or save actions', async () => {
+  const source = await readSource('src/components/WorkbenchCrown.tsx');
 
   assert.doesNotMatch(source, /Present/);
   assert.doesNotMatch(source, /onStartPreview/);
+  assert.doesNotMatch(source, /aria-label="Save"|Save As/);
 });
 
 test('CameraList keeps the Add camera tooltip on its header action', async () => {

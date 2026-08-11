@@ -9,12 +9,22 @@ import {
   FilePenLine,
   Folder,
   FolderOpen,
+  FolderPlus,
+  MoreHorizontal,
   Pencil,
+  Plus,
   Trash2,
 } from "lucide-react";
 import { getWorkspaceRenameSelectionEnd } from "../lib/workspaceRename";
 import type { DocumentStatus, WorkspaceEntry } from "../types";
 import { Input } from "./ui/Input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/DropdownMenu";
 
 const entryIconProps = { "aria-hidden": true, size: 15, strokeWidth: 1.8 } as const;
 const chevronIconProps = { "aria-hidden": true, size: 13, strokeWidth: 2 } as const;
@@ -37,6 +47,9 @@ interface WorkspaceResourceRowProps {
   onToggleExpanded: () => void;
   onRename: (name: string) => void;
   onTrash: () => void;
+  onReveal: () => void;
+  onCreateFolder: () => void;
+  onCreateDocument: (fileType: string) => void;
 }
 
 function documentStatusLabel(status: DocumentStatus | undefined, dirty: boolean): string {
@@ -88,6 +101,9 @@ export function WorkspaceResourceRow({
   onToggleExpanded,
   onRename,
   onTrash,
+  onReveal,
+  onCreateFolder,
+  onCreateDocument,
 }: WorkspaceResourceRowProps) {
   const isMissingEntry = documentStatus === "missing" || documentStatus === "root-missing";
   const canMutate = !readOnly && !entry.readOnly && entry.kind !== "symlink" && !isMissingEntry;
@@ -241,29 +257,35 @@ export function WorkspaceResourceRow({
         </button>
       )}
       {canMutate && !isRenaming && (
-        <div className="hidden items-center gap-0.5 group-hover:flex group-focus-within:flex">
-          <button
-            type="button"
-            aria-label={`Rename ${entry.name}`}
-            className="idea-slide-row-action"
-            onClick={(event) => {
-              event.stopPropagation();
-              setIsRenaming(true);
-            }}
-          >
-            <Pencil {...rowActionIconProps} />
-          </button>
-          <button
-            type="button"
-            aria-label={`Move ${entry.name} to Trash`}
-            className="idea-slide-row-action is-danger"
-            onClick={(event) => {
-              event.stopPropagation();
-              onTrash();
-            }}
-          >
-            <Trash2 {...rowActionIconProps} />
-          </button>
+        <div className="idea-slide-resource-row__actions">
+          {entry.kind === "directory" && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" aria-label={`Create in ${entry.name}`} className="idea-slide-row-action" onClick={(event) => event.stopPropagation()}>
+                  <Plus {...rowActionIconProps} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="ideanote-compact-menu">
+                <DropdownMenuItem onSelect={() => onCreateDocument("ideasketch")}>New IdeaSketch</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onCreateDocument("markdown")}>New Markdown</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={onCreateFolder}><FolderPlus {...rowActionIconProps} />New Folder</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" aria-label={`Actions for ${entry.name}`} className="idea-slide-row-action" onClick={(event) => event.stopPropagation()}>
+                <MoreHorizontal {...rowActionIconProps} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="right" align="start" sideOffset={3} className="ideanote-compact-menu">
+              <DropdownMenuItem onSelect={() => setIsRenaming(true)}><Pencil {...rowActionIconProps} />Rename</DropdownMenuItem>
+              <DropdownMenuItem onSelect={onReveal}><ExternalLink {...rowActionIconProps} />Show in Finder</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-red-700 focus:text-red-800" onSelect={onTrash}><Trash2 {...rowActionIconProps} />Move to Trash</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
     </div>

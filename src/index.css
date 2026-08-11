@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+:root {
+    color-scheme: light;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
 html,
 body,
 #root {
@@ -365,6 +370,21 @@ body,
 
 .ideanote-right-sidebar__header > svg {
     color: #6965db;
+}
+
+.ideanote-right-sidebar__header > button {
+    display: inline-grid;
+    width: 26px;
+    height: 26px;
+    margin-left: auto;
+    place-items: center;
+    border-radius: 6px;
+    color: #71766f;
+}
+
+.ideanote-right-sidebar__header > button:hover {
+    color: #252930;
+    background: rgb(37 41 48 / 7%);
 }
 
 .ideanote-agent-panel {
@@ -3303,4 +3323,368 @@ body,
     to {
         opacity: 1;
     }
+}
+
+/* Reviewed native workbench shell */
+.idea-slide-editor-shell {
+    --ideanote-paper: #ffffff;
+    --ideanote-workspace: #e9eae7;
+    --ideanote-workspace-hover: #dfe1dd;
+    --ideanote-agent: #f4f4f2;
+    --ideanote-graphite: #252930;
+    --ideanote-muted: #737871;
+    --ideanote-line: #d7d9d4;
+    --ideanote-cobalt: #2f5dcc;
+    --ideanote-danger: #b4433c;
+    color: var(--ideanote-graphite);
+    background: var(--ideanote-paper);
+}
+
+.ideanote-workspace-sidebar {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    flex-direction: column;
+    border-right: 1px solid var(--ideanote-line);
+    background: var(--ideanote-workspace);
+    user-select: none;
+}
+
+.ideanote-workspace-crown,
+.ideanote-workbench-crown {
+    position: relative;
+    display: flex;
+    height: 38px;
+    flex: 0 0 38px;
+    align-items: center;
+    border-bottom: 1px solid var(--ideanote-line);
+    background: var(--ideanote-paper);
+}
+
+.ideanote-workspace-crown {
+    background: var(--ideanote-workspace);
+    padding: 0 8px;
+}
+
+.ideanote-workspace-crown.is-macos.is-windowed {
+    padding-left: 78px;
+}
+
+.ideanote-workspace-crown > button,
+.ideanote-crown-action {
+    position: relative;
+    z-index: 2;
+    display: inline-grid;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    border-radius: 7px;
+    color: #60655f;
+}
+
+.ideanote-workspace-crown > button:hover,
+.ideanote-crown-action:hover {
+    color: var(--ideanote-graphite);
+    background: rgb(37 41 48 / 7%);
+}
+
+.ideanote-workbench-crown {
+    padding: 0 8px;
+}
+
+.ideanote-workbench-crown.without-workspace.is-macos.is-windowed {
+    padding-left: 78px;
+}
+
+.ideanote-workbench-crown.is-windows.is-windowed {
+    padding-right: 142px;
+}
+
+.ideanote-workbench-crown__drag {
+    min-width: 12px;
+    align-self: stretch;
+    flex: 1;
+}
+
+.ideanote-document-identity {
+    position: absolute;
+    left: 50%;
+    display: flex;
+    max-width: min(42vw, 520px);
+    align-items: center;
+    gap: 7px;
+    color: #3d423f;
+    font-size: 12px;
+    transform: translateX(-50%);
+    white-space: nowrap;
+}
+
+.ideanote-document-identity strong {
+    min-width: 0;
+    overflow: hidden;
+    font-weight: 620;
+    text-overflow: ellipsis;
+}
+
+.ideanote-document-identity__icon {
+    flex: 0 0 auto;
+    color: #858a84;
+}
+
+.ideanote-document-status-close {
+    position: relative;
+    display: inline-grid;
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    place-items: center;
+    border-radius: 6px;
+}
+
+.ideanote-document-status-close__state {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #7d837c;
+}
+
+.ideanote-document-status-close.is-saved .ideanote-document-status-close__state { background: #6f8a71; }
+.ideanote-document-status-close.is-dirty .ideanote-document-status-close__state,
+.ideanote-document-status-close.is-danger .ideanote-document-status-close__state { background: var(--ideanote-danger); }
+.ideanote-document-status-close.is-saving .ideanote-document-status-close__state { background: #be8a2c; animation: ideanote-status-pulse 1.25s ease-in-out infinite; }
+.ideanote-document-status-close__close { display: none; color: #515650; }
+.ideanote-document-status-close:hover,
+.ideanote-document-status-close:focus-visible { background: #eceeeb; }
+.ideanote-document-status-close:hover .ideanote-document-status-close__state,
+.ideanote-document-status-close:focus-visible .ideanote-document-status-close__state { display: none; }
+.ideanote-document-status-close:hover .ideanote-document-status-close__close,
+.ideanote-document-status-close:focus-visible .ideanote-document-status-close__close { display: block; }
+
+.ideanote-workspace-section-title,
+.ideanote-recents__title {
+    color: #737872;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.075em;
+    text-transform: uppercase;
+}
+
+.ideanote-workspace-section-title {
+    padding: 13px 12px 7px;
+}
+
+.ideanote-workspace-scroll {
+    min-height: 0;
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 7px 16px;
+    scrollbar-color: #c6c9c3 transparent;
+    scrollbar-width: thin;
+}
+
+.ideanote-workspace-root { margin-bottom: 2px; }
+.ideanote-workspace-root__row,
+.ideanote-recent-row {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    border-radius: 7px;
+}
+
+.ideanote-workspace-root__row:hover,
+.ideanote-workspace-root.is-active > .ideanote-workspace-root__row,
+.ideanote-recent-row:hover { background: rgb(37 41 48 / 5.5%); }
+
+.ideanote-workspace-root__main,
+.ideanote-recent-row__main {
+    display: flex;
+    min-width: 0;
+    height: 30px;
+    align-items: center;
+    gap: 7px;
+    flex: 1;
+    color: #3d423e;
+    font-size: 12px;
+    text-align: left;
+}
+
+.ideanote-workspace-root__main { padding: 0 4px 0 7px; }
+.ideanote-recent-row__main { padding: 0 4px 0 10px; }
+.ideanote-workspace-root__main > span,
+.ideanote-recent-row__main > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ideanote-workspace-root__main > svg { color: #8b7243; }
+.ideanote-recent-row__main > svg { color: #68706a; }
+
+.ideanote-tree-actions,
+.idea-slide-resource-row__actions {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    opacity: 0;
+}
+
+.ideanote-workspace-root__row:hover .ideanote-tree-actions,
+.ideanote-workspace-root__row:focus-within .ideanote-tree-actions,
+.idea-slide-resource-row:hover .idea-slide-resource-row__actions,
+.idea-slide-resource-row:focus-within .idea-slide-resource-row__actions,
+.ideanote-recent-row:hover > .ideanote-tree-action,
+.ideanote-recent-row:focus-within > .ideanote-tree-action { opacity: 1; }
+
+.ideanote-tree-action,
+.idea-slide-row-action {
+    display: inline-grid;
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
+    place-items: center;
+    border-radius: 6px;
+    color: #737872;
+}
+
+.ideanote-tree-action:hover,
+.idea-slide-row-action:hover { color: var(--ideanote-graphite); background: rgb(37 41 48 / 8%); }
+
+.ideanote-compact-menu {
+    min-width: 154px !important;
+    border-color: #d8dad6 !important;
+    border-radius: 8px !important;
+    background: #fff !important;
+    padding: 4px !important;
+    box-shadow: 0 8px 24px rgb(37 41 48 / 16%) !important;
+}
+
+.ideanote-compact-menu [role="menuitem"] {
+    min-height: 28px;
+    border-radius: 5px;
+    padding: 5px 8px;
+    font-size: 12px;
+}
+
+.ideanote-workspace-menu { min-width: 184px !important; }
+.idea-slide-workspace-tree { position: relative; padding: 1px 0 5px 12px; }
+.idea-slide-workspace-root-drop { height: 5px; margin: 0 8px 1px 0; border-radius: 4px; }
+.idea-slide-workspace-root-drop.is-drop-inside { background: rgb(47 93 204 / 20%); box-shadow: inset 0 0 0 1px rgb(47 93 204 / 42%); }
+.idea-slide-workspace-refresh { margin: 8px 8px 4px 22px; color: #777c76; font-size: 10px; }
+.idea-slide-workspace-refresh:hover { color: var(--ideanote-cobalt); }
+
+.ideanote-recents { margin-top: 18px; }
+.ideanote-recents__title { padding: 0 5px 8px; }
+.ideanote-recent-group { margin-bottom: 12px; }
+.ideanote-recent-group__label { display: flex; align-items: center; gap: 8px; color: #92968f; font-size: 9px; padding: 0 5px 4px; }
+.ideanote-recent-group__label::after { height: 1px; flex: 1; background: rgb(37 41 48 / 8%); content: ""; }
+.ideanote-recent-row > .ideanote-tree-action { opacity: 0; margin-right: 3px; }
+
+.ideanote-sidebar-empty { color: #878c86; font-size: 11px; line-height: 1.5; padding: 8px 6px; }
+.ideanote-open-workspace-empty { display: flex; width: 100%; align-items: center; gap: 7px; border-radius: 7px; color: #555b56; font-size: 12px; padding: 8px; }
+.ideanote-open-workspace-empty:hover { background: rgb(37 41 48 / 6%); }
+
+.ideanote-workspace-footer {
+    border-top: 1px solid var(--ideanote-line);
+    padding: 7px;
+}
+
+.ideanote-workspace-footer > button {
+    display: flex;
+    width: 100%;
+    height: 30px;
+    align-items: center;
+    gap: 8px;
+    border-radius: 7px;
+    color: #555b56;
+    font-size: 12px;
+    padding: 0 8px;
+}
+
+.ideanote-workspace-footer > button:hover { background: rgb(37 41 48 / 6%); }
+.ideanote-workspace-footer kbd { margin-left: auto; color: #969b95; font-size: 9px; }
+
+.ideanote-workbench-welcome {
+    display: flex;
+    width: min(420px, calc(100% - 48px));
+    height: 100%;
+    min-height: 0;
+    margin: 0 auto;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    color: var(--ideanote-graphite);
+    text-align: center;
+}
+
+.ideanote-workbench-welcome__mark {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    margin-bottom: 18px;
+    place-items: center;
+    border: 1px solid #d9dcd7;
+    border-radius: 11px;
+    color: #fff;
+    background: var(--ideanote-graphite);
+    font-size: 11px;
+    font-weight: 750;
+    letter-spacing: 0.08em;
+}
+
+.ideanote-workbench-welcome h1 { font-size: 24px; font-weight: 650; letter-spacing: -0.035em; }
+.ideanote-workbench-welcome > p { margin-top: 6px; color: #80857f; font-size: 12px; }
+.ideanote-workbench-welcome__actions { width: min(280px, 100%); margin-top: 24px; }
+.ideanote-workbench-welcome__actions > button {
+    display: flex;
+    width: 100%;
+    height: 36px;
+    align-items: center;
+    gap: 9px;
+    border-top: 1px solid #eceeeb;
+    color: #4c524d;
+    font-size: 12px;
+    padding: 0 8px;
+    text-align: left;
+}
+.ideanote-workbench-welcome__actions > button:hover { color: var(--ideanote-cobalt); background: #f7f8f6; }
+.ideanote-workbench-welcome__actions kbd { margin-left: auto; color: #9a9e99; font-size: 9px; }
+.ideanote-workbench-welcome__settings { display: flex; align-items: center; gap: 6px; margin-top: 22px; color: #8b908a; font-size: 11px; }
+.ideanote-workbench-welcome__settings:hover { color: var(--ideanote-cobalt); }
+
+.ideanote-command-overlay { position: fixed; z-index: 3200; inset: 0; background: rgb(37 41 48 / 18%); }
+.ideanote-command-dialog {
+    position: fixed;
+    top: 18%;
+    left: 50%;
+    z-index: 3201;
+    width: min(520px, calc(100vw - 40px));
+    overflow: hidden;
+    border: 1px solid #d7dad5;
+    border-radius: 11px;
+    background: #fff;
+    box-shadow: 0 20px 60px rgb(37 41 48 / 24%);
+    transform: translateX(-50%);
+}
+.ideanote-command-title { display: flex; height: 34px; align-items: center; gap: 7px; border-bottom: 1px solid #eceeeb; color: #666b66; font-size: 11px; font-weight: 650; padding: 0 12px; }
+.ideanote-command-search { display: flex; height: 44px; align-items: center; gap: 9px; border-bottom: 1px solid #e4e6e2; padding: 0 12px; }
+.ideanote-command-search svg { color: #8b908a; }
+.ideanote-command-search input { min-width: 0; flex: 1; color: var(--ideanote-graphite); font-size: 13px; outline: none; }
+.ideanote-command-list { max-height: min(380px, 55vh); overflow-y: auto; padding: 5px; }
+.ideanote-command-list > button { display: flex; width: 100%; min-height: 38px; align-items: center; justify-content: space-between; border-radius: 7px; color: #4d534e; padding: 6px 9px; text-align: left; }
+.ideanote-command-list > button.is-active { color: #234faa; background: #edf2ff; }
+.ideanote-command-list > button:disabled { opacity: 0.38; }
+.ideanote-command-list > button span { display: flex; min-width: 0; flex-direction: column; }
+.ideanote-command-list strong { font-size: 12px; font-weight: 620; }
+.ideanote-command-list small { color: #8c918b; font-size: 10px; }
+.ideanote-command-list kbd { color: #8c918b; font-size: 9px; }
+.ideanote-command-list > p { color: #8c918b; font-size: 11px; padding: 18px; text-align: center; }
+
+.ideanote-right-sidebar { background: var(--ideanote-agent); }
+.ideanote-agent-panel { background: var(--ideanote-agent); }
+
+@keyframes ideanote-status-pulse { 50% { opacity: 0.35; } }
+
+@media (max-width: 959px) {
+    .ideanote-document-identity { max-width: 48vw; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ideanote-document-status-close.is-saving .ideanote-document-status-close__state { animation: none; }
 }

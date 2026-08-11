@@ -240,15 +240,13 @@ test('Workspace drag completes in WebKit after React drop feedback updates', asy
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await installTauriMock(page);
     await page.goto(`http://127.0.0.1:${address.port}/`, { waitUntil: 'networkidle' });
-    await page.getByRole('button', { name: 'Open Workspace' }).click();
+    await page.getByLabel('Workspaces and recent files').getByRole('button', { name: 'Open Workspace' }).click();
 
     const rows = page.getByRole('treeitem');
     await rows.first().waitFor();
     assert.deepEqual(await rows.allTextContents(), ['folder', 'a.is', 'b.is']);
     const explorer = page.getByRole('complementary', { name: 'Workspace Explorer' });
     assert.equal(await explorer.getByText('mock-workspace', { exact: true }).count(), 0);
-    await page.getByRole('toolbar', { name: 'Workspace actions' }).waitFor();
-    assert.equal(await page.getByRole('button', { name: 'New Folder' }).isVisible(), true);
     await page.getByRole('button', { name: 'Select folder' }).click();
     assert.match(await rows.nth(0).getAttribute('class'), /is-selected/);
 
@@ -302,7 +300,7 @@ test('virtualized Page cards remain sortable in WebKit thumbnail mode', async (c
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await installTauriMock(page);
     await page.goto(`http://127.0.0.1:${address.port}/`, { waitUntil: 'networkidle' });
-    await page.getByRole('button', { name: 'Open Workspace' }).click();
+    await page.getByLabel('Workspaces and recent files').getByRole('button', { name: 'Open Workspace' }).click();
     await page.getByRole('button', { name: 'Open a.is' }).click();
 
     const nameView = page.getByRole('button', { name: 'Name view' });

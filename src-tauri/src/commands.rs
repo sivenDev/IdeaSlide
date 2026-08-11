@@ -19,6 +19,35 @@ pub struct FileInspection {
     size: Option<u64>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RenamedPathResult {
+    path: String,
+    metadata_error: Option<String>,
+}
+
+fn validated_sibling_destination(path: &Path, new_name: &str) -> Result<PathBuf, String> {
+    let trimmed = new_name.trim();
+    if trimmed.is_empty() || trimmed == "." || trimmed == ".." {
+        return Err("Name cannot be empty".to_string());
+    }
+    let name_path = Path::new(trimmed);
+    if name_path.is_absolute() || name_path.components().count() != 1 {
+        return Err("Name must not contain path separators".to_string());
+    }
+    let parent = path
+        .parent()
+        .ok_or_else(|| "Path has no parent directory".to_string())?;
+    let destination = parent.join(trimmed);
+    if destination == path {
+        return Ok(destination);
+    }
+    if destination.exists() {
+        return Err("An item with that name already exists".to_string());
+    }
+    Ok(destination)
+}
+
 fn inspect_path(path: &std::path::Path) -> Result<FileInspection, String> {
     let metadata = match std::fs::metadata(path) {
         Ok(metadata) => metadata,
@@ -79,6 +108,46 @@ pub fn write_file_bytes(path: String, data: Vec<u8>) -> Result<(), String> {
 #[command]
 pub fn inspect_file(path: String) -> Result<FileInspection, String> {
     inspect_path(PathBuf::from(path).as_path())
+}
+
+#[command]
+pub fn rename_standalone_path(path: String, new_name: String) -> Result<RenamedPathResult, String> {
+    let source = PathBuf::from(&path);
+    let metadata = std::fs::symlink_metadata(&source)
+        .map_err(|error| format!("Failed to inspect file: {error}"))?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err("Only regular standalone files can be renamed".to_string());
+    }
+    let destination = validated_sibling_destination(&source, &new_name)?;
+    if destination != source {
+        std::fs::rename(&source, &destination)
+            .map_err(|error| format!("Failed to rename file: {error}"))?;
+    }
+    let destination = destination.to_string_lossy().to_string();
+    let metadata_error = crate::recent_files::remap_recent_file(&path, &destination).err();
+    Ok(RenamedPathResult { path: destination, metadata_error })
+}
+
+#[command]
+pub fn rename_workspace_root(root: String, new_name: String) -> Result<RenamedPathResult, String> {
+    let source = PathBuf::from(&root);
+    let metadata = std::fs::symlink_metadata(&source)
+        .map_err(|error| format!("Failed to inspect Workspace: {error}"))?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err("Workspace root must be a regular directory".to_string());
+    }
+    let source = source
+        .canonicalize()
+        .map_err(|error| format!("Failed to resolve Workspace root: {error}"))?;
+    let destination = validated_sibling_destination(&source, &new_name)?;
+    if destination != source {
+        std::fs::rename(&source, &destination)
+            .map_err(|error| format!("Failed to rename Workspace: {error}"))?;
+    }
+    let old_path = source.to_string_lossy().to_string();
+    let destination = destination.to_string_lossy().to_string();
+    let metadata_error = crate::recent_files::remap_recent_workspace(&old_path, &destination).err();
+    Ok(RenamedPathResult { path: destination, metadata_error })
 }
 
 #[command]
@@ -257,6 +326,44 @@ mod tests {
         let directory = TempDir::new().unwrap();
         let root = directory.path().to_string_lossy().to_string();
         assert!(read_workspace_file(root, "/tmp/outside".to_string()).is_err());
+    }
+
+    #[test]
+    fn standalone_rename_moves_the_file_and_remaps_recents() {
+        let _guard = crate::recent_files::config_env_lock().lock().unwrap();
+        let config_dir = TempDir::new().unwrap();
+        let directory = TempDir::new().unwrap();
+        std::env::set_var("IDEASLIDE_CONFIG_DIR", config_dir.path());
+        let source = directory.path().join("before.md");
+        std::fs::write(&source, "# Before\n").unwrap();
+        let source_path = source.to_string_lossy().to_string();
+        crate::recent_files::add_recent_file(source_path.clone()).unwrap();
+
+        let renamed = rename_standalone_path(source_path, "after.md".to_string()).unwrap();
+
+        assert!(directory.path().join("after.md").is_file());
+        assert_eq!(crate::recent_files::get_recent_files().unwrap()[0].path, renamed.path);
+        assert!(renamed.metadata_error.is_none());
+        std::env::remove_var("IDEASLIDE_CONFIG_DIR");
+    }
+
+    #[test]
+    fn workspace_root_rename_moves_the_directory_and_remaps_navigation() {
+        let _guard = crate::recent_files::config_env_lock().lock().unwrap();
+        let config_dir = TempDir::new().unwrap();
+        let parent = TempDir::new().unwrap();
+        let source = parent.path().join("before-workspace");
+        std::fs::create_dir(&source).unwrap();
+        std::env::set_var("IDEASLIDE_CONFIG_DIR", config_dir.path());
+        let source_path = source.to_string_lossy().to_string();
+        open_workspace(source_path.clone()).unwrap();
+
+        let renamed = rename_workspace_root(source_path, "after-workspace".to_string()).unwrap();
+
+        assert!(parent.path().join("after-workspace").is_dir());
+        assert_eq!(crate::recent_files::get_recent_workspaces().unwrap()[0].path, renamed.path);
+        assert!(renamed.metadata_error.is_none());
+        std::env::remove_var("IDEASLIDE_CONFIG_DIR");
     }
 
     #[test]

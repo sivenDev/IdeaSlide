@@ -47,13 +47,13 @@ test('divider supports independently bounded resizing for Workspace, Agent, and 
   assert.match(ideaSketchEditor, /side="right"[\s\S]*onResize=/);
 });
 
-test('Workspace Explorer is visible by default in Workspace mode and remains collapsible', async () => {
+test('Workspace navigation is visible by default across workbench modes and remains collapsible', async () => {
   const editor = await readFile(new URL('../src/components/EditorLayout.tsx', import.meta.url), 'utf8');
 
-  assert.match(editor, /useState\(state\.mode === "workspace"\)/);
-  assert.match(editor, /setShowWorkspace\(state\.mode === "workspace"\)/);
-  assert.match(editor, /<ResizableDivider[\s\S]*side="left"[\s\S]*isVisible=\{showWorkspace\}/);
-  assert.match(editor, /<ResizableDivider[\s\S]*side="right"[\s\S]*isVisible=\{showAgent\}/);
+  assert.match(editor, /useState\(initialPanelState\.workspaceOpen \?\? true\)/);
+  assert.match(editor, /style=\{\{ width: showWorkspace \? workspacePanelWidth : 0 \}\}/);
+  assert.match(editor, /showWorkspace && \([\s\S]*?<ResizableDivider[\s\S]*?side="left"/);
+  assert.match(editor, /activeDocument && agentAvailable && showAgent && \([\s\S]*?<ResizableDivider[\s\S]*?side="right"/);
   assert.match(editor, /onToggle=\{\(\) => setShowWorkspace/);
   assert.match(editor, /onToggle=\{\(\) => setShowAgent/);
 });

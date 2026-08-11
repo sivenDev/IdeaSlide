@@ -2,7 +2,7 @@
 id: "F046-01"
 title: "Migrate the Reviewed Shell, Workspaces, and Recents"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Replace the remaining launch-first production chrome with the reviewed native workbench shell backed by real Workspace, recent-file, window, and document-session services."
 source: "docs/superplan/human/features.md"
 created: "2026-08-11"
@@ -49,9 +49,9 @@ parent: "F046"
 - `node --test tests/appStoreReducer.test.mjs tests/documentEditorHost.test.mjs tests/editorChromeNavigation.test.mjs tests/reviewedWorkbenchShell.test.mjs`
 - Cases: direct launch; empty Welcome; Workspace with no active file; standalone open/close; unsaved Save/Discard/Cancel; startup recovery; native close; system file-open; AI disabled; no active document; status-close hover/focus and clean/dirty/saving/error states.
 
-- [ ] Add shell/state regressions that fail while Home/Launch and legacy toolbar chrome remain.
-- [ ] Compose the reviewed always-mounted frame over the existing production session lifecycle.
-- [ ] Remove obsolete launch modules, props, copy, and tests only after equivalent entry points exist.
+- [x] Add shell/state regressions that fail while Home/Launch and legacy toolbar chrome remain.
+- [x] Compose the reviewed always-mounted frame over the existing production session lifecycle.
+- [x] Remove obsolete launch modules, props, copy, and tests only after equivalent entry points exist.
 
 ## Task 2: Deliver Real Workspaces, Standalone Recents, and Row Actions
 
@@ -84,9 +84,9 @@ parent: "F046"
 - `cd src-tauri && cargo test recent_files`
 - Native cases with disposable paths: add Workspace; create file/folder from root and directory; rename; reveal; Trash cancel/confirm; missing path; collision; remove Workspace; standalone open/reopen/remove; prove Workspace-owned opens never enter Recents; menu blur/Escape dismissal.
 
-- [ ] Lock the reviewed Workspaces/Recents semantics with frontend and Rust regressions.
-- [ ] Recompose the left navigation using real production commands and maintained menu/dialog controls.
-- [ ] Verify every destructive or filesystem-affecting action against disposable local paths and safe failure states.
+- [x] Lock the reviewed Workspaces/Recents semantics with frontend and Rust regressions.
+- [x] Recompose the left navigation using real production commands and maintained menu/dialog controls.
+- [x] Verify every destructive or filesystem-affecting action against disposable local paths and safe failure states.
 
 ## Task 3: Add Safe Workspace Dragging and Native Window Geometry
 
@@ -115,9 +115,16 @@ parent: "F046"
 - `node --test tests/panelSizing.test.mjs tests/workspaceExplorerWiring.test.mjs tests/nativeWindowFrame.test.mjs tests/workspaceDragProjection.test.mjs`
 - Native cases: macOS windowed/fullscreen transitions; Windows layout contract; resize at 1440/1200/1100/850 widths; collapse left/right/both; keyboard dividers; file/folder inward, lateral, outward, and root drops; invalid self/descendant/cross-root/collision drops.
 
-- [ ] Add deterministic projection and native-frame contracts before changing interaction composition.
-- [ ] Connect dnd-kit outcomes only to validated production move commands and session reconciliation.
-- [ ] Verify native safe areas and independent panel geometry without simulated review scenarios.
+- [x] Add deterministic projection and native-frame contracts before changing interaction composition.
+- [x] Connect dnd-kit outcomes only to validated production move commands and session reconciliation.
+- [x] Verify native safe areas and independent panel geometry without simulated review scenarios.
+
+## Delivery Evidence
+
+- `node --test tests/*.test.mjs`: 356 tests passed, including WebKit Workspace drag, reviewed shell, panel sizing, Recents, native-frame, and maintained-menu contracts.
+- `npm run build`: strict TypeScript and Vite production build completed successfully.
+- `cd src-tauri && cargo test --quiet`: 147 Rust tests passed, including standalone-file and Workspace-root rename/remap safety.
+- `npm run tauri dev`: native Tauri application compiled, launched, and reached the running application process.
 
 ## References
 

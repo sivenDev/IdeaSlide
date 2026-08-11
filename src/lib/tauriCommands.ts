@@ -198,6 +198,19 @@ export async function removeRecentWorkspace(path: string): Promise<void> {
   await invoke("remove_recent_workspace", { path });
 }
 
+export interface RenamedPathResult {
+  path: string;
+  metadataError?: string | null;
+}
+
+export async function renameStandalonePath(path: string, newName: string): Promise<RenamedPathResult> {
+  return await invoke<RenamedPathResult>("rename_standalone_path", { path, newName });
+}
+
+export async function renameWorkspaceRoot(root: string, newName: string): Promise<RenamedPathResult> {
+  return await invoke<RenamedPathResult>("rename_workspace_root", { root, newName });
+}
+
 export async function getOpenedFile(): Promise<string | null> {
   return await invoke<string | null>("get_opened_file");
 }

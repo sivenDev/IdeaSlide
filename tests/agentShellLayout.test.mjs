@@ -12,7 +12,7 @@ test('Agent is an app-level right column outside the active editor', async () =>
   assert.match(shell, /<DocumentEditorHost/);
   assert.match(shell, /onAgentBindingChange: handleAgentBindingChange/);
   assert.match(registry, /onAgentBindingChange=\{props\.onAgentBindingChange\}/);
-  assert.match(shell, /side="right"[\s\S]*?showAgent/);
+  assert.match(shell, /activeDocument && agentAvailable && showAgent[\s\S]*?side="right"/);
   assert.match(editor, /onAgentBindingChange/);
   assert.match(editor, /const agentBindingStateRef = useRef/);
   assert.match(editor, /\}\), \[document\.id\]\);/);
