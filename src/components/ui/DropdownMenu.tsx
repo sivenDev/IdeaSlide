@@ -1,4 +1,5 @@
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
+import { Check } from "lucide-react";
 import {
   type ComponentPropsWithoutRef,
   type ElementRef,
@@ -21,6 +22,7 @@ export function DropdownMenu({ children, ...props }: DropdownMenuProps) {
 
 export const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 export const DropdownMenuPortal = DropdownMenuPrimitive.Portal;
+export const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
 
 export const DropdownMenuContent = forwardRef<
   ElementRef<typeof DropdownMenuPrimitive.Content>,
@@ -62,6 +64,28 @@ export const DropdownMenuItem = forwardRef<
       )}
       {...props}
     />
+  );
+});
+
+export const DropdownMenuRadioItem = forwardRef<
+  ElementRef<typeof DropdownMenuPrimitive.RadioItem>,
+  ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.RadioItem>
+>(function DropdownMenuRadioItem({ className, children, ...props }, ref) {
+  return (
+    <DropdownMenuPrimitive.RadioItem
+      ref={ref}
+      className={cn(
+        "relative flex cursor-default select-none items-center gap-2 rounded-md py-2 pl-8 pr-3 text-sm text-gray-700 outline-none transition-colors",
+        "focus:bg-gray-100 focus:text-gray-950 data-[highlighted]:bg-gray-100 data-[highlighted]:text-gray-950 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        className,
+      )}
+      {...props}
+    >
+      <DropdownMenuPrimitive.ItemIndicator className="absolute left-2.5 inline-flex items-center">
+        <Check aria-hidden size={12} />
+      </DropdownMenuPrimitive.ItemIndicator>
+      {children}
+    </DropdownMenuPrimitive.RadioItem>
   );
 });
 

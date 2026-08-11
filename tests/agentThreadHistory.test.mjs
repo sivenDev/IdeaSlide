@@ -2,22 +2,23 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-test('Thread header and history expose create, resume, rename, archive, permanent delete, pagination, and accessible disclosure state', async () => {
+test('reviewed Agent crown and selector expose concise real conversation actions through maintained primitives', async () => {
   const header = await readFile(new URL('../src/components/agent/AgentThreadHeader.tsx', import.meta.url), 'utf8');
-  const history = await readFile(new URL('../src/components/agent/AgentThreadHistory.tsx', import.meta.url), 'utf8');
-  assert.match(header, /Create new Agent Thread/);
-  assert.match(header, /aria-expanded=\{historyOpen\}/);
-  assert.match(history, /onResume\(thread\.id\)/);
-  assert.match(history, /onRename\(editingId, draftTitle\.trim\(\)\)/);
-  assert.match(history, /onArchive\(thread\.id\)/);
-  assert.match(history, /Delete “\{thread\.title\}” permanently\?/);
-  assert.match(history, /role="alertdialog"/);
-  assert.match(history, /onDelete\(deleteCandidate\.id\)/);
-  assert.match(history, /deleteButtonRefs\.current\.get\(threadId\)\?\.focus\(\)/);
-  assert.match(history, /Show archived/);
-  assert.match(history, /Load earlier Threads/);
-  assert.match(history, /aria-current=\{active \? "page"/);
-  assert.match(history, /closeButtonRef\.current\?\.focus\(\)/);
+  const selector = await readFile(new URL('../src/components/agent/AgentConversationSelector.tsx', import.meta.url), 'utf8');
+  assert.match(header, /aria-label="New conversation"/);
+  assert.match(header, /aria-label="Runtime Inspector"/);
+  assert.match(header, /aria-label="Hide Agent"/);
+  assert.match(selector, /@radix-ui\/react-popover/);
+  assert.match(selector, /DropdownMenuContent/);
+  assert.match(selector, /onResume\(threadId\)/);
+  assert.match(selector, /onRename\(candidate\.id, candidate\.value\.trim\(\)\)/);
+  assert.match(selector, /onDelete\(candidate\.id\)/);
+  assert.match(selector, /Rename conversation/);
+  assert.match(selector, /Delete conversation\?/);
+  assert.match(selector, /AlertDialog\.Root/);
+  assert.match(selector, /Load earlier/);
+  assert.match(selector, /aria-current=\{active \? "page"/);
+  assert.doesNotMatch(selector, /archive|conversations label|history button/i);
 });
 
 test('Thread hook resumes the latest local Thread and keeps AI-disabled history independent of Workspaces', async () => {

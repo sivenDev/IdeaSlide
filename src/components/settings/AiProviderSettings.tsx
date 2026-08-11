@@ -35,6 +35,14 @@ export function AiProviderSettings() {
     setTestMessage(undefined);
     try {
       const result = await probeAiProvider(normalizedBaseUrl, apiKey);
+      await updateSettings((current) => ({
+        ...current,
+        ai: {
+          ...current.ai,
+          availableModels: result.models,
+          model: result.models.includes(current.ai.model) ? current.ai.model : (result.models[0] ?? current.ai.model),
+        },
+      }));
       setTested({ baseUrl: normalizedBaseUrl, apiKey, models: result.models });
       setMessageTone("success");
       setTestMessage(`${result.models.length} model${result.models.length === 1 ? "" : "s"} available`);

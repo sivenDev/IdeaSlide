@@ -27,6 +27,8 @@ pub(crate) struct AgentThreadRuntimeMetadata {
     pub label: String,
     pub model: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub upstream_thread_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub local_replay_truncated_before_turn_id: Option<String>,
@@ -591,7 +593,13 @@ mod tests {
                 "turns": [
                     {"id": "welcome", "status": "completed", "items": [{"kind": "message", "content": "Ready"}]},
                     {"id": "running", "status": "running", "items": [{"kind": "message", "content": "partial"}]},
-                    {"id": "done", "status": "completed", "items": [
+                    {"id": "done", "status": "completed", "evidence": {
+                        "runtimeKind": "compatibility",
+                        "runtimeLabel": "Compatibility",
+                        "model": "test-model",
+                        "reasoningEffort": "standard",
+                        "capturedAt": 3
+                    }, "items": [
                         {"kind": "reasoningSummary", "content": "private summary"},
                         {"kind": "changeReview", "status": "pending", "changeSet": {
                             "status": "proposed", "operations": [{"kind": "replace", "elements": [1, 2, 3]}]
@@ -604,6 +612,7 @@ mod tests {
                 kind: "compatibility".to_string(),
                 label: "Compatibility".to_string(),
                 model: "test-model".to_string(),
+                reasoning_effort: None,
                 upstream_thread_id: None,
                 local_replay_truncated_before_turn_id: None,
                 compacted_before_turn_id: None,
@@ -628,6 +637,11 @@ mod tests {
             .as_array()
             .unwrap()
             .is_empty());
+        assert_eq!(saved.thread["turns"][1]["evidence"]["model"], "test-model");
+        assert_eq!(
+            saved.thread["turns"][1]["evidence"]["reasoningEffort"],
+            "standard"
+        );
         assert!(saved.capabilities.get("apiKey").is_none());
 
         repository.save(record("thread-2", 9)).unwrap();

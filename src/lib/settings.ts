@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { load, type Store } from "@tauri-apps/plugin-store";
 
-export const SETTINGS_SCHEMA_VERSION = 4;
+export const SETTINGS_SCHEMA_VERSION = 5;
 const SETTINGS_STORE_PATH = "settings.json";
 const SETTINGS_STORE_KEY = "settings";
 const BROWSER_STORAGE_KEY = "ideanote.settings.v1";
@@ -16,6 +16,7 @@ export interface AppSettings {
     provider: "openai-compatible";
     baseUrl: string;
     model: string;
+    availableModels: string[];
     systemPrompt: string;
     retry: {
       enabled: boolean;
@@ -53,6 +54,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
     provider: "openai-compatible",
     baseUrl: "https://api.openai.com/v1",
     model: "gpt-5-mini",
+    availableModels: ["gpt-5-mini"],
     systemPrompt: "You are IdeaNote's editor assistant. Use the active editor Skill and Tools, inspect required context first, and apply requested edits directly through editor Tools.",
     retry: {
       enabled: true,
@@ -110,6 +112,16 @@ export function normalizeSettings(value: unknown): AppSettings {
   const newThreadPercent = requestedNewThreadPercent > contextWarningPercent
     ? requestedNewThreadPercent
     : Math.min(100, contextWarningPercent + 1);
+  const selectedModel = typeof ai.model === "string" && ai.model.trim()
+    ? ai.model.trim()
+    : DEFAULT_SETTINGS.ai.model;
+  const availableModels = Array.isArray(ai.availableModels)
+    ? [...new Set(ai.availableModels
+      .filter((model): model is string => typeof model === "string")
+      .map((model) => model.trim())
+      .filter((model) => model.length > 0 && model.length <= 128))].slice(0, 200)
+    : [];
+  if (!availableModels.includes(selectedModel)) availableModels.unshift(selectedModel);
 
   return {
     schemaVersion: SETTINGS_SCHEMA_VERSION,
@@ -122,7 +134,8 @@ export function normalizeSettings(value: unknown): AppSettings {
       baseUrl: typeof ai.baseUrl === "string" && ai.baseUrl.trim()
         ? ai.baseUrl.trim().replace(/\/$/, "")
         : DEFAULT_SETTINGS.ai.baseUrl,
-      model: typeof ai.model === "string" && ai.model.trim() ? ai.model.trim() : DEFAULT_SETTINGS.ai.model,
+      model: selectedModel,
+      availableModels,
       systemPrompt: typeof ai.systemPrompt === "string" && ai.systemPrompt.trim()
         ? ai.systemPrompt.trim()
         : DEFAULT_SETTINGS.ai.systemPrompt,

@@ -26,12 +26,14 @@ test('AI defaults to enabled and requires configuration before runtime activatio
 
 test('settings normalization is versioned and bounds Agent policy and Provider retries', async () => {
   const { SETTINGS_SCHEMA_VERSION, normalizeSettings } = await loadSettingsModule();
-  assert.equal(SETTINGS_SCHEMA_VERSION, 4);
+  assert.equal(SETTINGS_SCHEMA_VERSION, 5);
   const normalized = normalizeSettings({
     schemaVersion: 999,
     ai: {
       enabled: false,
       baseUrl: 'https://example.test/v1/',
+      model: 'model-b',
+      availableModels: [' model-a ', 'model-b', 'model-a', '', 42],
       retry: { enabled: false, maxAttempts: 100 },
     },
     agent: {
@@ -47,6 +49,7 @@ test('settings normalization is versioned and bounds Agent policy and Provider r
   assert.equal(normalized.ai.enabled, false);
   assert.equal(normalized.ai.baseUrl, 'https://example.test/v1');
   assert.deepEqual(normalized.ai.retry, { enabled: false, maxAttempts: 5 });
+  assert.deepEqual(normalized.ai.availableModels, ['model-a', 'model-b']);
   assert.equal(normalized.agent.maxSteps, 20);
   assert.equal(normalized.agent.contextWarningPercent, 90);
   assert.equal(normalized.agent.newThreadPercent, 91);
@@ -60,6 +63,7 @@ test('settings normalization is versioned and bounds Agent policy and Provider r
     ai: { enabled: true, baseUrl: 'https://example.test/v1' },
   });
   assert.deepEqual(migrated.ai.retry, { enabled: true, maxAttempts: 3 });
+  assert.deepEqual(migrated.ai.availableModels, ['gpt-5-mini']);
   assert.deepEqual(migrated.markdown, { showLineNumbers: false });
   assert.equal(normalizeSettings({ markdown: { showLineNumbers: true } }).markdown.showLineNumbers, true);
   assert.equal(normalizeSettings({ ai: { retry: { maxAttempts: 0 } } }).ai.retry.maxAttempts, 1);

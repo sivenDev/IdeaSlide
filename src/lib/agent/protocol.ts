@@ -1,6 +1,7 @@
 import type {
   AgentChangeSet,
   AgentPolicySettings,
+  AgentReasoningEffort,
   AgentRuntimeKind,
   AgentSkillProvenance,
   AgentStreamingTelemetry,
@@ -152,7 +153,16 @@ export interface AgentTurn {
   items: AgentItem[];
   telemetry?: AgentStreamingTelemetry;
   effectivePolicy?: AgentEffectivePolicy;
+  evidence?: AgentTurnEvidence;
   skillProvenance: AgentSkillProvenance[];
+}
+
+export interface AgentTurnEvidence {
+  runtimeKind: AgentRuntimeKind;
+  runtimeLabel: string;
+  model: string;
+  reasoningEffort: AgentReasoningEffort;
+  capturedAt: number;
 }
 
 export interface AgentThread {
@@ -167,6 +177,7 @@ export interface AgentThreadRuntimeMetadata {
   kind: AgentRuntimeKind;
   label: string;
   model: string;
+  reasoningEffort?: AgentReasoningEffort;
   upstreamThreadId?: string;
   localReplayTruncatedBeforeTurnId?: string;
   /** Legacy persisted name retained for migration only. */

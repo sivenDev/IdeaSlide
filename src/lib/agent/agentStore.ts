@@ -249,7 +249,21 @@ function applyOrderedEvent(state: AgentThreadState, event: AgentEvent): AgentThr
     case "capabilitiesUpdated":
       return { ...state, capabilities: event.capabilities };
     case "runtimeUpdated":
-      return { ...state, runtime: normalizeRuntimeMetadata(event.runtime) };
+      return {
+        ...updateTurn(state, event.turnId, (turn) => turn.evidence
+          ? turn
+          : {
+            ...turn,
+            evidence: {
+              runtimeKind: event.runtime.kind,
+              runtimeLabel: event.runtime.label,
+              model: event.runtime.model,
+              reasoningEffort: event.runtime.reasoningEffort ?? "standard",
+              capturedAt: event.at,
+            },
+          }),
+        runtime: normalizeRuntimeMetadata(event.runtime),
+      };
     case "runtimeDiagnosticRecorded": {
       const turn = state.thread.turns.find((candidate) => candidate.id === event.turnId);
       const retention = Math.min(100, Math.max(5, turn?.effectivePolicy?.diagnosticRetention ?? 20));

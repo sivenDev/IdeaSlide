@@ -96,6 +96,7 @@ export interface AgentSkillProvenance {
 }
 
 export type AgentRuntimeKind = "compatibility" | "codexAppServer" | "grokAcp";
+export type AgentReasoningEffort = "standard";
 
 export interface AgentRuntimeDescriptor {
   kind: AgentRuntimeKind;
@@ -127,6 +128,8 @@ export interface AgentRunRequest {
   binding: AgentTurnBindingSnapshot;
   baseUrl: string;
   model: string;
+  availableModels: string[];
+  reasoningEffort: AgentReasoningEffort;
   systemPrompt: string;
   retry: AgentRetryPolicy;
   policy: AgentPolicySettings;

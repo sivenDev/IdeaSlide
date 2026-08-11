@@ -12,20 +12,22 @@ import { selectAgentDiagnosticView } from "../lib/agent/agentDiagnostics";
 import { createDirectApplyToolExecutor } from "../lib/agent/agentToolHost";
 import { discoverAgentSkills } from "../lib/agent/agentClient";
 import { promptFromAssistantUiMessage, toAssistantUiMessage } from "../lib/agent/assistantUiAdapter";
-import type { ActiveAgentEditorBinding, AgentSkillMetadata } from "../lib/agent/types";
+import type { ActiveAgentEditorBinding } from "../lib/agent/types";
 import { createAgentEventId } from "../lib/agent/protocol";
 import { AgentComposer } from "./agent/AgentComposer";
+import { AgentConversationSelector } from "./agent/AgentConversationSelector";
 import { AgentRuntimeInspector } from "./agent/AgentRuntimeInspector";
-import { AgentThreadHistory } from "./agent/AgentThreadHistory";
 import { AgentThreadHeader } from "./agent/AgentThreadHeader";
 import { AgentTranscript } from "./agent/AgentTranscript";
 
 export function AgentPanel({
   binding,
   onOpenSettings,
+  onClose,
 }: {
   binding?: ActiveAgentEditorBinding;
   onOpenSettings: () => void;
+  onClose: () => void;
 }) {
   const { settings, activationState } = useSettings();
   const runtime = useMemo(() => createNativeAgentRuntime(), []);
@@ -37,10 +39,12 @@ export function AgentPanel({
     compatibilityReplayMessageLimit: settings.agent.compatibilityReplayMessageLimit,
     showDeliveryTelemetry: settings.agent.showDeliveryTelemetry,
   }), [settings.agent]);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
-  const [skills, setSkills] = useState<AgentSkillMetadata[]>([]);
-  const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
+  const modelOptions = useMemo(() => Array.from(new Set([
+    settings.ai.model,
+    ...settings.ai.availableModels,
+  ].map((model) => model.trim()).filter(Boolean))), [settings.ai.availableModels, settings.ai.model]);
+  const [selectedModel, setSelectedModel] = useState(settings.ai.model);
   const currentTurnIdRef = useRef<string | undefined>(undefined);
   const cancelledTurnIdsRef = useRef(new Set<string>());
   const bindingRef = useRef(binding);
@@ -62,14 +66,11 @@ export function AgentPanel({
     retryTurnId,
     history,
     historyLoading,
-    showArchivedHistory,
     persistenceError,
     createThread,
     resumeThread,
     renameThread,
-    archiveThread,
     deleteThread,
-    setArchivedHistoryVisible,
     loadMoreHistory,
   } = useAgentThread({
     title,
@@ -95,12 +96,15 @@ export function AgentPanel({
   currentTurnIdRef.current = state.activeTurnId;
 
   useEffect(() => {
+    if (!modelOptions.includes(selectedModel)) setSelectedModel(settings.ai.model);
+  }, [modelOptions, selectedModel, settings.ai.model]);
+
+  useEffect(() => {
     if (activationState !== "ready" || !bindingSkillId) return;
     let active = true;
     discoverAgentSkills()
       .then((skills) => {
         if (!active) return;
-        setSkills(skills);
         if (skills.some((skill) => skill.id === bindingSkillId)) {
           removeNotice("skill-discovery-error");
         } else {
@@ -135,20 +139,6 @@ export function AgentPanel({
       });
     return () => { active = false; };
   }, [activationState, bindingSkillId, removeNotice, setNotice]);
-
-  useEffect(() => {
-    if (activationState !== "ready") {
-      setSelectedSkillIds([]);
-      return;
-    }
-    setSelectedSkillIds((current) => current.filter((id) => skills.some((skill) => (
-      skill.id === id
-      && skill.origin === "custom"
-      && skill.enabled
-      && skill.valid
-      && (!bindingSkillId || skill.editorScopes.length === 0 || skill.editorScopes.includes(bindingSkillId))
-    ))));
-  }, [activationState, bindingSkillId, skills]);
 
   useEffect(() => {
     if (activationState === "ready") return;
@@ -203,11 +193,13 @@ export function AgentPanel({
           sourceModified: capturedDocument.sourceModified,
         },
         baseUrl: settings.ai.baseUrl,
-        model: settings.ai.model,
+        model: selectedModel,
+        availableModels: modelOptions,
+        reasoningEffort: "standard",
         systemPrompt: settings.ai.systemPrompt,
         retry: settings.ai.retry,
         policy: agentPolicy,
-        selectedSkillIds: [...selectedSkillIds],
+        selectedSkillIds: [],
         context: capturedBinding.buildContext(),
         tools: capturedBinding.tools,
         messages: runtimeMessages,
@@ -286,19 +278,23 @@ export function AgentPanel({
     });
   };
 
-  const handleHistoryAction = (action: () => Promise<void>) => {
-    void action().catch((cause) => setNotice({
-      id: "thread-history-error",
-      kind: "error",
-      status: "failed",
-      createdAt: Date.now(),
-      error: {
-        code: "runtimeUnavailable",
-        message: cause instanceof Error ? cause.message : String(cause),
-        recovery: "Retry the Thread history action.",
-        retryable: true,
-      },
-    }));
+  const runThreadAction = async (action: () => Promise<void>) => {
+    try {
+      await action();
+    } catch (cause) {
+      setNotice({
+        id: "thread-history-error",
+        kind: "error",
+        status: "failed",
+        createdAt: Date.now(),
+        error: {
+          code: "runtimeUnavailable",
+          message: cause instanceof Error ? cause.message : String(cause),
+          recovery: "Retry the conversation action.",
+          retryable: true,
+        },
+      });
+    }
   };
 
   const resolveApproval = async (itemId: string, approved: boolean) => {
@@ -341,56 +337,38 @@ export function AgentPanel({
     <AssistantRuntimeProvider runtime={assistantRuntime}>
       <ThreadPrimitive.Root className="ideanote-agent-panel">
         <AgentThreadHeader
-          title={state.thread.title}
-          runtimeLabel={state.runtime.label}
-          runtimeDiagnostic={state.runtime.diagnostic}
-          modelLabel={state.runtime.model || settings.ai.model}
-          capabilities={state.capabilities}
+          conversationSelector={(
+            <AgentConversationSelector
+              page={history}
+              currentThreadId={state.thread.id}
+              currentTitle={state.thread.title}
+              currentTurnCount={state.thread.turns.length}
+              loading={historyLoading}
+              running={running}
+              statusLabel={diagnosticView.label}
+              onResume={resumeThread}
+              onRename={renameThread}
+              onDelete={deleteThread}
+              onLoadMore={loadMoreHistory}
+            />
+          )}
           running={running}
-          historyOpen={historyOpen}
-          inspectorOpen={inspectorOpen}
-          statusLabel={diagnosticView.label}
-          onNewThread={() => handleHistoryAction(createThread)}
-          onToggleHistory={() => {
-            setInspectorOpen(false);
-            setHistoryOpen((open) => !open);
-          }}
-          onToggleInspector={() => {
-            setHistoryOpen(false);
-            setInspectorOpen((open) => !open);
-          }}
+          onNewThread={() => { void runThreadAction(createThread); }}
+          onOpenInspector={() => setInspectorOpen(true)}
           onOpenSettings={onOpenSettings}
+          onClose={onClose}
         />
-        {historyOpen && (
-          <AgentThreadHistory
-            page={history}
-            currentThreadId={state.thread.id}
-            loading={historyLoading}
-            disabled={running}
-            onResume={(threadId) => handleHistoryAction(async () => {
-              await resumeThread(threadId);
-              setHistoryOpen(false);
-            })}
-            onRename={(threadId, nextTitle) => handleHistoryAction(() => renameThread(threadId, nextTitle))}
-            onArchive={(threadId) => handleHistoryAction(() => archiveThread(threadId))}
-            onDelete={deleteThread}
-            showArchived={showArchivedHistory}
-            onToggleArchived={(visible) => handleHistoryAction(() => setArchivedHistoryVisible(visible))}
-            onLoadMore={() => handleHistoryAction(loadMoreHistory)}
-            onClose={() => setHistoryOpen(false)}
-          />
-        )}
-        {inspectorOpen && (
-          <AgentRuntimeInspector
-            state={state}
-            policy={agentPolicy}
-            running={running}
-            onNewThread={() => handleHistoryAction(async () => {
-              await createThread();
-              setInspectorOpen(false);
-            })}
-          />
-        )}
+        <AgentRuntimeInspector
+          open={inspectorOpen}
+          onOpenChange={setInspectorOpen}
+          state={state}
+          policy={agentPolicy}
+          running={running}
+          onNewThread={() => { void runThreadAction(async () => {
+            await createThread();
+            setInspectorOpen(false);
+          }); }}
+        />
         {persistenceError && (
           <div className="ideanote-agent-persistence-warning" role="status">{persistenceError}</div>
         )}
@@ -411,11 +389,10 @@ export function AgentPanel({
           running={running}
           steeringAvailable={state.capabilities.steering}
           retryAvailable={Boolean(retryPrompt)}
-          targetLabel={binding?.document.displayName ?? "No active editor"}
-          skills={skills}
-          editorSkillId={bindingSkillId}
-          selectedSkillIds={selectedSkillIds}
-          onSelectedSkillIdsChange={setSelectedSkillIds}
+          models={modelOptions}
+          selectedModel={selectedModel}
+          reasoningEffort="standard"
+          onModelChange={setSelectedModel}
           onRetry={() => { if (retryPrompt) void submit(retryPrompt, retryTurnId); }}
         />
       </ThreadPrimitive.Root>

@@ -2,7 +2,7 @@
 id: "F046-03"
 title: "Migrate the Reviewed Agent Panel onto the Real Agent Core"
 type: "feature"
-status: "approved"
+status: "complete"
 summary: "Adopt the reviewed conversation, composer, model, inspector, and response layout while preserving the production Rust Agent Core, Tools, Skills, Threads, and Turn chronology."
 source: "docs/superplan/human/features.md"
 created: "2026-08-11"
@@ -49,9 +49,9 @@ parent: "F046"
 - `cd src-tauri && cargo test agent::repository`
 - Cases: empty/one/many conversations; rename; delete cancel/confirm/failure/running; menu blur/Escape; selector keyboard navigation; Inspector open/Escape/outside/focus return; archived legacy records remain non-destructively compatible.
 
-- [ ] Add contracts for the concise crown, selector, compact menus, and dialog focus lifecycle.
-- [ ] Route reviewed navigation through existing persistent Thread commands rather than UI-only state.
-- [ ] Verify data compatibility and running/error constraints before removing old primary controls.
+- [x] Add contracts for the concise crown, selector, compact menus, and dialog focus lifecycle.
+- [x] Route reviewed navigation through existing persistent Thread commands rather than UI-only state.
+- [x] Verify data compatibility and running/error constraints before removing old primary controls.
 
 ## Task 2: Add Capability-backed Model/Reasoning Selection and Turn Evidence
 
@@ -83,9 +83,9 @@ parent: "F046"
 - `cd src-tauri && cargo test agent::provider && cargo test agent::repository`
 - Cases: Codex and compatibility runtimes; supported/unsupported reasoning; provider/model change after old Turns; fallback; retry; resumed Thread; persistence/restart; missing exact evidence shown as unavailable rather than guessed.
 
-- [ ] Add frontend/Rust regressions for capability-backed selection and immutable evidence.
-- [ ] Persist effective Turn evidence at the execution boundary and expose it through normalized types.
-- [ ] Recompose the pinned composer without weakening runtime validation or cancellation.
+- [x] Add frontend/Rust regressions for capability-backed selection and immutable evidence.
+- [x] Persist effective Turn evidence at the execution boundary and expose it through normalized types.
+- [x] Recompose the pinned composer without weakening runtime validation or cancellation.
 
 ## Task 3: Preserve Full Agent and Editor Tool Behavior in the Reviewed Transcript
 
@@ -115,9 +115,20 @@ parent: "F046"
 - `node --test tests/agentPanel.test.mjs tests/agentItems.test.mjs tests/agentInteraction.test.mjs tests/agentToolActivity.test.mjs tests/agentDirectEditorContract.test.mjs tests/markdownAgentDirectEditorContract.test.mjs`
 - Native cases: new/resume Thread; stream; cancel; retry; fallback; long transcript; Tool success/failure/cancel; custom Skill enabled/disabled; bundled Skill always active; Markdown and IdeaSketch direct edits, native Undo, autosave; AI disabled and provider-required states.
 
-- [ ] Protect event chronology and editor Tool boundaries with focused regressions.
-- [ ] Apply the reviewed transcript/composer geometry without hiding lifecycle evidence.
-- [ ] Verify complete Agent behavior against real Rust events and disposable documents.
+- [x] Protect event chronology and editor Tool boundaries with focused regressions.
+- [x] Apply the reviewed transcript/composer geometry without hiding lifecycle evidence.
+- [x] Verify complete Agent behavior against real Rust events and disposable documents.
+
+## Delivery Evidence
+
+- Frontend regression suite: `node --test tests/*.test.mjs` passed `362/362`.
+- Rust regression suite: `cd src-tauri && cargo test` passed `152/152`.
+- Final focused Agent regression set passed `17/17` after the last implementation edits.
+- Production build: `npm run build` passed.
+- Native smoke check: `npm run tauri dev` completed native compilation and launched `target/debug/idea-slide`.
+- Dependency check: `npm ls @radix-ui/react-popover --depth=0` resolved `@radix-ui/react-popover@1.1.6`.
+- Source hygiene: `git diff --check` passed.
+- Automated screenshot QA was unavailable because the browser/computer-control transport closed; completion does not claim screenshot-based visual verification.
 
 ## References
 

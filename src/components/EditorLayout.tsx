@@ -1272,8 +1272,8 @@ export function EditorLayout({
             />
             <div className="h-full flex-shrink-0 overflow-hidden transition-[width] duration-200" style={{ width: agentPanelWidth }}>
               <div className="h-full" style={{ width: agentPanelWidth }}>
-                <RightSidebarHost onClose={() => setShowAgent(false)}>
-                  <AgentPanel binding={agentBinding} onOpenSettings={onOpenSettings} />
+                <RightSidebarHost>
+                  <AgentPanel binding={agentBinding} onOpenSettings={onOpenSettings} onClose={() => setShowAgent(false)} />
                 </RightSidebarHost>
               </div>
             </div>

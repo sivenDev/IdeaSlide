@@ -13,6 +13,10 @@ pub(crate) struct AgentRunRequest {
     pub binding: serde_json::Value,
     pub base_url: String,
     pub model: String,
+    #[serde(default)]
+    pub available_models: Vec<String>,
+    #[serde(default = "default_reasoning_effort")]
+    pub reasoning_effort: String,
     pub system_prompt: String,
     #[serde(default)]
     pub retry: AgentRetryPolicy,
@@ -24,6 +28,10 @@ pub(crate) struct AgentRunRequest {
     pub context: serde_json::Value,
     pub tools: Vec<AgentToolDescriptor>,
     pub messages: Vec<AgentMessageInput>,
+}
+
+fn default_reasoning_effort() -> String {
+    "standard".to_string()
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]

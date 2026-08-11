@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-test('Agent panel uses the normalized runtime/store, captured direct editor binding, cancel, and no-write boundaries', async () => {
+test('Agent panel uses the real runtime with reviewed navigation, model evidence, cancel, and no-write boundaries', async () => {
   const source = await readFile(new URL('../src/components/AgentPanel.tsx', import.meta.url), 'utf8');
   assert.match(source, /activationState === "configuration-required"/);
   assert.match(source, /discoverAgentSkills\(\)/);
@@ -19,13 +19,18 @@ test('Agent panel uses the normalized runtime/store, captured direct editor bind
   assert.match(source, /runtime\.cancelTurn\(turnId\)/);
   assert.doesNotMatch(source, /activeRunId/);
   assert.doesNotMatch(source, /AgentChangeReview/);
-  assert.match(source, /AgentThreadHistory/);
+  assert.match(source, /AgentConversationSelector/);
+  assert.match(source, /availableModels: modelOptions/);
+  assert.match(source, /reasoningEffort: "standard"/);
+  assert.match(source, /selectedSkillIds: \[\]/);
+  assert.doesNotMatch(source, /AgentThreadHistory|AgentSkillPicker|archiveThread|showArchivedHistory/);
   assert.match(source, /useExternalStoreRuntime/);
   assert.match(source, /AssistantRuntimeProvider/);
   assert.match(source, /<AgentTranscript/);
   assert.match(source, /useAgentPresentation\(state\)/);
   assert.match(source, /presentation=\{presentation\}/);
   assert.match(source, /<AgentThreadHeader/);
+  assert.match(source, /onClose=\{onClose\}/);
   assert.doesNotMatch(source, /ideanote-change/);
   assert.doesNotMatch(source, /IdeaSketchAgentOperation/);
   assert.match(source, /getActiveBinding/);

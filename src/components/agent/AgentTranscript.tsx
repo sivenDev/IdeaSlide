@@ -1,10 +1,15 @@
 import { ArrowDown } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
-import type { AgentItem as AgentItemModel, AgentThreadState } from "../../lib/agent/protocol";
+import type { AgentItem as AgentItemModel, AgentThreadState, AgentTurnEvidence } from "../../lib/agent/protocol";
 import type { AgentPresentationSnapshot } from "../../lib/agent/agentTextPresentation";
 import { AgentItem } from "./AgentItem";
 
 const MAX_VISIBLE_ITEMS = 300;
+
+interface TranscriptEntry {
+  item: AgentItemModel;
+  evidence?: AgentTurnEvidence;
+}
 
 export function AgentTranscript({
   state,
@@ -21,11 +26,23 @@ export function AgentTranscript({
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [anchored, setAnchored] = useState(true);
-  const allItems = [...state.notices, ...state.thread.turns.flatMap((turn) => turn.items)]
-    .filter((item) => item.kind !== "changeReview");
-  const hiddenCount = Math.max(0, allItems.length - MAX_VISIBLE_ITEMS);
-  const items = hiddenCount ? allItems.slice(-MAX_VISIBLE_ITEMS) : allItems;
-  const contentSignal = items.map((item) => {
+  const turnEntries = state.thread.turns.flatMap((turn): TranscriptEntry[] => {
+    let lastAssistantIndex = -1;
+    turn.items.forEach((item, index) => {
+      if (item.kind === "message" && item.role === "assistant") lastAssistantIndex = index;
+    });
+    return turn.items.map((item, index) => ({
+      item,
+      evidence: index === lastAssistantIndex ? turn.evidence : undefined,
+    }));
+  });
+  const allEntries: TranscriptEntry[] = [
+    ...state.notices.map((item) => ({ item })),
+    ...turnEntries,
+  ].filter(({ item }) => item.kind !== "changeReview");
+  const hiddenCount = Math.max(0, allEntries.length - MAX_VISIBLE_ITEMS);
+  const entries = hiddenCount ? allEntries.slice(-MAX_VISIBLE_ITEMS) : allEntries;
+  const contentSignal = entries.map(({ item }) => {
     const presentedContent = item.kind === "message" && item.role === "assistant"
       ? presentation.items[item.id]?.displayedContent ?? item.content
       : item.kind === "message" || item.kind === "activity"
@@ -59,7 +76,7 @@ export function AgentTranscript({
           <div className="ideanote-agent-transcript-limit">{hiddenCount} earlier items are hidden in this view.</div>
         )}
         <div className="ideanote-agent-activity-rail" aria-label="Agent transcript">
-          {items.map((item: AgentItemModel) => (
+          {entries.map(({ item, evidence }) => (
             <AgentItem
               key={item.id}
               item={item}
@@ -69,6 +86,7 @@ export function AgentTranscript({
               presentationStatus={item.kind === "message" && item.role === "assistant"
                 ? presentation.items[item.id]?.presentationStatus
                 : undefined}
+              evidence={evidence}
               showToolActivity={showToolActivity}
               onRetry={onRetry}
               onApprovalDecision={onApprovalDecision}

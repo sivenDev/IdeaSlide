@@ -3874,3 +3874,223 @@ html[data-theme="dark"] .ideanote-markdown-history { border-color: #464b52; back
     .ideanote-provider-control { width: min(100%, 280px); }
     .ideanote-provider-token-row { align-items: stretch; flex-direction: column; }
 }
+
+/* Reviewed Agent panel */
+.ideanote-right-sidebar { background: #f7f7f5; }
+.ideanote-agent-panel { background: #f7f7f5; }
+.ideanote-agent-thread-header {
+    min-height: 50px;
+    flex-basis: 50px;
+    gap: 6px;
+    border-color: #dedfda;
+    background: #f7f7f5;
+    padding: 0 8px 0 10px;
+}
+.ideanote-agent-thread-header__actions { margin-left: auto; gap: 0; }
+.ideanote-agent-thread-header__actions > button {
+    width: 27px;
+    height: 27px;
+    flex-basis: 27px;
+    border-radius: 6px;
+    color: #777c76;
+}
+.ideanote-agent-thread-header__actions > button:hover:not(:disabled) { color: #2f3430; background: #e9eae6; }
+
+.ideanote-agent-conversation-trigger {
+    display: flex;
+    min-width: 0;
+    max-width: min(210px, calc(100% - 108px));
+    flex: 1;
+    align-items: center;
+    gap: 7px;
+    border-radius: 7px;
+    color: #565c56;
+    padding: 5px 6px;
+    text-align: left;
+}
+.ideanote-agent-conversation-trigger:hover,
+.ideanote-agent-conversation-trigger[data-state="open"] { background: #e9eae6; }
+.ideanote-agent-conversation-trigger > svg:first-child { flex: 0 0 auto; color: #2f5dcc; }
+.ideanote-agent-conversation-trigger > svg:last-child { flex: 0 0 auto; color: #8a8f89; }
+.ideanote-agent-conversation-trigger > span { display: grid; min-width: 0; flex: 1; gap: 1px; }
+.ideanote-agent-conversation-trigger strong,
+.ideanote-agent-conversation-trigger small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ideanote-agent-conversation-trigger strong { color: #2e332f; font-size: 11px; font-weight: 650; }
+.ideanote-agent-conversation-trigger small { color: #8b908a; font-size: 8px; font-weight: 520; }
+
+.ideanote-agent-conversation-popover {
+    z-index: 3500;
+    width: min(306px, calc(100vw - 20px));
+    overflow: hidden;
+    border: 1px solid #d7d9d4;
+    border-radius: 9px;
+    background: rgb(255 255 255 / 98%);
+    box-shadow: 0 14px 38px rgb(37 41 48 / 17%);
+    outline: none;
+    padding: 5px;
+}
+.ideanote-agent-conversation-arrow { fill: #fff; }
+.ideanote-agent-conversation-list { display: grid; max-height: min(390px, 58vh); gap: 2px; overflow-y: auto; }
+.ideanote-agent-conversation-row { display: flex; min-width: 0; align-items: center; border-radius: 7px; padding: 2px; }
+.ideanote-agent-conversation-row:hover { background: #f2f3f0; }
+.ideanote-agent-conversation-row.is-active { background: #edf2ff; }
+.ideanote-agent-conversation-main { display: grid; min-width: 0; flex: 1; gap: 2px; border-radius: 5px; padding: 7px; text-align: left; }
+.ideanote-agent-conversation-main strong,
+.ideanote-agent-conversation-main small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ideanote-agent-conversation-main strong { color: #343934; font-size: 10px; font-weight: 650; }
+.ideanote-agent-conversation-main small { color: #8c918b; font-size: 8px; }
+.ideanote-agent-conversation-main:disabled { cursor: default; }
+.ideanote-agent-conversation-actions { display: grid; width: 24px; height: 24px; flex: 0 0 24px; place-items: center; border-radius: 5px; color: #858a84; }
+.ideanote-agent-conversation-actions:hover,
+.ideanote-agent-conversation-actions[data-state="open"] { color: #363b37; background: #e4e6e1; }
+.ideanote-agent-conversation-menu { min-width: 116px !important; width: 116px; border-color: #d7d9d4 !important; border-radius: 8px !important; background: #fff !important; padding: 3px !important; }
+.ideanote-agent-conversation-menu [role="menuitem"] { min-height: 27px; gap: 7px; border-radius: 5px; color: #4e544f; font-size: 10px; padding: 5px 7px; }
+.ideanote-agent-conversation-menu [role="menuitem"].is-danger { color: #b14b45; }
+.ideanote-agent-conversation-empty,
+.ideanote-agent-conversation-error { color: #8b908a; font-size: 10px; padding: 16px 10px; text-align: center; }
+.ideanote-agent-conversation-error { color: #a84742; }
+.ideanote-agent-conversation-more { display: flex; width: 100%; align-items: center; justify-content: center; gap: 5px; margin-top: 4px; border-top: 1px solid #eceeea; color: #6d726d; font-size: 9px; padding: 7px; }
+
+.ideanote-agent-dialog-overlay {
+    position: fixed;
+    z-index: 3600;
+    inset: 0;
+    background: rgb(29 33 30 / 26%);
+    backdrop-filter: blur(1px);
+}
+.ideanote-agent-dialog,
+.ideanote-agent-inspector-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    z-index: 3601;
+    width: min(390px, calc(100vw - 28px));
+    border: 1px solid #d7d9d4;
+    border-radius: 11px;
+    color: #343934;
+    background: #fff;
+    box-shadow: 0 24px 70px rgb(29 33 30 / 24%);
+    outline: none;
+    transform: translate(-50%, -50%);
+}
+.ideanote-agent-dialog { padding: 15px; }
+.ideanote-agent-dialog header,
+.ideanote-agent-inspector-dialog__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.ideanote-agent-dialog h2,
+.ideanote-agent-inspector-dialog h2 { color: #252a26; font-size: 13px; font-weight: 680; }
+.ideanote-agent-dialog > p { margin-top: 7px; color: #717771; font-size: 11px; line-height: 1.5; }
+.ideanote-agent-dialog > input { width: 100%; margin-top: 13px; border: 1px solid #cfd2cc; border-radius: 7px; color: #292e2a; background: #fbfbfa; font-size: 11px; outline: none; padding: 8px 9px; }
+.ideanote-agent-dialog > input:focus { border-color: #6684cc; box-shadow: 0 0 0 3px rgb(47 93 204 / 11%); }
+.ideanote-agent-dialog footer { display: flex; justify-content: flex-end; gap: 7px; margin-top: 15px; }
+.ideanote-agent-dialog footer button { min-width: 66px; border-radius: 7px; color: #555b56; background: #eef0ec; font-size: 10px; font-weight: 630; padding: 7px 10px; }
+.ideanote-agent-dialog footer button.is-primary { color: #fff; background: #2f5dcc; }
+.ideanote-agent-dialog footer button.is-danger { color: #fff; background: #bb4b45; }
+
+.ideanote-agent-inspector-dialog { width: min(680px, calc(100vw - 28px)); max-height: min(720px, calc(100vh - 28px)); overflow: hidden; }
+.ideanote-agent-inspector-dialog__header { border-bottom: 1px solid #e3e5e0; padding: 14px 15px 12px; }
+.ideanote-agent-inspector-dialog__header > div { display: grid; gap: 3px; }
+.ideanote-agent-inspector-dialog__header [data-radix-dialog-description] { color: #828781; font-size: 10px; }
+.ideanote-agent-inspector-dialog__header > button { display: grid; width: 26px; height: 26px; place-items: center; border-radius: 6px; color: #7b807a; }
+.ideanote-agent-inspector-dialog__header > button:hover { color: #2d322e; background: #eef0ec; }
+.ideanote-agent-inspector {
+    position: static;
+    max-height: calc(min(720px, 100vh - 28px) - 56px);
+    overflow-y: auto;
+    border: 0;
+    color: #555b56;
+    background: #fff;
+    box-shadow: none;
+    font-size: 10px;
+}
+.ideanote-agent-inspector__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ideanote-agent-inspector__grid > section { min-width: 0; border-top: 1px solid #eceeea; padding: 13px 15px; }
+.ideanote-agent-inspector__grid > section:nth-child(odd) { border-right: 1px solid #eceeea; }
+.ideanote-agent-inspector__grid > section:nth-child(-n + 2) { border-top: 0; }
+.ideanote-agent-inspector__grid > .ideanote-agent-inspector__diagnostic-section { grid-column: 1 / -1; border-right: 0; }
+.ideanote-agent-inspector__status { padding: 11px 15px; }
+
+.ideanote-agent-composer {
+    margin: 8px;
+    border: 1px solid #d6d9d3;
+    border-radius: 11px;
+    background: #fff;
+    box-shadow: 0 2px 7px rgb(37 41 48 / 5%);
+    padding: 8px;
+}
+.ideanote-agent-composer textarea { min-height: 54px; max-height: 180px; font-size: 11px; padding: 1px 2px 7px; }
+.ideanote-agent-composer__footer { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; }
+.ideanote-agent-composer__actions { display: flex; flex: 0 0 auto; align-items: center; gap: 4px; }
+.ideanote-agent-model-trigger { display: flex; min-width: 0; max-width: calc(100% - 70px); align-items: center; gap: 4px; border-radius: 6px; color: #686e68; font-size: 9px; font-weight: 610; padding: 5px 6px; }
+.ideanote-agent-model-trigger:hover,
+.ideanote-agent-model-trigger[data-state="open"] { color: #303531; background: #eef0ec; }
+.ideanote-agent-model-trigger span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ideanote-agent-model-trigger span:nth-child(2) { color: #a0a49f; }
+.ideanote-agent-model-trigger span:nth-child(3) { color: #8a8f89; text-transform: capitalize; }
+.ideanote-agent-model-menu { min-width: 190px !important; max-height: min(330px, 48vh); overflow-y: auto; border-color: #d7d9d4 !important; background: #fff !important; }
+.ideanote-agent-model-menu__label { color: #969b95; font-size: 8px; font-weight: 720; letter-spacing: .08em; padding: 5px 8px 4px; text-transform: uppercase; }
+.ideanote-agent-model-menu__item { min-height: 28px; color: #4f554f !important; font-size: 10px !important; padding-top: 5px !important; padding-bottom: 5px !important; }
+.ideanote-agent-model-menu__fixed { color: #777c76; font-size: 9px; padding: 7px 8px; }
+.ideanote-agent-send,
+.ideanote-agent-retry { display: grid; width: 27px; height: 27px; place-items: center; border-radius: 7px; }
+.ideanote-agent-retry { color: #737973; background: #eef0ec; }
+.ideanote-agent-send { color: #fff; background: #2f5dcc; }
+.ideanote-agent-send:disabled { opacity: .38; }
+
+.ideanote-agent-response-evidence {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 5px;
+    margin-top: 8px;
+    border-top: 1px solid #e4e6e1;
+    color: #8b908a;
+    font: 8px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+    padding-top: 6px;
+}
+.ideanote-agent-response-evidence > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ideanote-agent-response-evidence > span:nth-child(3) { min-width: 0; }
+.ideanote-agent-response-evidence > button { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; margin-left: auto; border-radius: 5px; color: #747a74; font-family: inherit; padding: 3px 4px; }
+.ideanote-agent-response-evidence > button:hover { color: #303531; background: #eceeea; }
+
+html[data-theme="dark"] .ideanote-right-sidebar,
+html[data-theme="dark"] .ideanote-agent-panel,
+html[data-theme="dark"] .ideanote-agent-thread-header { border-color: #3c4146; background: #272a2f; }
+html[data-theme="dark"] .ideanote-agent-conversation-trigger strong { color: #e4e7ea; }
+html[data-theme="dark"] .ideanote-agent-conversation-trigger:hover,
+html[data-theme="dark"] .ideanote-agent-conversation-trigger[data-state="open"],
+html[data-theme="dark"] .ideanote-agent-thread-header__actions > button:hover:not(:disabled) { background: #35393f; }
+html[data-theme="dark"] .ideanote-agent-conversation-popover,
+html[data-theme="dark"] .ideanote-agent-conversation-menu,
+html[data-theme="dark"] .ideanote-agent-model-menu,
+html[data-theme="dark"] .ideanote-agent-dialog,
+html[data-theme="dark"] .ideanote-agent-inspector-dialog,
+html[data-theme="dark"] .ideanote-agent-inspector,
+html[data-theme="dark"] .ideanote-agent-composer { border-color: #454a50 !important; background: #2b2e34 !important; color: #e1e4e7; }
+html[data-theme="dark"] .ideanote-agent-conversation-row:hover,
+html[data-theme="dark"] .ideanote-agent-conversation-actions:hover,
+html[data-theme="dark"] .ideanote-agent-conversation-actions[data-state="open"],
+html[data-theme="dark"] .ideanote-agent-model-trigger:hover,
+html[data-theme="dark"] .ideanote-agent-model-trigger[data-state="open"] { background: #383d43; }
+html[data-theme="dark"] .ideanote-agent-conversation-row.is-active { background: #354469; }
+html[data-theme="dark"] .ideanote-agent-conversation-main strong,
+html[data-theme="dark"] .ideanote-agent-dialog h2,
+html[data-theme="dark"] .ideanote-agent-inspector-dialog h2 { color: #edf0f2; }
+html[data-theme="dark"] .ideanote-agent-dialog > input { border-color: #50555d; color: #ebedef; background: #25282d; }
+html[data-theme="dark"] .ideanote-agent-inspector-dialog__header,
+html[data-theme="dark"] .ideanote-agent-inspector__grid > section,
+html[data-theme="dark"] .ideanote-agent-response-evidence { border-color: #40454b; }
+html[data-theme="dark"] .ideanote-agent-message,
+html[data-theme="dark"] .ideanote-agent-markdown { color: #d5d9dc; }
+html[data-theme="dark"] .ideanote-agent-message__marker { color: #91acff; background: #272a2f; }
+html[data-theme="dark"] .ideanote-agent-message.is-user { color: #e1e8ff; background: #354469; }
+html[data-theme="dark"] .ideanote-agent-send { background: #5f83dc; }
+
+@media (max-width: 560px) {
+    .ideanote-agent-inspector__grid { grid-template-columns: 1fr; }
+    .ideanote-agent-inspector__grid > section:nth-child(odd) { border-right: 0; }
+    .ideanote-agent-inspector__grid > section:nth-child(2) { border-top: 1px solid #eceeea; }
+}

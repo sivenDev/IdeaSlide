@@ -1,6 +1,6 @@
-import { CheckCircle2, CircleEllipsis, ShieldCheck, Sparkles } from "lucide-react";
+import { Check, CheckCircle2, CircleEllipsis, Copy, ShieldCheck, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { AgentItem as AgentItemModel } from "../../lib/agent/protocol";
+import type { AgentItem as AgentItemModel, AgentTurnEvidence } from "../../lib/agent/protocol";
 import type { AgentTextDeliveryState } from "../../lib/agent/agentTextPresentation";
 import { AgentErrorCard } from "./AgentErrorCard";
 import { AgentMarkdown } from "./AgentMarkdown";
@@ -36,6 +36,7 @@ export function AgentItem({
   item,
   displayedContent,
   presentationStatus,
+  evidence,
   showToolActivity,
   onRetry,
   onApprovalDecision,
@@ -43,10 +44,19 @@ export function AgentItem({
   item: AgentItemModel;
   displayedContent?: string;
   presentationStatus?: AgentTextDeliveryState["presentationStatus"];
+  evidence?: AgentTurnEvidence;
   showToolActivity: boolean;
   onRetry?: () => void;
   onApprovalDecision?: (itemId: string, approved: boolean) => void;
 }) {
+  const [copied, setCopied] = useState(false);
+  const copyResponse = async (content: string) => {
+    if (!navigator.clipboard) return;
+    await navigator.clipboard.writeText(content);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1_400);
+  };
+
   switch (item.kind) {
     case "message":
       const content = item.role === "assistant" && displayedContent !== undefined
@@ -66,6 +76,19 @@ export function AgentItem({
           <span className="ideanote-agent-message__marker"><Sparkles aria-hidden size={12} /></span>
           <div className="min-w-0 flex-1">
             <AgentMarkdown content={content} settled={presentationStatus !== "revealing"} />
+            {evidence && presentationStatus !== "revealing" && (
+              <footer className="ideanote-agent-response-evidence" aria-label="Response evidence">
+                <span>{evidence.runtimeLabel}</span>
+                <span aria-hidden>/</span>
+                <span>{evidence.model || "Unavailable"}</span>
+                <span aria-hidden>/</span>
+                <span>{evidence.reasoningEffort}</span>
+                <button type="button" onClick={() => void copyResponse(content)} aria-label="Copy response">
+                  {copied ? <Check aria-hidden size={11} /> : <Copy aria-hidden size={11} />}
+                  <span>{copied ? "Copied" : "Copy"}</span>
+                </button>
+              </footer>
+            )}
           </div>
         </article>
       );

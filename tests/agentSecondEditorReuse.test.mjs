@@ -113,7 +113,7 @@ test('managed Skill runtime and UI remain free of editor-format branches', async
     '../src/lib/agent/agentRuntime.ts',
     '../src/lib/agent/agentStore.ts',
     '../src/components/AgentPanel.tsx',
-    '../src/components/agent/AgentSkillPicker.tsx',
+    '../src/components/agent/AgentComposer.tsx',
     '../src/components/settings/AgentSkillManager.tsx',
   ].map((path) => readFile(new URL(path, import.meta.url), 'utf8')));
   for (const source of sources) {

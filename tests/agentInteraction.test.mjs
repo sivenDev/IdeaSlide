@@ -2,10 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-test('composer exposes Stop and retry while gating unsupported steering', async () => {
+test('bottom composer exposes model evidence, Stop, retry, and unsupported-steering gating', async () => {
   const source = await readFile(new URL('../src/components/agent/AgentComposer.tsx', import.meta.url), 'utf8');
   assert.match(source, /disabled=\{disabled \|\| \(running && !steeringAvailable\)\}/);
-  assert.match(source, /running && steeringAvailable \? "Steer current Turn"/);
+  assert.match(source, /Add direction to the current Turn/);
+  assert.match(source, /<AgentModelSelector/);
+  assert.match(source, /className="ideanote-agent-composer__footer"/);
   assert.match(source, /retryAvailable && !running/);
   assert.match(source, /aria-label="Stop Agent run"/);
   assert.match(source, /aria-label="Send to Agent"/);
@@ -17,7 +19,8 @@ test('transcript stays anchored, offers Jump to latest, and bounds long historie
   assert.match(source, /viewport\.scrollTop = viewport\.scrollHeight/);
   assert.match(source, /scrollHeight - viewport\.scrollTop - viewport\.clientHeight < 48/);
   assert.match(source, /Jump to latest/);
-  assert.match(source, /allItems\.slice\(-MAX_VISIBLE_ITEMS\)/);
+  assert.match(source, /allEntries\.slice\(-MAX_VISIBLE_ITEMS\)/);
+  assert.match(source, /evidence: index === lastAssistantIndex \? turn\.evidence/);
 });
 
 test('source deltas remain frame-batched while a separate presentation clock owns visible pacing', async () => {

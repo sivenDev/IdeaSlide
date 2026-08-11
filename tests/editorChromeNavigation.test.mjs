@@ -58,11 +58,11 @@ test('document crown contains status-close identity and no visible save or revis
 test('Agent restore is context-gated and open Agent closes from its own header', async () => {
   const crown = await readSource('src/components/WorkbenchCrown.tsx');
   const editor = await readSource('src/components/EditorLayout.tsx');
-  const sidebar = await readSource('src/components/RightSidebarHost.tsx');
+  const header = await readSource('src/components/agent/AgentThreadHeader.tsx');
   assert.match(crown, /document && agentAvailable && !agentOpen/);
   assert.match(crown, /aria-label="Show Agent"/);
   assert.match(editor, /activeDocument && agentAvailable && showAgent/);
-  assert.match(sidebar, /aria-label="Hide Agent"/);
+  assert.match(header, /aria-label="Hide Agent"/);
 });
 
 test('native crown reserves real macOS and Windows control footprints and releases them fullscreen', async () => {

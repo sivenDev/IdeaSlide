@@ -92,6 +92,8 @@ mod tests {
             binding: serde_json::json!({"documentId": "doc", "revision": 1}),
             base_url,
             model: "test-model".to_string(),
+            available_models: vec!["test-model".to_string()],
+            reasoning_effort: "standard".to_string(),
             system_prompt: "Follow the editor contract".to_string(),
             retry: Default::default(),
             policy: Default::default(),

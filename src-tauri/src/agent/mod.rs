@@ -781,6 +781,7 @@ async fn run_codex_driver(
                 "kind": "codexAppServer",
                 "label": "Codex",
                 "model": model,
+                "reasoningEffort": "standard",
                 "upstreamThreadId": upstream_thread_id,
                 "diagnostic": format!("Pinned Codex {} selected automatically.", adapters::PINNED_CODEX_VERSION),
                 "degraded": false,
@@ -1083,6 +1084,37 @@ impl Drop for ActiveRunGuard<'_> {
     }
 }
 
+fn validate_agent_selection(
+    model: &mut String,
+    available_models: &[String],
+    reasoning_effort: &mut String,
+) -> Result<(), String> {
+    *model = model.trim().to_string();
+    if model.is_empty() || model.len() > 128 {
+        return Err("Select a valid Agent model before starting the Turn.".to_string());
+    }
+    if available_models.len() > 200
+        || available_models.iter().any(|candidate| {
+            let candidate = candidate.trim();
+            candidate.is_empty() || candidate.len() > 128
+        })
+    {
+        return Err("The tested provider model catalog is invalid.".to_string());
+    }
+    if !available_models.is_empty()
+        && !available_models
+            .iter()
+            .any(|candidate| candidate.trim() == model)
+    {
+        return Err("The selected model is no longer in the tested provider catalog.".to_string());
+    }
+    *reasoning_effort = reasoning_effort.trim().to_ascii_lowercase();
+    if reasoning_effort != "standard" {
+        return Err("The active Agent runtime does not support that reasoning effort.".to_string());
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub(crate) async fn run_agent(
     mut request: AgentRunRequest,
@@ -1090,6 +1122,11 @@ pub(crate) async fn run_agent(
     state: tauri::State<'_, AgentSessionState>,
     app_handle: tauri::AppHandle,
 ) -> Result<AgentRunResponse, String> {
+    validate_agent_selection(
+        &mut request.model,
+        &request.available_models,
+        &mut request.reasoning_effort,
+    )?;
     let policy = request.policy.normalized();
     request.policy = policy;
     let skill_id = request.skill_id.clone();
@@ -1422,6 +1459,7 @@ pub(crate) async fn run_agent(
                 "kind": "compatibility",
                 "label": "Compatibility",
                 "model": request.model.clone(),
+                "reasoningEffort": request.reasoning_effort.clone(),
                 "diagnostic": compatibility_reason,
                 "degraded": true,
                 "health": "degraded",
@@ -1633,7 +1671,7 @@ fn now_millis() -> u64 {
 mod tests {
     use super::{
         can_fallback_after_codex_failure, emit_tool_result, emit_tool_started, finalize_turn,
-        NativeTurnEmitter,
+        validate_agent_selection, NativeTurnEmitter,
     };
     use crate::agent::types::{AgentRunEvent, AgentToolCall};
     use serde_json::{json, Value};
@@ -1644,6 +1682,32 @@ mod tests {
     fn codex_failure_falls_back_only_before_visible_or_tool_progress() {
         assert!(can_fallback_after_codex_failure(false));
         assert!(!can_fallback_after_codex_failure(true));
+    }
+
+    #[test]
+    fn model_and_reasoning_selection_are_catalog_backed() {
+        let mut model = " model-a ".to_string();
+        let models = vec!["model-a".to_string(), "model-b".to_string()];
+        let mut reasoning = " Standard ".to_string();
+        validate_agent_selection(&mut model, &models, &mut reasoning).unwrap();
+        assert_eq!(model, "model-a");
+        assert_eq!(reasoning, "standard");
+
+        let mut stale_model = "model-c".to_string();
+        let mut standard = "standard".to_string();
+        assert!(validate_agent_selection(&mut stale_model, &models, &mut standard)
+            .unwrap_err()
+            .contains("no longer"));
+
+        let mut supported_model = "model-a".to_string();
+        let mut unsupported_reasoning = "high".to_string();
+        assert!(validate_agent_selection(
+            &mut supported_model,
+            &models,
+            &mut unsupported_reasoning,
+        )
+        .unwrap_err()
+        .contains("does not support"));
     }
 
     #[test]

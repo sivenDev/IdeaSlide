@@ -2,6 +2,7 @@ import { cancelAgent, runAgent, submitAgentToolResult } from "./agentClient";
 import type {
   AgentMessage,
   AgentPolicySettings,
+  AgentReasoningEffort,
   AgentRetryPolicy,
   AgentRunRequest,
   AgentToolCall,
@@ -27,6 +28,8 @@ export interface StartAgentTurnInput {
   binding: AgentTurnBindingSnapshot;
   baseUrl: string;
   model: string;
+  availableModels: string[];
+  reasoningEffort: AgentReasoningEffort;
   systemPrompt: string;
   retry: AgentRetryPolicy;
   policy: AgentPolicySettings;
@@ -101,6 +104,8 @@ export function createNativeAgentRuntime(): AgentRuntime {
         binding: input.binding,
         baseUrl: input.baseUrl,
         model: input.model,
+        availableModels: input.availableModels,
+        reasoningEffort: input.reasoningEffort,
         systemPrompt: input.systemPrompt,
         retry: input.retry,
         policy: input.policy,
