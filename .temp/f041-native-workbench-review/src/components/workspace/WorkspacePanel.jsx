@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { fileTypeRegistry, isVisibleEntry } from "../../lib/fileTypeRegistry.js";
+import { groupRecentsByTimeline } from "../../lib/recentTimeline.js";
 import { AppMenu, AppMenuItem, AppMenuSeparator } from "../primitives/AppMenu.jsx";
 
 function FileBadge({ type }) {
@@ -160,6 +161,7 @@ function validDrop(source, target) {
 
 export function WorkspacePanel({ state, dispatch, onOpen, onOpenRecent, onAddWorkspace, onCreate, onWorkspaceAction, onEntryAction, onRecentAction, onMoveEntry, onSettings }) {
   const [activeDrag, setActiveDrag] = useState(null);
+  const recentTimeline = groupRecentsByTimeline(state.recents);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor),
@@ -205,25 +207,30 @@ export function WorkspacePanel({ state, dispatch, onOpen, onOpenRecent, onAddWor
 
           <section className="recents-section" aria-labelledby="recents-title">
             <div className="recents-heading" id="recents-title">Recents</div>
-            <div className="recent-list">
-              {state.recents.map((recent) => (
-                <div className="recent-row" key={recent.id}>
-                  <button type="button" className="recent-main" onClick={() => onOpenRecent(recent)}>
-                    <FileBadge type={recent.label.endsWith(".is") ? "ideasketch" : recent.label.endsWith(".md") ? "markdown" : "unsupported"} />
-                    <span><strong>{recent.label}</strong></span>
-                  </button>
-                  <AppMenu
-                    side="right"
-                    align="start"
-                    sideOffset={3}
-                    contentClassName="app-menu--compact"
-                    trigger={<button className="row-action" type="button" aria-label={`Actions for ${recent.label}`}><MoreHorizontal size={14} /></button>}
-                  >
-                    <AppMenuItem icon={Pencil} onSelect={() => onRecentAction(recent, "rename")}>Rename</AppMenuItem>
-                    <AppMenuItem icon={ExternalLink} onSelect={() => onRecentAction(recent, "reveal")}>Show in Finder</AppMenuItem>
-                    <AppMenuSeparator />
-                    <AppMenuItem icon={Trash2} danger onSelect={() => onRecentAction(recent, "remove")}>Remove</AppMenuItem>
-                  </AppMenu>
+            <div className="recent-list recent-timeline">
+              {recentTimeline.map((group) => (
+                <div className="recent-time-group" key={group.id}>
+                  <div className="recent-time-label"><span>{group.label}</span></div>
+                  {group.items.map((recent) => (
+                    <div className="recent-row" key={recent.id}>
+                      <button type="button" className="recent-main" onClick={() => onOpenRecent(recent)}>
+                        <FileBadge type={recent.label.endsWith(".is") ? "ideasketch" : recent.label.endsWith(".md") ? "markdown" : "unsupported"} />
+                        <span><strong>{recent.label}</strong></span>
+                      </button>
+                      <AppMenu
+                        side="right"
+                        align="start"
+                        sideOffset={3}
+                        contentClassName="app-menu--compact"
+                        trigger={<button className="row-action" type="button" aria-label={`Actions for ${recent.label}`}><MoreHorizontal size={14} /></button>}
+                      >
+                        <AppMenuItem icon={Pencil} onSelect={() => onRecentAction(recent, "rename")}>Rename</AppMenuItem>
+                        <AppMenuItem icon={ExternalLink} onSelect={() => onRecentAction(recent, "reveal")}>Show in Finder</AppMenuItem>
+                        <AppMenuSeparator />
+                        <AppMenuItem icon={Trash2} danger onSelect={() => onRecentAction(recent, "remove")}>Remove</AppMenuItem>
+                      </AppMenu>
+                    </div>
+                  ))}
                 </div>
               ))}
               {!state.recents.length && <p className="empty-copy">Standalone files you open will appear here.</p>}

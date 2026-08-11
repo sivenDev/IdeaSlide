@@ -49,6 +49,9 @@ test("row menus hand only pending action targets to dialogs", async () => {
 
 test("Recents use a compact action menu without secondary metadata", async () => {
   const source = await readFile(new URL("../src/components/workspace/WorkspacePanel.jsx", import.meta.url), "utf8");
+  assert.match(source, /groupRecentsByTimeline/);
+  assert.match(source, /recent-timeline/);
+  assert.match(source, /recent-time-label/);
   assert.match(source, /onRecentAction\(recent, "rename"\)/);
   assert.match(source, /onRecentAction\(recent, "reveal"\)/);
   assert.match(source, /onRecentAction\(recent, "remove"\)/);

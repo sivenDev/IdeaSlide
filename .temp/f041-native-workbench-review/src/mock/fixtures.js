@@ -134,8 +134,8 @@ export const baselineFixtures = {
     },
   ],
   recents: [
-    { id: "recent-personal", kind: "standalone", standaloneId: "standalone-notes", label: "personal-notes.md", path: "/Mock/Documents/personal-notes.md", openedAt: 200 },
-    { id: "recent-dataset", kind: "standalone", standaloneId: "standalone-unsupported", label: "dataset.csv", path: "/Mock/Documents/dataset.csv", openedAt: 100 },
+    { id: "recent-personal", kind: "standalone", standaloneId: "standalone-notes", label: "personal-notes.md", path: "/Mock/Documents/personal-notes.md", openedAt: Date.parse("2026-08-11T10:20:00Z") },
+    { id: "recent-dataset", kind: "standalone", standaloneId: "standalone-unsupported", label: "dataset.csv", path: "/Mock/Documents/dataset.csv", openedAt: Date.parse("2026-08-10T14:10:00Z") },
   ],
   recovery: {},
 };

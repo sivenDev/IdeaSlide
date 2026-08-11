@@ -148,6 +148,13 @@ kbd { font-size: 9px; color: var(--muted); }
 
 .recents-section { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
 .recents-heading { padding: 0 7px 7px; color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.recent-timeline { padding: 0 4px; }
+.recent-time-group { position: relative; padding-left: 12px; }
+.recent-time-group::before { content: ""; position: absolute; left: 4px; top: 10px; bottom: -10px; width: 1px; background: var(--line); }
+.recent-time-group:last-child::before { bottom: 15px; }
+.recent-time-label { position: relative; height: 20px; display: flex; align-items: center; color: var(--muted); font-size: 8px; font-weight: 650; letter-spacing: .025em; }
+.recent-time-label::before { content: ""; position: absolute; left: -10px; width: 5px; height: 5px; border: 1px solid var(--paper); border-radius: 50%; background: var(--line-strong); box-shadow: 0 0 0 1px var(--line); }
+.recent-time-group:first-child .recent-time-label::before { background: var(--cobalt); box-shadow: 0 0 0 1px color-mix(in srgb, var(--cobalt) 32%, var(--line)); }
 .recent-row { display: grid; grid-template-columns: minmax(0,1fr) 25px; align-items: center; border-radius: 4px; }
 .recent-row:hover { background: var(--hover); }
 .recent-main { min-width: 0; min-height: 31px; display: grid; grid-template-columns: 23px minmax(0,1fr); align-items: center; gap: 7px; border: 0; padding: 3px 7px; background: transparent; text-align: left; cursor: pointer; }
