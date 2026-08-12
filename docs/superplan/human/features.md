@@ -350,3 +350,10 @@ Migrate every user-facing product capability and the approved desktop interactio
 - created: 2026-08-12
 
 Optimize the application theme styling around two complete user-facing Light and Dark palettes inspired by the ChatGPT desktop client: restrained neutral surfaces, clear panel hierarchy, accessible contrast, consistent controls, menus, dialogs, editor chrome, Agent activity, hover/focus/disabled/error states, and polished transitions. Preserve the existing persisted System option as an automatic resolver to the same Light or Dark palettes, keep editor-owned document colors unchanged, and retain all real Workspace, Settings, Agent, Markdown, IdeaSketch, and native-window behavior.
+
+## F048: Refine Settings Navigation and Apply Changes Automatically
+
+- status: done
+- created: 2026-08-12
+
+Redesign the Settings navigation using the supplied reference as hierarchy inspiration while preserving IdeaNote's Ink Violet Light/Dark identity. Use a clearer icon-led sidebar, compact grouping, a strong selected-section marker, and a page header with registry-provided description; do not add search for the current six sections. Remove the Save changes button and make configuration changes apply and persist automatically: switches, selects, and theme choices immediately; text and numeric inputs through a short race-safe debounce with flush on blur/close; Provider token only after a successful existing Test so partial or invalid secrets are never silently stored. Show unobtrusive saving/saved/error feedback, provide retry for failure, preserve registry-driven editor sections, secure credential boundaries, keyboard accessibility, compact layouts, and all current settings behavior.

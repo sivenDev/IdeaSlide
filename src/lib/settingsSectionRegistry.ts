@@ -1,9 +1,11 @@
 export type SettingsSectionId = "general" | "ai-provider" | "agent" | "skills" | "ideasketch" | (string & {});
+export type SettingsSectionIcon = "settings" | "bot" | "sparkles" | "blocks" | "shapes" | "file-text";
 
 export interface SettingsSectionDefinition {
   id: SettingsSectionId;
   label: string;
   description: string;
+  icon: SettingsSectionIcon;
   order: number;
   owner: "application" | "editor";
   group: "Application" | "AI" | "Editors";
@@ -22,10 +24,10 @@ export function getSettingsSections(): SettingsSectionDefinition[] {
 }
 
 [
-  { id: "general", label: "General", description: "Application theme", order: 10, owner: "application", group: "Application" },
-  { id: "ai-provider", label: "AI Provider", description: "Endpoint and model", order: 20, owner: "application", group: "AI" },
-  { id: "agent", label: "Agent", description: "Availability and policy", order: 30, owner: "application", group: "AI" },
-  { id: "skills", label: "Skills", description: "Bundled and imported Agent Skills", order: 40, owner: "application", group: "AI" },
-  { id: "ideasketch", label: "IdeaSketch", description: "Visual editor preferences", order: 100, owner: "editor", group: "Editors" },
-  { id: "markdown", label: "Markdown", description: "Text editor preferences", order: 110, owner: "editor", group: "Editors" },
+  { id: "general", label: "General", description: "Appearance and application preferences", icon: "settings", order: 10, owner: "application", group: "Application" },
+  { id: "ai-provider", label: "AI Provider", description: "Connection, credentials, and model selection", icon: "bot", order: 20, owner: "application", group: "AI" },
+  { id: "agent", label: "Agent", description: "Availability, runtime, and conversation policy", icon: "sparkles", order: 30, owner: "application", group: "AI" },
+  { id: "skills", label: "Skills", description: "Bundled and imported Agent Skills", icon: "blocks", order: 40, owner: "application", group: "AI" },
+  { id: "ideasketch", label: "IdeaSketch", description: "Visual editor and presentation preferences", icon: "shapes", order: 100, owner: "editor", group: "Editors" },
+  { id: "markdown", label: "Markdown", description: "Text editor preferences", icon: "file-text", order: 110, owner: "editor", group: "Editors" },
 ].forEach((definition) => registerSettingsSection(definition as SettingsSectionDefinition));

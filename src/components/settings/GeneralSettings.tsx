@@ -8,8 +8,7 @@ export function GeneralSettings() {
     { value: "system", label: "System" },
   ] as const;
   return (
-    <section className="ideanote-settings-section" aria-labelledby="settings-general-title">
-      <h2 id="settings-general-title" className="ideanote-settings-title">Appearance</h2>
+    <section className="ideanote-settings-section" aria-label="General settings">
       <div className="ideanote-theme-options" aria-label="Appearance">
         {options.map(({ value, label }) => (
           <button
@@ -18,10 +17,10 @@ export function GeneralSettings() {
             data-theme-option={value}
             className={settings.general.theme === value ? "is-selected" : ""}
             aria-pressed={settings.general.theme === value}
-            onClick={() => updateSettings((current) => ({
+            onClick={() => { void updateSettings((current) => ({
               ...current,
               general: { ...current.general, theme: value },
-            }))}
+            })).catch(() => undefined); }}
           >
             <span className="ideanote-theme-preview" aria-hidden>
               <span className="ideanote-theme-preview__rail" />

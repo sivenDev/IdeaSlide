@@ -13,12 +13,14 @@ function AgentNumberInput({
   min,
   max,
   onChange,
+  onBlur,
 }: {
   label: string;
   value: number;
   min: number;
   max: number;
   onChange: (value: number) => void;
+  onBlur: () => void;
 }) {
   return (
     <input
@@ -29,12 +31,13 @@ function AgentNumberInput({
       className="ideanote-settings-control w-20"
       value={value}
       onChange={(event) => onChange(Number(event.target.value))}
+      onBlur={onBlur}
     />
   );
 }
 
 export function AgentSettings() {
-  const { settings, activationState, updateSettings } = useSettingsDraft();
+  const { settings, activationState, updateSettings, flush } = useSettingsDraft();
   const [runtimes, setRuntimes] = useState<AgentRuntimeDescriptor[]>([]);
   const [runtimeDiagnostic, setRuntimeDiagnostic] = useState<string>();
   const runtimeSelection = useMemo(
@@ -65,11 +68,10 @@ export function AgentSettings() {
   const updateAgent = (change: Partial<AppSettings["agent"]>) => updateSettings((current) => ({
     ...current,
     agent: { ...current.agent, ...change },
-  }));
+  }), { persistence: "debounced" }).catch(() => undefined);
 
   return (
-    <section className="ideanote-settings-section ideanote-settings-section--wide" aria-labelledby="settings-agent-title">
-      <h2 id="settings-agent-title" className="ideanote-settings-title">Agent</h2>
+    <section className="ideanote-settings-section ideanote-settings-section--wide" aria-label="Agent settings">
       <div className={`ideanote-settings-status is-${activationState}`}>
         <span className="ideanote-settings-status__dot" />
         <span>{status}</span>
@@ -78,10 +80,10 @@ export function AgentSettings() {
         <SettingsSwitch
           label="Enable AI"
           checked={settings.ai.enabled}
-          onCheckedChange={(enabled) => updateSettings((current) => ({
+          onCheckedChange={(enabled) => { void updateSettings((current) => ({
             ...current,
             ai: { ...current.ai, enabled },
-          }))}
+          })).catch(() => undefined); }}
         />
       </SettingsField>
       <SettingsField title="Runtime selection">
@@ -97,6 +99,7 @@ export function AgentSettings() {
           min={1}
           max={20}
           onChange={(maxSteps) => updateAgent({ maxSteps })}
+          onBlur={() => { void flush().catch(() => undefined); }}
         />
       </SettingsField>
       <SettingsField
@@ -109,6 +112,7 @@ export function AgentSettings() {
           min={50}
           max={90}
           onChange={(contextWarningPercent) => updateAgent({ contextWarningPercent })}
+          onBlur={() => { void flush().catch(() => undefined); }}
         />
       </SettingsField>
       <SettingsField
@@ -121,6 +125,7 @@ export function AgentSettings() {
           min={60}
           max={100}
           onChange={(newThreadPercent) => updateAgent({ newThreadPercent })}
+          onBlur={() => { void flush().catch(() => undefined); }}
         />
       </SettingsField>
       <SettingsField
@@ -133,6 +138,7 @@ export function AgentSettings() {
           min={5}
           max={100}
           onChange={(diagnosticRetention) => updateAgent({ diagnosticRetention })}
+          onBlur={() => { void flush().catch(() => undefined); }}
         />
       </SettingsField>
       <SettingsField
@@ -145,34 +151,35 @@ export function AgentSettings() {
           min={10}
           max={200}
           onChange={(compatibilityReplayMessageLimit) => updateAgent({ compatibilityReplayMessageLimit })}
+          onBlur={() => { void flush().catch(() => undefined); }}
         />
       </SettingsField>
       <SettingsField title="Show source delivery">
         <SettingsSwitch
           label="Show source delivery telemetry"
           checked={settings.agent.showDeliveryTelemetry}
-          onCheckedChange={(showDeliveryTelemetry) => updateAgent({ showDeliveryTelemetry })}
+          onCheckedChange={(showDeliveryTelemetry) => { void updateSettings((current) => ({ ...current, agent: { ...current.agent, showDeliveryTelemetry } })).catch(() => undefined); }}
         />
       </SettingsField>
       <SettingsField title="Show Tool Activity">
         <SettingsSwitch
           label="Show Tool Activity"
           checked={settings.agent.showToolActivity}
-          onCheckedChange={(showToolActivity) => updateAgent({ showToolActivity })}
+          onCheckedChange={(showToolActivity) => { void updateSettings((current) => ({ ...current, agent: { ...current.agent, showToolActivity } })).catch(() => undefined); }}
         />
       </SettingsField>
       <SettingsField title="Reset policy">
         <button
           type="button"
           className="ideanote-settings-button"
-          onClick={() => updateAgent({
+          onClick={() => { void updateSettings((current) => ({ ...current, agent: { ...current.agent,
             maxSteps: DEFAULT_SETTINGS.agent.maxSteps,
             contextWarningPercent: DEFAULT_SETTINGS.agent.contextWarningPercent,
             newThreadPercent: DEFAULT_SETTINGS.agent.newThreadPercent,
             diagnosticRetention: DEFAULT_SETTINGS.agent.diagnosticRetention,
             compatibilityReplayMessageLimit: DEFAULT_SETTINGS.agent.compatibilityReplayMessageLimit,
             showDeliveryTelemetry: DEFAULT_SETTINGS.agent.showDeliveryTelemetry,
-          })}
+          } })).catch(() => undefined); }}
         >
           Reset policy
         </button>

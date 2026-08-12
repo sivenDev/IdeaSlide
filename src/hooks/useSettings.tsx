@@ -11,6 +11,7 @@ import {
   type AgentActivationState,
   type AppSettings,
 } from "../lib/settings";
+import { createLatestSettingsWriter, type LatestSettingsWriter } from "../lib/settingsAutoPersist";
 
 interface SettingsContextValue {
   settings: AppSettings;
@@ -29,23 +30,28 @@ interface SettingsContextValue {
 
 const SettingsContext = createContext<SettingsContextValue | undefined>(undefined);
 
-type DraftStatus = "idle" | "saving" | "saved" | "error";
+export const AUTO_SAVE_DEBOUNCE_MS = 350;
+type SettingsEditStatus = "idle" | "saving" | "saved" | "error";
+type SettingsPersistence = "immediate" | "debounced";
 
-interface SettingsDraftContextValue {
+interface SettingsEditContextValue {
   settings: AppSettings;
   credentialConfigured: boolean;
   credentialInput: string;
   setCredentialInput: (value: string) => void;
   activationState: AgentActivationState;
-  dirty: boolean;
-  status: DraftStatus;
+  status: SettingsEditStatus;
   error?: string;
-  updateSettings: (updater: (current: AppSettings) => AppSettings) => void;
-  saveDraft: () => Promise<void>;
-  discardDraft: () => void;
+  updateSettings: (
+    updater: (current: AppSettings) => AppSettings,
+    options?: { persistence?: SettingsPersistence },
+  ) => Promise<void>;
+  flush: () => Promise<void>;
+  retry: () => Promise<void>;
+  storeCredential: (apiKey: string) => Promise<void>;
 }
 
-const SettingsDraftContext = createContext<SettingsDraftContextValue | undefined>(undefined);
+const SettingsEditContext = createContext<SettingsEditContextValue | undefined>(undefined);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>(() => structuredClone(DEFAULT_SETTINGS));
@@ -165,19 +171,47 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 }
 
-export function SettingsDraftProvider({ open, children }: { open: boolean; children: ReactNode }) {
+export function SettingsEditProvider({ open, children }: { open: boolean; children: ReactNode }) {
   const persisted = useSettings();
-  const [draft, setDraft] = useState<AppSettings>(() => structuredClone(persisted.settings));
-  const draftRef = useRef(draft);
+  const persistedRef = useRef(persisted);
+  persistedRef.current = persisted;
+  const [settings, setSettings] = useState<AppSettings>(() => structuredClone(persisted.settings));
+  const settingsRef = useRef(settings);
+  const versionRef = useRef(0);
+  const persistedVersionRef = useRef(0);
+  const debounceRef = useRef<number | undefined>(undefined);
   const [credentialInput, setCredentialInput] = useState("");
-  const [status, setStatus] = useState<DraftStatus>("idle");
+  const [status, setStatus] = useState<SettingsEditStatus>("idle");
   const [error, setError] = useState<string>();
+  const writerRef = useRef<LatestSettingsWriter<AppSettings> | undefined>(undefined);
+
+  if (!writerRef.current) {
+    writerRef.current = createLatestSettingsWriter({
+      persist: (next) => persistedRef.current.replaceSettings(next),
+      onPersisted: (entry, saved) => {
+        persistedVersionRef.current = Math.max(persistedVersionRef.current, entry.version);
+        if (entry.version === versionRef.current) {
+          settingsRef.current = saved;
+          setSettings(saved);
+          setStatus("saved");
+          setError(undefined);
+        }
+      },
+      onError: (_entry, cause) => {
+        setStatus("error");
+        setError(cause.message);
+      },
+    });
+  }
 
   useEffect(() => {
-    if (!open) return;
-    const nextDraft = structuredClone(persisted.settings);
-    draftRef.current = nextDraft;
-    setDraft(nextDraft);
+    if (!open) {
+      setCredentialInput("");
+      return;
+    }
+    const nextSettings = structuredClone(persisted.settings);
+    settingsRef.current = nextSettings;
+    setSettings(nextSettings);
     setCredentialInput("");
     setStatus("idle");
     setError(undefined);
@@ -190,63 +224,69 @@ export function SettingsDraftProvider({ open, children }: { open: boolean; child
     return () => window.clearTimeout(timeout);
   }, [status]);
 
-  const updateSettings = useCallback((updater: (current: AppSettings) => AppSettings) => {
-    const current = draftRef.current;
-    const next = updater(current);
-    draftRef.current = next;
-    setDraft(next);
-    if (next.general.theme !== current.general.theme) persisted.previewTheme(next.general.theme);
-    setStatus("idle");
-    setError(undefined);
-  }, [persisted.previewTheme]);
-
-  const discardDraft = useCallback(() => {
-    const nextDraft = structuredClone(persisted.settings);
-    draftRef.current = nextDraft;
-    setDraft(nextDraft);
-    setCredentialInput("");
-    setStatus("idle");
-    setError(undefined);
-    persisted.previewTheme(undefined);
-  }, [persisted.previewTheme, persisted.settings]);
-
-  const saveDraft = useCallback(async () => {
+  const flush = useCallback(async () => {
+    if (debounceRef.current !== undefined) {
+      window.clearTimeout(debounceRef.current);
+      debounceRef.current = undefined;
+    }
+    if (versionRef.current <= persistedVersionRef.current) return;
     setStatus("saving");
     setError(undefined);
-    try {
-      const saved = await persisted.replaceSettings(draftRef.current);
-      if (credentialInput.trim()) await persisted.storeCredential(credentialInput.trim());
-      draftRef.current = saved;
-      setDraft(saved);
-      setCredentialInput("");
-      setStatus("saved");
-    } catch (cause) {
-      setStatus("error");
-      setError(cause instanceof Error ? cause.message : String(cause));
-      throw cause;
-    }
-  }, [credentialInput, persisted.replaceSettings, persisted.storeCredential]);
+    await writerRef.current?.flush();
+  }, []);
 
-  const value = useMemo<SettingsDraftContextValue>(() => ({
-    settings: draft,
+  const updateSettings = useCallback((
+    updater: (current: AppSettings) => AppSettings,
+    options?: { persistence?: SettingsPersistence },
+  ) => {
+    const current = settingsRef.current;
+    const next = updater(current);
+    settingsRef.current = next;
+    setSettings(next);
+    if (next.general.theme !== current.general.theme) persisted.previewTheme(next.general.theme);
+    const version = versionRef.current + 1;
+    versionRef.current = version;
+    writerRef.current?.submit({ version, settings: next });
+    setError(undefined);
+    if (debounceRef.current !== undefined) window.clearTimeout(debounceRef.current);
+    if (options?.persistence === "debounced") {
+      setStatus("idle");
+      debounceRef.current = window.setTimeout(() => {
+        debounceRef.current = undefined;
+        void flush().catch(() => undefined);
+      }, AUTO_SAVE_DEBOUNCE_MS);
+      return Promise.resolve();
+    }
+    debounceRef.current = undefined;
+    return flush();
+  }, [flush, persisted.previewTheme]);
+
+  const retry = useCallback(() => flush(), [flush]);
+
+  useEffect(() => () => {
+    if (debounceRef.current !== undefined) window.clearTimeout(debounceRef.current);
+  }, []);
+
+  const value = useMemo<SettingsEditContextValue>(() => ({
+    settings,
     credentialConfigured: persisted.credentialConfigured,
     credentialInput,
     setCredentialInput,
-    activationState: getAgentActivationState(persisted.hydrated, draft, persisted.credentialConfigured || Boolean(credentialInput.trim())),
-    dirty: JSON.stringify(draft) !== JSON.stringify(persisted.settings) || Boolean(credentialInput.trim()),
+    activationState: getAgentActivationState(persisted.hydrated, settings, persisted.credentialConfigured || Boolean(credentialInput.trim())),
     status,
     error,
     updateSettings,
-    saveDraft,
-    discardDraft,
-  }), [credentialInput, draft, error, persisted.credentialConfigured, persisted.hydrated, persisted.settings, saveDraft, status, discardDraft, updateSettings]);
+    flush,
+    retry,
+    storeCredential: persisted.storeCredential,
+  }), [credentialInput, error, flush, persisted.credentialConfigured, persisted.hydrated, persisted.storeCredential, retry, settings, status, updateSettings]);
 
-  return <SettingsDraftContext.Provider value={value}>{children}</SettingsDraftContext.Provider>;
+  return <SettingsEditContext.Provider value={value}>{children}</SettingsEditContext.Provider>;
 }
 
-export function useSettingsDraft(): SettingsDraftContextValue {
-  const value = useContext(SettingsDraftContext);
-  if (!value) throw new Error("useSettingsDraft must be used within SettingsDraftProvider");
+export function useSettingsDraft(): SettingsEditContextValue {
+  const value = useContext(SettingsEditContext);
+  if (!value) throw new Error("useSettingsDraft must be used within SettingsEditProvider");
   return value;
 }
 

@@ -7,20 +7,20 @@ summary: "Make the production workbench, Settings, Welcome, and Agent visually a
 source: "docs/superplan/human/bugs.md"
 created: "2026-08-11"
 order: 34
-depends_on: ["F046-04"]
+depends_on: ["F046-04", "F048"]
 parent: ""
 ---
 
 # Restore Reviewed Demo Parity in the Tauri Workbench Plan
 
 **Goal:** Correct the F046 migration so the production Tauri interface is recognizably the approved review demo rather than a separately styled approximation.
-**Scope:** Align the production outer workbench with `.temp/f041-native-workbench-review` at the structural, token, geometry, and interaction levels. Match the native window crown, macOS/Windows/fullscreen safe areas, document identity and path, Workspace/editor/Agent surfaces, 7px resize rails with a 1px resting divider, compact panel dimensions, Welcome actions, Agent crown and conversation menus, Settings dialog/navigation/controls/save lifecycle, and Light/Dark/System palettes. Keep all production Workspace, editor, Settings, credential, Agent, Thread, Tool, persistence, recovery, and Tauri v2 boundaries real. The demo is the visual and interaction baseline; production-only capability remains present only where it does not add unapproved outer chrome or duplicate navigation.
+**Scope:** Align the production outer workbench with `.temp/f041-native-workbench-review` at the structural, token, geometry, and interaction levels. Match the native window crown, macOS/Windows/fullscreen safe areas, document identity and path, Workspace/editor/Agent surfaces, 7px resize rails with a 1px resting divider, compact panel dimensions, Welcome actions, Agent crown and conversation menus, Settings dialog geometry/control density, and Light/Dark/System palettes. Keep all production Workspace, editor, Settings, credential, Agent, Thread, Tool, persistence, recovery, and Tauri v2 boundaries real. The demo is the visual and interaction baseline except where the later F048 human direction explicitly replaces its Settings navigation and manual-save lifecycle with an icon-led IdeaNote navigation and safe automatic persistence.
 **Non-Goals:** This bugfix does not copy `MockDesktopApi`, fixtures, Review Scenarios, failure injection, mock platform query parameters, simulated status text, or the demo IdeaSketch/Excalidraw editor into production. It does not redesign editor-owned Markdown or IdeaSketch content, change filesystem or Agent safety semantics, expose stored credentials, add providers/editors, remove real runtime diagnostics from the Inspector, or modify `.temp/f041-native-workbench-review` except if a test fixture must reference it read-only as the approved baseline.
-**Architecture:** Introduce one production shell token contract derived directly from the reviewed demo instead of continuing the separate hard-coded purple/rounded production theme. Light uses Paper `#ffffff`, Workspace `#e9eae7`, Agent `#f4f4f2`, Frost `#f1f2f4`, Graphite `#252930`, Line `#d5d8dc`/Strong `#c4c8ce`, Cobalt `#2f5dcc`, and Danger `#b4433c`; Dark uses Paper `#17191d`, Workspace `#202329`, Agent `#1c1f24`, Frost `#191c21`, Graphite `#e5e7eb`, Line `#30343b`/Strong `#3c424b`, Cobalt `#7396ec`, and Danger `#ea7d75`. System resolves to the same Light or Dark contract. Controls/body use the native system face; paths, timestamps, and compact status metadata alone use `ui-monospace`. Preserve aligned 45px window/editor/Agent crowns, the 254px default Workspace panel, compact 352px Agent panel, 760x560 Settings dialog with 8px radius and 170px navigation, and the status-close lens as the single signature interaction. macOS traffic lights remain Tauri/WebView native through decorated Overlay title bars so the operating system owns active, inactive, and fullscreen appearance; no HTML traffic-light replicas are rendered. Radix remains the maintained owner for Dialog, Popover, Dropdown Menu, focus restoration, collision, and dismissal. Settings uses a dialog-scoped draft: theme previews immediately, Save changes persists the draft, and closing without saving restores the persisted theme and discards uncommitted ordinary fields; Provider Test remains transient and secrets stay behind existing commands.
+**Architecture:** Introduce one production shell token contract derived directly from the reviewed demo instead of continuing the separate hard-coded purple/rounded production theme. Light uses Paper `#ffffff`, Workspace `#e9eae7`, Agent `#f4f4f2`, Frost `#f1f2f4`, Graphite `#252930`, Line `#d5d8dc`/Strong `#c4c8ce`, Cobalt `#2f5dcc`, and Danger `#b4433c`; Dark uses Paper `#17191d`, Workspace `#202329`, Agent `#1c1f24`, Frost `#191c21`, Graphite `#e5e7eb`, Line `#30343b`/Strong `#3c424b`, Cobalt `#7396ec`, and Danger `#ea7d75`. System resolves to the same Light or Dark contract. Controls/body use the native system face; paths, timestamps, and compact status metadata alone use `ui-monospace`. Preserve aligned 45px window/editor/Agent crowns, the 254px default Workspace panel, compact 352px Agent panel, and the status-close lens as the single signature interaction. macOS traffic lights remain Tauri/WebView native through decorated Overlay title bars so the operating system owns active, inactive, and fullscreen appearance; no HTML traffic-light replicas are rendered. Radix remains the maintained owner for Dialog, Popover, Dropdown Menu, focus restoration, collision, and dismissal. F048 is the sole authority for Settings navigation and persistence: its icon-led sidebar, active violet rail, registry header, automatic save queue, failure retry, and Test-gated credential storage supersede the earlier reviewed-demo draft/Save interaction while retaining compatible compact dialog geometry and production security boundaries.
 **Baseline:** The approved demo was measured in a fresh browser session and refined through native review. Window, editor, and Agent crowns are aligned at 45px; Workspace is 254px wide with `#e9eae7`; the editor is Paper white; Agent is `#f4f4f2`; resize rails are 7px with a 1px line; conversation trigger is 33px high; the composer has 10px padding and a 6px-radius Paper input surface. Settings is 760x560 with an 8px radius, 54px header, 170px navigation, compact group labels, three theme cards, and explicit Save changes. The production browser reproduction renders a 900x650 Settings dialog with an 18px radius, icon-heavy 218px navigation, purple accent system, large controls, and automatic-save presentation. Production `WorkbenchCrown` centers a one-line title without the reviewed relative path; `WorkbenchWelcome` adds Settings and Open Workspace actions; `AgentThreadHeader` explicitly renders Open Agent settings; the conversation row Dropdown Menu portals from inside a Popover without a proven higher stacking/collision contract; and an HTML traffic-light overlay replaces the native inactive state with white circles.
 **Reproduction:** Launch the current native app in Light at a desktop width comparable to the approved demo, open a Markdown file, show both Workspaces and Agent, then compare against `.temp/f041-native-workbench-review`. The traffic-light/toggle placement, document crown, title/path treatment, surface colors, divider rails, Agent crown/actions, and panel density differ. Open the conversation selector and a row three-dot menu: the action surface can be obscured by the history popover. Open Settings: its size, radius, navigation, theme control, row density, colors, and save interaction differ materially. Close the file: Welcome contains additional Settings and Open Workspace actions not present in the approved baseline.
 **Root Cause:** F046 migrated production capability boundaries and rebuilt the shell around existing production components, but it did not enforce the demo as an executable visual/interaction contract. `src/index.css` retained a separate collection of hard-coded Settings, Agent, and shell colors/sizes instead of the reviewed tokens. Production-specific composition also survived in `WorkbenchCrown`, `WorkbenchWelcome`, and `AgentThreadHeader`, so extra controls and different title geometry remained. Tests asserted the absence of old Home/mock paths and the presence of broad components, but did not compare approved token values, component action sets, key dimensions, or nested overlay stacking; automated screenshot QA was unavailable, and the earlier completion incorrectly treated native launch plus broad functional checks as migration-parity evidence.
-**Exit Criteria:** At equivalent content, theme, and viewport states, production matches the reviewed demo's shell hierarchy and visual identity: native controls/toggles occupy the same safe-area model; macOS traffic lights are rendered only by the native decorated Overlay title bar and use Tauri/macOS active, inactive, and fullscreen appearance; document status-close, type, title, relative path, and save status align like the demo; Workspace, editor, Agent, crowns, dividers, composer, menus, and focus states use the reviewed tokens and density. Welcome contains only Open most recent when available, Open File, and New File, with no Settings or Open Workspace action. Agent crown contains the conversation selector plus New, Inspector, and Close only; no Settings control or redundant runtime-health copy appears there. Conversation Rename/Delete menus render above and beside the history popover, stay inside every target viewport, and dismiss/restore focus correctly. Settings matches the approved 760x560 compact composition, group labels, single page titles, theme cards, field rows, switch/select/password styles, Save changes lifecycle, and real Provider/Skill behavior; production omits only the explicitly excluded Review Scenarios section. Light, Dark, System, macOS windowed/fullscreen, Windows windowed/fullscreen, Workspace/Agent open and closed, long titles, 1440x900/1200x850/1100x850/850x850, keyboard focus, reduced motion, native Tauri startup, full frontend regression, production build, and diff hygiene pass without changing editor-owned content or real persistence/safety boundaries.
+**Exit Criteria:** At equivalent content, theme, and viewport states, production matches the reviewed demo's shell hierarchy and visual identity: native controls/toggles occupy the same safe-area model; macOS traffic lights are rendered only by the native decorated Overlay title bar and use Tauri/macOS active, inactive, and fullscreen appearance; document status-close, type, title, relative path, and save status align like the demo; Workspace, editor, Agent, crowns, dividers, composer, menus, and focus states use the reviewed tokens and density. Welcome contains only Open most recent when available, Open File, and New File, with no Settings or Open Workspace action. Agent crown contains the conversation selector plus New, Inspector, and Close only; no Settings control or redundant runtime-health copy appears there. Conversation Rename/Delete menus render above and beside the history popover, stay inside every target viewport, and dismiss/restore focus correctly. Settings retains the compact dialog, theme cards, field rows, controls, and real Provider/Skill behavior, while its navigation and automatic persistence satisfy the newer complete F048 contract rather than the superseded reviewed-demo Save lifecycle; production omits only the explicitly excluded Review Scenarios section. Light, Dark, System, macOS windowed/fullscreen, Windows windowed/fullscreen, Workspace/Agent open and closed, long titles, 1440x900/1200x850/1100x850/850x850, keyboard focus, reduced motion, native Tauri startup, full frontend regression, production build, and diff hygiene pass without changing editor-owned content or real persistence/safety boundaries.
 
 ## Task 1: Establish an Executable Parity Contract and Align the Workbench Frame
 
@@ -52,39 +52,28 @@ parent: ""
 - [ ] Replace the parallel production shell styling with the reviewed token and safe-area contract.
 - [ ] Verify every panel/window combination without changing editor-owned content or session behavior.
 
-## Task 2: Recompose Settings onto the Reviewed Compact Layout and Save Lifecycle
+## Task 2: Integrate the Newer F048 Settings Experience with the Compact Shell
 
-**Outcome:** Production Settings looks and behaves like the approved dialog while retaining secure real configuration and registry-driven sections.
+**Outcome:** Production Settings retains the compact shell and real capabilities while F048 owns its newer navigation hierarchy and automatic persistence behavior.
 **Files:**
-- Modify: `src/components/SettingsCenter.tsx`
-- Modify: `src/hooks/useSettings.tsx`
-- Modify: `src/components/settings/GeneralSettings.tsx`
-- Modify: `src/components/settings/AiProviderSettings.tsx`
-- Modify: `src/components/settings/AgentSettings.tsx`
-- Modify: `src/components/settings/AgentSkillManager.tsx`
-- Modify: `src/components/settings/IdeaSketchSettings.tsx`
-- Modify: `src/components/settings/MarkdownSettings.tsx`
-- Modify: `src/components/settings/SettingsField.tsx`
-- Modify: `src/components/settings/SettingsSwitch.tsx`
-- Modify: `src/index.css`
 - Modify: `tests/settingsCenter.test.mjs`
 - Modify: `tests/settings.test.mjs`
-- Modify: `tests/agentSkillManager.test.mjs`
+- Modify: `tests/reviewedDemoParity.test.mjs`
+- Modify: `docs/superplan/plans/bugs/B034-restore-reviewed-demo-parity-in-tauri.md`
 
 **Change Map:**
-- dialog shell: 760x560, 8px radius, 54px header, 170px Frost navigation, compact uppercase group labels, no navigation icons, restrained overlay/shadow, and reviewed responsive collapse
-- draft lifecycle: open from persisted settings, preview theme immediately, track dirty state, Save changes atomically through existing settings/credential boundaries, report saving/error/saved state, and discard/revert on unsaved close
-- General: three Light/Dark/System cards instead of a select, with the exact approved focus/selection contract
-- field system: 52px rows, concise single titles, optional minimal helper copy only when required for correctness, 29px native controls, 32x18 Radix switches, compact Provider Test/Model flow, and unchanged bundled/custom Skill rules
-- scope protection: keep production editor sections and real runtime/provider controls, but do not add Review Scenarios or mock values
+- authority: require completed F048 and remove B034 assertions that demand icon-free navigation, explicit Save, dirty state, or discard-on-close
+- shell integration: retain compact dialog geometry, restrained overlay/shadow, theme cards, field density, and responsive containment around the F048 sidebar/header/status composition
+- capability protection: continue verifying production editor sections, Provider Test/catalog, secure credentials, Agent settings, and real Skill rules without Review Scenarios or mock values
+- parity record: document the F048 navigation/auto-apply experience as an intentional later human-approved divergence from the reviewed demo rather than a B034 mismatch
 
 **Verification:**
-- `node --test tests/settingsCenter.test.mjs tests/settings.test.mjs tests/agentSkillManager.test.mjs`
-- Cases: open/edit/save/reopen; close without save; theme preview/save/discard/System change; Provider password/Test/catalog/model/save/failure; credential secrecy; AI gate; bundled Skill immutable; custom Skill toggle; editor settings; keyboard navigation; Light/Dark/System and target widths.
+- `node --test tests/settingsCenter.test.mjs tests/settings.test.mjs tests/reviewedDemoParity.test.mjs`
+- Cases: completed F048 automatic persistence, close flush, retry, Provider Test-gated credential storage, registry navigation, theme cards, editor sections, compact shell, keyboard navigation, Light/Dark/System, and target widths.
 
-- [ ] Add failing Settings contracts for dimensions, navigation, theme cards, field density, and explicit Save/discard behavior.
-- [ ] Implement one dialog-scoped draft over the existing versioned settings and credential services.
-- [ ] Verify every real Settings section with the demo layout and no mock/review leakage.
+- [ ] Remove superseded reviewed-demo Save/discard and icon-free-navigation assertions after F048 completes.
+- [ ] Verify F048 fits the compact production dialog without weakening real Settings capabilities.
+- [ ] Record the newer approved Settings direction as an intentional parity exception.
 
 ## Task 3: Match the Reviewed Agent Crown, Conversation Overlays, and Composer Surface
 
@@ -160,6 +149,7 @@ parent: ""
 - `docs/superplan/plans/bugs/B030-fix-transient-menus-settings-and-agent-history.md`
 - `docs/superplan/plans/bugs/B031-compact-workspace-agent-menus-and-labels.md`
 - `docs/superplan/plans/bugs/B032-refine-agent-window-chrome-menus-and-workspace-dragging.md`
+- `docs/superplan/plans/features/F048-refine-settings-navigation-and-auto-apply.md`
 - `.temp/f041-native-workbench-review/src/styles.css`
 - `.temp/f041-native-workbench-review/src/components/layout/WindowChrome.jsx`
 - `.temp/f041-native-workbench-review/src/components/layout/ResizableDivider.jsx`

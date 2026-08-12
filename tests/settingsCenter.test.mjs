@@ -17,10 +17,21 @@ test('Settings Center is registry-driven and reachable from the persistent workb
   assert.match(registry, /group: "Application"/);
   assert.match(registry, /group: "AI"/);
   assert.match(registry, /group: "Editors"/);
+  for (const icon of ['settings', 'bot', 'sparkles', 'blocks', 'shapes', 'file-text']) {
+    assert.match(registry, new RegExp(`icon: "${icon}"`));
+  }
   assert.match(center, /getSettingsSections\(\)/);
   assert.match(center, /groups\.map/);
+  assert.match(center, /sectionIcon/);
+  assert.match(center, /activeDefinition\.description/);
+  assert.match(center, /ideanote-settings-page-header/);
   assert.match(center, /<MarkdownSettings/);
   assert.match(center, /<SkillSettings/);
+  assert.doesNotMatch(center, /Save changes|saveDraft|discardDraft|dirty/);
+  assert.match(center, /status === "saving"[\s\S]*Saving/);
+  assert.match(center, /status === "saved"[\s\S]*Saved/);
+  assert.match(center, /status === "error"[\s\S]*Retry/);
+  assert.match(center, /void flush\(\)/);
   assert.match(sidebar, /onOpenSettings/);
   assert.match(sidebar, />Settings</);
   assert.match(editor, /event\.key === ","/);
@@ -48,6 +59,10 @@ test('AI Provider settings use password, Test, and tested model selection', asyn
   assert.match(source, /type="password"/);
   assert.doesNotMatch(source, /Show API key|Hide API key|Remove credential/);
   assert.match(source, /probeAiProvider/);
+  assert.match(source, /await storeCredential\(apiKey\.trim\(\)\)/);
+  assert.match(source, /await updateSettings/);
+  assert.match(source, /apiKey\.trim\(\) \? "__configured__" : credentialFingerprint/);
+  assert.doesNotMatch(source, /saveDraft/);
   assert.match(source, /Testing…/);
   assert.match(source, /disabled=\{!testCurrent \|\| !tested\?\.models\.length\}/);
   assert.match(source, /<select[\s\S]*aria-label="AI model"/);
@@ -61,4 +76,21 @@ test('AI Provider settings use password, Test, and tested model selection', asyn
   assert.match(source, /max=\{5\}/);
   assert.match(source, /disabled=\{!settings\.ai\.retry\.enabled\}/);
   assert.doesNotMatch(source, /system credential vault|Keychain/i);
+});
+
+test('Settings pages rely on the registry header and mark continuous fields as debounced', async () => {
+  const paths = [
+    'src/components/settings/GeneralSettings.tsx',
+    'src/components/settings/AiProviderSettings.tsx',
+    'src/components/settings/AgentSettings.tsx',
+    'src/components/settings/SkillSettings.tsx',
+    'src/components/settings/IdeaSketchSettings.tsx',
+    'src/components/settings/MarkdownSettings.tsx',
+  ];
+  const sources = await Promise.all(paths.map((path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8')));
+  for (const page of sources) assert.doesNotMatch(page, /ideanote-settings-title|<h2/);
+  assert.match(sources[1], /persistence:\s*"debounced"/);
+  assert.match(sources[1], /onBlur=\{\(\) => \{ void flush\(\)\.catch/);
+  assert.match(sources[2], /persistence:\s*"debounced"/);
+  assert.match(sources[2], /onBlur=\{\(\) => \{ void flush\(\)\.catch/);
 });

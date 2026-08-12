@@ -186,16 +186,19 @@ test('danger menu items retain danger semantics while highlighted', async () => 
   assert.match(css, /\.ideanote-compact-menu \[role="menuitem"\]\.is-danger:focus[\s\S]*color:\s*var\(--status-danger\) !important;[\s\S]*background:\s*color-mix\(in srgb, var\(--status-danger\) 11%, var\(--surface-elevated\)\) !important;/);
 });
 
-test('disabled Settings Save is visually inactive without primary-action emphasis', async () => {
-  const css = await source('src/index.css');
-  const disabled = themeBlock(css, '.ideanote-settings-save:disabled');
+test('automatic Settings persistence leaves no obsolete Save control styling', async () => {
+  const [css, center] = await Promise.all([
+    source('src/index.css'),
+    source('src/components/SettingsCenter.tsx'),
+  ]);
 
-  assert.match(disabled, /border-color:\s*var\(--border-subtle\)/);
-  assert.match(disabled, /color:\s*var\(--disabled-text\)/);
-  assert.match(disabled, /background:\s*var\(--disabled-bg\)/);
-  assert.match(disabled, /box-shadow:\s*none/);
-  assert.match(disabled, /outline:\s*none/);
-  assert.match(disabled, /cursor:\s*not-allowed/);
-  assert.match(css, /\.ideanote-settings-save:not\(:disabled\):focus-visible/);
-  assert.doesNotMatch(css, /\.ideanote-settings-save:focus-visible,[\s\S]*?outline:\s*2px solid var\(--focus-ring\)/);
+  assert.doesNotMatch(css, /\.ideanote-settings-save/);
+  assert.doesNotMatch(center, /Save changes|ideanote-settings-save/);
+});
+
+test('Settings navigation labels remain legible in the compact dialog', async () => {
+  const css = await source('src/index.css');
+
+  assert.match(css, /\/\* F048:[\s\S]*?\.ideanote-settings-nav__group-label\s*\{[^}]*font:\s*700 10px\/1/s);
+  assert.match(css, /\/\* F048:[\s\S]*?\.ideanote-settings-nav__item\s*\{[^}]*height:\s*36px[^}]*font-size:\s*12px/s);
 });

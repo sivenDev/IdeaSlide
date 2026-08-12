@@ -5,16 +5,15 @@ import { SettingsSwitch } from "./SettingsSwitch";
 export function MarkdownSettings() {
   const { settings, updateSettings } = useSettingsDraft();
   return (
-    <section className="ideanote-settings-section" aria-labelledby="settings-markdown-title">
-      <h2 id="settings-markdown-title" className="ideanote-settings-title">Markdown</h2>
+    <section className="ideanote-settings-section" aria-label="Markdown settings">
       <SettingsField title="Line numbers">
         <SettingsSwitch
           label="Show Markdown line numbers"
           checked={settings.markdown.showLineNumbers}
-          onCheckedChange={(showLineNumbers) => updateSettings((current) => ({
+          onCheckedChange={(showLineNumbers) => { void updateSettings((current) => ({
             ...current,
             markdown: { ...current.markdown, showLineNumbers },
-          }))}
+          })).catch(() => undefined); }}
         />
       </SettingsField>
     </section>

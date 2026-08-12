@@ -1,8 +1,8 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { Check, X } from "lucide-react";
+import { Blocks, Bot, Check, FileText, RefreshCw, Settings2, Shapes, Sparkles, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { SettingsDraftProvider, useSettingsDraft } from "../hooks/useSettings";
-import { getSettingsSections, type SettingsSectionId } from "../lib/settingsSectionRegistry";
+import { SettingsEditProvider, useSettingsDraft } from "../hooks/useSettings";
+import { getSettingsSections, type SettingsSectionDefinition, type SettingsSectionIcon, type SettingsSectionId } from "../lib/settingsSectionRegistry";
 import { AgentSettings } from "./settings/AgentSettings";
 import { AiProviderSettings } from "./settings/AiProviderSettings";
 import { GeneralSettings } from "./settings/GeneralSettings";
@@ -20,10 +20,24 @@ function SectionContent({ section }: { section: SettingsSectionId }) {
   return <div className="text-sm text-gray-500">This settings section is not available.</div>;
 }
 
+const sectionIcons: Record<SettingsSectionIcon, typeof Settings2> = {
+  settings: Settings2,
+  bot: Bot,
+  sparkles: Sparkles,
+  blocks: Blocks,
+  shapes: Shapes,
+  "file-text": FileText,
+};
+
+function sectionIcon(section: SettingsSectionDefinition) {
+  const Icon = sectionIcons[section.icon];
+  return <Icon aria-hidden size={15} strokeWidth={1.8} />;
+}
+
 function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const sections = getSettingsSections();
   const [activeSection, setActiveSection] = useState<SettingsSectionId>(sections[0]?.id ?? "general");
-  const { dirty, status, error, saveDraft, discardDraft } = useSettingsDraft();
+  const { status, error, flush, retry } = useSettingsDraft();
 
   useEffect(() => {
     if (open && !sections.some((section) => section.id === activeSection)) {
@@ -32,9 +46,13 @@ function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
   }, [activeSection, open, sections]);
 
   const groups = ["Application", "AI", "Editors"] as const;
+  const activeDefinition = sections.find((section) => section.id === activeSection) ?? sections[0];
   const handleOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen) discardDraft();
-    onOpenChange(nextOpen);
+    if (nextOpen) {
+      onOpenChange(true);
+      return;
+    }
+    void flush().then(() => onOpenChange(false)).catch(() => undefined);
   };
 
   return (
@@ -47,15 +65,12 @@ function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
             <Dialog.Description className="sr-only">Application settings</Dialog.Description>
             <div className="ideanote-settings-header__actions">
               {status === "saved" && <span className="is-success"><Check aria-hidden size={12} /> Saved</span>}
-              {status === "error" && <span className="is-error">Save failed</span>}
-              <button
-                type="button"
-                className="ideanote-settings-save"
-                disabled={status === "saving" || !dirty}
-                onClick={() => { void saveDraft().catch(() => undefined); }}
-              >
-                {status === "saving" ? "Saving…" : "Save changes"}
-              </button>
+              {status === "saving" && <span>Saving…</span>}
+              {status === "error" && (
+                <button type="button" className="ideanote-settings-retry" onClick={() => { void retry().catch(() => undefined); }}>
+                  <RefreshCw aria-hidden size={11} /> Retry
+                </button>
+              )}
               <button type="button" className="ideanote-settings-close" aria-label="Close Settings" onClick={() => handleOpenChange(false)}>
                 <X aria-hidden size={16} />
               </button>
@@ -71,9 +86,11 @@ function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
                       <button
                         key={section.id}
                         type="button"
-                        className={`ideanote-settings-nav__item ${activeSection === section.id ? "is-active" : ""}`}
-                        onClick={() => setActiveSection(section.id)}
-                      >
+                      className={`ideanote-settings-nav__item ${activeSection === section.id ? "is-active" : ""}`}
+                      aria-current={activeSection === section.id ? "page" : undefined}
+                      onClick={() => setActiveSection(section.id)}
+                    >
+                        {sectionIcon(section)}
                         <span>{section.label}</span>
                       </button>
                     );
@@ -82,6 +99,12 @@ function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
               ))}
             </nav>
             <main className="ideanote-settings-content">
+              {activeDefinition && (
+                <header className="ideanote-settings-page-header">
+                  <h2>{activeDefinition.label}</h2>
+                  <p>{activeDefinition.description}</p>
+                </header>
+              )}
               {error && <div className="ideanote-settings-error" role="alert">{error}</div>}
               <SectionContent section={activeSection} />
             </main>
@@ -94,8 +117,8 @@ function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
 
 export function SettingsCenter({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   return (
-    <SettingsDraftProvider open={open}>
+    <SettingsEditProvider open={open}>
       <SettingsDialog open={open} onOpenChange={onOpenChange} />
-    </SettingsDraftProvider>
+    </SettingsEditProvider>
   );
 }

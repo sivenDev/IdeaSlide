@@ -43,7 +43,7 @@ test('reviewed workbench geometry and document identity are executable contracts
   assert.match(welcome, /New File/);
 });
 
-test('Settings uses the reviewed compact dialog and explicit draft save lifecycle', async () => {
+test('Settings keeps the compact dialog while F048 owns navigation and automatic persistence', async () => {
   const [css, center, general, settingsHook, skills] = await Promise.all([
     source('src/index.css'),
     source('src/components/SettingsCenter.tsx'),
@@ -53,24 +53,26 @@ test('Settings uses the reviewed compact dialog and explicit draft save lifecycl
   ]);
   assert.match(css, /\.ideanote-settings-dialog\s*\{[^}]*width:\s*min\(760px,[^}]*height:\s*min\(560px,[^}]*border-radius:\s*8px/s);
   assert.match(css, /\.ideanote-settings-header\s*\{[^}]*flex:\s*0 0 54px/s);
-  assert.match(css, /\.ideanote-settings-nav\s*\{[^}]*flex:\s*0 0 170px/s);
+  assert.match(css, /\.ideanote-settings-nav\s*\{[^}]*flex:\s*0 0 190px/s);
   assert.match(css, /\.ideanote-settings-field\s*\{[^}]*min-height:\s*52px/s);
   assert.match(css, /\.ideanote-settings-toggle\s*\{[^}]*width:\s*32px[^}]*height:\s*18px/s);
-  assert.match(center, /Save changes/);
-  assert.match(center, /SettingsDraftProvider/);
+  assert.doesNotMatch(center, /Save changes|saveDraft|discardDraft/);
+  assert.match(center, /SettingsEditProvider/);
+  assert.match(center, /sectionIcon/);
+  assert.match(center, /activeDefinition\.description/);
   assert.match(center, /<Dialog\.Description className="sr-only">Application settings<\/Dialog\.Description>/);
   assert.doesNotMatch(center, /aria-describedby="settings-description"|id="settings-description"/);
-  assert.match(settingsHook, /discardDraft/);
-  assert.match(settingsHook, /saveDraft/);
-  assert.match(settingsHook, /\}, \[open, persisted\.hydrated\]\);/);
-  assert.match(settingsHook, /const current = draftRef\.current;[\s\S]*persisted\.previewTheme\(next\.general\.theme\)/);
-  assert.doesNotMatch(settingsHook, /setDraft\(\(current\) => \{[\s\S]*persisted\.previewTheme/);
+  assert.doesNotMatch(settingsHook, /discardDraft|saveDraft|dirty:/);
+  assert.match(settingsHook, /AUTO_SAVE_DEBOUNCE_MS\s*=\s*350/);
+  assert.match(settingsHook, /createLatestSettingsWriter/);
+  assert.match(settingsHook, /const flush = useCallback/);
+  assert.match(settingsHook, /const retry = useCallback/);
   assert.match(general, /ideanote-theme-options/);
   assert.match(css, /\.ideanote-skills-list\s*\{[^}]*border-top:\s*1px solid var\(--line\)/s);
   assert.match(css, /\.ideanote-skill-row\s*\{[^}]*min-height:\s*52px[^}]*grid-template-columns:\s*48px minmax\(0,\s*1fr\) 93px 64px 27px/s);
   assert.match(skills, /skill\.origin === "custom"[\s\S]*?<SettingsSwitch/);
   assert.match(skills, /skill-always-on[\s\S]*?Always on/);
-  assert.doesNotMatch(center, /sectionIcons|Review Scenarios/);
+  assert.doesNotMatch(center, /Review Scenarios|Search settings/);
 });
 
 test('Agent crown, history overlays, and composer match the concise reviewed contract', async () => {
