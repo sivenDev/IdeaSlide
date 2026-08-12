@@ -307,11 +307,67 @@ test('virtualized Page cards remain sortable in WebKit thumbnail mode', async (c
     await page.getByLabel('Workspaces and recent files').getByRole('button', { name: 'Open Workspace' }).click();
     await page.getByRole('button', { name: 'Open a.is' }).click();
 
+    await page.locator('.excalidraw .App-toolbar.Island').waitFor({ timeout: 60_000 });
+    const topAlignment = await page.evaluate(() => {
+      const trigger = document.querySelector('.ideanote-ideasketch-drawer-trigger');
+      const toolbar = document.querySelector('.excalidraw .App-toolbar.Island');
+      if (!(trigger instanceof HTMLElement) || !(toolbar instanceof HTMLElement)) return null;
+      const triggerRect = trigger.getBoundingClientRect();
+      const toolbarRect = toolbar.getBoundingClientRect();
+      return {
+        triggerTop: triggerRect.top,
+        triggerBottom: triggerRect.bottom,
+        toolbarTop: toolbarRect.top,
+        toolbarBottom: toolbarRect.bottom,
+      };
+    });
+    assert.ok(topAlignment);
+    assert.ok(
+      Math.abs(topAlignment.triggerTop - topAlignment.toolbarTop) <= 1,
+      `navigator/toolbar top edges differed by ${Math.abs(topAlignment.triggerTop - topAlignment.toolbarTop)}px`,
+    );
+    assert.ok(
+      Math.abs(topAlignment.triggerBottom - topAlignment.toolbarBottom) <= 1,
+      `navigator/toolbar bottom edges differed by ${Math.abs(topAlignment.triggerBottom - topAlignment.toolbarBottom)}px`,
+    );
+
     await page.getByRole('button', { name: 'Open IdeaSketch menu' }).click();
     await page.waitForFunction(() => {
       const drawer = document.querySelector('.ideanote-ideasketch-drawer-shell');
-      return drawer instanceof HTMLElement && drawer.getBoundingClientRect().width >= 300;
+      const width = drawer instanceof HTMLElement ? drawer.getBoundingClientRect().width : 0;
+      return width >= 243 && width <= 245;
     }, undefined, { timeout: 60_000 });
+
+    const drawerDivider = page.getByRole('separator', { name: 'Resize IdeaSketch menu panel' });
+    await drawerDivider.press('End');
+    await page.waitForFunction(() => {
+      const drawer = document.querySelector('.ideanote-ideasketch-drawer-shell');
+      return drawer instanceof HTMLElement && drawer.getBoundingClientRect().width >= 419;
+    });
+    const dividerBox = await drawerDivider.boundingBox();
+    assert.ok(dividerBox);
+    await page.mouse.move(dividerBox.x + dividerBox.width / 2, dividerBox.y + 80);
+    await page.mouse.down();
+    await page.mouse.move(dividerBox.x - 220, dividerBox.y + 80);
+    const resizingGeometry = await page.evaluate(() => {
+      const shell = document.querySelector('.ideanote-ideasketch-drawer-shell');
+      const drawer = document.querySelector('.ideanote-ideasketch-drawer');
+      if (!(shell instanceof HTMLElement) || !(drawer instanceof HTMLElement)) return null;
+      return {
+        shellWidth: shell.getBoundingClientRect().width,
+        drawerWidth: drawer.getBoundingClientRect().width,
+        resizing: shell.classList.contains('is-resizing'),
+        transitionDuration: getComputedStyle(shell).transitionDuration,
+      };
+    });
+    assert.ok(resizingGeometry);
+    assert.equal(resizingGeometry.resizing, true);
+    assert.equal(resizingGeometry.transitionDuration, '0s');
+    assert.ok(
+      Math.abs(resizingGeometry.shellWidth - resizingGeometry.drawerWidth) <= 1,
+      `drawer shell/content width gap was ${Math.abs(resizingGeometry.shellWidth - resizingGeometry.drawerWidth)}px`,
+    );
+    await page.mouse.up();
 
     const nameView = page.getByRole('button', { name: 'Name view' });
     await nameView.waitFor();

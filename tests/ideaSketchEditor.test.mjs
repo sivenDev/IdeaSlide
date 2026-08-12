@@ -30,8 +30,9 @@ test('saved editable documents autosave in both modes while Page-scoped Cameras 
   assert.match(source, /<SlideCanvas/);
   assert.match(source, /<IdeaSketchNavigator/);
   assert.match(source, /<ResizableDivider[\s\S]*?side="left"/);
-  assert.match(source, /const DEFAULT_DRAWER_WIDTH = 304/);
-  assert.match(source, /const MIN_DRAWER_WIDTH = 260/);
+  assert.match(source, /const IDEASKETCH_DRAWER_STORAGE_KEY = "ideanote:ideasketch-drawer:v2"/);
+  assert.match(source, /const DEFAULT_DRAWER_WIDTH = 244/);
+  assert.match(source, /const MIN_DRAWER_WIDTH = 220/);
   assert.match(source, /const MAX_DRAWER_WIDTH = 420/);
   assert.match(source, /const \[drawerWidth, setDrawerWidth\]/);
   assert.match(source, /const \[drawerOpen, setDrawerOpen\] = useState\(false\)/);

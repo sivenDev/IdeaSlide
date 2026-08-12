@@ -44,7 +44,12 @@ test('camera sidebar is a text-only vertical list', async () => {
 
 test('camera sidebar header owns the single Camera creation action', async () => {
   const source = await readFile(new URL('../src/components/CameraList.tsx', import.meta.url), 'utf8');
+  const presentIndex = source.indexOf('aria-label="Present"');
+  const addIndex = source.indexOf('aria-label="Add camera"');
 
+  assert.doesNotMatch(source, /Current Page|idea-slide-navigator-toolbar__context/);
+  assert.ok(presentIndex >= 0);
+  assert.ok(addIndex > presentIndex);
   assert.equal(source.match(/aria-label="Add camera"/g)?.length, 1);
   assert.equal(source.match(/onClick=\{onAddCamera\}/g)?.length, 1);
   assert.equal(source.match(/<TooltipContent>Add camera<\/TooltipContent>/g)?.length, 1);

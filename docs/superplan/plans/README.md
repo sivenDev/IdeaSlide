@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | `required` | 6 | 0 | 6 |
 | `feature` | 66 | 0 | 66 |
-| `bugfix` | 39 | 2 | 37 |
+| `bugfix` | 40 | 2 | 38 |
 
 ## Execution Order
 
@@ -146,3 +146,4 @@
 | `B037` | [Restore Danger, Disabled, and Theme-Choice Visual Semantics](bugs/B037-restore-danger-disabled-and-theme-choice-semantics.md) | `complete` | 2026-08-12 |
 | `B038` | [Prevent Blank Agent Panel Space During Rapid Resize](bugs/B038-prevent-blank-agent-panel-space-during-rapid-resize.md) | `complete` | 2026-08-12 |
 | `B039` | [Refine the IdeaSketch Drawer Controls](bugs/B039-refine-ideasketch-drawer-controls.md) | `complete` | 2026-08-12 |
+| `B040` | [Refine the IdeaSketch Navigator Density](bugs/B040-refine-ideasketch-navigator-density.md) | `complete` | 2026-08-12 |

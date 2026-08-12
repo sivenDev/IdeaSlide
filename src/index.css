@@ -2267,6 +2267,10 @@ body,
     transition: width 180ms ease;
 }
 
+.ideanote-ideasketch-drawer-shell.is-resizing {
+    transition: none;
+}
+
 .ideanote-ideasketch-drawer {
     position: relative;
     display: flex;
@@ -2278,17 +2282,6 @@ body,
     color: var(--text-primary);
     background: color-mix(in srgb, var(--surface-tertiary) 92%, var(--selection-bg));
     box-shadow: 8px 0 22px color-mix(in srgb, var(--text-primary) 7%, transparent);
-}
-
-.ideanote-ideasketch-drawer::before {
-    position: absolute;
-    z-index: 2;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 3px;
-    background: var(--accent-primary);
-    content: "";
 }
 
 .ideanote-ideasketch-drawer__navigation {
@@ -2309,13 +2302,14 @@ body,
 }
 
 .ideanote-ideasketch-drawer-trigger {
+    --ideanote-ideasketch-trigger-size: 2.75rem;
     position: absolute;
     z-index: 24;
-    top: 0.75rem;
-    left: 0.75rem;
+    top: 1rem;
+    left: 1rem;
     display: grid;
-    width: 2.25rem;
-    height: 2.25rem;
+    width: var(--ideanote-ideasketch-trigger-size);
+    height: var(--ideanote-ideasketch-trigger-size);
     place-items: center;
     border: 0;
     border-radius: 0.5rem;
@@ -2330,6 +2324,12 @@ body,
         color 120ms ease,
         background 120ms ease,
         box-shadow 120ms ease;
+}
+
+@media screen and (min-device-width: 1921px) {
+    .ideanote-ideasketch-drawer-trigger {
+        --ideanote-ideasketch-trigger-size: 3rem;
+    }
 }
 
 .ideanote-ideasketch-drawer-trigger:hover {
@@ -2488,7 +2488,7 @@ body,
         position: absolute;
         z-index: 28;
         inset: 0 auto 0 0;
-        width: min(330px, calc(100% - 3rem)) !important;
+        width: min(244px, calc(100% - 3rem)) !important;
         max-width: calc(100% - 3rem);
         box-shadow: 16px 0 34px rgb(18 20 26 / 28%);
     }
@@ -2503,7 +2503,7 @@ body,
 
     .ideanote-ideasketch-workspace.is-drawer-open .ideanote-ideasketch-drawer-trigger {
         z-index: 30;
-        left: calc(min(330px, 100cqw - 3rem) - 2.5rem);
+        left: calc(min(244px, 100cqw - 3rem) - var(--ideanote-ideasketch-trigger-size) - 0.25rem);
     }
 
     .ideanote-ideasketch-drawer-commands__grid {
@@ -2560,7 +2560,7 @@ body,
     color: #747b88;
     background: transparent;
     box-shadow: none;
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
     font-weight: 620;
     padding: 0 0.375rem;
 }

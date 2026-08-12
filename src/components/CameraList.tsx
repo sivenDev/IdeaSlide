@@ -143,25 +143,7 @@ export function CameraList({
   return (
     <section className="idea-slide-side-panel idea-slide-navigator-list" aria-label="Cameras">
       <div className="idea-slide-navigator-toolbar">
-        <span className="idea-slide-navigator-toolbar__context">Current Page</span>
         <div className="idea-slide-camera-header-actions">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="Add camera"
-                  disabled={!onAddCamera}
-                  onClick={onAddCamera}
-                  className="idea-slide-panel-add-button"
-                >
-                  <Plus aria-hidden="true" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>Add camera</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -179,6 +161,23 @@ export function CameraList({
               <DropdownMenuItem onSelect={onStartFullscreen}>Fullscreen</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Add camera"
+                  disabled={!onAddCamera}
+                  onClick={onAddCamera}
+                  className="idea-slide-panel-add-button"
+                >
+                  <Plus aria-hidden="true" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Add camera</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 

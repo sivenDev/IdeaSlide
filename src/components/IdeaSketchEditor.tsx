@@ -34,9 +34,9 @@ import {
   type IdeaSketchNavigatorTab,
 } from "./IdeaSketchNavigator";
 
-const IDEASKETCH_DRAWER_STORAGE_KEY = "ideanote:ideasketch-drawer:v1";
-const DEFAULT_DRAWER_WIDTH = 304;
-const MIN_DRAWER_WIDTH = 260;
+const IDEASKETCH_DRAWER_STORAGE_KEY = "ideanote:ideasketch-drawer:v2";
+const DEFAULT_DRAWER_WIDTH = 244;
+const MIN_DRAWER_WIDTH = 220;
 const MAX_DRAWER_WIDTH = 420;
 
 interface StoredIdeaSketchDrawerState {
@@ -119,6 +119,7 @@ export function IdeaSketchEditor({
   const [drawerWidth, setDrawerWidth] = useState(
     initialDrawerState.width ?? DEFAULT_DRAWER_WIDTH,
   );
+  const [isResizingDrawer, setIsResizingDrawer] = useState(false);
   const [navigatorTab, setNavigatorTab] = useState<IdeaSketchNavigatorTab>(
     initialDrawerState.tab ?? "pages",
   );
@@ -168,6 +169,10 @@ export function IdeaSketchEditor({
   useEffect(() => {
     setCanvasLayoutRefreshToken((token) => token + 1);
   }, [drawerOpen, drawerWidth]);
+
+  useEffect(() => {
+    if (!drawerOpen) setIsResizingDrawer(false);
+  }, [drawerOpen]);
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -518,7 +523,7 @@ export function IdeaSketchEditor({
     <div className="ideanote-ideasketch-editor">
       <div className={`ideanote-ideasketch-workspace ${drawerOpen ? "is-drawer-open" : ""}`}>
         <div
-          className="ideanote-ideasketch-drawer-shell"
+          className={`ideanote-ideasketch-drawer-shell ${isResizingDrawer ? "is-resizing" : ""}`}
           style={{ width: drawerOpen ? drawerWidth : 0 }}
           aria-hidden={!drawerOpen}
         >
@@ -574,6 +579,8 @@ export function IdeaSketchEditor({
             maxSize={MAX_DRAWER_WIDTH}
             panelLabel="IdeaSketch menu"
             showToggle={false}
+            onResizeStart={() => setIsResizingDrawer(true)}
+            onResizeEnd={() => setIsResizingDrawer(false)}
             onResize={(nextSize) => setDrawerWidth(clampDrawerWidth(nextSize))}
           />
         )}
