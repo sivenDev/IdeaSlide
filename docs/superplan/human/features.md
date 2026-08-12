@@ -378,3 +378,10 @@ Give the Agent a Codex-like structured Workspace workflow: bounded file listing 
 - created: 2026-08-12
 
 Add a refresh button to each Workspace root row beside the existing create and overflow actions. Activating it rescans that Workspace directory and updates the visible directory tree while preserving the existing Workspace/editor safety behavior.
+
+## F052: Merge the IdeaSketch menu and navigator into a left drawer
+
+- status: proposed
+- created: 2026-08-12
+
+In the .is editor, replace the separate right-side navigator and the current top-left Excalidraw menu popover with one navigation surface opened from the top-left menu button. The surface enters from the left and contains the existing menu actions together with the Pages and Cameras lists, preserving their current operations.
