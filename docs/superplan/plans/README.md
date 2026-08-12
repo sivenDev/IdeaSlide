@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | `required` | 6 | 0 | 6 |
 | `feature` | 60 | 0 | 60 |
-| `bugfix` | 36 | 2 | 34 |
+| `bugfix` | 37 | 2 | 35 |
 
 ## Execution Order
 
@@ -137,3 +137,4 @@
 | `B034` | [Restore Reviewed Demo Parity in the Tauri Workbench](bugs/B034-restore-reviewed-demo-parity-in-tauri.md) | `in_progress` | 2026-08-11 |
 | `B035` | [Restore Editor Tool Rebinding and Terminal Agent Actions](bugs/B035-restore-editor-tool-rebinding-and-terminal-agent-actions.md) | `complete` | 2026-08-12 |
 | `B036` | [Unify Light and Dark Theme Palette and Remove Legacy Accent Conflicts](bugs/B036-unify-light-and-dark-theme-palette.md) | `complete` | 2026-08-12 |
+| `B037` | [Restore Danger, Disabled, and Theme-Choice Visual Semantics](bugs/B037-restore-danger-disabled-and-theme-choice-semantics.md) | `complete` | 2026-08-12 |

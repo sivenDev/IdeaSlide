@@ -25,7 +25,7 @@ test('Workspace navigation keeps creation on roots/directories and actions in co
   assert.match(row, /entry\.kind === "directory"/);
   assert.match(row, /aria-label=\{`Create in \$\{entry\.name\}`\}/);
   assert.match(row, /aria-label=\{`Actions for \$\{entry\.name\}`\}/);
-  assert.match(row, /Move to Trash/);
+  assert.match(row, /className="is-danger"[\s\S]*?Move to Trash/);
   assert.match(row, /DropdownMenuContent/);
   assert.match(explorer, /WorkspaceRootDropZone/);
   assert.doesNotMatch(explorer, /WorkspaceActionBar|tooltip="New File"|Workspace Tree Actions/);

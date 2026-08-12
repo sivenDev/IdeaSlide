@@ -305,3 +305,10 @@ Reproduce by reusing one Agent conversation across a Markdown document and an Id
 - created: 2026-08-12
 
 The F047 interface mixes the new green semantic theme with legacy purple selections, blue file accents, and inconsistent neutral surfaces, producing a visually fragmented Light theme and leaving the same risk in Dark. Establish one art-directed violet-led Light/Dark palette, migrate application-owned legacy accent and surface literals to semantic tokens, keep blue only for document/file semantics and green only for success/online status, preserve editor-owned document colors and all existing behavior, and verify both themes visually and with contrast/theme regressions.
+
+## B037: Restore Danger, Disabled, and Theme-Choice Visual Semantics
+
+- status: done
+- created: 2026-08-12
+
+Nested Workspace file and directory Move to Trash menu items render as ordinary actions instead of danger actions; disabled Settings Save retains an active violet outline; and Light/Dark/System cards use redundant decorative icons despite already having visual previews. Restore red danger styling for nested resource deletion in normal, hover, focus, and highlighted states; make disabled Settings actions clearly inactive without violet emphasis; simplify theme cards to preview plus label while preserving accessibility, theme behavior, layout, and all Workspace and Settings functionality.

@@ -1,18 +1,17 @@
-import { Monitor, Moon, Sun } from "lucide-react";
 import { useSettingsDraft } from "../../hooks/useSettings";
 
 export function GeneralSettings() {
   const { settings, updateSettings } = useSettingsDraft();
   const options = [
-    { value: "light", label: "Light", Icon: Sun },
-    { value: "dark", label: "Dark", Icon: Moon },
-    { value: "system", label: "System", Icon: Monitor },
+    { value: "light", label: "Light" },
+    { value: "dark", label: "Dark" },
+    { value: "system", label: "System" },
   ] as const;
   return (
     <section className="ideanote-settings-section" aria-labelledby="settings-general-title">
       <h2 id="settings-general-title" className="ideanote-settings-title">Appearance</h2>
       <div className="ideanote-theme-options" aria-label="Appearance">
-        {options.map(({ value, label, Icon }) => (
+        {options.map(({ value, label }) => (
           <button
             key={value}
             type="button"
@@ -28,7 +27,7 @@ export function GeneralSettings() {
               <span className="ideanote-theme-preview__rail" />
               <span className="ideanote-theme-preview__canvas"><span /></span>
             </span>
-            <span className="ideanote-theme-option__label"><Icon aria-hidden size={14} /><strong>{label}</strong></span>
+            <span className="ideanote-theme-option__label"><strong>{label}</strong></span>
           </button>
         ))}
       </div>

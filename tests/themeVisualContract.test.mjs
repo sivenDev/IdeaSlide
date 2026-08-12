@@ -172,13 +172,30 @@ test('theme polish is semantic, reduced-motion safe, and removes Markdown color 
 });
 
 test('danger menu items retain danger semantics while highlighted', async () => {
-  const [css, workspace] = await Promise.all([
+  const [css, workspace, resourceRow] = await Promise.all([
     source('src/index.css'),
     source('src/components/WorkspaceSidebar.tsx'),
+    source('src/components/WorkspaceResourceRow.tsx'),
   ]);
 
   assert.match(workspace, /className="is-danger"[\s\S]*?Remove from Workspaces/);
   assert.match(workspace, /className="is-danger"[\s\S]*?onRemoveRecent[\s\S]*?Remove/);
+  assert.match(resourceRow, /className="is-danger"[\s\S]*?Move to Trash/);
   assert.doesNotMatch(workspace, /text-red-700 focus:text-red-800/);
+  assert.doesNotMatch(resourceRow, /text-red-700 focus:text-red-800/);
   assert.match(css, /\.ideanote-compact-menu \[role="menuitem"\]\.is-danger:focus[\s\S]*color:\s*var\(--status-danger\) !important;[\s\S]*background:\s*color-mix\(in srgb, var\(--status-danger\) 11%, var\(--surface-elevated\)\) !important;/);
+});
+
+test('disabled Settings Save is visually inactive without primary-action emphasis', async () => {
+  const css = await source('src/index.css');
+  const disabled = themeBlock(css, '.ideanote-settings-save:disabled');
+
+  assert.match(disabled, /border-color:\s*var\(--border-subtle\)/);
+  assert.match(disabled, /color:\s*var\(--disabled-text\)/);
+  assert.match(disabled, /background:\s*var\(--disabled-bg\)/);
+  assert.match(disabled, /box-shadow:\s*none/);
+  assert.match(disabled, /outline:\s*none/);
+  assert.match(disabled, /cursor:\s*not-allowed/);
+  assert.match(css, /\.ideanote-settings-save:not\(:disabled\):focus-visible/);
+  assert.doesNotMatch(css, /\.ideanote-settings-save:focus-visible,[\s\S]*?outline:\s*2px solid var\(--focus-ring\)/);
 });

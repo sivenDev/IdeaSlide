@@ -284,7 +284,7 @@ export function WorkspaceResourceRow({
               <DropdownMenuItem onSelect={() => setIsRenaming(true)}><Pencil {...rowActionIconProps} />Rename</DropdownMenuItem>
               <DropdownMenuItem onSelect={onReveal}><ExternalLink {...rowActionIconProps} />Show in Finder</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-red-700 focus:text-red-800" onSelect={onTrash}><Trash2 {...rowActionIconProps} />Move to Trash</DropdownMenuItem>
+              <DropdownMenuItem className="is-danger" onSelect={onTrash}><Trash2 {...rowActionIconProps} />Move to Trash</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

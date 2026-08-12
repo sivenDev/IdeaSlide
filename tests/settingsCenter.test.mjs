@@ -33,6 +33,14 @@ test('Agent settings own the AI feature gate without redundant explanatory copy'
   assert.doesNotMatch(source, /does not mount the Agent|load Skills or Tools|call a model/);
 });
 
+test('Appearance choices use their visual previews without redundant icons', async () => {
+  const source = await readFile(new URL('../src/components/settings/GeneralSettings.tsx', import.meta.url), 'utf8');
+  assert.match(source, /data-theme-option=\{value\}/);
+  assert.match(source, /ideanote-theme-preview/);
+  assert.match(source, /<strong>\{label\}<\/strong>/);
+  assert.doesNotMatch(source, /lucide-react|\bSun\b|\bMoon\b|\bMonitor\b|<Icon/);
+});
+
 test('AI Provider settings use password, Test, and tested model selection', async () => {
   const source = await readFile(new URL('../src/components/settings/AiProviderSettings.tsx', import.meta.url), 'utf8');
   const commands = await readFile(new URL('../src/lib/tauriCommands.ts', import.meta.url), 'utf8');
