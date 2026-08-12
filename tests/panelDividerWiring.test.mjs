@@ -37,7 +37,7 @@ test('divider supports independently bounded resizing for Workspace, Agent, and 
   assert.match(editor, /WORKSPACE_PANEL_MAX_WIDTH/);
   assert.match(editor, /clampWorkspacePanelWidth/);
   assert.match(editor, /side="left"[\s\S]*onResize=/);
-  assert.match(editor, /const AGENT_PANEL_DEFAULT_WIDTH = 300/);
+  assert.match(editor, /const AGENT_PANEL_DEFAULT_WIDTH = 352/);
   assert.match(editor, /const AGENT_PANEL_MIN_WIDTH = 260/);
   assert.match(editor, /const AGENT_PANEL_MAX_WIDTH = 420/);
   assert.match(editor, /side="right"[\s\S]*panelLabel="Agent"[\s\S]*onResize=/);
@@ -62,8 +62,10 @@ test('resize rail styling exposes a full-height interaction gutter and visible a
   const source = await readFile(new URL('../src/index.css', import.meta.url), 'utf8');
 
   assert.match(source, /\.idea-slide-resize-rail/);
-  assert.match(source, /width:\s*0\.5rem/);
-  assert.match(source, /\.idea-slide-resize-rail:hover/);
+  assert.match(source, /\.idea-slide-resize-rail\s*\{[\s\S]*?width:\s*7px/);
+  assert.match(source, /\.idea-slide-resize-rail\s*\{[\s\S]*?flex:\s*0 0 7px[\s\S]*?margin:\s*0 -3px/);
+  assert.match(source, /\.idea-slide-resize-rail__line\s*\{[\s\S]*?width:\s*1px/);
+  assert.match(source, /\.idea-slide-resize-rail:hover[\s\S]*?width:\s*3px/);
   assert.match(source, /\.is-resizing/);
-  assert.match(source, /--idea-slide-accent/);
+  assert.match(source, /background:\s*var\(--focus\)/);
 });

@@ -18,6 +18,8 @@ test('Markdown top chrome starts with Outline and keeps history at lower left', 
   const outline = editor.indexOf('label={showOutline ? "Hide outline" : "Show outline"}');
   const viewMode = editor.indexOf('aria-label="Markdown view mode"');
   assert.ok(outline >= 0 && outline < viewMode);
+  assert.match(editor, /ideanote-markdown-toolbar[^"\n]*justify-start/);
+  assert.doesNotMatch(editor, /ideanote-markdown-toolbar[^"\n]*justify-between/);
   assert.match(editor, /className="ideanote-markdown-history"/);
   assert.match(editor, /disabled=\{readOnly \|\| !editor\.canUndo\}/);
   assert.match(editor, /disabled=\{readOnly \|\| !editor\.canRedo\}/);

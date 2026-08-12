@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSettings } from "../../hooks/useSettings";
+import { useSettingsDraft } from "../../hooks/useSettings";
 import { listAgentRuntimes } from "../../lib/agent/agentClient";
 import { selectAgentRuntime } from "../../lib/agent/runtimeSelection";
 import type { AgentRuntimeDescriptor } from "../../lib/agent/types";
 import { DEFAULT_SETTINGS, type AppSettings } from "../../lib/settings";
 import { SettingsField } from "./SettingsField";
 import { SettingsSwitch } from "./SettingsSwitch";
-import { AgentSkillManager } from "./AgentSkillManager";
 
 function AgentNumberInput({
   label,
@@ -35,7 +34,7 @@ function AgentNumberInput({
 }
 
 export function AgentSettings() {
-  const { settings, activationState, updateSettings } = useSettings();
+  const { settings, activationState, updateSettings } = useSettingsDraft();
   const [runtimes, setRuntimes] = useState<AgentRuntimeDescriptor[]>([]);
   const [runtimeDiagnostic, setRuntimeDiagnostic] = useState<string>();
   const runtimeSelection = useMemo(
@@ -63,13 +62,13 @@ export function AgentSettings() {
       : activationState === "disabled"
         ? "Disabled"
         : "Loading settings";
-  const updateAgent = (change: Partial<AppSettings["agent"]>) => void updateSettings((current) => ({
+  const updateAgent = (change: Partial<AppSettings["agent"]>) => updateSettings((current) => ({
     ...current,
     agent: { ...current.agent, ...change },
   }));
 
   return (
-    <section aria-labelledby="settings-agent-title">
+    <section className="ideanote-settings-section ideanote-settings-section--wide" aria-labelledby="settings-agent-title">
       <h2 id="settings-agent-title" className="ideanote-settings-title">Agent</h2>
       <div className={`ideanote-settings-status is-${activationState}`}>
         <span className="ideanote-settings-status__dot" />
@@ -79,21 +78,16 @@ export function AgentSettings() {
         <SettingsSwitch
           label="Enable AI"
           checked={settings.ai.enabled}
-          onCheckedChange={(enabled) => void updateSettings((current) => ({
+          onCheckedChange={(enabled) => updateSettings((current) => ({
             ...current,
             ai: { ...current.ai, enabled },
           }))}
         />
       </SettingsField>
-      <SettingsField
-        title="Runtime selection"
-        description="Codex when compatible, otherwise the configured provider."
-      >
+      <SettingsField title="Runtime selection">
         <div className="ideanote-settings-readout" role="status">
           <strong>{runtimeSelection.descriptor?.label ?? "Automatic selection"}</strong>
-          <span>{runtimeDiagnostic ?? (runtimes.length > 0
-            ? runtimeSelection.reason
-            : "Runtime availability is checked by the desktop app.")}</span>
+          {runtimeDiagnostic && <span>{runtimeDiagnostic}</span>}
         </div>
       </SettingsField>
       <SettingsField title="Maximum steps">
@@ -118,7 +112,7 @@ export function AgentSettings() {
         />
       </SettingsField>
       <SettingsField
-        title="New Thread recommendation"
+        title="New thread recommendation"
         description="60–100%, above the warning threshold"
       >
         <AgentNumberInput
@@ -166,9 +160,6 @@ export function AgentSettings() {
           checked={settings.agent.showToolActivity}
           onCheckedChange={(showToolActivity) => updateAgent({ showToolActivity })}
         />
-      </SettingsField>
-      <SettingsField title="Skills">
-        <AgentSkillManager activationState={activationState} />
       </SettingsField>
       <SettingsField title="Reset policy">
         <button

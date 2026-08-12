@@ -102,13 +102,13 @@ test('Agent settings keep automatic runtime selection concise and move the AI ga
     'utf8',
   );
   assert.match(agentSettings, /title="Runtime selection"/);
-  assert.match(agentSettings, /Codex when compatible, otherwise the configured provider/);
+  assert.doesNotMatch(agentSettings, /Codex when compatible, otherwise the configured provider/);
   assert.match(agentSettings, /title="Enable AI"/);
   assert.match(agentSettings, /checked=\{settings\.ai\.enabled\}/);
   assert.match(agentSettings, /listAgentRuntimes\(\)/);
   assert.match(agentSettings, /selectAgentRuntime\(runtimes/);
   assert.match(agentSettings, /title="Context warning"/);
-  assert.match(agentSettings, /title="New Thread recommendation"/);
+  assert.match(agentSettings, /title="New thread recommendation"/);
   assert.match(agentSettings, /title="Runtime diagnostics retained"/);
   assert.match(agentSettings, /title="Compatibility replay messages"/);
   assert.match(agentSettings, /title="Show source delivery"/);

@@ -4,21 +4,25 @@ import { readFile } from 'node:fs/promises';
 
 test('Settings exposes complete custom Skill CRUD and safety controls', async () => {
   const manager = await readFile(new URL('../src/components/settings/AgentSkillManager.tsx', import.meta.url), 'utf8');
-  const settings = await readFile(new URL('../src/components/settings/AgentSettings.tsx', import.meta.url), 'utf8');
-  assert.match(manager, /Import folder/);
+  const settings = await readFile(new URL('../src/components/settings/SkillSettings.tsx', import.meta.url), 'utf8');
+  assert.match(manager, /Import Skill folder/);
   assert.match(manager, /Refresh/);
   assert.match(manager, /Remove/);
   assert.match(manager, /implicitInvocation/);
   assert.match(manager, /editorScopes/);
   assert.match(manager, /validationMessage/);
   assert.match(manager, /AI is disabled/);
-  assert.match(manager, /skill\.editorScopes\.length === 1/);
-  assert.match(manager, /All supported editors/);
+  assert.match(manager, /All editors/);
   assert.match(manager, /origin === "bundled"/);
+  assert.match(manager, /bundled\.map[\s\S]*?skill-always-on/);
   assert.match(manager, /custom\.map[\s\S]*?<SettingsSwitch/);
+  assert.match(manager, /ideanote-skill-row/);
+  assert.match(manager, /ideanote-skill-source/);
+  assert.match(manager, /aria-label=\{`Scope for \$\{skill\.name\}`\}/);
   assert.equal((manager.match(/<SettingsSwitch/g) ?? []).length, 1);
-  assert.equal((manager.match(/<SettingsCheckbox/g) ?? []).length, 3);
+  assert.equal((manager.match(/<SettingsCheckbox/g) ?? []).length, 0);
   assert.doesNotMatch(manager, /type="checkbox"/);
+  assert.doesNotMatch(manager, /Bundled editor Skills|Managed Skills|Compatible editor Skills/);
   assert.match(settings, /<AgentSkillManager/);
 });
 

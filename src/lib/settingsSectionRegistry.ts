@@ -1,4 +1,4 @@
-export type SettingsSectionId = "general" | "ai-provider" | "agent" | "ideasketch" | (string & {});
+export type SettingsSectionId = "general" | "ai-provider" | "agent" | "skills" | "ideasketch" | (string & {});
 
 export interface SettingsSectionDefinition {
   id: SettingsSectionId;
@@ -22,9 +22,10 @@ export function getSettingsSections(): SettingsSectionDefinition[] {
 }
 
 [
-  { id: "general", label: "Appearance", description: "Application theme", order: 10, owner: "application", group: "Application" },
-  { id: "ai-provider", label: "Provider", description: "Endpoint and model", order: 20, owner: "application", group: "AI" },
+  { id: "general", label: "General", description: "Application theme", order: 10, owner: "application", group: "Application" },
+  { id: "ai-provider", label: "AI Provider", description: "Endpoint and model", order: 20, owner: "application", group: "AI" },
   { id: "agent", label: "Agent", description: "Availability and policy", order: 30, owner: "application", group: "AI" },
+  { id: "skills", label: "Skills", description: "Bundled and imported Agent Skills", order: 40, owner: "application", group: "AI" },
   { id: "ideasketch", label: "IdeaSketch", description: "Visual editor preferences", order: 100, owner: "editor", group: "Editors" },
   { id: "markdown", label: "Markdown", description: "Text editor preferences", order: 110, owner: "editor", group: "Editors" },
 ].forEach((definition) => registerSettingsSection(definition as SettingsSectionDefinition));

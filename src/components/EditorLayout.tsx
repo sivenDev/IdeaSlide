@@ -92,7 +92,7 @@ import { AgentPanel } from "./AgentPanel";
 import { RightSidebarHost } from "./RightSidebarHost";
 import { useNativeWindowFrame } from "../hooks/useNativeWindowFrame";
 
-const AGENT_PANEL_DEFAULT_WIDTH = 300;
+const AGENT_PANEL_DEFAULT_WIDTH = 352;
 const AGENT_PANEL_MIN_WIDTH = 260;
 const AGENT_PANEL_MAX_WIDTH = 420;
 const PANEL_STATE_KEY = "ideanote.workbench.panels.v1";
@@ -1229,7 +1229,6 @@ export function EditorLayout({
                   onMove={handleMove}
                   onTrash={handleTrash}
                   onReveal={(path) => void handleRevealPath(joinWorkspacePath(state.workspace!.root, path))}
-                  onRefresh={refreshTree}
                   onError={handleWorkspaceActionError}
                   onExpandedPathsChange={(paths) => dispatch({ type: "SET_EXPANDED_PATHS", paths })}
                 />
@@ -1254,6 +1253,9 @@ export function EditorLayout({
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <WorkbenchCrown
             document={activeDocument}
+            documentPath={activeDocument?.mode === "workspace"
+              ? `${state.workspace?.name ?? "Workspace"} / ${activeDocument.filePath}`
+              : activeDocument?.filePath}
             isSaving={isSaving}
             workspaceOpen={showWorkspace}
             agentOpen={showAgent}
@@ -1305,9 +1307,7 @@ export function EditorLayout({
                     hasRecents={Boolean(firstRecent)}
                     onOpenRecent={() => { if (firstRecent) void handleOpenRecent(firstRecent.path); }}
                     onOpenFile={() => void handleOpenFile()}
-                    onOpenWorkspace={() => void handleOpenWorkspace()}
                     onNewFile={() => void handleNewStandaloneDocument("ideasketch")}
-                    onOpenSettings={onOpenSettings}
                   />
                 )}
                 editorProps={{

@@ -8,7 +8,6 @@ import { useAgentThread } from "../hooks/useAgentThread";
 import { useAgentPresentation } from "../hooks/useAgentPresentation";
 import { useSettings } from "../hooks/useSettings";
 import { createNativeAgentRuntime } from "../lib/agent/agentRuntime";
-import { selectAgentDiagnosticView } from "../lib/agent/agentDiagnostics";
 import { createDirectApplyToolExecutor } from "../lib/agent/agentToolHost";
 import { discoverAgentSkills } from "../lib/agent/agentClient";
 import { promptFromAssistantUiMessage, toAssistantUiMessage } from "../lib/agent/assistantUiAdapter";
@@ -87,11 +86,6 @@ export function AgentPanel({
     policy: agentPolicy,
   });
   const running = Boolean(state.activeTurnId);
-  const diagnosticPolicy = state.thread.turns[state.thread.turns.length - 1]?.effectivePolicy ?? agentPolicy;
-  const diagnosticView = useMemo(
-    () => selectAgentDiagnosticView(state, diagnosticPolicy),
-    [diagnosticPolicy, state],
-  );
   const presentation = useAgentPresentation(state);
   currentTurnIdRef.current = state.activeTurnId;
 
@@ -344,7 +338,6 @@ export function AgentPanel({
               currentTurnCount={state.thread.turns.length}
               loading={historyLoading}
               running={running}
-              statusLabel={diagnosticView.label}
               onResume={resumeThread}
               onRename={renameThread}
               onDelete={deleteThread}
@@ -354,7 +347,6 @@ export function AgentPanel({
           running={running}
           onNewThread={() => { void runThreadAction(createThread); }}
           onOpenInspector={() => setInspectorOpen(true)}
-          onOpenSettings={onOpenSettings}
           onClose={onClose}
         />
         <AgentRuntimeInspector

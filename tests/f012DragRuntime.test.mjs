@@ -213,10 +213,10 @@ async function dragBetweenBoxes(page, source, target, targetRatio) {
 
 async function waitForRowOrder(rows, expected, timeoutMs = 2_000) {
   const deadline = Date.now() + timeoutMs;
-  let actual = await rows.allTextContents();
+  let actual = await rows.locator('.idea-slide-resource-name').allTextContents();
   while (Date.now() < deadline && JSON.stringify(actual) !== JSON.stringify(expected)) {
     await new Promise((resolve) => setTimeout(resolve, 20));
-    actual = await rows.allTextContents();
+    actual = await rows.locator('.idea-slide-resource-name').allTextContents();
   }
   assert.deepEqual(actual, expected);
 }
@@ -244,18 +244,22 @@ test('Workspace drag completes in WebKit after React drop feedback updates', asy
 
     const rows = page.getByRole('treeitem');
     await rows.first().waitFor();
-    assert.deepEqual(await rows.allTextContents(), ['folder', 'a.is', 'b.is']);
+    assert.deepEqual(await rows.locator('.idea-slide-resource-name').allTextContents(), ['folder', 'a.is', 'b.is']);
     const explorer = page.getByRole('complementary', { name: 'Workspace Explorer' });
     assert.equal(await explorer.getByText('mock-workspace', { exact: true }).count(), 0);
-    await page.getByRole('button', { name: 'Select folder' }).click();
+    const folderMain = rows.first().locator('.idea-slide-resource-main');
+    await folderMain.click();
     assert.match(await rows.nth(0).getAttribute('class'), /is-selected/);
+    assert.equal(await rows.nth(0).getAttribute('aria-expanded'), 'true');
 
     await dragRow(page, 'a.is', 2, 0.5);
     await waitForRowOrder(rows, ['folder', 'a.is', 'b.is']);
 
     await dragRowAndAssertStableHeight(page, 'a.is', 0, 0.5);
+    await waitForRowOrder(rows, ['folder', 'a.is', 'b.is']);
+    await folderMain.click();
     await waitForRowOrder(rows, ['folder', 'b.is']);
-    await page.getByRole('button', { name: 'Expand Folder' }).click();
+    await folderMain.click();
     await waitForRowOrder(rows, ['folder', 'a.is', 'b.is']);
 
     await dragToRootAndAssertStableHeight(page, 'a.is');

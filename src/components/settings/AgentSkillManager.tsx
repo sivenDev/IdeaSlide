@@ -1,5 +1,5 @@
 import { ask, open } from "@tauri-apps/plugin-dialog";
-import { FolderPlus, RefreshCw, Trash2 } from "lucide-react";
+import { Check, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   discoverAgentSkills,
@@ -8,8 +8,8 @@ import {
   updateAgentSkill,
 } from "../../lib/agent/agentClient";
 import type { AgentSkillMetadata } from "../../lib/agent/types";
+import { getOpenableFileTypeDefinitions } from "../../lib/fileTypeRegistry";
 import type { AgentActivationState } from "../../lib/settings";
-import { SettingsCheckbox } from "./SettingsCheckbox";
 import { SettingsSwitch } from "./SettingsSwitch";
 
 function desktopRuntime(): boolean {
@@ -22,6 +22,10 @@ export function AgentSkillManager({ activationState }: { activationState: AgentA
   const [message, setMessage] = useState<string>();
   const bundled = useMemo(() => skills.filter((skill) => skill.origin === "bundled"), [skills]);
   const custom = useMemo(() => skills.filter((skill) => skill.origin === "custom"), [skills]);
+  const scopeOptions = useMemo(() => getOpenableFileTypeDefinitions().map((definition) => ({
+    value: definition.type,
+    label: definition.displayName,
+  })), []);
 
   const refresh = useCallback(async () => {
     if (!desktopRuntime()) return;
@@ -93,99 +97,79 @@ export function AgentSkillManager({ activationState }: { activationState: AgentA
 
   return (
     <div className="ideanote-agent-skill-manager">
-      <div className="ideanote-agent-skill-manager__header">
-        <div>
-          <strong>Managed Skills</strong>
-          <span>Instruction-only Skills use existing editor Tools and permissions.</span>
-        </div>
-        <button type="button" className="ideanote-settings-button" onClick={() => void chooseAndImport()} disabled={Boolean(busyId)}>
-          <FolderPlus aria-hidden size={13} /> Import folder
-        </button>
-      </div>
       {activationState === "disabled" && (
-        <p className="ideanote-agent-skill-manager__notice">AI is disabled. You can manage stored Skills here, but Turn discovery, activation, references, and model injection remain off.</p>
+        <p className="sr-only">AI is disabled. Stored Skills remain available to manage.</p>
       )}
       {message && <p className="ideanote-agent-skill-manager__error" role="alert">{message}</p>}
 
-      <section aria-label="Bundled editor Skills">
-        <h3>Bundled editor Skills</h3>
+      <div className="ideanote-skills-list" aria-label="Agent Skills">
         {bundled.map((skill) => (
-          <article key={skill.id} className="ideanote-agent-skill-card is-bundled">
-            <div><strong>{skill.name}</strong><span>{skill.description}</span></div>
-            <small>Mandatory for {skill.editorScopes.join(", ")} · {skill.resources.length} reference{skill.resources.length === 1 ? "" : "s"}</small>
-          </article>
+          <div key={skill.id} className="ideanote-skill-row">
+            <span className="ideanote-skill-source">bundled</span>
+            <div className="ideanote-skill-copy">
+              <strong>{skill.name}</strong>
+              <small>{skill.editorScopes[0] ?? "all"}</small>
+            </div>
+            <select aria-label={`Scope for ${skill.name}`} value={skill.editorScopes[0] ?? ""} disabled>
+              <option value="">All editors</option>
+              {scopeOptions.map((scope) => <option key={scope.value} value={scope.value}>{scope.label}</option>)}
+            </select>
+            <span className="skill-always-on"><Check aria-hidden size={11} />Always on</span>
+            <span aria-hidden />
+          </div>
         ))}
-      </section>
-
-      <section aria-label="Custom Agent Skills">
-        <h3>Custom Skills</h3>
-        {custom.length === 0 ? (
-          <p className="ideanote-agent-skill-manager__empty">No custom Skills imported.</p>
-        ) : custom.map((skill) => {
+        {custom.map((skill) => {
           const busy = busyId === skill.id;
           return (
-            <article key={skill.id} className={`ideanote-agent-skill-card ${skill.valid ? "is-valid" : "is-invalid"}`}>
-              <div className="ideanote-agent-skill-card__title">
-                <div><strong>{skill.name}</strong><span>{skill.description}</span></div>
-                <SettingsSwitch label={`Enable ${skill.name}`} checked={skill.enabled} disabled={busy || !skill.valid} onCheckedChange={(enabled) => void update(skill, { enabled })} />
+            <div key={skill.id} className={`ideanote-skill-row ${skill.valid ? "" : "is-invalid"}`}>
+              <button
+                type="button"
+                className="ideanote-skill-source is-custom"
+                aria-label={`Refresh ${skill.name}`}
+                title={`Refresh ${skill.name}`}
+                onClick={() => void chooseAndImport(skill.id)}
+                disabled={Boolean(busyId)}
+              >
+                {skill.valid ? "custom" : "invalid"}
+              </button>
+              <div className="ideanote-skill-copy">
+                <strong>{skill.name}</strong>
+                <small className={skill.valid ? "" : "is-danger"} title={skill.valid ? skill.sourceLabel : skill.validationMessage}>
+                  {skill.valid ? skill.sourceLabel : skill.validationMessage ?? "Invalid Skill"}
+                </small>
               </div>
-              <dl>
-                <div><dt>Source</dt><dd>{skill.sourceLabel}</dd></div>
-                <div><dt>Version</dt><dd title={skill.digest}>{skill.digest ? skill.digest.slice(0, 12) : "Invalid"}</dd></div>
-                <div><dt>References</dt><dd>{skill.resources.length}</dd></div>
-                <div><dt>Status</dt><dd>{skill.valid ? "Valid" : skill.validationMessage ?? "Invalid"}</dd></div>
-              </dl>
-              <label className="ideanote-agent-skill-card__implicit">
-                <SettingsCheckbox
-                  label={`Allow ${skill.name} to activate autonomously`}
-                  checked={skill.implicitInvocation}
-                  disabled={busy || !skill.enabled || !skill.valid}
-                  onCheckedChange={(implicitInvocation) => void update(skill, { implicitInvocation })}
-                />
-                Allow the Agent to activate this Skill autonomously
-              </label>
-              <fieldset disabled={busy || !skill.valid}>
-                <legend>Compatible editor Skills</legend>
-                <label>
-                  <SettingsCheckbox
-                    label={`Use ${skill.name} with all supported editors`}
-                    checked={skill.editorScopes.length === 0}
-                    disabled={bundled.length === 0}
-                    onCheckedChange={(checked) => void update(skill, {
-                      editorScopes: checked ? [] : bundled.slice(0, 1).map((item) => item.id),
-                    })}
-                  />
-                  All supported editors
-                </label>
-                {bundled.map((editor) => (
-                  <label key={editor.id}>
-                    <SettingsCheckbox
-                      label={`Use ${skill.name} with ${editor.name}`}
-                      checked={skill.editorScopes.includes(editor.id)}
-                      disabled={skill.editorScopes.length === 0 || busy || (
-                        skill.editorScopes.length === 1 && skill.editorScopes[0] === editor.id
-                      )}
-                      title={skill.editorScopes.length === 1 && skill.editorScopes[0] === editor.id
-                        ? "Select another editor or All supported editors before removing this scope."
-                        : undefined}
-                      onCheckedChange={(checked) => void update(skill, {
-                        editorScopes: checked
-                          ? [...skill.editorScopes, editor.id]
-                          : skill.editorScopes.filter((scope) => scope !== editor.id),
-                      })}
-                    />
-                    {editor.name}
-                  </label>
-                ))}
-              </fieldset>
-              <div className="ideanote-agent-skill-card__actions">
-                <button type="button" onClick={() => void chooseAndImport(skill.id)} disabled={Boolean(busyId)}><RefreshCw aria-hidden size={12} /> Refresh</button>
-                <button type="button" className="is-danger" onClick={() => void remove(skill)} disabled={Boolean(busyId)}><Trash2 aria-hidden size={12} /> Remove</button>
-              </div>
-            </article>
+              <select
+                aria-label={`Scope for ${skill.name}`}
+                value={skill.editorScopes.length === 1 ? skill.editorScopes[0] : ""}
+                disabled={busy || !skill.valid}
+                onChange={(event) => void update(skill, { editorScopes: event.target.value ? [event.target.value] : [] })}
+              >
+                <option value="">All editors</option>
+                {scopeOptions.map((scope) => <option key={scope.value} value={scope.value}>{scope.label}</option>)}
+              </select>
+              <SettingsSwitch
+                label={`Enable ${skill.name}`}
+                checked={skill.enabled}
+                disabled={busy || !skill.valid}
+                onCheckedChange={(enabled) => void update(skill, { enabled })}
+              />
+              <button
+                type="button"
+                className="ideanote-skill-remove"
+                aria-label={`Remove ${skill.name}`}
+                title={`Remove ${skill.name}`}
+                onClick={() => void remove(skill)}
+                disabled={Boolean(busyId)}
+              >
+                <Trash2 aria-hidden size={14} />
+              </button>
+            </div>
           );
         })}
-      </section>
+      </div>
+      <button type="button" className="ideanote-settings-button ideanote-skill-import" onClick={() => void chooseAndImport()} disabled={Boolean(busyId)}>
+        <Plus aria-hidden size={13} /> Import Skill folder
+      </button>
     </div>
   );
 }

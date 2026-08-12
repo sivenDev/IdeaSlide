@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSettings } from "../../hooks/useSettings";
+import { useSettingsDraft } from "../../hooks/useSettings";
 import { probeAiProvider } from "../../lib/tauriCommands";
 import { SettingsField } from "./SettingsField";
 import { SettingsSwitch } from "./SettingsSwitch";
@@ -13,18 +13,18 @@ interface TestedProvider {
 export function AiProviderSettings() {
   const {
     settings,
-    saving,
     credentialConfigured,
+    credentialInput: apiKey,
+    setCredentialInput: setApiKey,
     updateSettings,
-    storeCredential,
-  } = useSettings();
-  const [apiKey, setApiKey] = useState("");
+  } = useSettingsDraft();
   const [testing, setTesting] = useState(false);
   const [tested, setTested] = useState<TestedProvider>();
   const [testMessage, setTestMessage] = useState<string>();
   const [messageTone, setMessageTone] = useState<"success" | "error">("success");
   const normalizedBaseUrl = settings.ai.baseUrl.trim().replace(/\/$/, "");
-  const testCurrent = tested?.baseUrl === normalizedBaseUrl && tested.apiKey === apiKey;
+  const credentialFingerprint = apiKey || (credentialConfigured ? "__configured__" : "");
+  const testCurrent = tested?.baseUrl === normalizedBaseUrl && tested.apiKey === credentialFingerprint;
 
   useEffect(() => {
     if (!testCurrent && tested) setTestMessage(undefined);
@@ -34,8 +34,8 @@ export function AiProviderSettings() {
     setTesting(true);
     setTestMessage(undefined);
     try {
-      const result = await probeAiProvider(normalizedBaseUrl, apiKey);
-      await updateSettings((current) => ({
+      const result = await probeAiProvider(normalizedBaseUrl, apiKey || undefined);
+      updateSettings((current) => ({
         ...current,
         ai: {
           ...current.ai,
@@ -43,7 +43,7 @@ export function AiProviderSettings() {
           model: result.models.includes(current.ai.model) ? current.ai.model : (result.models[0] ?? current.ai.model),
         },
       }));
-      setTested({ baseUrl: normalizedBaseUrl, apiKey, models: result.models });
+      setTested({ baseUrl: normalizedBaseUrl, apiKey: credentialFingerprint, models: result.models });
       setMessageTone("success");
       setTestMessage(`${result.models.length} model${result.models.length === 1 ? "" : "s"} available`);
     } catch (cause) {
@@ -55,17 +55,8 @@ export function AiProviderSettings() {
     }
   };
 
-  const saveToken = async () => {
-    if (!apiKey.trim()) return;
-    await storeCredential(apiKey);
-    setApiKey("");
-    setTested(undefined);
-    setMessageTone("success");
-    setTestMessage("Token saved");
-  };
-
   return (
-    <section aria-labelledby="settings-provider-title">
+    <section className="ideanote-settings-section ideanote-settings-section--wide" aria-labelledby="settings-provider-title">
       <h2 id="settings-provider-title" className="ideanote-settings-title">Provider</h2>
       <div className="ideanote-provider-form">
         <SettingsField title="Base URL">
@@ -73,32 +64,22 @@ export function AiProviderSettings() {
             aria-label="AI provider base URL"
             className="ideanote-settings-control ideanote-provider-control"
             value={settings.ai.baseUrl}
-            onChange={(event) => void updateSettings((current) => ({
+            onChange={(event) => updateSettings((current) => ({
               ...current,
               ai: { ...current.ai, baseUrl: event.target.value },
             }))}
           />
         </SettingsField>
         <SettingsField title="Token">
-          <div className="ideanote-provider-token-row">
-            <input
-              type="password"
-              autoComplete="new-password"
-              aria-label="AI provider token"
-              placeholder={credentialConfigured ? "Configured" : "Enter token"}
-              className="ideanote-settings-control ideanote-provider-control"
-              value={apiKey}
-              onChange={(event) => setApiKey(event.target.value)}
-            />
-            <button
-              type="button"
-              className="ideanote-settings-button"
-              disabled={saving || !apiKey.trim()}
-              onClick={() => void saveToken()}
-            >
-              Save
-            </button>
-          </div>
+          <input
+            type="password"
+            autoComplete="new-password"
+            aria-label="AI provider token"
+            placeholder={credentialConfigured ? "Configured" : "Enter token"}
+            className="ideanote-settings-control ideanote-provider-control"
+            value={apiKey}
+            onChange={(event) => setApiKey(event.target.value)}
+          />
         </SettingsField>
         <SettingsField title="Connection">
           <div className="ideanote-provider-test-row">
@@ -121,7 +102,7 @@ export function AiProviderSettings() {
             className="ideanote-settings-control ideanote-provider-control"
             disabled={!testCurrent || !tested?.models.length}
             value={testCurrent && tested?.models.includes(settings.ai.model) ? settings.ai.model : ""}
-            onChange={(event) => void updateSettings((current) => ({
+            onChange={(event) => updateSettings((current) => ({
               ...current,
               ai: { ...current.ai, model: event.target.value },
             }))}
@@ -134,7 +115,7 @@ export function AiProviderSettings() {
           <SettingsSwitch
             label="Automatic retry"
             checked={settings.ai.retry.enabled}
-            onCheckedChange={(enabled) => void updateSettings((current) => ({
+            onCheckedChange={(enabled) => updateSettings((current) => ({
               ...current,
               ai: { ...current.ai, retry: { ...current.ai.retry, enabled } },
             }))}
@@ -149,7 +130,7 @@ export function AiProviderSettings() {
             aria-label="Maximum AI provider attempts"
             className="ideanote-settings-control w-20"
             value={settings.ai.retry.maxAttempts}
-            onChange={(event) => void updateSettings((current) => ({
+            onChange={(event) => updateSettings((current) => ({
               ...current,
               ai: {
                 ...current.ai,

@@ -6,7 +6,6 @@ export type NativePlatform = "macos" | "windows" | "other";
 export interface NativeWindowFrame {
   platform: NativePlatform;
   fullscreen: boolean;
-  isTauri: boolean;
   className: string;
 }
 
@@ -23,29 +22,36 @@ export function useNativeWindowFrame(): NativeWindowFrame {
     if (!isTauri) return;
     const appWindow = getCurrentWindow();
     let disposed = false;
-    let unlisten: (() => void) | undefined;
+    let refreshRequest = 0;
+    let unlistenResize: (() => void) | undefined;
     const refresh = () => {
+      const request = ++refreshRequest;
       appWindow.isFullscreen()
-        .then((value) => { if (!disposed) setFullscreen(value); })
+        .then((nextFullscreen) => {
+          if (disposed || request !== refreshRequest) return;
+          setFullscreen(nextFullscreen);
+        })
         .catch(console.error);
     };
     refresh();
+    window.addEventListener("resize", refresh);
     appWindow.onResized(refresh)
       .then((dispose) => {
         if (disposed) dispose();
-        else unlisten = dispose;
+        else unlistenResize = dispose;
       })
       .catch(console.error);
     return () => {
       disposed = true;
-      unlisten?.();
+      refreshRequest += 1;
+      window.removeEventListener("resize", refresh);
+      unlistenResize?.();
     };
   }, [isTauri]);
 
   return {
     platform,
     fullscreen,
-    isTauri,
     className: `is-${platform} ${fullscreen ? "is-fullscreen" : "is-windowed"}`,
   };
 }

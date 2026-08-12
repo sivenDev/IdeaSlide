@@ -420,7 +420,7 @@ export function MarkdownEditor({
 
   return (
     <div className="ideanote-markdown-editor flex h-full min-h-0 flex-col bg-[#f7f8fa]">
-      <div className="ideanote-markdown-toolbar flex h-10 flex-none items-center justify-between border-b border-gray-200 bg-white px-2.5">
+      <div className="ideanote-markdown-toolbar flex h-10 flex-none items-center justify-start gap-2 border-b border-gray-200 bg-white px-2.5">
         <div className="flex items-center gap-0.5">
           <ToolbarButton label={showOutline ? "Hide outline" : "Show outline"} onClick={() => updateEditorState({ showOutline: !showOutline })}>
             {showOutline ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}

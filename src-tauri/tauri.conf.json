@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "IdeaNote",
-        "width": 1200,
-        "height": 850,
+        "width": 1440,
+        "height": 875,
         "minWidth": 850,
         "minHeight": 850,
         "titleBarStyle": "Overlay",

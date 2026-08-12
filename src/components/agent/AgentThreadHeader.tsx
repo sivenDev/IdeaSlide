@@ -1,4 +1,4 @@
-import { Info, PanelRightClose, Settings2, SquarePen } from "lucide-react";
+import { Info, PanelRightClose, SquarePen } from "lucide-react";
 import type { ReactNode } from "react";
 
 export function AgentThreadHeader({
@@ -6,14 +6,12 @@ export function AgentThreadHeader({
   running,
   onNewThread,
   onOpenInspector,
-  onOpenSettings,
   onClose,
 }: {
   conversationSelector: ReactNode;
   running: boolean;
   onNewThread: () => void;
   onOpenInspector: () => void;
-  onOpenSettings: () => void;
   onClose: () => void;
 }) {
   return (
@@ -25,9 +23,6 @@ export function AgentThreadHeader({
         </button>
         <button type="button" onClick={onOpenInspector} aria-label="Runtime Inspector">
           <Info aria-hidden size={14} />
-        </button>
-        <button type="button" onClick={onOpenSettings} aria-label="Open Agent settings">
-          <Settings2 aria-hidden size={14} />
         </button>
         <button type="button" onClick={onClose} aria-label="Hide Agent">
           <PanelRightClose aria-hidden size={14} />

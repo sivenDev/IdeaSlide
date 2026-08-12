@@ -1,6 +1,7 @@
-import { Bot, File, FilePenLine, PanelLeft, X } from "lucide-react";
+import { Bot, PanelLeft, X } from "lucide-react";
 import type { DocumentSession } from "../types";
 import type { NativeWindowFrame } from "../hooks/useNativeWindowFrame";
+import { DocumentFileGlyph } from "./DocumentFileGlyph";
 
 function condition(document: DocumentSession, isSaving: boolean): { label: string; tone: string } {
   if (isSaving) return { label: "Saving", tone: "saving" };
@@ -14,6 +15,7 @@ function condition(document: DocumentSession, isSaving: boolean): { label: strin
 
 export function WorkbenchCrown({
   document,
+  documentPath,
   isSaving,
   workspaceOpen,
   agentOpen,
@@ -24,6 +26,7 @@ export function WorkbenchCrown({
   onCloseDocument,
 }: {
   document?: DocumentSession;
+  documentPath?: string;
   isSaving: boolean;
   workspaceOpen: boolean;
   agentOpen: boolean;
@@ -34,7 +37,6 @@ export function WorkbenchCrown({
   onCloseDocument: () => void;
 }) {
   const state = document ? condition(document, isSaving) : undefined;
-  const Icon = document?.fileType === "ideasketch" ? FilePenLine : File;
   return (
     <header className={`ideanote-workbench-crown ${workspaceOpen ? "has-workspace" : "without-workspace"} ${frame.className}`} data-tauri-drag-region>
       {!workspaceOpen && (
@@ -42,24 +44,33 @@ export function WorkbenchCrown({
           <PanelLeft aria-hidden size={16} />
         </button>
       )}
-      <div className="ideanote-document-identity">
-        {document ? (
-          <>
-            <button
-              type="button"
-              className={`ideanote-document-status-close is-${state?.tone}`}
-              aria-label={`${state?.label}. Close ${document.displayName}`}
-              title={`${state?.label} · Close document`}
-              onClick={onCloseDocument}
-            >
-              <span className="ideanote-document-status-close__state" aria-hidden="true" />
-              <X className="ideanote-document-status-close__close" aria-hidden size={13} />
-            </button>
-            <Icon className="ideanote-document-identity__icon" aria-hidden size={14} />
+      {document && (
+        <div className="ideanote-document-identity">
+          <button
+            type="button"
+            className={`ideanote-document-status-close is-${state?.tone}`}
+            aria-label={`${state?.label}. Close ${document.displayName}`}
+            title={`${state?.label} · Close document`}
+            onClick={onCloseDocument}
+          >
+            <span className="ideanote-document-status-close__state" aria-hidden="true" />
+            <X className="ideanote-document-status-close__close" aria-hidden size={13} />
+          </button>
+          <DocumentFileGlyph fileType={document.fileType} className="ideanote-document-identity__icon" />
+          <span className="ideanote-document-identity__copy">
             <strong>{document.displayName}</strong>
-          </>
-        ) : <strong>Welcome</strong>}
-      </div>
+            <small title={documentPath}>{documentPath}</small>
+          </span>
+        </div>
+      )}
+      {!document && (
+        <div className="ideanote-document-identity is-welcome">
+          <span className="ideanote-document-identity__copy">
+            <strong>Welcome</strong>
+            <small>Choose a file to begin</small>
+          </span>
+        </div>
+      )}
       <div className="ideanote-workbench-crown__drag" data-tauri-drag-region />
       {document && agentAvailable && !agentOpen && (
         <button className="ideanote-crown-action is-agent" type="button" aria-label="Show Agent" onClick={onToggleAgent}>

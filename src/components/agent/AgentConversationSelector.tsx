@@ -23,7 +23,6 @@ export function AgentConversationSelector({
   currentTurnCount,
   loading,
   running,
-  statusLabel,
   onResume,
   onRename,
   onDelete,
@@ -35,7 +34,6 @@ export function AgentConversationSelector({
   currentTurnCount: number;
   loading: boolean;
   running: boolean;
-  statusLabel: string;
   onResume: (threadId: string) => Promise<void>;
   onRename: (threadId: string, title: string) => Promise<void>;
   onDelete: (threadId: string) => Promise<void>;
@@ -98,7 +96,7 @@ export function AgentConversationSelector({
             <Bot aria-hidden size={14} />
             <span>
               <strong>{currentTitle}</strong>
-              <small>{running ? "Working" : `${currentTurnCount} Turns`} · {statusLabel}</small>
+              <small>{running ? "Working" : `${currentTurnCount} Turns`}</small>
             </span>
             <ChevronDown aria-hidden size={12} />
           </button>
@@ -127,7 +125,7 @@ export function AgentConversationSelector({
                           <MoreHorizontal aria-hidden size={14} />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent side="right" align="start" sideOffset={4} className="ideanote-agent-conversation-menu">
+                      <DropdownMenuContent side="right" align="start" sideOffset={4} collisionPadding={8} className="ideanote-agent-conversation-menu">
                         <DropdownMenuItem onSelect={() => { setOpen(false); setRenameCandidate({ id: thread.id, value: thread.title }); }}>
                           <Pencil aria-hidden size={12} /> Rename
                         </DropdownMenuItem>
@@ -156,8 +154,9 @@ export function AgentConversationSelector({
       <Dialog.Root open={Boolean(renameCandidate)} onOpenChange={(nextOpen) => { if (!nextOpen && !busyId) setRenameCandidate(undefined); }}>
         <Dialog.Portal>
           <Dialog.Overlay className="ideanote-agent-dialog-overlay" />
-          <Dialog.Content className="ideanote-agent-dialog" aria-describedby={undefined}>
+          <Dialog.Content className="ideanote-agent-dialog">
             <header><Dialog.Title>Rename conversation</Dialog.Title><Dialog.Close aria-label="Close rename dialog"><X aria-hidden size={15} /></Dialog.Close></header>
+            <Dialog.Description className="sr-only">Enter a new name for this conversation.</Dialog.Description>
             <input
               autoFocus
               aria-label="Conversation name"
@@ -178,9 +177,9 @@ export function AgentConversationSelector({
       <AlertDialog.Root open={Boolean(deleteCandidate)} onOpenChange={(nextOpen) => { if (!nextOpen && !busyId) setDeleteCandidate(undefined); }}>
         <AlertDialog.Portal>
           <AlertDialog.Overlay className="ideanote-agent-dialog-overlay" />
-          <AlertDialog.Content className="ideanote-agent-dialog" aria-describedby="delete-conversation-description">
+          <AlertDialog.Content className="ideanote-agent-dialog">
             <header><AlertDialog.Title>Delete conversation?</AlertDialog.Title></header>
-            <AlertDialog.Description id="delete-conversation-description">“{deleteCandidate?.title}” will be permanently removed from local history.</AlertDialog.Description>
+            <AlertDialog.Description>“{deleteCandidate?.title}” will be permanently removed from local history.</AlertDialog.Description>
             {error && <p role="status">{error}</p>}
             <footer>
               <AlertDialog.Cancel disabled={Boolean(busyId)}>Cancel</AlertDialog.Cancel>

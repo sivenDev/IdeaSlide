@@ -1,26 +1,33 @@
-import { useSettings } from "../../hooks/useSettings";
-import { SettingsField } from "./SettingsField";
+import { Monitor, Moon, Sun } from "lucide-react";
+import { useSettingsDraft } from "../../hooks/useSettings";
 
 export function GeneralSettings() {
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings } = useSettingsDraft();
+  const options = [
+    { value: "light", label: "Light", Icon: Sun },
+    { value: "dark", label: "Dark", Icon: Moon },
+    { value: "system", label: "System", Icon: Monitor },
+  ] as const;
   return (
-    <section aria-labelledby="settings-general-title">
+    <section className="ideanote-settings-section" aria-labelledby="settings-general-title">
       <h2 id="settings-general-title" className="ideanote-settings-title">Appearance</h2>
-      <SettingsField title="Theme">
-        <select
-          aria-label="Appearance"
-          className="ideanote-settings-control"
-          value={settings.general.theme}
-          onChange={(event) => void updateSettings((current) => ({
-            ...current,
-            general: { ...current.general, theme: event.target.value as "system" | "light" | "dark" },
-          }))}
-        >
-          <option value="system">System</option>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-        </select>
-      </SettingsField>
+      <div className="ideanote-theme-options" aria-label="Appearance">
+        {options.map(({ value, label, Icon }) => (
+          <button
+            key={value}
+            type="button"
+            className={settings.general.theme === value ? "is-selected" : ""}
+            aria-pressed={settings.general.theme === value}
+            onClick={() => updateSettings((current) => ({
+              ...current,
+              general: { ...current.general, theme: value },
+            }))}
+          >
+            <Icon aria-hidden size={16} />
+            <strong>{label}</strong>
+          </button>
+        ))}
+      </div>
     </section>
   );
 }

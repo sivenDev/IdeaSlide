@@ -14,10 +14,10 @@ interface DocumentEditorHostProps {
 
 export function DocumentEditorHost({ document, fullPath, editorProps, emptyState }: DocumentEditorHostProps) {
   if (!document) {
-    return <div className="h-full bg-[#f7f8fa]">{emptyState}</div>;
+    return <div className="ideanote-editor-surface h-full">{emptyState}</div>;
   }
   if (document.status === "loading") {
-    return <div className="flex h-full items-center justify-center bg-[#f7f8fa] text-sm text-gray-500">Loading {document.displayName}…</div>;
+    return <div className="ideanote-editor-surface flex h-full items-center justify-center text-sm">Loading {document.displayName}…</div>;
   }
   if (document.status === "unsupported" || document.status === "legacy-protected" || document.status === "invalid" || document.status === "error") {
     return <UnsupportedFileView fileName={document.displayName || "file"} fullPath={fullPath} message={document.message} />;
@@ -28,7 +28,7 @@ export function DocumentEditorHost({ document, fullPath, editorProps, emptyState
   if (contribution && document.model) {
     const Editor = contribution.component;
     return (
-      <div className="relative h-full min-h-0 bg-[#f7f8fa]">
+      <div className="ideanote-editor-surface relative h-full min-h-0">
         <div className="h-full min-h-0" hidden={isMissing} aria-hidden={isMissing}>
           <ErrorBoundary><Editor document={document} {...editorProps} /></ErrorBoundary>
         </div>
@@ -37,7 +37,7 @@ export function DocumentEditorHost({ document, fullPath, editorProps, emptyState
   }
   if (contribution) {
     return (
-      <div className="flex h-full items-center justify-center bg-[#f7f8fa] text-sm text-gray-500">
+      <div className="ideanote-editor-surface flex h-full items-center justify-center text-sm">
         {definition?.displayName} editor is ready for this document session.
       </div>
     );

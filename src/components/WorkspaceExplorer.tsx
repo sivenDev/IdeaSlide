@@ -35,7 +35,6 @@ interface WorkspaceExplorerProps {
   onMove: (request: WorkspaceDropRequest) => Promise<void>;
   onTrash: (path: string) => Promise<void>;
   onReveal: (path: string) => void;
-  onRefresh: () => Promise<void>;
   onError: (action: string, error: unknown) => void;
   onExpandedPathsChange: (paths: string[]) => void;
 }
@@ -96,7 +95,6 @@ export function WorkspaceExplorer({
   onMove,
   onTrash,
   onReveal,
-  onRefresh,
   onError,
   onExpandedPathsChange,
 }: WorkspaceExplorerProps) {
@@ -169,6 +167,9 @@ export function WorkspaceExplorer({
           if (confirmed) await onTrash(entry.path).catch((error) => onError("Item could not be moved to Trash", error));
         })()}
       />
+      {entry.kind === "directory" && expanded.has(entry.path) && entry.children.length === 0 && (
+        <div className="ideanote-tree-empty" style={{ "--tree-depth": depth + 1 } as React.CSSProperties}>Empty folder</div>
+      )}
     </div>
   ));
 
@@ -193,7 +194,6 @@ export function WorkspaceExplorer({
             <div className="px-3 py-4 text-xs leading-5 text-gray-400">This Workspace is empty.</div>
           )}
         </div>
-        <button className="idea-slide-workspace-refresh" type="button" onClick={() => void onRefresh().catch((error) => onError("Workspace could not be refreshed", error))}>Refresh</button>
       </div>
     </DndContext>
   );

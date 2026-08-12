@@ -1,7 +1,6 @@
 import {
+  ChevronRight,
   ExternalLink,
-  File,
-  FilePenLine,
   Folder,
   FolderOpen,
   FolderPlus,
@@ -24,13 +23,9 @@ import {
   DropdownMenuTrigger,
 } from "./ui/DropdownMenu";
 import { Input } from "./ui/Input";
+import { DocumentFileGlyph } from "./DocumentFileGlyph";
 
 const iconProps = { "aria-hidden": true, size: 14, strokeWidth: 1.8 } as const;
-
-function FileGlyph({ name }: { name: string }) {
-  if (name.toLowerCase().endsWith(".is")) return <FilePenLine {...iconProps} />;
-  return <File {...iconProps} />;
-}
 
 function CreateMenu({
   label,
@@ -47,8 +42,8 @@ function CreateMenu({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="ideanote-compact-menu">
-        <DropdownMenuItem onSelect={() => onCreate("ideasketch")}>New IdeaSketch</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onCreate("markdown")}>New Markdown</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onCreate("ideasketch")}><DocumentFileGlyph fileType="ideasketch" />New IdeaSketch</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onCreate("markdown")}><DocumentFileGlyph fileType="markdown" />New Markdown</DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => onCreate("directory")}><FolderPlus {...iconProps} />New Folder</DropdownMenuItem>
       </DropdownMenuContent>
@@ -99,6 +94,7 @@ export function WorkspaceSidebar({
 }) {
   const [renaming, setRenaming] = useState<{ kind: "workspace" | "recent"; path: string }>();
   const [draftName, setDraftName] = useState("");
+  const [collapsedWorkspaceRoots, setCollapsedWorkspaceRoots] = useState<Set<string>>(() => new Set());
   const timeline = useMemo(() => groupRecentFiles(recents), [recents]);
 
   const beginRename = (kind: "workspace" | "recent", path: string, name: string) => {
@@ -114,10 +110,27 @@ export function WorkspaceSidebar({
     }
     setRenaming(undefined);
   };
+  const toggleWorkspaceRoot = (path: string, active: boolean) => {
+    if (!active) {
+      setCollapsedWorkspaceRoots((current) => {
+        if (!current.has(path)) return current;
+        const next = new Set(current);
+        next.delete(path);
+        return next;
+      });
+      onOpenWorkspace(path);
+      return;
+    }
+    setCollapsedWorkspaceRoots((current) => {
+      const next = new Set(current);
+      if (next.has(path)) next.delete(path); else next.add(path);
+      return next;
+    });
+  };
 
   return (
     <aside className={`ideanote-workspace-sidebar ${frame.className}`} aria-label="Workspaces">
-      <header className="ideanote-workspace-crown" data-tauri-drag-region>
+      <header className={`ideanote-workspace-crown ${frame.className}`} data-tauri-drag-region>
         <button type="button" aria-label="Hide Workspaces" onClick={onToggle}>
           <PanelLeftClose aria-hidden size={16} />
         </button>
@@ -138,13 +151,15 @@ export function WorkspaceSidebar({
         )}
         {workspaces.map((workspace) => {
           const active = workspace.path === activeRoot;
+          const expanded = active && !collapsedWorkspaceRoots.has(workspace.path);
           const isRenaming = renaming?.kind === "workspace" && renaming.path === workspace.path;
           return (
             <section className={`ideanote-workspace-root ${active ? "is-active" : ""}`} key={workspace.path}>
               <div className="ideanote-workspace-root__row">
                 {isRenaming ? (
                   <div className="ideanote-workspace-root__main is-renaming">
-                    {active ? <FolderOpen {...iconProps} /> : <Folder {...iconProps} />}
+                    <ChevronRight className={`ideanote-workspace-root__chevron ${expanded ? "is-open" : ""}`} {...iconProps} />
+                    {expanded ? <FolderOpen className="ideanote-workspace-root__folder" {...iconProps} /> : <Folder className="ideanote-workspace-root__folder" {...iconProps} />}
                     <Input
                       autoFocus
                       value={draftName}
@@ -162,9 +177,11 @@ export function WorkspaceSidebar({
                     type="button"
                     className="ideanote-workspace-root__main"
                     aria-current={active ? "page" : undefined}
-                    onClick={() => { if (!active) onOpenWorkspace(workspace.path); }}
+                    aria-expanded={expanded}
+                    onClick={() => toggleWorkspaceRoot(workspace.path, active)}
                   >
-                    {active ? <FolderOpen {...iconProps} /> : <Folder {...iconProps} />}
+                    <ChevronRight className={`ideanote-workspace-root__chevron ${expanded ? "is-open" : ""}`} {...iconProps} />
+                    {expanded ? <FolderOpen className="ideanote-workspace-root__folder" {...iconProps} /> : <Folder className="ideanote-workspace-root__folder" {...iconProps} />}
                     <span>{workspace.name}</span>
                   </button>
                 )}
@@ -187,7 +204,7 @@ export function WorkspaceSidebar({
                   </div>
                 )}
               </div>
-              {active && activeWorkspaceTree}
+              {expanded && activeWorkspaceTree}
             </section>
           );
         })}
@@ -203,7 +220,7 @@ export function WorkspaceSidebar({
                   <div className="ideanote-recent-row" key={recent.path}>
                     {isRenaming ? (
                       <div className="ideanote-recent-row__main is-renaming">
-                        <FileGlyph name={recent.name} />
+                        <DocumentFileGlyph path={recent.path} />
                         <Input
                           autoFocus
                           value={draftName}
@@ -218,7 +235,7 @@ export function WorkspaceSidebar({
                       </div>
                     ) : (
                       <button className="ideanote-recent-row__main" type="button" onClick={() => onOpenRecent(recent.path)}>
-                        <FileGlyph name={recent.name} />
+                        <DocumentFileGlyph path={recent.path} />
                         <span>{recent.name}</span>
                       </button>
                     )}

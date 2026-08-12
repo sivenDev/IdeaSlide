@@ -67,11 +67,15 @@ test('Agent restore is context-gated and open Agent closes from its own header',
 
 test('native crown reserves real macOS and Windows control footprints and releases them fullscreen', async () => {
   const hook = await readSource('src/hooks/useNativeWindowFrame.ts');
+  const sidebar = await readSource('src/components/WorkspaceSidebar.tsx');
   const styles = await readSource('src/index.css');
   const config = JSON.parse(await readSource('src-tauri/tauri.conf.json'));
   assert.match(hook, /\.isFullscreen\(\)/);
   assert.match(hook, /\.onResized\(/);
-  assert.match(styles, /\.ideanote-workspace-crown\.is-macos\.is-windowed\s*\{[\s\S]*?padding-left:\s*78px/);
+  assert.match(sidebar, /className=\{`ideanote-workspace-crown \$\{frame\.className\}`\}/);
+  assert.match(styles, /\.ideanote-workspace-crown\.is-macos\.is-windowed\s*\{[\s\S]*?padding-left:\s*82px/);
+  assert.match(styles, /\.ideanote-workspace-crown\.is-fullscreen\s*\{[\s\S]*?padding-left:\s*10px/);
+  assert.match(styles, /\.ideanote-workbench-crown\.without-workspace\.is-fullscreen\s*\{[\s\S]*?padding-left:\s*10px/);
   assert.match(styles, /\.ideanote-workbench-crown\.is-windows\.is-windowed\s*\{[\s\S]*?padding-right:\s*142px/);
   assert.equal(config.app.windows[0].titleBarStyle, 'Overlay');
   assert.equal(config.app.windows[0].trafficLightPosition.x, 13);
@@ -84,8 +88,8 @@ test('presentation exit and native window bounds remain production-owned', async
   const config = JSON.parse(await readSource('src-tauri/tauri.conf.json'));
   assert.match(app, /dispatch\(\{ type: "EXIT_PRESENTATION" \}\)/);
   assert.match(reducer, /editorRefreshToken: state\.editorRefreshToken \+ 1/);
-  assert.equal(config.app.windows[0].width, 1200);
-  assert.equal(config.app.windows[0].height, 850);
+  assert.equal(config.app.windows[0].width, 1440);
+  assert.equal(config.app.windows[0].height, 875);
   assert.equal(config.app.windows[0].minWidth, 850);
   assert.equal(config.app.windows[0].minHeight, 850);
 });

@@ -10,8 +10,8 @@ test('Home is removed and the empty editor renders the product Welcome surface',
   assert.match(welcome, />Welcome</);
   assert.match(welcome, />Open File</);
   assert.match(welcome, />New File</);
-  assert.match(welcome, />Open Workspace</);
-  assert.match(welcome, /Settings/);
+  assert.doesNotMatch(welcome, />Open Workspace</);
+  assert.doesNotMatch(welcome, /Settings/);
   assert.doesNotMatch(welcome, /AI-Powered|Agent Panel|mock/i);
   await assert.rejects(access(new URL('../src/components/LaunchScreen.tsx', import.meta.url)));
 });

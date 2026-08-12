@@ -5,8 +5,6 @@ import {
   ChevronDown,
   ChevronRight,
   ExternalLink,
-  File,
-  FilePenLine,
   Folder,
   FolderOpen,
   FolderPlus,
@@ -17,6 +15,7 @@ import {
 } from "lucide-react";
 import { getWorkspaceRenameSelectionEnd } from "../lib/workspaceRename";
 import type { DocumentStatus, WorkspaceEntry } from "../types";
+import { DocumentFileGlyph } from "./DocumentFileGlyph";
 import { Input } from "./ui/Input";
 import {
   DropdownMenu,
@@ -79,9 +78,7 @@ function EntryIcon({ entry, expanded }: { entry: WorkspaceEntry; expanded: boole
     return expanded ? <FolderOpen {...entryIconProps} /> : <Folder {...entryIconProps} />;
   }
   if (entry.kind === "symlink") return <ExternalLink {...entryIconProps} />;
-  return entry.fileType === "ideasketch"
-    ? <FilePenLine {...entryIconProps} />
-    : <File {...entryIconProps} />;
+  return <DocumentFileGlyph fileType={entry.fileType} path={entry.path} />;
 }
 
 export function WorkspaceResourceRow({
@@ -158,7 +155,10 @@ export function WorkspaceResourceRow({
       setIsRenaming(true);
     } else if (event.key === "Enter") {
       event.preventDefault();
-      entry.kind === "directory" ? onToggleExpanded() : onOpen();
+      if (entry.kind === "directory") {
+        onSelect();
+        onToggleExpanded();
+      } else onOpen();
     } else if (event.key === "ArrowRight" && entry.kind === "directory" && !isExpanded) {
       onToggleExpanded();
     } else if (event.key === "ArrowLeft" && entry.kind === "directory" && isExpanded) {
@@ -220,17 +220,18 @@ export function WorkspaceResourceRow({
         <button
           ref={draggable.setActivatorNodeRef}
           type="button"
-          aria-label={`${entry.kind === "directory" ? "Select" : "Open"} ${entry.name}`}
+          aria-label={entry.kind === "directory"
+            ? `${isExpanded ? "Collapse" : "Expand"} ${entry.name}`
+            : `Open ${entry.name}`}
           className={`idea-slide-resource-main ${canMutate ? "is-draggable" : ""}`}
           {...draggable.attributes}
           {...draggable.listeners}
           onClick={(event) => {
             event.stopPropagation();
-            entry.kind === "directory" ? onSelect() : onOpen();
-          }}
-          onDoubleClick={(event) => {
-            event.stopPropagation();
-            if (entry.kind === "directory") onToggleExpanded();
+            if (entry.kind === "directory") {
+              onSelect();
+              onToggleExpanded();
+            } else onOpen();
           }}
         >
           <span className={`idea-slide-resource-icon ${
@@ -266,8 +267,8 @@ export function WorkspaceResourceRow({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="ideanote-compact-menu">
-                <DropdownMenuItem onSelect={() => onCreateDocument("ideasketch")}>New IdeaSketch</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => onCreateDocument("markdown")}>New Markdown</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onCreateDocument("ideasketch")}><DocumentFileGlyph fileType="ideasketch" />New IdeaSketch</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onCreateDocument("markdown")}><DocumentFileGlyph fileType="markdown" />New Markdown</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={onCreateFolder}><FolderPlus {...rowActionIconProps} />New Folder</DropdownMenuItem>
               </DropdownMenuContent>

@@ -11,6 +11,7 @@ test('Settings Center is registry-driven and reachable from the persistent workb
   assert.match(registry, /id: "general"/);
   assert.match(registry, /id: "ai-provider"/);
   assert.match(registry, /id: "agent"/);
+  assert.match(registry, /id: "skills"/);
   assert.match(registry, /id: "ideasketch"/);
   assert.match(registry, /id: "markdown"/);
   assert.match(registry, /group: "Application"/);
@@ -19,6 +20,7 @@ test('Settings Center is registry-driven and reachable from the persistent workb
   assert.match(center, /getSettingsSections\(\)/);
   assert.match(center, /groups\.map/);
   assert.match(center, /<MarkdownSettings/);
+  assert.match(center, /<SkillSettings/);
   assert.match(sidebar, /onOpenSettings/);
   assert.match(sidebar, />Settings</);
   assert.match(editor, /event\.key === ","/);
