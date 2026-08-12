@@ -7,8 +7,8 @@
 | Type | Plans | In Progress | Complete |
 | --- | --- | --- | --- |
 | `required` | 6 | 0 | 6 |
-| `feature` | 70 | 2 | 68 |
-| `bugfix` | 43 | 2 | 41 |
+| `feature` | 70 | 0 | 70 |
+| `bugfix` | 44 | 2 | 42 |
 
 ## Execution Order
 
@@ -104,8 +104,8 @@
 | `F048` | [Refine Settings Navigation and Apply Changes Automatically](features/F048-refine-settings-navigation-and-auto-apply.md) | `complete` | 2026-08-12 |
 | `F049` | [Simplify AI Provider Model and Token Fields](features/F049-simplify-ai-provider-model-and-token-fields.md) | `complete` | 2026-08-12 |
 | `F055` | [Add Workspace from the Sidebar Header](features/F055-add-workspace-from-sidebar-header.md) | `complete` | 2026-08-12 |
-| `F056` | [Add Automatic Desktop Updates from GitHub Releases](features/F056-automatic-desktop-updates-from-github-releases.md) | `in_progress` | 2026-08-12 |
-| `F057` | [Add an About Page to Settings](features/F057-add-an-about-page-to-settings.md) | `in_progress` | 2026-08-12 |
+| `F056` | [Add Automatic Desktop Updates from GitHub Releases](features/F056-automatic-desktop-updates-from-github-releases.md) | `complete` | 2026-08-12 |
+| `F057` | [Add an About Page to Settings](features/F057-add-an-about-page-to-settings.md) | `complete` | 2026-08-12 |
 
 ### Bugfix Plans
 
@@ -154,3 +154,4 @@
 | `B041` | [Remove Duplicate IdeaSketch Divider Lines and Restore Close Icon](bugs/B041-remove-duplicate-ideasketch-divider-lines-and-restore-close-icon.md) | `complete` | 2026-08-12 |
 | `B042` | [Move the Open IdeaSketch Close Control into the Navigator](bugs/B042-move-open-ideasketch-close-control-into-navigator.md) | `complete` | 2026-08-12 |
 | `B043@fix-welcome-sidebar-motion` | [Keep Welcome Title Motion Coherent While Opening Workspaces](bugs/B043@fix-welcome-sidebar-motion-keep-welcome-title-motion-coherent.md) | `complete` | 2026-08-12 |
+| `B044` | [Relaunch IdeaNote After a Successful macOS Update](bugs/B044-relaunch-ideanote-after-successful-macos-update.md) | `complete` | 2026-08-13 |

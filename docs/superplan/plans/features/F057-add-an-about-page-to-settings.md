@@ -2,7 +2,7 @@
 id: "F057"
 title: "Add an About Page to Settings"
 type: "feature"
-status: "in_progress"
+status: "complete"
 summary: "Add a compact read-only Settings page for IdeaNote identity, runtime version, and official project links."
 source: "docs/superplan/human/features.md"
 created: "2026-08-12"
@@ -102,7 +102,7 @@ parent: ""
 
 - [x] Run focused checks while iterating and one stabilized full regression/build/native matrix.
 - [x] Inspect About in Light/Dark/System and compact geometry with keyboard and failure states.
-- [ ] Mark F057 complete/done after its approved F056 dependency completes, refresh the plan index, and create the final metadata follow-up.
+- [x] Mark F057 complete/done after its approved F056 dependency completes, refresh the plan index, and create the final metadata follow-up.
 
 ## Current Delivery Evidence
 
@@ -111,7 +111,7 @@ parent: ""
 - `cargo test` passed all 166 tests and `cargo build` passed with the existing Agent dead-code warnings.
 - Playwright inspection passed in Light and Dark at 1200x850 and at effective 850x850 geometry. About had no horizontal or vertical overflow, the repository action received keyboard focus, and browser context displayed the honest `Development preview` label.
 - `npm run tauri dev -- --no-watch` compiled and launched the current desktop source with the existing Tauri app/opener plugins. Automated native-window inspection was unavailable because the Computer Use native pipe failed to start, so visual/version acceptance relies on the adapter contract plus browser layout inspection rather than a claimed native screenshot.
-- F057 remains `in_progress` because its approved plan depends on F056, which cannot complete until the separately recorded B044 macOS relaunch defect is diagnosed and fixed. The About implementation itself is delivered in its isolated feature commit.
+- B044's signed installed-client relaunch proof completed F056, so F057's dependency is satisfied. The delivered About implementation remains covered by the full frontend/native regression and is now complete.
 
 ## References
 
