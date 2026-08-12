@@ -3,7 +3,6 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type {
   AgentItem as AgentItemModel,
   AgentThreadState,
-  AgentTurnEvidence,
   AgentTurnStatus,
 } from "../../lib/agent/protocol";
 import type { AgentPresentationSnapshot } from "../../lib/agent/agentTextPresentation";
@@ -13,7 +12,6 @@ const MAX_VISIBLE_ITEMS = 300;
 
 interface TranscriptEntry {
   item: AgentItemModel;
-  evidence?: AgentTurnEvidence;
   turnStatus?: AgentTurnStatus;
   completionDurationMs?: number;
 }
@@ -43,7 +41,6 @@ export function AgentTranscript({
       const isFinalResponse = hasUserMessage && index === lastAssistantIndex;
       return {
         item,
-        evidence: isFinalResponse ? turn.evidence : undefined,
         turnStatus: isFinalResponse ? turn.status : undefined,
         completionDurationMs: isFinalResponse && turn.status === "completed" && turn.completedAt !== undefined
           ? Math.max(0, turn.completedAt - turn.createdAt)
@@ -91,7 +88,7 @@ export function AgentTranscript({
           <div className="ideanote-agent-transcript-limit">{hiddenCount} earlier items are hidden in this view.</div>
         )}
         <div className="ideanote-agent-activity-rail" aria-label="Agent transcript">
-          {entries.map(({ item, evidence, turnStatus, completionDurationMs }) => (
+          {entries.map(({ item, turnStatus, completionDurationMs }) => (
             <AgentItem
               key={item.id}
               item={item}
@@ -101,7 +98,6 @@ export function AgentTranscript({
               presentationStatus={item.kind === "message" && item.role === "assistant"
                 ? presentation.items[item.id]?.presentationStatus
                 : undefined}
-              evidence={evidence}
               turnStatus={turnStatus}
               completionDurationMs={completionDurationMs}
               showToolActivity={showToolActivity}

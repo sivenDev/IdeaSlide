@@ -1,8 +1,7 @@
-import { Check, CheckCircle2, CircleEllipsis, Copy, ShieldCheck, Sparkles } from "lucide-react";
+import { Check, CheckCircle2, CircleEllipsis, Clock3, Copy, ShieldCheck, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import type {
   AgentItem as AgentItemModel,
-  AgentTurnEvidence,
   AgentTurnStatus,
 } from "../../lib/agent/protocol";
 import type { AgentTextDeliveryState } from "../../lib/agent/agentTextPresentation";
@@ -40,7 +39,6 @@ export function AgentItem({
   item,
   displayedContent,
   presentationStatus,
-  evidence,
   turnStatus,
   completionDurationMs,
   showToolActivity,
@@ -50,7 +48,6 @@ export function AgentItem({
   item: AgentItemModel;
   displayedContent?: string;
   presentationStatus?: AgentTextDeliveryState["presentationStatus"];
-  evidence?: AgentTurnEvidence;
   turnStatus?: AgentTurnStatus;
   completionDurationMs?: number;
   showToolActivity: boolean;
@@ -74,6 +71,9 @@ export function AgentItem({
         && item.status === "completed"
         && turnStatus === "completed"
         && presentationStatus !== "revealing";
+      const completionDuration = completionDurationMs === undefined
+        ? undefined
+        : `${(completionDurationMs / 1000).toFixed(1)}s`;
       if (!content && item.status === "running") {
         return null;
       }
@@ -89,23 +89,17 @@ export function AgentItem({
           <div className="min-w-0 flex-1">
             <AgentMarkdown content={content} settled={presentationStatus !== "revealing"} />
             {showResponseActions && (
-              <footer className="ideanote-agent-response-evidence" aria-label="Response evidence">
-                {evidence && (
-                  <div className="ideanote-agent-response-evidence__runtime">
-                    <span>{evidence.runtimeLabel}</span>
-                    <span aria-hidden>/</span>
-                    <span>{evidence.model || "Unavailable"}</span>
-                    <span aria-hidden>/</span>
-                    <span>{evidence.reasoningEffort}</span>
-                  </div>
-                )}
+              <footer className="ideanote-agent-response-evidence" aria-label="Response actions">
                 <div className="ideanote-agent-response-evidence__actions">
                   <button type="button" onClick={() => void copyResponse(content)} aria-label="Copy response">
                     {copied ? <Check aria-hidden size={11} /> : <Copy aria-hidden size={11} />}
                     <span>{copied ? "Copied" : "Copy"}</span>
                   </button>
-                  {completionDurationMs !== undefined && (
-                    <time>Completed in {(completionDurationMs / 1000).toFixed(1)}s</time>
+                  {completionDuration !== undefined && (
+                    <time className="inline-flex items-center gap-1" aria-label={`Completed in ${completionDuration}`}>
+                      <Clock3 aria-hidden size={10} />
+                      <span>{completionDuration}</span>
+                    </time>
                   )}
                 </div>
               </footer>

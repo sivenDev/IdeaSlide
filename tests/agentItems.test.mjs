@@ -15,9 +15,9 @@ test('normalized items render continuous public activity without a reasoning-sum
   assert.match(source, /is-presentation-\$\{presentationStatus \?\? "settled"\}/);
   assert.match(source, /aria-busy=\{presentationStatus === "revealing"\}/);
   assert.match(source, /ideanote-agent-response-evidence/);
-  assert.match(source, /evidence\.runtimeLabel/);
-  assert.match(source, /evidence\.model/);
-  assert.match(source, /evidence\.reasoningEffort/);
+  assert.doesNotMatch(source, /evidence\.runtimeLabel/);
+  assert.doesNotMatch(source, /evidence\.model/);
+  assert.doesNotMatch(source, /evidence\.reasoningEffort/);
   assert.match(source, /navigator\.clipboard\.writeText\(content\)/);
 });
 
