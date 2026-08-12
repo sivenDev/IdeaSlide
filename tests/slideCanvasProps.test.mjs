@@ -238,3 +238,25 @@ test('areSlideCanvasPropsEqual tracks the Canvas interaction callback', async ()
     false,
   );
 });
+
+test('areSlideCanvasPropsEqual tracks the drawer command bridge and layout refresh token', async () => {
+  const { areSlideCanvasPropsEqual } = await loadModule();
+  const base = {
+    slideId: 'slide-1',
+    elements: [],
+    appState: {},
+    files: {},
+    onChange: () => {},
+    onApiReady: () => {},
+    onCommandApiReady: () => {},
+    viewMode: false,
+    layoutRefreshToken: 1,
+  };
+
+  assert.equal(areSlideCanvasPropsEqual(base, { ...base }), true);
+  assert.equal(
+    areSlideCanvasPropsEqual(base, { ...base, onCommandApiReady: () => {} }),
+    false,
+  );
+  assert.equal(areSlideCanvasPropsEqual(base, { ...base, layoutRefreshToken: 2 }), false);
+});

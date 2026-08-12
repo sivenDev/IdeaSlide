@@ -1,5 +1,6 @@
 import { CaptureUpdateAction, restoreElements } from "@excalidraw/excalidraw";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Menu, PanelLeftClose } from "lucide-react";
 import type { DocumentModel, DocumentSession, IdeaSketchDocument, IdeaSketchPage } from "../types";
 import { useEditorSession } from "../hooks/useEditorSession";
 import { useAutoSave } from "../hooks/useAutoSave";
@@ -17,8 +18,10 @@ import {
   formatStyleConversionSummary,
   type StyleConversionTarget,
 } from "../lib/excalidrawStyleConversion";
-import { SlideCanvas } from "./SlideCanvas";
+import { SlideCanvas, type SlideCanvasCommandApi } from "./SlideCanvas";
 import { ResizableDivider } from "./ResizableDivider";
+import { IdeaSketchDrawerCommands } from "./IdeaSketchDrawerCommands";
+import { IdeaSketchClearCanvasDialog } from "./IdeaSketchClearCanvasDialog";
 import type { ActiveAgentEditorBinding, AgentChangeSet } from "../lib/agent/types";
 import { createAgentToolHost } from "../lib/agent/agentToolHost";
 import {
@@ -30,9 +33,34 @@ import {
   IdeaSketchNavigator,
   type IdeaSketchNavigatorTab,
 } from "./IdeaSketchNavigator";
-const DEFAULT_RIGHT_SIDEBAR_WIDTH = 260;
-const MIN_RIGHT_SIDEBAR_WIDTH = 220;
-const MAX_RIGHT_SIDEBAR_WIDTH = 420;
+
+const IDEASKETCH_DRAWER_STORAGE_KEY = "ideanote:ideasketch-drawer:v1";
+const DEFAULT_DRAWER_WIDTH = 304;
+const MIN_DRAWER_WIDTH = 260;
+const MAX_DRAWER_WIDTH = 420;
+
+interface StoredIdeaSketchDrawerState {
+  width?: number;
+  tab?: IdeaSketchNavigatorTab;
+}
+
+function clampDrawerWidth(width: number) {
+  return Math.max(MIN_DRAWER_WIDTH, Math.min(MAX_DRAWER_WIDTH, width));
+}
+
+function loadDrawerState(): StoredIdeaSketchDrawerState {
+  try {
+    const raw = window.localStorage.getItem(IDEASKETCH_DRAWER_STORAGE_KEY);
+    if (!raw) return {};
+    const stored = JSON.parse(raw) as StoredIdeaSketchDrawerState;
+    return {
+      width: typeof stored.width === "number" ? clampDrawerWidth(stored.width) : undefined,
+      tab: stored.tab === "cameras" ? "cameras" : stored.tab === "pages" ? "pages" : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
 
 interface IdeaSketchEditorProps {
   document: DocumentSession<IdeaSketchDocument>;
@@ -86,14 +114,24 @@ export function IdeaSketchEditor({
   );
   const editorStateRef = useRef(editorState);
   const emittedModelRef = useRef<IdeaSketchDocument | undefined>(undefined);
-  const [showNavigator, setShowNavigator] = useState(true);
-  const [rightSidebarWidth, setRightSidebarWidth] = useState(DEFAULT_RIGHT_SIDEBAR_WIDTH);
-  const [navigatorTab, setNavigatorTab] = useState<IdeaSketchNavigatorTab>("pages");
+  const initialDrawerState = useMemo(loadDrawerState, []);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerWidth, setDrawerWidth] = useState(
+    initialDrawerState.width ?? DEFAULT_DRAWER_WIDTH,
+  );
+  const [navigatorTab, setNavigatorTab] = useState<IdeaSketchNavigatorTab>(
+    initialDrawerState.tab ?? "pages",
+  );
+  const [canvasLayoutRefreshToken, setCanvasLayoutRefreshToken] = useState(0);
+  const [canvasCommandReady, setCanvasCommandReady] = useState(false);
+  const [clearCanvasDialogOpen, setClearCanvasDialogOpen] = useState(false);
   const [cameraDrawingRequestToken, setCameraDrawingRequestToken] = useState(0);
   const [selectedCameraId, setSelectedCameraId] = useState<string>();
   const [canvasInteractionActive, setCanvasInteractionActive] = useState(false);
   const excalidrawApiRef = useRef<any>(null);
   const excalidrawSlideIdRef = useRef<string | undefined>(undefined);
+  const canvasCommandApiRef = useRef<SlideCanvasCommandApi | undefined>(undefined);
+  const canvasCommandSlideIdRef = useRef<string | undefined>(undefined);
   const syncMountedCanvasToPage = useCallback((page: IdeaSketchPage) => {
     const api = excalidrawApiRef.current;
     if (!api || excalidrawSlideIdRef.current !== page.id) return;
@@ -119,6 +157,28 @@ export function IdeaSketchEditor({
     const nextActivePage = next.document.pages.find((page) => page.id === next.activePageId);
     if (nextActivePage) syncMountedCanvasToPage(nextActivePage);
   }, [document.editorState?.activePageId, document.model, syncMountedCanvasToPage]);
+
+  useEffect(() => {
+    window.localStorage.setItem(IDEASKETCH_DRAWER_STORAGE_KEY, JSON.stringify({
+      width: drawerWidth,
+      tab: navigatorTab,
+    } satisfies StoredIdeaSketchDrawerState));
+  }, [drawerWidth, navigatorTab]);
+
+  useEffect(() => {
+    setCanvasLayoutRefreshToken((token) => token + 1);
+  }, [drawerOpen, drawerWidth]);
+
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || !drawerOpen) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setDrawerOpen(false);
+    };
+    window.addEventListener("keydown", handleEscape, true);
+    return () => window.removeEventListener("keydown", handleEscape, true);
+  }, [drawerOpen]);
 
   const applyAction = useCallback((
     action: IdeaSketchAction,
@@ -325,16 +385,27 @@ export function IdeaSketchEditor({
     };
     applyAction({ type: "ADD_PAGE", page: newPage });
   }, [applyAction, flushDraft, readOnly]);
-  const openNavigator = useCallback((tab: IdeaSketchNavigatorTab) => {
+  const openDrawer = useCallback((tab: IdeaSketchNavigatorTab) => {
     setNavigatorTab(tab);
-    setShowNavigator(true);
+    setDrawerOpen(true);
   }, []);
-  const toggleNavigator = useCallback(() => setShowNavigator((visible) => !visible), []);
   const handleAddCamera = useCallback(() => {
     if (readOnly) return;
-    openNavigator("cameras");
+    openDrawer("cameras");
     setCameraDrawingRequestToken((token) => token + 1);
-  }, [openNavigator, readOnly]);
+  }, [openDrawer, readOnly]);
+  const handleCommandApiReady = useCallback((api: SlideCanvasCommandApi | undefined, slideId: string) => {
+    if (api) {
+      canvasCommandApiRef.current = api;
+      canvasCommandSlideIdRef.current = slideId;
+      setCanvasCommandReady(true);
+      return;
+    }
+    if (canvasCommandSlideIdRef.current !== slideId) return;
+    canvasCommandApiRef.current = undefined;
+    canvasCommandSlideIdRef.current = undefined;
+    setCanvasCommandReady(false);
+  }, []);
   const handleCanvasInteractionChange = useCallback((active: boolean) => {
     setCanvasInteractionActive((current) => current === active ? current : active);
   }, []);
@@ -445,8 +516,80 @@ export function IdeaSketchEditor({
 
   return (
     <div className="ideanote-ideasketch-editor">
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        <main className="relative min-w-0 flex-1 overflow-hidden">
+      <div className={`ideanote-ideasketch-workspace ${drawerOpen ? "is-drawer-open" : ""}`}>
+        <div
+          className="ideanote-ideasketch-drawer-shell"
+          style={{ width: drawerOpen ? drawerWidth : 0 }}
+          aria-hidden={!drawerOpen}
+        >
+          <aside
+            className="ideanote-ideasketch-drawer"
+            aria-label="IdeaSketch menu"
+            style={{ width: drawerWidth }}
+          >
+            <div className="ideanote-ideasketch-drawer__navigation">
+              <IdeaSketchNavigator
+                activeTab={navigatorTab}
+                onTabChange={setNavigatorTab}
+                pages={editorState.document.pages}
+                activePageId={editorState.activePageId}
+                activePageDraft={draft}
+                canvasInteractionActive={canvasInteractionActive}
+                cameras={cameras}
+                activeCameraId={activeCameraId}
+                readOnly={readOnly}
+                onPageSelect={selectPage}
+                onPageAdd={addPage}
+                onPageRename={renamePage}
+                onPageReorder={reorderPage}
+                onPageDelete={deletePage}
+                onCameraSelect={selectCamera}
+                onCameraDelete={deleteCamera}
+                onCameraReorder={reorderCameraList}
+                onAddCamera={readOnly ? undefined : handleAddCamera}
+                onStartPreview={() => startPresentation("preview")}
+                onStartFullscreen={() => startPresentation("fullscreen")}
+              />
+            </div>
+            <IdeaSketchDrawerCommands
+              ready={canvasCommandReady}
+              readOnly={readOnly}
+              backgroundColor={/^#[0-9a-f]{6}$/i.test(String(draft.appState.viewBackgroundColor))
+                ? String(draft.appState.viewBackgroundColor)
+                : "#ffffff"}
+              onExportImage={() => canvasCommandApiRef.current?.openImageExport()}
+              onExportDrawio={() => canvasCommandApiRef.current?.exportDrawio()}
+              onBackgroundChange={(color) => canvasCommandApiRef.current?.changeCanvasBackground(color)}
+              onClearCanvas={() => setClearCanvasDialogOpen(true)}
+              onHelp={() => canvasCommandApiRef.current?.openHelp()}
+            />
+          </aside>
+        </div>
+        {drawerOpen && (
+          <ResizableDivider
+            side="left"
+            isVisible={drawerOpen}
+            onToggle={() => setDrawerOpen(false)}
+            size={drawerWidth}
+            minSize={MIN_DRAWER_WIDTH}
+            maxSize={MAX_DRAWER_WIDTH}
+            panelLabel="IdeaSketch menu"
+            showToggle={false}
+            onResize={(nextSize) => setDrawerWidth(clampDrawerWidth(nextSize))}
+          />
+        )}
+        <main className="ideanote-ideasketch-canvas">
+          <button
+            type="button"
+            className={`ideanote-ideasketch-drawer-trigger ${drawerOpen ? "is-open" : ""}`}
+            aria-label={drawerOpen ? "Close IdeaSketch menu" : "Open IdeaSketch menu"}
+            aria-expanded={drawerOpen}
+            onClick={() => setDrawerOpen((open) => !open)}
+          >
+            {drawerOpen
+              ? <PanelLeftClose aria-hidden size={18} strokeWidth={1.9} />
+              : <Menu aria-hidden size={18} strokeWidth={1.9} />}
+          </button>
           <SlideCanvas
             key={draft.slideId}
             slideId={draft.slideId}
@@ -456,49 +599,24 @@ export function IdeaSketchEditor({
             files={draft.files}
             onChange={updateDraft}
             onApiReady={handleApiReady}
+            onCommandApiReady={handleCommandApiReady}
             onConvertSelection={handleConvertSelection}
             onInteractionChange={handleCanvasInteractionChange}
             viewMode={readOnly}
             editorRefreshToken={editorRefreshToken}
+            layoutRefreshToken={canvasLayoutRefreshToken}
             cameraDrawingRequestToken={cameraDrawingRequestToken}
           />
         </main>
-        <ResizableDivider
-          side="right"
-          isVisible={showNavigator}
-          onToggle={toggleNavigator}
-          size={rightSidebarWidth}
-          minSize={MIN_RIGHT_SIDEBAR_WIDTH}
-          maxSize={MAX_RIGHT_SIDEBAR_WIDTH}
-          onResize={(nextSize) => setRightSidebarWidth(Math.max(MIN_RIGHT_SIDEBAR_WIDTH, Math.min(MAX_RIGHT_SIDEBAR_WIDTH, nextSize)))}
-        />
-        <div className="h-full flex-shrink-0 overflow-hidden transition-[width] duration-200" style={{ width: showNavigator ? rightSidebarWidth : 0 }}>
-          <div className="h-full" style={{ width: rightSidebarWidth }}>
-            <IdeaSketchNavigator
-              activeTab={navigatorTab}
-              onTabChange={setNavigatorTab}
-              pages={editorState.document.pages}
-              activePageId={editorState.activePageId}
-              activePageDraft={draft}
-              canvasInteractionActive={canvasInteractionActive}
-              cameras={cameras}
-              activeCameraId={activeCameraId}
-              readOnly={readOnly}
-              onPageSelect={selectPage}
-              onPageAdd={addPage}
-              onPageRename={renamePage}
-              onPageReorder={reorderPage}
-              onPageDelete={deletePage}
-              onCameraSelect={selectCamera}
-              onCameraDelete={deleteCamera}
-              onCameraReorder={reorderCameraList}
-              onAddCamera={readOnly ? undefined : handleAddCamera}
-              onStartPreview={() => startPresentation("preview")}
-              onStartFullscreen={() => startPresentation("fullscreen")}
-            />
-          </div>
-        </div>
       </div>
+      <IdeaSketchClearCanvasDialog
+        open={clearCanvasDialogOpen}
+        onOpenChange={setClearCanvasDialogOpen}
+        onConfirm={() => {
+          canvasCommandApiRef.current?.clearCanvas();
+          setClearCanvasDialogOpen(false);
+        }}
+      />
     </div>
   );
 }

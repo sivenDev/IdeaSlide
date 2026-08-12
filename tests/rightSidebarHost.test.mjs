@@ -11,9 +11,10 @@ test('right sidebar is an Agent-only application surface', async () => {
   assert.doesNotMatch(host, /Navigator|navigator|onSurfaceChange/);
   assert.match(shell, /<RightSidebarHost/);
   assert.doesNotMatch(editor, /<RightSidebarHost|<AgentPanel/);
-  assert.equal((editor.match(/<ResizableDivider\s+[\s\S]*?side="right"/g) ?? []).length, 1);
+  assert.equal((editor.match(/<ResizableDivider\s+[\s\S]*?side="right"/g) ?? []).length, 0);
+  assert.equal((editor.match(/<ResizableDivider\s+[\s\S]*?side="left"/g) ?? []).length, 1);
   assert.equal((editor.match(/<IdeaSketchNavigator\n/g) ?? []).length, 1);
-  assert.match(editor, /MIN_RIGHT_SIDEBAR_WIDTH/);
+  assert.match(editor, /MIN_DRAWER_WIDTH/);
   assert.match(editor, /onResize=\{/);
 });
 

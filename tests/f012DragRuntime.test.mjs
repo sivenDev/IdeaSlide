@@ -307,28 +307,38 @@ test('virtualized Page cards remain sortable in WebKit thumbnail mode', async (c
     await page.getByLabel('Workspaces and recent files').getByRole('button', { name: 'Open Workspace' }).click();
     await page.getByRole('button', { name: 'Open a.is' }).click();
 
+    await page.getByRole('button', { name: 'Open IdeaSketch menu' }).click();
+    await page.waitForFunction(() => {
+      const drawer = document.querySelector('.ideanote-ideasketch-drawer-shell');
+      return drawer instanceof HTMLElement && drawer.getBoundingClientRect().width >= 300;
+    }, undefined, { timeout: 60_000 });
+
     const nameView = page.getByRole('button', { name: 'Name view' });
     await nameView.waitFor();
     assert.equal(await nameView.getAttribute('aria-pressed'), 'true');
-    await page.getByRole('button', { name: 'Thumbnail view' }).click();
-    await page.getByText('Empty Page').first().waitFor();
+    const thumbnailView = page.getByRole('button', { name: 'Thumbnail view' });
+    await thumbnailView.click();
+    await page.locator('[data-page-id="page-1"].is-thumbnail').waitFor({ timeout: 60_000 });
+    assert.equal(await thumbnailView.getAttribute('aria-pressed'), 'true');
 
     const mountedCards = page.locator('[data-page-id]');
-    assert.ok(await mountedCards.count() < 40);
+    const mountedCardCount = await mountedCards.count();
+    assert.ok(mountedCardCount > 0);
+    assert.ok(mountedCardCount < 40);
 
-    const source = await page.getByRole('button', { name: 'Drag Page 5' }).boundingBox();
-    const target = await page.locator('[data-page-id="page-4"]').boundingBox();
+    const source = await page.getByRole('button', { name: 'Drag Page 2' }).boundingBox();
+    const target = await page.locator('[data-page-id="page-1"]').boundingBox();
     await dragBetweenBoxes(page, source, target, 0.5);
 
-    const pageFiveIndex = page.locator('[data-page-id="page-5"] .ideanote-page-organizer__index');
+    const pageTwoIndex = page.locator('[data-page-id="page-2"] .ideanote-page-organizer__index');
     const deadline = Date.now() + 2_000;
-    while (Date.now() < deadline && await pageFiveIndex.textContent() !== '4') {
+    while (Date.now() < deadline && await pageTwoIndex.textContent() !== '1') {
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
-    assert.equal(await pageFiveIndex.textContent(), '4');
+    assert.equal(await pageTwoIndex.textContent(), '1');
     assert.equal(
-      await page.locator('[data-page-id="page-4"] .ideanote-page-organizer__index').textContent(),
-      '5',
+      await page.locator('[data-page-id="page-1"] .ideanote-page-organizer__index').textContent(),
+      '2',
     );
   } finally {
     await browser?.close();

@@ -1,6 +1,9 @@
-import { Excalidraw, MainMenu } from "@excalidraw/excalidraw";
-import { memo, useRef, useEffect, useState, useCallback, useMemo } from "react";
-import { Download } from "lucide-react";
+import {
+  CaptureUpdateAction,
+  Excalidraw,
+  newElementWith,
+} from "@excalidraw/excalidraw";
+import { memo, useRef, useEffect, useState, useCallback } from "react";
 import { getNextCameraOrder } from "../lib/cameraUtils";
 import {
   CAMERA_PREVIEW_ID,
@@ -33,6 +36,14 @@ function getScenePointerFromEvent(api: any, event: PointerEvent) {
   };
 }
 
+export interface SlideCanvasCommandApi {
+  exportDrawio: () => void;
+  openImageExport: () => void;
+  changeCanvasBackground: (color: string) => void;
+  clearCanvas: () => void;
+  openHelp: () => void;
+}
+
 interface SlideCanvasProps {
   slideId: string;
   pageTitle: string;
@@ -42,9 +53,11 @@ interface SlideCanvasProps {
   onChange: (elements: readonly any[], appState: Partial<any>, files: Record<string, any>) => void;
   viewMode?: boolean;
   onApiReady?: (api: any, slideId: string) => void;
+  onCommandApiReady?: (api: SlideCanvasCommandApi | undefined, slideId: string) => void;
   onConvertSelection?: (target: StyleConversionTarget) => void;
   onInteractionChange?: (active: boolean) => void;
   editorRefreshToken: number;
+  layoutRefreshToken?: number;
   cameraDrawingRequestToken?: number;
 }
 
@@ -67,9 +80,11 @@ function SlideCanvasInner({
   onChange,
   viewMode,
   onApiReady,
+  onCommandApiReady,
   onConvertSelection,
   onInteractionChange,
   editorRefreshToken,
+  layoutRefreshToken = 0,
   cameraDrawingRequestToken = 0,
 }: SlideCanvasProps) {
   const { resolvedTheme } = useSettings();
@@ -243,7 +258,7 @@ function SlideCanvasInner({
 
   useEffect(() => {
     const api = excalidrawApiRef.current;
-    if (!api || editorRefreshToken === 0) {
+    if (!api || (editorRefreshToken === 0 && layoutRefreshToken === 0)) {
       return;
     }
 
@@ -263,7 +278,7 @@ function SlideCanvasInner({
       }
       window.clearTimeout(timeoutId);
     };
-  }, [apiReadyVersion, editorRefreshToken]);
+  }, [apiReadyVersion, editorRefreshToken, layoutRefreshToken]);
 
   // Start camera drawing mode
   const startCameraDrawing = useCallback(() => {
@@ -494,20 +509,59 @@ function SlideCanvasInner({
       });
   }, [pageTitle]);
 
-  const mainMenu = useMemo(() => (
-    <MainMenu>
-      <MainMenu.Item
-        icon={<Download aria-hidden="true" size={16} strokeWidth={1.8} />}
-        onSelect={handleExportDrawio}
-      >
-        Export as draw.io
-      </MainMenu.Item>
-      <MainMenu.DefaultItems.SaveAsImage />
-      <MainMenu.DefaultItems.ChangeCanvasBackground />
-      <MainMenu.DefaultItems.ClearCanvas />
-      <MainMenu.DefaultItems.Help />
-    </MainMenu>
-  ), [handleExportDrawio]);
+  const openImageExport = useCallback(() => {
+    excalidrawApiRef.current?.updateScene({
+      appState: { openDialog: { name: "imageExport" } },
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
+  }, []);
+  const changeCanvasBackground = useCallback((color: string) => {
+    const api = excalidrawApiRef.current;
+    if (!api || viewMode) return;
+    api.updateScene({
+      appState: { viewBackgroundColor: color },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+  }, [viewMode]);
+  const clearCanvas = useCallback(() => {
+    const api = excalidrawApiRef.current;
+    if (!api || viewMode) return;
+    api.updateScene({
+      elements: api.getSceneElementsIncludingDeleted().map((element: any) => (
+        element.isDeleted ? element : newElementWith(element, { isDeleted: true })
+      )),
+      appState: { selectedElementIds: {} },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+  }, [viewMode]);
+  const openHelp = useCallback(() => {
+    excalidrawApiRef.current?.updateScene({
+      appState: { openDialog: { name: "help" } },
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (apiReadyVersion === 0 || !onCommandApiReady) return;
+    const commandApi: SlideCanvasCommandApi = {
+      exportDrawio: handleExportDrawio,
+      openImageExport,
+      changeCanvasBackground,
+      clearCanvas,
+      openHelp,
+    };
+    onCommandApiReady(commandApi, slideId);
+    return () => onCommandApiReady(undefined, slideId);
+  }, [
+    apiReadyVersion,
+    changeCanvasBackground,
+    clearCanvas,
+    handleExportDrawio,
+    onCommandApiReady,
+    openHelp,
+    openImageExport,
+    slideId,
+  ]);
   const renderSelectionActions = useCallback(
     () => onConvertSelection
       ? <CanvasSelectionActions onConvert={onConvertSelection} />
@@ -549,7 +603,6 @@ function SlideCanvasInner({
           ? renderSelectionActions
           : undefined}
       >
-        {!viewMode && mainMenu}
       </Excalidraw>
       {!viewMode && (
         <CameraBadgeOverlay

@@ -7,9 +7,11 @@ interface SlideCanvasComparableProps {
   onChange: unknown;
   viewMode?: boolean;
   onApiReady?: unknown;
+  onCommandApiReady?: unknown;
   onConvertSelection?: unknown;
   onInteractionChange?: unknown;
   editorRefreshToken?: number;
+  layoutRefreshToken?: number;
   cameraDrawingRequestToken?: number;
 }
 
@@ -26,9 +28,11 @@ export function areSlideCanvasPropsEqual(
     previousProps.onChange === nextProps.onChange &&
     previousProps.viewMode === nextProps.viewMode &&
     previousProps.onApiReady === nextProps.onApiReady &&
+    previousProps.onCommandApiReady === nextProps.onCommandApiReady &&
     previousProps.onConvertSelection === nextProps.onConvertSelection &&
     previousProps.onInteractionChange === nextProps.onInteractionChange &&
     previousProps.editorRefreshToken === nextProps.editorRefreshToken &&
+    previousProps.layoutRefreshToken === nextProps.layoutRefreshToken &&
     previousProps.cameraDrawingRequestToken === nextProps.cameraDrawingRequestToken
   );
 }

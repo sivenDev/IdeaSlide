@@ -4,20 +4,21 @@ import { readFile } from 'node:fs/promises';
 
 const readSource = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('SlideCanvas adds only the draw.io export command to the custom Excalidraw MainMenu', async () => {
+test('SlideCanvas moves the former Excalidraw MainMenu actions behind its live command API', async () => {
   const source = await readSource('src/components/SlideCanvas.tsx');
 
-  assert.doesNotMatch(source, /\bPanelRight\b/);
-  assert.equal((source.match(/<MainMenu\.Item/g) ?? []).length, 1);
-  assert.match(source, /<MainMenu\.Item[\s\S]*?onSelect=\{handleExportDrawio\}[\s\S]*?>\s*Export as draw\.io\s*<\/MainMenu\.Item>/);
+  assert.doesNotMatch(source, /\bMainMenu\b/);
+  assert.match(source, /SlideCanvasCommandApi/);
+  assert.match(source, /exportDrawio/);
+  assert.match(source, /openImageExport/);
+  assert.match(source, /changeCanvasBackground/);
+  assert.match(source, /clearCanvas/);
+  assert.match(source, /openHelp/);
   assert.match(source, /api\.getSceneElements\(\)/);
   assert.match(source, /api\.getFiles\(\)/);
   assert.match(source, /exportExcalidrawToDrawio/);
-  assert.doesNotMatch(source, /isNavigatorOpen/);
-  assert.doesNotMatch(source, /onToggleNavigator/);
-  assert.doesNotMatch(source, />\s*Navigator\s*</);
-  assert.doesNotMatch(source, /<MainMenu\.Separator\s*\/>/);
-  assert.match(source, /<MainMenu\.DefaultItems\.SaveAsImage \/>/);
+  assert.match(source, /openDialog:\s*\{ name: "imageExport" \}/);
+  assert.match(source, /openDialog:\s*\{ name: "help" \}/);
 });
 
 test('SlideCanvas reserves public top-right UI for contextual selection conversion only', async () => {
@@ -31,18 +32,18 @@ test('SlideCanvas reserves public top-right UI for contextual selection conversi
   assert.doesNotMatch(source, />\s*Navigator\s*</);
   assert.match(source, /cameraDrawingRequestToken/);
   assert.match(source, /lastCameraDrawingRequestTokenRef/);
-  assert.match(source, /!viewMode && mainMenu/);
+  assert.doesNotMatch(source, /mainMenu/);
 });
 
 test('IdeaSketchEditor keeps Camera creation in the navigator only', async () => {
   const source = await readSource('src/components/IdeaSketchEditor.tsx');
-  const slideCanvas = source.match(/<SlideCanvas[\s\S]*?\/>/)?.[0] ?? '';
+  const slideCanvas = source.match(/<SlideCanvas\n[\s\S]*?\/>/)?.[0] ?? '';
   const navigator = source.match(/<IdeaSketchNavigator\s[\s\S]*?\/>/)?.[0] ?? '';
 
   assert.doesNotMatch(slideCanvas, /onAddCamera=/);
   assert.doesNotMatch(slideCanvas, /isNavigatorOpen=/);
   assert.doesNotMatch(slideCanvas, /onToggleNavigator=/);
   assert.match(slideCanvas, /cameraDrawingRequestToken=\{cameraDrawingRequestToken\}/);
-  assert.match(source, /<ResizableDivider[\s\S]*?side="right"[\s\S]*?isVisible=\{showNavigator\}[\s\S]*?onToggle=\{toggleNavigator\}[\s\S]*?onResize=/);
+  assert.match(source, /<ResizableDivider[\s\S]*?side="left"[\s\S]*?isVisible=\{drawerOpen\}[\s\S]*?showToggle=\{false\}[\s\S]*?onResize=/);
   assert.match(navigator, /onAddCamera=\{readOnly \? undefined : handleAddCamera\}/);
 });

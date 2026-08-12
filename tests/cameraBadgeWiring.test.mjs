@@ -18,11 +18,12 @@ test('SlideCanvas enables image export while native scene saves stay in IdeaSlid
   const source = await readSource('src/components/SlideCanvas.tsx');
 
   assert.match(source, /saveAsImage:\s*true/);
-  assert.match(source, /<MainMenu\.DefaultItems\.SaveAsImage\s*\/>/);
+  assert.match(source, /openImageExport/);
+  assert.match(source, /openDialog:\s*\{ name: "imageExport" \}/);
   assert.match(source, /export:\s*\{\s*saveFileToDisk:\s*false,\s*\}/);
   assert.match(source, /saveToActiveFile:\s*false/);
   assert.match(source, /saveToActiveFile:\s*false,\s*saveFileToDisk:\s*false/s);
-  assert.match(source, />\s*Export as draw\.io\s*</);
+  assert.match(source, /exportDrawio:\s*handleExportDrawio/);
   assert.match(source, /getSceneElements\(\)/);
   assert.match(source, /getFiles\(\)/);
 });

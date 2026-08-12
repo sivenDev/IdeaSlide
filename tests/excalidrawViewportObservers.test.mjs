@@ -89,10 +89,14 @@ test('Selection availability is keyed by scene identity and selected IDs', async
   assert.match(source, /previousObservation\.readOnly === nextObservation\.readOnly/);
 });
 
-test('Custom Excalidraw menu and selection renderer keep stable callback identities', async () => {
+test('Custom Canvas commands and selection renderer keep stable callback identities', async () => {
   const source = await readSource('src/components/SlideCanvas.tsx');
 
-  assert.match(source, /const mainMenu = useMemo\(\(\) => \(/);
+  assert.match(source, /const handleExportDrawio = useCallback\(/);
+  assert.match(source, /const openImageExport = useCallback\(/);
+  assert.match(source, /const changeCanvasBackground = useCallback\(/);
+  assert.match(source, /const clearCanvas = useCallback\(/);
+  assert.match(source, /const openHelp = useCallback\(/);
   assert.match(source, /const renderSelectionActions = useCallback\(/);
   assert.match(source, /renderTopRightUI=\{!viewMode && canConvertSelection && onConvertSelection\s*\? renderSelectionActions/s);
 });

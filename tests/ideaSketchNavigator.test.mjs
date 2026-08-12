@@ -24,20 +24,19 @@ test('IdeaSketch navigator switches between fixed Pages and Cameras tabs', async
   assert.match(source, /canvasInteractionActive=\{canvasInteractionActive\}/);
 });
 
-test('IdeaSketch editor owns one open-by-default compact navigator without a duplicate Page shortcut', async () => {
+test('IdeaSketch editor keeps one compact navigator inside a closed-by-default left drawer', async () => {
   const source = await readSource('src/components/IdeaSketchEditor.tsx');
 
-  assert.match(source, /const DEFAULT_RIGHT_SIDEBAR_WIDTH = 260/);
-  assert.match(source, /const \[rightSidebarWidth, setRightSidebarWidth\]/);
-  assert.match(source, /const \[showNavigator, setShowNavigator\] = useState\(true\)/);
-  assert.match(source, /const \[navigatorTab, setNavigatorTab\].*"pages"/);
-  assert.match(source, /openNavigator\("cameras"\)/);
-  assert.match(source, /toggleNavigator/);
+  assert.match(source, /const DEFAULT_DRAWER_WIDTH = 304/);
+  assert.match(source, /const \[drawerWidth, setDrawerWidth\]/);
+  assert.match(source, /const \[drawerOpen, setDrawerOpen\] = useState\(false\)/);
+  assert.match(source, /const \[navigatorTab, setNavigatorTab\][\s\S]*?initialDrawerState\.tab \?\? "pages"/);
+  assert.match(source, /openDrawer\("cameras"\)/);
   assert.match(source, /<IdeaSketchNavigator/);
   assert.match(source, /activeTab=\{navigatorTab\}/);
-  assert.match(source, /isVisible=\{showNavigator\}/);
+  assert.match(source, /isVisible=\{drawerOpen\}/);
   assert.doesNotMatch(source, /onToggleNavigator=/);
-  assert.match(source, /<ResizableDivider[\s\S]*?side="right"[\s\S]*?isVisible=\{showNavigator\}[\s\S]*?onToggle=\{toggleNavigator\}[\s\S]*?onResize=/);
+  assert.match(source, /<ResizableDivider[\s\S]*?side="left"[\s\S]*?isVisible=\{drawerOpen\}[\s\S]*?showToggle=\{false\}[\s\S]*?onResize=/);
   assert.match(source, /onAddCamera=/);
   assert.doesNotMatch(source, /const \[showCameras, setShowCameras\]/);
   assert.doesNotMatch(source, /<CameraList/);

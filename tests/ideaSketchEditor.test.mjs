@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 const source = await readFile(new URL('../src/components/IdeaSketchEditor.tsx', import.meta.url), 'utf8');
 
 test('IdeaSketch editor binds Excalidraw drafts to document and Page identity', () => {
-  const canvas = source.match(/<SlideCanvas[\s\S]*?\/>/)?.[0] ?? '';
+  const canvas = source.match(/<SlideCanvas\n[\s\S]*?\/>/)?.[0] ?? '';
 
   assert.match(source, /documentSessionId: document\.id/);
   assert.match(source, /page: activePage/);
@@ -29,12 +29,12 @@ test('saved editable documents autosave in both modes while Page-scoped Cameras 
   assert.doesNotMatch(source, /enabled: document\.mode === "workspace"/);
   assert.match(source, /<SlideCanvas/);
   assert.match(source, /<IdeaSketchNavigator/);
-  assert.match(source, /<ResizableDivider[\s\S]*?side="right"/);
-  assert.match(source, /const DEFAULT_RIGHT_SIDEBAR_WIDTH = 260/);
-  assert.match(source, /const MIN_RIGHT_SIDEBAR_WIDTH = 220/);
-  assert.match(source, /const MAX_RIGHT_SIDEBAR_WIDTH = 420/);
-  assert.match(source, /const \[rightSidebarWidth, setRightSidebarWidth\]/);
-  assert.match(source, /const \[showNavigator, setShowNavigator\] = useState\(true\)/);
+  assert.match(source, /<ResizableDivider[\s\S]*?side="left"/);
+  assert.match(source, /const DEFAULT_DRAWER_WIDTH = 304/);
+  assert.match(source, /const MIN_DRAWER_WIDTH = 260/);
+  assert.match(source, /const MAX_DRAWER_WIDTH = 420/);
+  assert.match(source, /const \[drawerWidth, setDrawerWidth\]/);
+  assert.match(source, /const \[drawerOpen, setDrawerOpen\] = useState\(false\)/);
   assert.match(source, /navigatorTab/);
   assert.match(source, /model\.pages\.find/);
   assert.match(source, /activePageDraft=\{draft\}/);
@@ -49,7 +49,7 @@ test('Page selection records editor state without persisting a model mutation', 
 });
 
 test('selection conversion stays inside the active Page draft boundary', () => {
-  const canvas = source.match(/<SlideCanvas[\s\S]*?\/>/)?.[0] ?? '';
+  const canvas = source.match(/<SlideCanvas\n[\s\S]*?\/>/)?.[0] ?? '';
 
   assert.match(source, /handleConvertSelection/);
   assert.match(source, /CaptureUpdateAction\.IMMEDIATELY/);
