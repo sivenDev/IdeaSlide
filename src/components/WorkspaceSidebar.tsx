@@ -8,6 +8,7 @@ import {
   PanelLeftClose,
   Pencil,
   Plus,
+  RefreshCw,
   Settings,
   Trash2,
 } from "lucide-react";
@@ -23,6 +24,12 @@ import {
   DropdownMenuTrigger,
 } from "./ui/DropdownMenu";
 import { Input } from "./ui/Input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/Tooltip";
 import { DocumentFileGlyph } from "./DocumentFileGlyph";
 
 const iconProps = { "aria-hidden": true, size: 14, strokeWidth: 1.8 } as const;
@@ -62,6 +69,7 @@ export function WorkspaceSidebar({
   onToggle,
   onOpenWorkspace,
   onCreateInWorkspace,
+  onRefreshWorkspace,
   onRenameWorkspace,
   onRemoveWorkspace,
   onOpenRecent,
@@ -82,6 +90,7 @@ export function WorkspaceSidebar({
   onToggle: () => void;
   onOpenWorkspace: (path?: string) => void;
   onCreateInWorkspace: (root: string, fileType: "ideasketch" | "markdown" | "directory") => void;
+  onRefreshWorkspace: () => void;
   onRenameWorkspace: (root: string, name: string) => void;
   onRemoveWorkspace: (root: string) => void;
   onOpenRecent: (path: string) => void;
@@ -188,6 +197,23 @@ export function WorkspaceSidebar({
                 {!isRenaming && (
                   <div className="ideanote-tree-actions">
                     <CreateMenu label={workspace.name} onCreate={(fileType) => onCreateInWorkspace(workspace.path, fileType)} />
+                    {active && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              className="ideanote-tree-action"
+                              type="button"
+                              aria-label={`Refresh ${workspace.name}`}
+                              onClick={onRefreshWorkspace}
+                            >
+                              <RefreshCw {...iconProps} />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>{`Refresh ${workspace.name}`}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button className="ideanote-tree-action" type="button" aria-label={`Actions for ${workspace.name}`}>

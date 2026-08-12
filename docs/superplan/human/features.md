@@ -371,3 +371,10 @@ Remove the redundant Model field from AI Provider Settings while preserving the 
 - created: 2026-08-12
 
 Give the Agent a Codex-like structured Workspace workflow: bounded file listing and glob discovery, text search, full or line-range UTF-8 reads, atomic multi-file patch transactions, Folder creation, entry move and Trash, change-set Diff inspection, and bounded undo of Agent patch transactions. Reuse the existing root-confined Workspace, safe-write, watcher, and document-protection services; keep Codex itself in its read-only sandbox and do not expose arbitrary Shell, process, network, dependency-install, or browser execution. Existing-file edits require a digest from a prior read, multi-file patches validate fully before any commit, and stale/external/open-document conflicts fail without partial writes. Move, Trash, deletion, and other destructive operations require explicit in-product approval. The capability is unavailable in Standalone mode, excludes internal/secret/binary/oversized content, leaves Workspace Explorer registry-driven, and must be truthfully reported in the Agent Tool catalog.
+
+## F051: Add a Workspace tree refresh action
+
+- status: done
+- created: 2026-08-12
+
+Add a refresh button to each Workspace root row beside the existing create and overflow actions. Activating it rescans that Workspace directory and updates the visible directory tree while preserving the existing Workspace/editor safety behavior.

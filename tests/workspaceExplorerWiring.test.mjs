@@ -92,3 +92,12 @@ test('Editor shell keeps Workspaces available in empty, Workspace, and standalon
   assert.match(source, /clampWorkspacePanelWidth/);
   assert.match(source, /PANEL_STATE_KEY/);
 });
+
+test('Workspace root refresh reuses the safe rescan boundary and preserves the current tree on failure', async () => {
+  const source = await readSource('src/components/EditorLayout.tsx');
+  assert.match(source, /const refreshTree = useCallback\(async \(\) => \{/);
+  assert.match(source, /const entries = await refreshWorkspace\(state\.workspace\.root\);/);
+  assert.match(source, /dispatch\(\{ type: "SET_WORKSPACE_ENTRIES", entries, entryOrder: \[\] \}\);/);
+  assert.match(source, /onRefreshWorkspace=\{\(\) => void refreshTree\(\)\.catch\(\(error\) =>/);
+  assert.match(source, /handleWorkspaceActionError\("Workspace refresh failed", error\)/);
+});

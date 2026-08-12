@@ -1233,6 +1233,9 @@ export function EditorLayout({
               onToggle={() => setShowWorkspace(false)}
               onOpenWorkspace={(path) => void handleOpenWorkspace(path)}
               onCreateInWorkspace={(root, fileType) => void handleCreateInWorkspace(root, fileType)}
+              onRefreshWorkspace={() => void refreshTree().catch((error) => {
+                handleWorkspaceActionError("Workspace refresh failed", error);
+              })}
               onRenameWorkspace={(root, name) => void handleRenameWorkspaceRoot(root, name)}
               onRemoveWorkspace={(root) => void handleRemoveWorkspace(root)}
               onOpenRecent={(path) => void handleOpenRecent(path)}

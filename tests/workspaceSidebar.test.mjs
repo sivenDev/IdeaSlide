@@ -19,3 +19,12 @@ test('Workspace and recent menus use maintained focus-dismissable DropdownMenu p
   assert.match(source, /side="right"/);
   assert.match(source, /className="ideanote-compact-menu/);
 });
+
+test('active Workspace roots expose a compact accessible tree refresh action', () => {
+  assert.match(source, /RefreshCw/);
+  assert.match(source, /onRefreshWorkspace: \(\) => void/);
+  assert.match(source, /\{active && \(/);
+  assert.match(source, /aria-label=\{`Refresh \$\{workspace\.name\}`\}/);
+  assert.match(source, /<TooltipContent>\{`Refresh \$\{workspace\.name\}`\}<\/TooltipContent>/);
+  assert.match(source, /onClick=\{onRefreshWorkspace\}/);
+});
