@@ -145,7 +145,10 @@ parent: ""
 - A CI-mode signed macOS Tauri build using the protected local key produced `IdeaNote.app.tar.gz` plus `IdeaNote.app.tar.gz.sig`; the private key remains outside the repository with mode `0600`.
 - Playwright visual inspection passed at 254px and 214px sidebar widths in Light and Dark with no card overflow; available, determinate progress, compact, and retry/error presentations were inspected.
 - An existing user-started `pnpm tauri dev` session has a live `target/debug/idea-slide` process. A second smoke command was deliberately stopped by the occupied Vite port without terminating the user's session.
-- External blocker: `gh auth status` reports the active `sivenDev` token is invalid. Repository administrators must run `gh auth login -h github.com`, configure or confirm `TAURI_SIGNING_PRIVATE_KEY` (with `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` empty/unset for this key), and explicitly authorize the first stable `vMAJOR.MINOR.PATCH` tag before the cross-platform GitHub release/update round trip can be proven. F056 therefore remains `in_progress`.
+- GitHub Actions run `31603847181` attempt 3 completed successfully for Windows x86_64, macOS Apple Silicon, macOS Intel, and the final publish gate. Release `v0.2.7` is public with one complete `latest.json`, all three updater platform entries, updater bundles, and signatures.
+- The published Windows MSI and both macOS updater archives passed verification with the public key embedded in the client; a one-byte-corrupted macOS archive was rejected with `InvalidSignature`.
+- The dismissed-state `Update` action now follows the quiet Codex-style footer hierarchy: neutral semantic border/text, transparent rest state, restrained hover, visible focus, and disabled treatment. `node --test tests/appUpdateUi.test.mjs tests/workspaceSidebar.test.mjs tests/themeVisualContract.test.mjs`, `npm run build`, and `git diff --check` passed.
+- Remaining native acceptance: complete one installed-client download/install/relaunch pass with the Save / Discard / Cancel gate. Automated macOS UI control was unavailable because the Computer Use native pipe failed to start; F056 therefore remains `in_progress` rather than claiming completion from artifact verification alone.
 
 ## References
 - `docs/superplan/human/features.md`

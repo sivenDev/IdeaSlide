@@ -42,6 +42,13 @@ test('EditorLayout owns updater installation through the existing session exit g
 test('update presentation has isolated responsive theme and reduced-motion styling', () => {
   assert.match(styles, /\.ideanote-app-update-notice/);
   assert.match(styles, /\.ideanote-workspace-footer__update/);
+  const compactUpdateStyle = styles.match(
+    /\.ideanote-workspace-footer__update \{([\s\S]*?)\n\}/,
+  )?.[1] ?? '';
+  assert.match(compactUpdateStyle, /border:\s*1px solid var\(--border-default\)/);
+  assert.match(compactUpdateStyle, /color:\s*var\(--text-secondary\)/);
+  assert.match(compactUpdateStyle, /background:\s*transparent/);
+  assert.doesNotMatch(compactUpdateStyle, /accent-primary/);
   assert.match(styles, /color: var\(--accent-contrast\)/);
   assert.match(styles, /html\[data-theme="dark"\] \.ideanote-workspace-footer__settings/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?ideanote-app-update/);

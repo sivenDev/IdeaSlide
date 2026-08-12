@@ -4117,17 +4117,36 @@ body,
 .ideanote-workspace-footer__update {
     height: 26px;
     flex: none;
-    border: 1px solid color-mix(in srgb, var(--accent-primary) 42%, var(--border-default));
-    border-radius: 8px;
-    color: var(--accent-primary);
-    background: color-mix(in srgb, var(--accent-primary) 9%, transparent);
-    font-size: 10px;
-    font-weight: 650;
-    padding: 0 8px;
+    border: 1px solid var(--border-default);
+    border-radius: 7px;
+    color: var(--text-secondary);
+    background: transparent;
+    padding: 0 9px;
+    font-size: 11px;
+    font-weight: 560;
+    letter-spacing: -.01em;
+    transition:
+        border-color 120ms ease,
+        color 120ms ease,
+        background-color 120ms ease;
 }
 
 .ideanote-workspace-footer__update:hover {
-    background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+    border-color: var(--border-strong);
+    color: var(--text-primary);
+    background: var(--interaction-hover);
+}
+
+.ideanote-workspace-footer__update:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+.ideanote-workspace-footer__update:disabled {
+    border-color: var(--border-subtle);
+    color: var(--disabled-text);
+    background: transparent;
+    cursor: default;
 }
 
 .ideanote-app-update-notice {
