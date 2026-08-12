@@ -116,6 +116,7 @@ parent: ""
 
 ## Completion Evidence
 
+- Follow-up persisted-Turn inspection proved current IdeaSketch Turns already captured six editor Tools and successfully executed `read_active_page` plus prerequisite-gated `replace_page_elements`; the remaining empty state was the availability activity disclosure, whose event stored only counts and no expandable catalog. The native event now persists the bounded Tool name/description/prerequisite catalog, omits the misleading zero-host count, and the UI renders legacy no-detail rows as non-expandable instead of opening an empty body.
 - Focused Agent regressions passed for Store lifecycle cleanup, terminal response actions, paced presentation, Turn evidence, repository hydration, runtime selection, and second-editor reuse.
 - Complete frontend regression passed with `node --test --test-concurrency=1 --test-reporter=dot tests/*.test.mjs`.
 - TypeScript and production frontend build passed with `npm run build`; Vite reported only its existing dynamic-import and large-chunk advisories.

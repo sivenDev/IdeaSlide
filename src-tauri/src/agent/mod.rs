@@ -341,6 +341,51 @@ fn normalized_capabilities(capabilities: &AgentProviderCapabilities) -> Value {
     })
 }
 
+fn agent_tool_availability_item(
+    run_id: &str,
+    skill_id: Option<&str>,
+    editor_tools: &[types::AgentToolDescriptor],
+    host_tools: &[types::AgentToolDescriptor],
+) -> Value {
+    let available_tools = editor_tools
+        .iter()
+        .map(|tool| {
+            json!({
+                "name": tool.name,
+                "description": tool.description,
+                "requires": tool.requires,
+                "source": "editor",
+            })
+        })
+        .chain(host_tools.iter().map(|tool| {
+            json!({
+                "name": tool.name,
+                "description": tool.description,
+                "requires": tool.requires,
+                "source": "skill",
+            })
+        }))
+        .collect::<Vec<_>>();
+    let summary = if host_tools.is_empty() {
+        format!("{} editor Tools available", editor_tools.len())
+    } else {
+        format!(
+            "{} editor Tools · {} Skill Tools available",
+            editor_tools.len(),
+            host_tools.len(),
+        )
+    };
+    json!({
+        "id": format!("{run_id}:skill"),
+        "kind": "tool",
+        "name": format!("{} Skill", skill_id.unwrap_or("Editor")),
+        "summary": summary,
+        "output": { "availableTools": available_tools },
+        "status": "completed",
+        "createdAt": now_millis(),
+    })
+}
+
 fn emit_provider_progress(
     emitter: &Arc<Mutex<NativeTurnEmitter>>,
     progress: provider::ProviderProgress,
@@ -1153,7 +1198,7 @@ pub(crate) async fn run_agent(
         skill_catalog,
     );
     request.skill_id = None;
-    request.tools.extend(host_tools);
+    request.tools.extend(host_tools.iter().cloned());
     let upstream_tool_signature = stable_tool_signature(&request.tools)?;
     let run_id = request.run_id.clone();
     let thread_id = request.thread_id.clone();
@@ -1234,14 +1279,12 @@ pub(crate) async fn run_agent(
         turn.send(
             "itemAdded",
             json!({
-                "item": {
-                    "id": format!("{run_id}:skill"),
-                    "kind": "tool",
-                    "name": format!("{} Skill", skill_id.clone().unwrap_or_else(|| "Editor".to_string())),
-                    "summary": format!("{} editor Tools and {} host Tools available", editor_tool_definitions.len(), tool_definitions.len().saturating_sub(editor_tool_definitions.len())),
-                    "status": "completed",
-                    "createdAt": now_millis(),
-                }
+                "item": agent_tool_availability_item(
+                    &run_id,
+                    skill_id.as_deref(),
+                    &editor_tool_definitions,
+                    &host_tools,
+                )
             }),
         )?;
         turn.send(
@@ -1765,9 +1808,9 @@ fn codex_conversation_for_tools(
 #[cfg(test)]
 mod tests {
     use super::{
-        can_fallback_after_codex_failure, codex_conversation_for_tools, emit_tool_result,
-        emit_tool_started, finalize_turn, stable_tool_signature, validate_agent_selection,
-        NativeTurnEmitter,
+        agent_tool_availability_item, can_fallback_after_codex_failure,
+        codex_conversation_for_tools, emit_tool_result, emit_tool_started, finalize_turn,
+        stable_tool_signature, validate_agent_selection, NativeTurnEmitter,
     };
     use crate::agent::types::{AgentRunEvent, AgentToolCall, AgentToolDescriptor};
     use serde_json::{json, Value};
@@ -1831,6 +1874,30 @@ mod tests {
             codex_conversation_for_tools(Some("legacy-upstream"), None, &idea_sketch_signature),
             None,
         );
+    }
+
+    #[test]
+    fn editor_tool_availability_exposes_the_real_expandable_tool_catalog() {
+        let editor_tools = vec![
+            AgentToolDescriptor {
+                name: "read_active_page".to_string(),
+                description: "Read the active Page".to_string(),
+                input_schema: json!({"type": "object"}),
+                requires: Vec::new(),
+            },
+            AgentToolDescriptor {
+                name: "replace_page_elements".to_string(),
+                description: "Replace active Page elements".to_string(),
+                input_schema: json!({"type": "object"}),
+                requires: vec!["read_active_page".to_string()],
+            },
+        ];
+        let item = agent_tool_availability_item("turn-1", Some("canvas"), &editor_tools, &[]);
+
+        assert_eq!(item["summary"], "2 editor Tools available");
+        assert_eq!(item["output"]["availableTools"].as_array().unwrap().len(), 2);
+        assert_eq!(item["output"]["availableTools"][0]["name"], "read_active_page");
+        assert_eq!(item["output"]["availableTools"][1]["requires"][0], "read_active_page");
     }
 
     #[test]

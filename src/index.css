@@ -1159,13 +1159,17 @@ body,
     font-size: 10px;
 }
 
-.ideanote-agent-tool-activity > summary {
+.ideanote-agent-tool-activity > summary,
+.ideanote-agent-tool-activity__header {
     display: flex;
-    cursor: pointer;
     list-style: none;
     align-items: center;
     gap: 7px;
     padding: 7px 8px;
+}
+
+.ideanote-agent-tool-activity > summary {
+    cursor: pointer;
 }
 
 .ideanote-agent-tool-activity > summary::-webkit-details-marker {
@@ -1215,6 +1219,59 @@ body,
     color: #7b818c;
     font-family: inherit;
     text-transform: uppercase;
+}
+
+.ideanote-agent-tool-catalog {
+    display: grid;
+    gap: 2px;
+}
+
+.ideanote-agent-tool-catalog__item {
+    min-width: 0;
+    border-radius: 6px;
+    padding: 6px;
+}
+
+.ideanote-agent-tool-catalog__item + .ideanote-agent-tool-catalog__item {
+    border-top: 1px solid #eceef2;
+    border-radius: 0;
+}
+
+.ideanote-agent-tool-catalog__heading {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 6px;
+}
+
+.ideanote-agent-tool-catalog__heading code {
+    overflow: hidden;
+    color: #4f5662;
+    font: 9px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ideanote-agent-tool-catalog__heading span {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    color: #6965db;
+    background: #efefff;
+    font-size: 8px;
+    padding: 1px 5px;
+}
+
+.ideanote-agent-tool-catalog__item p,
+.ideanote-agent-tool-catalog__item small {
+    display: block;
+    margin-top: 3px;
+    color: #8a909b;
+    font-size: 9px;
+    line-height: 1.4;
+}
+
+.ideanote-agent-tool-catalog__item small {
+    color: #6965db;
 }
 
 .ideanote-agent-waiting {
