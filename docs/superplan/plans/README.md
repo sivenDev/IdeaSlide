@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | In Progress | Complete |
-| --- | --- | --- | --- |
-| `required` | 6 | 0 | 6 |
-| `feature` | 64 | 0 | 64 |
-| `bugfix` | 38 | 2 | 36 |
+| Type | Plans | Draft | In Progress | Complete |
+| --- | --- | --- | --- | --- |
+| `required` | 6 | 0 | 0 | 6 |
+| `feature` | 65 | 1 | 0 | 64 |
+| `bugfix` | 38 | 0 | 2 | 36 |
 
 ## Execution Order
 
@@ -89,6 +89,7 @@
 | `F050` | [Add Codex-like Workspace File Operations to the Agent](features/F050-codex-like-workspace-file-operations.md) | `complete` | 2026-08-12 |
 | `F044-01` | [Build the Mock Desktop Platform and Workspace Session Demo](features/F044-complete-mocked-tauri-review-demo/F044-01-mock-desktop-platform-and-workspace-session-demo.md) | `complete` | 2026-08-11 |
 | `F044-02` | [Add Complete IdeaSketch and Markdown Editor Experiences](features/F044-complete-mocked-tauri-review-demo/F044-02-ideasketch-and-markdown-editor-experiences.md) | `complete` | 2026-08-11 |
+| `F052` | [Prototype the Unified Left IdeaSketch Drawer](features/F052-demo-left-ideasketch-drawer.md) | `draft` | 2026-08-12 |
 | `F044-03` | [Add Complete Settings and Agent Experiences](features/F044-complete-mocked-tauri-review-demo/F044-03-settings-agent-and-editor-tool-experience.md) | `complete` | 2026-08-11 |
 | `F044-04` | [Add Reliability Scenarios and Package the Complete Review Demo](features/F044-complete-mocked-tauri-review-demo/F044-04-reliability-scenarios-browser-qa-and-review-package.md) | `complete` | 2026-08-11 |
 | `F045` | [Refine Review Demo Workspace Actions and Document Chrome](features/F045-refine-review-demo-workspace-actions-and-document-chrome.md) | `complete` | 2026-08-11 |
