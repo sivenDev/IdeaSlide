@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | `required` | 6 | 0 | 6 |
 | `feature` | 61 | 0 | 61 |
-| `bugfix` | 37 | 2 | 35 |
+| `bugfix` | 38 | 2 | 36 |
 
 ## Execution Order
 
@@ -139,3 +139,4 @@
 | `B035` | [Restore Editor Tool Rebinding and Terminal Agent Actions](bugs/B035-restore-editor-tool-rebinding-and-terminal-agent-actions.md) | `complete` | 2026-08-12 |
 | `B036` | [Unify Light and Dark Theme Palette and Remove Legacy Accent Conflicts](bugs/B036-unify-light-and-dark-theme-palette.md) | `complete` | 2026-08-12 |
 | `B037` | [Restore Danger, Disabled, and Theme-Choice Visual Semantics](bugs/B037-restore-danger-disabled-and-theme-choice-semantics.md) | `complete` | 2026-08-12 |
+| `B038` | [Prevent Blank Agent Panel Space During Rapid Resize](bugs/B038-prevent-blank-agent-panel-space-during-rapid-resize.md) | `complete` | 2026-08-12 |

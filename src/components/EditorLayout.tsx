@@ -181,6 +181,7 @@ export function EditorLayout({
   ));
   const [agentBinding, setAgentBinding] = useState<ActiveAgentEditorBinding>();
   const [isResizingWorkspace, setIsResizingWorkspace] = useState(false);
+  const [isResizingAgent, setIsResizingAgent] = useState(false);
   const [hiddenExternalNotices, setHiddenExternalNotices] = useState<Set<string>>(() => new Set());
   const [workspaceDiagnosticsHidden, setWorkspaceDiagnosticsHidden] = useState(false);
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
@@ -1344,9 +1345,11 @@ export function EditorLayout({
               minSize={AGENT_PANEL_MIN_WIDTH}
               maxSize={AGENT_PANEL_MAX_WIDTH}
               showToggle={false}
+              onResizeStart={() => setIsResizingAgent(true)}
+              onResizeEnd={() => setIsResizingAgent(false)}
               onResize={(nextSize) => setAgentPanelWidth(Math.max(AGENT_PANEL_MIN_WIDTH, Math.min(AGENT_PANEL_MAX_WIDTH, nextSize)))}
             />
-            <div className="h-full flex-shrink-0 overflow-hidden transition-[width] duration-200" style={{ width: agentPanelWidth }}>
+            <div className={`h-full flex-shrink-0 overflow-hidden ${isResizingAgent ? "" : "transition-[width] duration-200"}`} style={{ width: agentPanelWidth }}>
               <div className="h-full" style={{ width: agentPanelWidth }}>
                 <RightSidebarHost>
                   <AgentPanel binding={agentBinding} onOpenSettings={onOpenSettings} onClose={() => setShowAgent(false)} />

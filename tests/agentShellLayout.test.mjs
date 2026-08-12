@@ -28,6 +28,9 @@ test('Workspace, editor, and Agent own independent shell regions', async () => {
   assert.match(shell, /<main className="flex min-w-0 flex-1 flex-col overflow-hidden">/);
   assert.match(shell, /const \[showAgent, setShowAgent\]/);
   assert.match(shell, /const \[agentPanelWidth, setAgentPanelWidth\]/);
+  assert.match(shell, /const \[isResizingAgent, setIsResizingAgent\]/);
+  assert.match(shell, /onResizeStart=\{\(\) => setIsResizingAgent\(true\)\}/);
+  assert.match(shell, /onResizeEnd=\{\(\) => setIsResizingAgent\(false\)\}/);
   assert.match(shell, /activationState === "disabled"/);
   assert.match(shell, /if \(activationState === "disabled"\) return undefined/);
 });

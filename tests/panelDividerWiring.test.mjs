@@ -40,7 +40,9 @@ test('divider supports independently bounded resizing for Workspace, Agent, and 
   assert.match(editor, /const AGENT_PANEL_DEFAULT_WIDTH = 352/);
   assert.match(editor, /const AGENT_PANEL_MIN_WIDTH = 260/);
   assert.match(editor, /const AGENT_PANEL_MAX_WIDTH = 420/);
-  assert.match(editor, /side="right"[\s\S]*panelLabel="Agent"[\s\S]*onResize=/);
+  assert.match(editor, /const \[isResizingAgent, setIsResizingAgent\] = useState\(false\)/);
+  assert.match(editor, /side="right"[\s\S]*panelLabel="Agent"[\s\S]*onResizeStart=\{\(\) => setIsResizingAgent\(true\)\}[\s\S]*onResizeEnd=\{\(\) => setIsResizingAgent\(false\)\}[\s\S]*onResize=/);
+  assert.match(editor, /className=\{`h-full flex-shrink-0 overflow-hidden \$\{isResizingAgent \? "" : "transition-\[width\] duration-200"\}`\}/);
   assert.match(ideaSketchEditor, /const DEFAULT_RIGHT_SIDEBAR_WIDTH = 260/);
   assert.match(ideaSketchEditor, /const MIN_RIGHT_SIDEBAR_WIDTH = 220/);
   assert.match(ideaSketchEditor, /const MAX_RIGHT_SIDEBAR_WIDTH = 420/);

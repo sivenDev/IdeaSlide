@@ -312,3 +312,10 @@ The F047 interface mixes the new green semantic theme with legacy purple selecti
 - created: 2026-08-12
 
 Nested Workspace file and directory Move to Trash menu items render as ordinary actions instead of danger actions; disabled Settings Save retains an active violet outline; and Light/Dark/System cards use redundant decorative icons despite already having visual previews. Restore red danger styling for nested resource deletion in normal, hover, focus, and highlighted states; make disabled Settings actions clearly inactive without violet emphasis; simplify theme cards to preview plus label while preserving accessibility, theme behavior, layout, and all Workspace and Settings functionality.
+
+## B038: Prevent blank Agent panel space during rapid resize
+
+- status: done
+- created: 2026-08-12
+
+When the right Agent sidebar divider is dragged quickly from left to right, a blank strip appears on the right side of the panel instead of the Agent content continuously filling the resized width. The panel should track the pointer without animated width lag or exposed empty space, while preserving its min/max sizing, keyboard resizing, persisted width, and normal show/hide transition.
