@@ -6,6 +6,7 @@ mod recent_files;
 mod recovery;
 pub(crate) mod safe_write;
 mod settings;
+mod update_relaunch;
 pub(crate) mod workspace;
 mod workspace_agent;
 mod workspace_watcher;
@@ -52,7 +53,6 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::new().build())
-        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(PendingFile(Mutex::new(None)))
         .manage(agent::state())
@@ -116,6 +116,7 @@ pub fn run() {
             preview_renderer_ready,
             is_preview_renderer_ready,
             exit_application,
+            update_relaunch::relaunch_after_update,
         ]);
 
     builder = builder.setup(move |app| {

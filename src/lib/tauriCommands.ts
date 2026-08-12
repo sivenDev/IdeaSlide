@@ -390,3 +390,8 @@ export async function exitApplication(): Promise<void> {
   if (!("__TAURI_INTERNALS__" in window)) return;
   await invoke("exit_application");
 }
+
+export async function relaunchAfterUpdate(): Promise<void> {
+  if (!("__TAURI_INTERNALS__" in window)) return;
+  await invoke("relaunch_after_update");
+}

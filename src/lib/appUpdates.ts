@@ -214,6 +214,7 @@ export class AppUpdateController {
     if (!this.update || this.operationPromise || !["ready", "error"].includes(this.state.phase)) return false;
     if (this.state.phase === "error" && this.state.retryAction !== "install") return false;
     const generation = this.generation;
+    const retryingRelaunch = this.state.phase === "error" && this.state.retryAction === "install";
     let installed = false;
     this.operationPromise = (async () => {
       try {
@@ -221,7 +222,7 @@ export class AppUpdateController {
         if (generation !== this.generation || !this.update) return;
         this.publish({ ...this.state, phase: "installing", error: undefined, retryAction: undefined });
         try {
-          await this.update.install();
+          if (!retryingRelaunch) await this.update.install();
           if (generation !== this.generation) return;
           installed = true;
           await this.client.relaunch();

@@ -45,11 +45,12 @@ test('stable tag releases publish only after every signed updater target is comp
   const parsedCapability = JSON.parse(updaterCapability);
 
   assert.ok(parsedPackage.dependencies['@tauri-apps/plugin-updater']);
-  assert.ok(parsedPackage.dependencies['@tauri-apps/plugin-process']);
+  assert.equal(parsedPackage.dependencies['@tauri-apps/plugin-process'], undefined);
   assert.match(cargoToml, /tauri-plugin-updater/);
-  assert.match(cargoToml, /tauri-plugin-process/);
+  assert.doesNotMatch(cargoToml, /tauri-plugin-process/);
   assert.match(tauriLib, /tauri_plugin_updater/);
-  assert.match(tauriLib, /tauri_plugin_process/);
+  assert.match(tauriLib, /update_relaunch::relaunch_after_update/);
+  assert.doesNotMatch(tauriLib, /tauri_plugin_process/);
   assert.equal(parsedConfig.bundle.createUpdaterArtifacts, true);
   assert.match(parsedConfig.plugins.updater.pubkey, /^[A-Za-z0-9+/=]+$/);
   assert.deepEqual(parsedConfig.plugins.updater.endpoints, [
@@ -57,7 +58,7 @@ test('stable tag releases publish only after every signed updater target is comp
   ]);
   assert.deepEqual(parsedCapability.windows, ['main']);
   assert.ok(parsedCapability.permissions.includes('updater:default'));
-  assert.ok(parsedCapability.permissions.includes('process:allow-restart'));
+  assert.equal(parsedCapability.permissions.includes('process:allow-restart'), false);
 
   assert.match(workflow, /concurrency:[\s\S]*?cancel-in-progress:\s*false/);
   assert.match(workflow, /const semver = \/\^v/);

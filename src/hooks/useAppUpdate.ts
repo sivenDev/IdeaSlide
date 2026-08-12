@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check, type Update } from "@tauri-apps/plugin-updater";
-import { relaunch } from "@tauri-apps/plugin-process";
 import {
   AppUpdateController,
   shouldEnableAppUpdates,
@@ -9,6 +8,7 @@ import {
   type AppUpdateDownloadEvent,
   type AppUpdateResource,
 } from "../lib/appUpdates";
+import { relaunchAfterUpdate } from "../lib/tauriCommands.ts";
 
 const DISMISSED_UPDATE_KEY = "ideanote.dismissed-update-version";
 
@@ -29,7 +29,7 @@ const nativeClient: AppUpdateClient = {
     const update = await check({ timeout: 30_000 });
     return update ? wrapUpdate(update) : null;
   },
-  relaunch,
+  relaunch: relaunchAfterUpdate,
 };
 
 const inertClient: AppUpdateClient = {

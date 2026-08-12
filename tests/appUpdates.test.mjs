@@ -100,6 +100,48 @@ test('download progress reaches ready and install waits for the shared exit deci
   assert.equal(client.relaunched, 1);
 });
 
+test('native relaunch is requested only after installation resolves', async () => {
+  const events = [];
+  const update = new FakeUpdate();
+  update.install = async () => {
+    events.push('install:start');
+    await Promise.resolve();
+    events.push('install:complete');
+  };
+  const client = createClient([update]);
+  client.relaunch = async () => {
+    events.push('relaunch');
+    client.relaunched += 1;
+  };
+  const controller = new AppUpdateController(client);
+  await controller.check({ force: true });
+  await controller.download();
+
+  assert.equal(await controller.install(async () => true), true);
+  assert.deepEqual(events, ['install:start', 'install:complete', 'relaunch']);
+});
+
+test('a failed native handoff retries relaunch without reinstalling the update', async () => {
+  const update = new FakeUpdate();
+  const client = createClient([update]);
+  client.relaunch = async () => {
+    client.relaunched += 1;
+    if (client.relaunched === 1) throw new Error('LaunchServices rejected the request');
+  };
+  const controller = new AppUpdateController(client);
+  await controller.check({ force: true });
+  await controller.download();
+
+  assert.equal(await controller.install(async () => true), true);
+  assert.equal(controller.getState().phase, 'error');
+  assert.equal(controller.getState().retryAction, 'install');
+  assert.deepEqual(update.calls, ['download', 'install']);
+
+  assert.equal(await controller.install(async () => true), true);
+  assert.deepEqual(update.calls, ['download', 'install']);
+  assert.equal(client.relaunched, 2);
+});
+
 test('a deferred downloaded update survives foreground checks', async () => {
   let now = 1_000;
   const update = new FakeUpdate();
