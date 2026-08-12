@@ -11,7 +11,7 @@ import { createNativeAgentRuntime } from "../lib/agent/agentRuntime";
 import { createDirectApplyToolExecutor } from "../lib/agent/agentToolHost";
 import { discoverAgentSkills } from "../lib/agent/agentClient";
 import { promptFromAssistantUiMessage, toAssistantUiMessage } from "../lib/agent/assistantUiAdapter";
-import type { ActiveAgentEditorBinding } from "../lib/agent/types";
+import type { ActiveAgentEditorBinding, AgentToolExecutor } from "../lib/agent/types";
 import { createAgentEventId } from "../lib/agent/protocol";
 import { AgentComposer } from "./agent/AgentComposer";
 import { AgentConversationSelector } from "./agent/AgentConversationSelector";
@@ -21,10 +21,12 @@ import { AgentTranscript } from "./agent/AgentTranscript";
 
 export function AgentPanel({
   binding,
+  workspace,
   onOpenSettings,
   onClose,
 }: {
   binding?: ActiveAgentEditorBinding;
+  workspace?: { name: string };
   onOpenSettings: () => void;
   onClose: () => void;
 }) {
@@ -48,11 +50,13 @@ export function AgentPanel({
   const cancelledTurnIdsRef = useRef(new Set<string>());
   const bindingRef = useRef(binding);
   bindingRef.current = binding;
-  const title = binding?.document.displayName ?? "Current file";
+  const title = binding?.document.displayName ?? workspace?.name ?? "Agent";
   const bindingSkillId = binding?.skillId;
   const welcome = binding
     ? `I can inspect and edit **${binding.document.displayName}**. Editor changes use native Undo and Redo when the active editor supports them.`
-    : "Open a supported file to give the Agent editor context.";
+    : workspace
+      ? `I can inspect and safely update text files in **${workspace.name}** through structured Workspace Tools.`
+      : "Open a supported file or Workspace to give the Agent context.";
   const {
     state,
     emit,
@@ -150,23 +154,62 @@ export function AgentPanel({
   }, [runtime]);
 
   const submit = async (prompt: string, retryOfTurnId?: string) => {
-    if (!binding?.document.model || activationState !== "ready" || running) return;
-    const capturedBinding = binding;
-    const capturedDocument = capturedBinding.document;
+    const capturedBinding = binding?.document.model ? binding : undefined;
+    if ((!capturedBinding && !workspace) || activationState !== "ready" || running) return;
+    const capturedDocument = capturedBinding?.document;
     const turnId = crypto.randomUUID();
     let turnOpen = true;
-    const toolExecutor = createDirectApplyToolExecutor({
-      executor: capturedBinding.createToolExecutor(),
-      capturedTarget: {
-        documentId: capturedDocument.id,
-        extensionId: capturedBinding.extensionId,
-        revision: capturedDocument.revision,
-        documentStatus: capturedDocument.status,
-        sourceModified: capturedDocument.sourceModified,
-      },
-      getActiveBinding: () => bindingRef.current,
-      isActive: () => turnOpen && !cancelledTurnIdsRef.current.has(turnId),
-    });
+    const toolExecutor: AgentToolExecutor = capturedBinding && capturedDocument
+      ? createDirectApplyToolExecutor({
+          executor: capturedBinding.createToolExecutor(),
+          capturedTarget: {
+            documentId: capturedDocument.id,
+            extensionId: capturedBinding.extensionId,
+            revision: capturedDocument.revision,
+            documentStatus: capturedDocument.status,
+            sourceModified: capturedDocument.sourceModified,
+          },
+          getActiveBinding: () => bindingRef.current,
+          isActive: () => turnOpen && !cancelledTurnIdsRef.current.has(turnId),
+        })
+      : {
+          async execute(call) {
+            return {
+              kind: "failure",
+              callId: call.callId,
+              name: call.name,
+              success: false,
+              summary: "No active editor is available for this Tool.",
+              error: {
+                code: "toolExecutionFailed",
+                message: "This Workspace-only Turn cannot execute editor Tools.",
+                recovery: "Use the structured Workspace Tools or open a supported document.",
+                diagnosticId: crypto.randomUUID(),
+                retryable: false,
+              },
+              truncated: false,
+              persistable: true,
+            };
+          },
+          cancel() {},
+        };
+    const turnBinding = capturedBinding && capturedDocument
+      ? {
+          documentId: capturedDocument.id,
+          documentName: capturedDocument.displayName ?? "Untitled",
+          extensionId: capturedBinding.extensionId,
+          fileType: capturedBinding.fileType,
+          skillId: capturedBinding.skillId,
+          revision: capturedDocument.revision,
+          sourceModified: capturedDocument.sourceModified,
+        }
+      : {
+          documentId: `workspace:${workspace?.name ?? "active"}`,
+          documentName: workspace?.name ?? "Workspace",
+          extensionId: "workspace",
+          fileType: "workspace",
+          revision: 0,
+        };
     let failure: unknown;
     try {
       await runtime.startTurn({
@@ -176,15 +219,7 @@ export function AgentPanel({
         upstreamThreadId: state.runtime.upstreamThreadId,
         upstreamToolSignature: state.runtime.upstreamToolSignature,
         prompt,
-        binding: {
-          documentId: capturedDocument.id,
-          documentName: capturedDocument.displayName ?? "Untitled",
-          extensionId: capturedBinding.extensionId,
-          fileType: capturedBinding.fileType,
-          skillId: capturedBinding.skillId,
-          revision: capturedDocument.revision,
-          sourceModified: capturedDocument.sourceModified,
-        },
+        binding: turnBinding,
         baseUrl: settings.ai.baseUrl,
         model: selectedModel,
         availableModels: modelOptions,
@@ -193,8 +228,8 @@ export function AgentPanel({
         retry: settings.ai.retry,
         policy: agentPolicy,
         selectedSkillIds: [],
-        context: capturedBinding.buildContext(),
-        tools: capturedBinding.tools,
+        context: capturedBinding?.buildContext() ?? { workspace: { name: workspace?.name } },
+        tools: capturedBinding?.tools ?? [],
         messages: runtimeMessages,
         toolExecutor,
       }, emit);
@@ -376,7 +411,7 @@ export function AgentPanel({
           onApprovalDecision={runtime.resolveApproval ? (itemId, approved) => void resolveApproval(itemId, approved) : undefined}
         />
         <AgentComposer
-          disabled={activationState !== "ready" || !binding}
+          disabled={activationState !== "ready" || (!binding && !workspace)}
           running={running}
           steeringAvailable={state.capabilities.steering}
           retryAvailable={Boolean(retryPrompt)}

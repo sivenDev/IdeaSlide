@@ -7,7 +7,7 @@
 | Type | Plans | In Progress | Complete |
 | --- | --- | --- | --- |
 | `required` | 6 | 0 | 6 |
-| `feature` | 62 | 0 | 62 |
+| `feature` | 63 | 0 | 63 |
 | `bugfix` | 38 | 2 | 36 |
 
 ## Execution Order
@@ -86,6 +86,7 @@
 | `F041` | [Prototype a Redesigned Native Workspace Shell Before Production Migration](features/F041-prototype-native-workbench-before-migration.md) | `complete` | 2026-08-10 |
 | `F042` | [Use Codex-style Workspace and Agent Panel Toggles in the Review Prototype](features/F042-codex-style-workspace-agent-panel-toggles.md) | `complete` | 2026-08-10 |
 | `F043` | [Refine Prototype Navigation, Settings, Welcome State, and Agent Affordance](features/F043-refine-prototype-navigation-settings-welcome-and-agent-affordance.md) | `complete` | 2026-08-10 |
+| `F050` | [Add Codex-like Workspace File Operations to the Agent](features/F050-codex-like-workspace-file-operations.md) | `complete` | 2026-08-12 |
 | `F044-01` | [Build the Mock Desktop Platform and Workspace Session Demo](features/F044-complete-mocked-tauri-review-demo/F044-01-mock-desktop-platform-and-workspace-session-demo.md) | `complete` | 2026-08-11 |
 | `F044-02` | [Add Complete IdeaSketch and Markdown Editor Experiences](features/F044-complete-mocked-tauri-review-demo/F044-02-ideasketch-and-markdown-editor-experiences.md) | `complete` | 2026-08-11 |
 | `F044-03` | [Add Complete Settings and Agent Experiences](features/F044-complete-mocked-tauri-review-demo/F044-03-settings-agent-and-editor-tool-experience.md) | `complete` | 2026-08-11 |

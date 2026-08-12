@@ -17,6 +17,8 @@ Opening or refreshing a Workspace performs a metadata-only directory scan:
 
 Every command receives a Workspace root and a normalized relative child path. Absolute paths, `..`, `.`, internal metadata targets, Symlink traversal, and paths that resolve outside the canonical root are rejected.
 
+The Workspace Explorer scan and the Agent disclosure scan are intentionally separate. Explorer remains Document Format Registry-driven. In Workspace mode only, the Rust-owned Agent Host may inspect ordinary UTF-8 text artifacts that Explorer does not expose, including HTML, CSS, JavaScript, TypeScript, JSON, SVG, Markdown, and unknown text extensions. Its bounded discovery, literal/regex search, and full or line-range read operations exclude `.ideanote`, `.git`, hidden/secret names, dependency/vendor/build trees, Symlinks, `.is` archives, binary/invalid-UTF-8 data, and files larger than the Tool content budget. These Host Tools are unavailable in Single File mode and do not add an editor or make a file visible in Explorer.
+
 ## Lazy `.ideanote/` creation
 
 The metadata directory is created only after one of these successful, user-authorized operations:
@@ -121,3 +123,11 @@ The native Workspace service exposes explicit root-confined operations:
 - Save versioned Workspace state.
 
 Readable directories with no write permission open in read-only mode. Mutating operations return clear errors and do not attempt partial changes.
+
+## Agent Workspace transactions
+
+The Agent receives closed-schema Host Tools rather than a shell or general filesystem handle. Existing-file patch, delete, and undo operations use SHA-256 optimistic concurrency. A create operation requires `expectedDigest: null`; every existing target requires the exact digest returned by a prior complete-file read. Exact-text replacement requires a non-empty `oldText` that matches once. All targets, parents, digests, protected documents, size budgets, and after-images are validated before mutation, then rechecked during deterministic commit.
+
+Multi-file patches stage under `.ideanote/tmp/`, register the affected paths as application-owned watcher writes, and roll back already committed paths if a later target fails or changes concurrently. Successful patches return an opaque current-session change-set id and bounded unified Diff. The in-memory ledger retains a small number of before/after snapshots, is cleared on Workspace root change, is never durable version control, and permits undo only while every current path matches the recorded after-state. Trash is not undoable through this ledger.
+
+Open or retained Workspace document paths, and Folders containing them, cannot be overwritten, moved, deleted, or trashed through Agent Workspace Tools. Read-only state and active Workspace identity are checked at execution time. Move, Trash, and deletion-bearing patches enter IdeaNote's explicit approval lifecycle; rejection and cancellation leave the Workspace unchanged. Codex remains in its read-only sandbox, and no Workspace Host Tool grants process, package installation, Git, network, browser, or code-execution capability.

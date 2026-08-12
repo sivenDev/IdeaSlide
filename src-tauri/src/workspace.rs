@@ -480,12 +480,12 @@ impl WorkspaceService {
         })
     }
 
-    fn resolve_existing(&self, relative_path: &str) -> Result<PathBuf, String> {
+    pub(crate) fn resolve_existing(&self, relative_path: &str) -> Result<PathBuf, String> {
         let relative = normalize_relative_path(relative_path, false)?;
         self.resolve_existing_path(&relative)
     }
 
-    fn resolve_directory(&self, relative_path: &str) -> Result<PathBuf, String> {
+    pub(crate) fn resolve_directory(&self, relative_path: &str) -> Result<PathBuf, String> {
         let relative = normalize_relative_path(relative_path, true)?;
         self.resolve_directory_path(&relative)
     }
@@ -498,7 +498,7 @@ impl WorkspaceService {
         Ok(path)
     }
 
-    fn resolve_existing_path(&self, relative_path: &Path) -> Result<PathBuf, String> {
+    pub(crate) fn resolve_existing_path(&self, relative_path: &Path) -> Result<PathBuf, String> {
         let mut current = self.root.clone();
         for component in relative_path.components() {
             let Component::Normal(name) = component else {
@@ -523,7 +523,7 @@ impl WorkspaceService {
         Ok(resolved)
     }
 
-    fn require_writable(&self, path: &Path) -> Result<(), String> {
+    pub(crate) fn require_writable(&self, path: &Path) -> Result<(), String> {
         if self.read_only {
             return Err("Workspace is read-only".to_string());
         }
@@ -670,7 +670,7 @@ fn entry_kind_rank(kind: WorkspaceEntryKind) -> u8 {
     }
 }
 
-fn relative_path_to_string(path: &Path) -> String {
+pub(crate) fn relative_path_to_string(path: &Path) -> String {
     path.components()
         .filter_map(|component| match component {
             Component::Normal(value) => Some(value.to_string_lossy()),
@@ -680,7 +680,7 @@ fn relative_path_to_string(path: &Path) -> String {
         .join("/")
 }
 
-fn normalize_relative_path(input: &str, allow_empty: bool) -> Result<PathBuf, String> {
+pub(crate) fn normalize_relative_path(input: &str, allow_empty: bool) -> Result<PathBuf, String> {
     if input.is_empty() {
         return allow_empty
             .then(PathBuf::new)

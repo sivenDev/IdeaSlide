@@ -7,6 +7,7 @@ use tokio::sync::{oneshot, watch};
 pub(crate) struct AgentSessionState {
     runs: Mutex<HashMap<String, watch::Sender<bool>>>,
     tool_results: Mutex<HashMap<String, oneshot::Sender<Value>>>,
+    approval_results: Mutex<HashMap<String, oneshot::Sender<bool>>>,
 }
 
 impl AgentSessionState {
@@ -36,6 +37,7 @@ impl AgentSessionState {
             runs.remove(run_id);
         }
         self.clear_tool_results(run_id);
+        self.clear_approval_results(run_id);
     }
 
     pub(crate) fn await_tool_result(
@@ -66,10 +68,47 @@ impl AgentSessionState {
             .is_some_and(|sender| sender.send(result).is_ok())
     }
 
+    pub(crate) fn await_approval_result(
+        &self,
+        run_id: &str,
+        request_id: &str,
+    ) -> Result<oneshot::Receiver<bool>, String> {
+        let key = tool_result_key(run_id, request_id);
+        let (sender, receiver) = oneshot::channel();
+        let mut approvals = self
+            .approval_results
+            .lock()
+            .map_err(|_| "Agent approval state is unavailable")?;
+        if approvals.insert(key, sender).is_some() {
+            return Err("Agent approval request is already awaiting a decision".to_string());
+        }
+        Ok(receiver)
+    }
+
+    pub(crate) fn resolve_approval_result(
+        &self,
+        run_id: &str,
+        request_id: &str,
+        approved: bool,
+    ) -> bool {
+        self.approval_results
+            .lock()
+            .ok()
+            .and_then(|mut approvals| approvals.remove(&tool_result_key(run_id, request_id)))
+            .is_some_and(|sender| sender.send(approved).is_ok())
+    }
+
     fn clear_tool_results(&self, run_id: &str) {
         if let Ok(mut results) = self.tool_results.lock() {
             let prefix = format!("{run_id}\0");
             results.retain(|key, _| !key.starts_with(&prefix));
+        }
+    }
+
+    fn clear_approval_results(&self, run_id: &str) {
+        if let Ok(mut approvals) = self.approval_results.lock() {
+            let prefix = format!("{run_id}\0");
+            approvals.retain(|key, _| !key.starts_with(&prefix));
         }
     }
 }
@@ -122,6 +161,19 @@ mod tests {
                 .is_err()
         );
 
+        state.finish_run("run-1");
+        assert!(receiver.await.is_err());
+    }
+
+    #[tokio::test]
+    async fn approvals_are_correlated_and_retired_with_the_run() {
+        let state = AgentSessionState::default();
+        let _cancellation = state.start_run("run-1").unwrap();
+        let receiver = state.await_approval_result("run-1", "approval-1").unwrap();
+        assert!(state.resolve_approval_result("run-1", "approval-1", true));
+        assert!(receiver.await.unwrap());
+
+        let receiver = state.await_approval_result("run-1", "approval-2").unwrap();
         state.finish_run("run-1");
         assert!(receiver.await.is_err());
     }

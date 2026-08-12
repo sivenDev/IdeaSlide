@@ -13,16 +13,19 @@ export const IDEA_SKETCH_AGENT_TOOLS: AgentToolDescriptor[] = [
   {
     name: "read_document_outline",
     description: "Read the ordered IdeaSketch Page outline and active Page summary.",
+    effect: "read",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
     name: "read_active_page",
     description: "Read the bounded active Page scene and Page-scoped Cameras from the captured editor state.",
+    effect: "read",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
     name: "add_page",
     description: "Add a new editable IdeaSketch Page through the active editor. The editor applies this atomically and handles persistence.",
+    effect: "write",
     inputSchema: {
       type: "object",
       properties: {
@@ -36,6 +39,7 @@ export const IDEA_SKETCH_AGENT_TOOLS: AgentToolDescriptor[] = [
   {
     name: "delete_page",
     description: "Delete one existing Page through the active editor. The document must retain at least one Page.",
+    effect: "write",
     inputSchema: {
       type: "object",
       properties: { pageId: { type: "string", minLength: 1 } },
@@ -46,6 +50,7 @@ export const IDEA_SKETCH_AGENT_TOOLS: AgentToolDescriptor[] = [
   {
     name: "reorder_page",
     description: "Move an existing Page to a zero-based position through the active editor.",
+    effect: "write",
     inputSchema: {
       type: "object",
       properties: { pageId: { type: "string", minLength: 1 }, toIndex: { type: "integer", minimum: 0 } },
@@ -56,6 +61,7 @@ export const IDEA_SKETCH_AGENT_TOOLS: AgentToolDescriptor[] = [
   {
     name: "replace_page_elements",
     description: "After read_active_page succeeds, replace the editable elements of that active Page through its mounted canvas editor while preserving Page identity and metadata.",
+    effect: "write",
     requires: ["read_active_page"],
     inputSchema: {
       type: "object",

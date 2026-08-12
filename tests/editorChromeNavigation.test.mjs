@@ -59,9 +59,9 @@ test('Agent restore is context-gated and open Agent closes from its own header',
   const crown = await readSource('src/components/WorkbenchCrown.tsx');
   const editor = await readSource('src/components/EditorLayout.tsx');
   const header = await readSource('src/components/agent/AgentThreadHeader.tsx');
-  assert.match(crown, /document && agentAvailable && !agentOpen/);
+  assert.match(crown, /agentAvailable && !agentOpen/);
   assert.match(crown, /aria-label="Show Agent"/);
-  assert.match(editor, /activeDocument && agentAvailable && showAgent/);
+  assert.match(editor, /agentAvailable && showAgent/);
   assert.match(header, /aria-label="Hide Agent"/);
 });
 

@@ -73,6 +73,25 @@ export interface ProviderProbeResult {
   models: string[];
 }
 
+export interface WorkspaceAgentContextCommand {
+  root?: string;
+  readOnly: boolean;
+  protectedPaths: string[];
+  generation: number;
+}
+
+export interface WorkspaceAgentContextCommandStatus {
+  available: boolean;
+  capabilityId?: string;
+  generation: number;
+}
+
+export async function syncWorkspaceAgentContextCommand(
+  context: WorkspaceAgentContextCommand,
+): Promise<WorkspaceAgentContextCommandStatus> {
+  return invoke<WorkspaceAgentContextCommandStatus>("sync_workspace_agent_context", { context });
+}
+
 export async function probeAiProvider(baseUrl: string, apiKey?: string): Promise<ProviderProbeResult> {
   return await invoke<ProviderProbeResult>("probe_ai_provider", {
     baseUrl,

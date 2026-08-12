@@ -39,6 +39,9 @@ futures-util = "0.3"
 trash = "5"
 notify = "8"
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls", "stream"] }
+globset = "0.4"
+regex = "1"
+similar = "2"
 
 [dev-dependencies]
 tempfile = "3"

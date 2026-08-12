@@ -61,6 +61,7 @@ IdeaNote 同时支持：
 26. Rust 自动选择通过版本和编辑器 Tool 安全检查的 Codex `0.147.0` app-server；缺失、不兼容、初始化失败或尚未产生可见进度时崩溃，透明回退到 OpenAI-compatible Compatibility Runtime。已经产生文本、公开活动、Plan 或 Tool 进度后崩溃则明确失败并要求显式重试，避免重复副作用。Grok 继续作为已评估候选，不进入当前生产选择。
 27. Agent 保留真实增量答案、确定性的 Preparing/Working/elapsed 活动，以及 Runtime 明确标记为公开的过程信息。对于上游在极短时间内突发或原子交付的 assistant answer，可以使用有界的展示节奏让内容可感知地逐步出现，但必须保留并区分真实来源时序，不得把展示节奏描述为模型仍在生成、token 直播或隐藏思考；不得展示或推断 hidden chain-of-thought。
 28. General → Appearance 提供 Light、Dark 和 System。主题选择持久化并即时作用于应用拥有的 Shell、Settings、Markdown chrome、Agent 与 Excalidraw UI；System 实时跟随操作系统，文档自有画布和内容颜色不被主题重写。
+29. Workspace Mode 中的 Agent 通过 Rust 托管的结构化 Workspace Tools 获得有界文件发现、文本搜索、UTF-8 读取、Folder 创建、原子多文件精确补丁、Diff、会话内 Undo、Move 和 Trash；Codex 仍运行在 read-only sandbox，不获得 Shell、进程、网络、浏览器或直接文件系统权限。现有文件写入必须使用先前读取的 SHA-256 digest，开放/受保护文档不可被 Workspace Tools 覆盖，删除、Move 和 Trash 必须通过应用内显式审批；Single File Mode 不暴露这些能力。
 
 ## 3. 产品目标
 
@@ -222,7 +223,7 @@ New Folder
 - 文件改名或移动后，对应 Document Session 必须更新路径和标题。
 - 同一个真实文件只能存在一个 Document Session。
 - 真实目录始终可以显示和导航，即使目录中没有当前支持的文件。
-- 不支持的文件不显示在 Workspace Explorer 中，也不能被扫描流程错误解析、修改或删除。
+- 不支持的文件不显示在 Workspace Explorer 中，也不能被 Explorer 扫描流程错误解析、修改或删除；Workspace Agent 可在独立的有界文本策略下读取或精确修改普通 UTF-8 工件，但不会因此改变 Explorer 可见性或注册新的编辑器。
 - 新文件类型注册为 `openable` 后，其扩展名自动进入 Explorer 可见文件白名单，不为每一种类型单独实现树过滤逻辑。
 - 用户通过 Workspace Explorer 之外的显式入口尝试打开不支持的文件时，显示 Unsupported File 提示，并提供安全的下一步操作；该文件不会因此出现在 Workspace Explorer 中。
 - Symlink 的遍历策略必须明确，不能无限递归或越过授权边界。

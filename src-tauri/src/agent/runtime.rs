@@ -49,7 +49,7 @@ pub(crate) fn prompt_with_context(
     let context = serde_json::to_string_pretty(&request.context)
         .map_err(|error| runtime_failure(format!("Agent context could not be encoded: {error}")))?;
     let preamble = format!(
-        "{}\n\nACTIVE EDITOR SKILL:\n{}\n\nAVAILABLE EDITOR TOOLS:\n{}\n\nACTIVE DOCUMENT CONTEXT:\n{}\n\nNever write files directly. Use registered structured editor Tools for reads and mutations. Complete every Tool named in a descriptor's requires list before calling that dependent Tool. Mutation Tools apply through the active editor as reversible transactions and cannot save or bypass editor safety checks. When the user requests a supported reversible editor mutation, do not ask for approval, confirmation, or review; complete its required reads and then call exactly one matching mutation Tool.",
+        "{}\n\nACTIVE EDITOR SKILL:\n{}\n\nAVAILABLE STRUCTURED TOOLS:\n{}\n\nACTIVE DOCUMENT CONTEXT:\n{}\n\nNever use shell, process, network, browser, package installation, or direct filesystem access. Use only the registered structured Tools. Editor mutation Tools apply through the active editor as reversible transactions and cannot save or bypass editor safety checks. When the user requests a supported reversible editor mutation, do not ask for approval, confirmation, or review; complete its required reads and then call exactly one matching mutation Tool. Workspace Tools are application-owned and root-confined; read the current digest before editing an existing file, inspect the returned Diff, and use the session change-set Tool for bounded undo. Destructive Workspace effects pause for explicit IdeaNote approval. Complete every Tool named in a descriptor's requires list before calling that dependent Tool.",
         request.system_prompt, skill, tools, context
     );
     Ok(preamble)
@@ -158,6 +158,7 @@ mod tests {
                     "required": ["title"]
                 }),
                 requires: Vec::new(),
+                ..Default::default()
             }],
             messages: vec![
                 AgentMessageInput {
@@ -176,7 +177,9 @@ mod tests {
     fn direct_editor_mutation_prompt_forbids_a_confirmation_gate() {
         let prompt = prompt_with_context(&request("http://localhost".to_string()))
             .expect("prompt should be assembled");
-        assert!(prompt.contains("do not ask for approval, confirmation, or review"));
+        assert!(
+            prompt.contains("Destructive Workspace effects pause for explicit IdeaNote approval")
+        );
         assert!(prompt.contains("complete its required reads"));
         assert!(prompt.contains("call exactly one matching mutation Tool"));
     }

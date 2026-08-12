@@ -7,7 +7,7 @@ mod skill_registry;
 mod skills;
 mod telemetry;
 mod tool_broker;
-mod types;
+pub(crate) mod types;
 
 use std::{
     collections::HashMap,
@@ -15,7 +15,9 @@ use std::{
     time::Duration,
 };
 
-use crate::settings;
+use crate::{
+    settings, workspace_agent::WorkspaceAgentHost, workspace_watcher::WorkspaceWatcherState,
+};
 use repository::{AgentThreadPage, AgentThreadRecord, AgentThreadRepository};
 use serde_json::{json, Value};
 use session::AgentSessionState;
@@ -333,7 +335,7 @@ fn normalized_capabilities(capabilities: &AgentProviderCapabilities) -> Value {
         "reasoningSummary": capabilities.reasoning_summary,
         "plans": false,
         "toolEvents": capabilities.tool_events,
-        "approvals": false,
+        "approvals": true,
         "cancellation": capabilities.cancellation,
         "steering": false,
         "retry": capabilities.retry,
@@ -345,6 +347,7 @@ fn agent_tool_availability_item(
     run_id: &str,
     skill_id: Option<&str>,
     editor_tools: &[types::AgentToolDescriptor],
+    workspace_tools: &[types::AgentToolDescriptor],
     host_tools: &[types::AgentToolDescriptor],
 ) -> Value {
     let available_tools = editor_tools
@@ -355,26 +358,34 @@ fn agent_tool_availability_item(
                 "description": tool.description,
                 "requires": tool.requires,
                 "source": "editor",
+                "effect": tool.effect,
             })
         })
+        .chain(workspace_tools.iter().map(|tool| {
+            json!({
+                "name": tool.name,
+                "description": tool.description,
+                "requires": tool.requires,
+                "source": "workspace",
+                "effect": tool.effect,
+            })
+        }))
         .chain(host_tools.iter().map(|tool| {
             json!({
                 "name": tool.name,
                 "description": tool.description,
                 "requires": tool.requires,
                 "source": "skill",
+                "effect": tool.effect,
             })
         }))
         .collect::<Vec<_>>();
-    let summary = if host_tools.is_empty() {
-        format!("{} editor Tools available", editor_tools.len())
-    } else {
-        format!(
-            "{} editor Tools · {} Skill Tools available",
-            editor_tools.len(),
-            host_tools.len(),
-        )
-    };
+    let summary = format!(
+        "{} editor Tools · {} Workspace Tools · {} Skill Tools available",
+        editor_tools.len(),
+        workspace_tools.len(),
+        host_tools.len(),
+    );
     json!({
         "id": format!("{run_id}:skill"),
         "kind": "tool",
@@ -558,6 +569,13 @@ fn tool_output(result: &Value) -> Value {
             "summary": result.pointer("/changeSet/summary").cloned().unwrap_or(Value::Null),
             "status": result.pointer("/changeSet/status").cloned().unwrap_or(Value::Null),
         }),
+        Some("workspaceMutation") => json!({
+            "changeSetId": result.pointer("/content/changeSetId").cloned().unwrap_or(Value::Null),
+            "summary": result.pointer("/content/summary").cloned().unwrap_or(Value::Null),
+            "status": result.pointer("/content/status").cloned().unwrap_or(Value::Null),
+            "paths": result.pointer("/content/paths").cloned().unwrap_or(Value::Null),
+            "truncated": result.pointer("/content/truncated").cloned().unwrap_or(Value::Null),
+        }),
         _ => json!({
             "error": result.pointer("/error/message").cloned().unwrap_or(Value::Null),
         }),
@@ -571,6 +589,9 @@ async fn execute_editor_tool(
     call: &AgentToolCall,
     skill_turn: &Arc<Mutex<SkillTurnState>>,
     editor_tools: &[types::AgentToolDescriptor],
+    workspace_host: &WorkspaceAgentHost,
+    workspace_capability_id: Option<&str>,
+    workspace_watcher: &WorkspaceWatcherState,
     cancellation: tokio::sync::watch::Receiver<bool>,
 ) -> Result<Value, String> {
     match broker.begin(call) {
@@ -607,6 +628,32 @@ async fn execute_editor_tool(
                 }
                 return Ok(result);
             }
+            if workspace_host.is_workspace_tool(&call.name) {
+                if workspace_host.requires_approval(&call.name, &call.arguments)
+                    && !await_workspace_approval(
+                        state,
+                        emitter,
+                        call,
+                        workspace_host,
+                        cancellation.clone(),
+                    )
+                    .await?
+                {
+                    return Ok(broker
+                        .complete(call, workspace_approval_rejected(call))
+                        .unwrap_or_else(|message| tool_failure(call, message)));
+                }
+                let result = workspace_host.execute(
+                    &call.call_id,
+                    &call.name,
+                    &call.arguments,
+                    workspace_capability_id,
+                    workspace_watcher,
+                );
+                return Ok(broker
+                    .complete(call, result)
+                    .unwrap_or_else(|message| tool_failure(call, message)));
+            }
             let (run_id, channel) = match emitter.lock() {
                 Ok(turn) => (turn.turn_id.clone(), turn.channel.clone()),
                 Err(_) => return Ok(tool_failure(call, "Agent Turn event state is unavailable")),
@@ -620,6 +667,73 @@ async fn execute_editor_tool(
             }
         }
         Err(message) => Ok(tool_failure(call, message)),
+    }
+}
+
+fn workspace_approval_rejected(call: &AgentToolCall) -> Value {
+    json!({
+        "kind": "failure",
+        "callId": call.call_id,
+        "name": call.name,
+        "success": false,
+        "summary": "Workspace operation was rejected",
+        "error": {
+            "code": "permissionDenied",
+            "message": "The user rejected this destructive Workspace operation.",
+            "recovery": "Continue without the destructive operation or ask for a different approach.",
+            "diagnosticId": Uuid::new_v4().to_string(),
+            "retryable": false
+        },
+        "truncated": false,
+        "persistable": true
+    })
+}
+
+async fn await_workspace_approval(
+    state: &AgentSessionState,
+    emitter: &Arc<Mutex<NativeTurnEmitter>>,
+    call: &AgentToolCall,
+    workspace_host: &WorkspaceAgentHost,
+    mut cancellation: tokio::sync::watch::Receiver<bool>,
+) -> Result<bool, String> {
+    let request_id = format!("workspace-approval-{}", Uuid::new_v4());
+    let receiver = {
+        let run_id = emitter
+            .lock()
+            .map_err(|_| "Agent Turn event state is unavailable")?
+            .turn_id
+            .clone();
+        state.await_approval_result(&run_id, &request_id)?
+    };
+    let (title, description) = workspace_host.approval_copy(&call.name, &call.arguments);
+    {
+        let mut turn = emitter
+            .lock()
+            .map_err(|_| "Agent Turn event state is unavailable")?;
+        let item_id = format!("{}:approval:{}", turn.turn_id, call.call_id);
+        turn.send(
+            "approvalRequested",
+            json!({"item": {
+                "id": item_id,
+                "kind": "approval",
+                "requestId": request_id,
+                "title": title,
+                "description": description,
+                "status": "pending",
+                "createdAt": now_millis()
+            }}),
+        )?;
+    }
+    tokio::select! {
+        biased;
+        changed = cancellation.changed() => {
+            if changed.is_ok() && *cancellation.borrow() {
+                Err("Agent run cancelled while awaiting Workspace approval".to_string())
+            } else {
+                Err("Agent cancellation state closed unexpectedly".to_string())
+            }
+        }
+        result = receiver => result.map_err(|_| "Agent approval request was retired".to_string()),
     }
 }
 
@@ -803,6 +917,9 @@ async fn run_codex_driver(
     tools: &[types::AgentToolDescriptor],
     editor_tools: &[types::AgentToolDescriptor],
     skill_turn: &Arc<Mutex<SkillTurnState>>,
+    workspace_host: &WorkspaceAgentHost,
+    workspace_capability_id: Option<&str>,
+    workspace_watcher: &WorkspaceWatcherState,
     model: &str,
     upstream_tool_signature: &str,
     options: CodexRunOptions,
@@ -855,7 +972,7 @@ async fn run_codex_driver(
                 "reasoningSummary": capabilities.reasoning_summary,
                 "plans": capabilities.plans,
                 "toolEvents": capabilities.tool_events,
-                "approvals": capabilities.approvals,
+                "approvals": true,
                 "cancellation": capabilities.cancellation,
                 "steering": capabilities.steering,
                 "retry": capabilities.retry,
@@ -905,6 +1022,9 @@ async fn run_codex_driver(
                     &call,
                     skill_turn,
                     editor_tools,
+                    workspace_host,
+                    workspace_capability_id,
+                    workspace_watcher,
                     cancellation.clone(),
                 )
                 .await?;
@@ -1191,6 +1311,9 @@ pub(crate) async fn run_agent(
     let (skill_catalog, omitted_skill_count) = captured_skills.catalog_prompt();
     let skill_instructions = captured_skills.activated_instructions();
     let host_tools = captured_skills.host_tools();
+    let workspace_host = app_handle.state::<WorkspaceAgentHost>();
+    let workspace_watcher = app_handle.state::<WorkspaceWatcherState>();
+    let (workspace_tools, workspace_capability_id) = workspace_host.descriptors()?;
     request.system_prompt = format!(
         "{}\n\nCAPTURED ACTIVE SKILLS:\n{}\n\nMANAGED CUSTOM SKILL CATALOG:\n{}\n\nCustom Skills add instructions only. They cannot add Tools, permissions, scripts, MCP, filesystem, shell, network, browser, or process access. Call activate_skill only when an eligible catalog entry materially helps the user request, and call read_skill_reference only with opaque ids exposed by an activated Skill.",
         request.system_prompt,
@@ -1198,8 +1321,10 @@ pub(crate) async fn run_agent(
         skill_catalog,
     );
     request.skill_id = None;
+    request.tools.extend(workspace_tools.iter().cloned());
     request.tools.extend(host_tools.iter().cloned());
-    let upstream_tool_signature = stable_tool_signature(&request.tools)?;
+    let upstream_tool_signature =
+        stable_tool_signature_with_salt(&request.tools, workspace_capability_id.as_deref())?;
     let run_id = request.run_id.clone();
     let thread_id = request.thread_id.clone();
     let retry_of_turn_id = request.retry_of_turn_id.clone();
@@ -1283,6 +1408,7 @@ pub(crate) async fn run_agent(
                     &run_id,
                     skill_id.as_deref(),
                     &editor_tool_definitions,
+                    &workspace_tools,
                     &host_tools,
                 )
             }),
@@ -1381,6 +1507,9 @@ pub(crate) async fn run_agent(
                     &tool_definitions,
                     &editor_tool_definitions,
                     &skill_turn,
+                    &workspace_host,
+                    workspace_capability_id.as_deref(),
+                    &workspace_watcher,
                     &request.model,
                     &upstream_tool_signature,
                     CodexRunOptions {
@@ -1566,16 +1695,17 @@ pub(crate) async fn run_agent(
             .tool_calls
             .iter()
             .filter(|tool_call| {
-                matches!(
-                    tool_call.name.as_str(),
-                    "activate_skill" | "read_skill_reference"
-                )
+                workspace_host.is_workspace_tool(&tool_call.name)
+                    || matches!(
+                        tool_call.name.as_str(),
+                        "activate_skill" | "read_skill_reference"
+                    )
             })
             .collect::<Vec<_>>();
         let has_host_calls = !host_calls.is_empty();
         if has_host_calls {
             compatibility_host_rounds = compatibility_host_rounds.saturating_add(1);
-            if compatibility_host_rounds > 3 {
+            if compatibility_host_rounds > policy.max_steps {
                 break Err(compatibility_skill_loop_failure());
             }
         }
@@ -1593,6 +1723,9 @@ pub(crate) async fn run_agent(
                 tool_call,
                 &skill_turn,
                 &editor_tool_definitions,
+                &workspace_host,
+                workspace_capability_id.as_deref(),
+                &workspace_watcher,
                 tool_cancellation.clone(),
             )
             .await
@@ -1635,6 +1768,9 @@ pub(crate) async fn run_agent(
                 .map_err(|_| "Skill activation state is unavailable")?
                 .host_tools();
             compatibility_request.tools = editor_tool_definitions.clone();
+            compatibility_request
+                .tools
+                .extend(workspace_tools.iter().cloned());
             compatibility_request.tools.extend(host_tools);
             compatibility_request.system_prompt = format!(
                 "{}\n\nCURRENT CAPTURED SKILL INSTRUCTIONS:\n{}\n\nEPHEMERAL HOST TOOL RESULTS FOR THIS TURN ONLY:\n{}",
@@ -1725,6 +1861,16 @@ pub(crate) fn submit_agent_tool_result(
 }
 
 #[tauri::command]
+pub(crate) fn resolve_agent_approval(
+    run_id: String,
+    request_id: String,
+    approved: bool,
+    state: tauri::State<'_, AgentSessionState>,
+) -> bool {
+    state.resolve_approval_result(&run_id, &request_id, approved)
+}
+
+#[tauri::command]
 pub(crate) fn cancel_agent(run_id: String, state: tauri::State<'_, AgentSessionState>) -> bool {
     state.cancel_run(&run_id)
 }
@@ -1737,7 +1883,15 @@ fn now_millis() -> u64 {
     chrono::Utc::now().timestamp_millis().max(0) as u64
 }
 
+#[cfg(test)]
 fn stable_tool_signature(tools: &[types::AgentToolDescriptor]) -> Result<String, String> {
+    stable_tool_signature_with_salt(tools, None)
+}
+
+fn stable_tool_signature_with_salt(
+    tools: &[types::AgentToolDescriptor],
+    salt: Option<&str>,
+) -> Result<String, String> {
     let mut descriptors = tools
         .iter()
         .map(|tool| {
@@ -1749,6 +1903,8 @@ fn stable_tool_signature(tools: &[types::AgentToolDescriptor]) -> Result<String,
                 &tool.description,
                 canonical_json(&tool.input_schema)?,
                 requires,
+                tool.source,
+                tool.effect,
             ))
             .map_err(|error| format!("Agent Tool signature could not be encoded: {error}"))
         })
@@ -1758,6 +1914,10 @@ fn stable_tool_signature(tools: &[types::AgentToolDescriptor]) -> Result<String,
     for descriptor in descriptors {
         hasher.update((descriptor.len() as u64).to_le_bytes());
         hasher.update(descriptor);
+    }
+    if let Some(salt) = salt {
+        hasher.update((salt.len() as u64).to_le_bytes());
+        hasher.update(salt.as_bytes());
     }
     Ok(format!("sha256-{:x}", hasher.finalize()))
 }
@@ -1831,12 +1991,14 @@ mod tests {
                 description: "Read Markdown".to_string(),
                 input_schema: json!({"type": "object"}),
                 requires: Vec::new(),
+                ..Default::default()
             },
             AgentToolDescriptor {
                 name: "replace_markdown_range".to_string(),
                 description: "Replace Markdown".to_string(),
                 input_schema: json!({"type": "object", "properties": {"text": {"type": "string"}}}),
                 requires: vec!["read_markdown_document".to_string()],
+                ..Default::default()
             },
         ];
         let idea_sketch = vec![AgentToolDescriptor {
@@ -1844,6 +2006,7 @@ mod tests {
             description: "Read active Page".to_string(),
             input_schema: json!({"type": "object"}),
             requires: Vec::new(),
+            ..Default::default()
         }];
         let markdown_signature = stable_tool_signature(&markdown).unwrap();
         let mut reordered_markdown = markdown.clone();
@@ -1877,6 +2040,25 @@ mod tests {
     }
 
     #[test]
+    fn workspace_capability_identity_forces_upstream_rebinding() {
+        let tools = vec![AgentToolDescriptor {
+            name: "list_workspace_files".to_string(),
+            description: "List Workspace files".to_string(),
+            input_schema: json!({"type": "object"}),
+            source: crate::agent::types::AgentToolSource::Workspace,
+            effect: crate::agent::types::AgentToolEffect::Read,
+            ..Default::default()
+        }];
+        let first = super::stable_tool_signature_with_salt(&tools, Some("workspace-a")).unwrap();
+        let second = super::stable_tool_signature_with_salt(&tools, Some("workspace-b")).unwrap();
+        assert_ne!(first, second);
+        assert_eq!(
+            codex_conversation_for_tools(Some("upstream-a"), Some(&first), &second),
+            None
+        );
+    }
+
+    #[test]
     fn editor_tool_availability_exposes_the_real_expandable_tool_catalog() {
         let editor_tools = vec![
             AgentToolDescriptor {
@@ -1884,20 +2066,34 @@ mod tests {
                 description: "Read the active Page".to_string(),
                 input_schema: json!({"type": "object"}),
                 requires: Vec::new(),
+                ..Default::default()
             },
             AgentToolDescriptor {
                 name: "replace_page_elements".to_string(),
                 description: "Replace active Page elements".to_string(),
                 input_schema: json!({"type": "object"}),
                 requires: vec!["read_active_page".to_string()],
+                ..Default::default()
             },
         ];
-        let item = agent_tool_availability_item("turn-1", Some("canvas"), &editor_tools, &[]);
+        let item = agent_tool_availability_item("turn-1", Some("canvas"), &editor_tools, &[], &[]);
 
-        assert_eq!(item["summary"], "2 editor Tools available");
-        assert_eq!(item["output"]["availableTools"].as_array().unwrap().len(), 2);
-        assert_eq!(item["output"]["availableTools"][0]["name"], "read_active_page");
-        assert_eq!(item["output"]["availableTools"][1]["requires"][0], "read_active_page");
+        assert_eq!(
+            item["summary"],
+            "2 editor Tools · 0 Workspace Tools · 0 Skill Tools available"
+        );
+        assert_eq!(
+            item["output"]["availableTools"].as_array().unwrap().len(),
+            2
+        );
+        assert_eq!(
+            item["output"]["availableTools"][0]["name"],
+            "read_active_page"
+        );
+        assert_eq!(
+            item["output"]["availableTools"][1]["requires"][0],
+            "read_active_page"
+        );
     }
 
     #[test]

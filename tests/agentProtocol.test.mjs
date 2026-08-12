@@ -12,7 +12,7 @@ test('compatibility capabilities describe only behavior the current runtime expo
     reasoningSummary: false,
     plans: false,
     toolEvents: false,
-    approvals: false,
+    approvals: true,
     cancellation: true,
     steering: false,
     retry: true,

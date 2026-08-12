@@ -27,7 +27,7 @@ export const COMPATIBILITY_AGENT_CAPABILITIES: AgentCapabilities = {
   reasoningSummary: false,
   plans: false,
   toolEvents: false,
-  approvals: false,
+  approvals: true,
   cancellation: true,
   steering: false,
   retry: true,
@@ -39,7 +39,7 @@ export interface AgentTurnBindingSnapshot {
   documentName: string;
   extensionId: string;
   fileType: string;
-  skillId: string;
+  skillId?: string;
   revision: number;
   sourceModified?: string;
 }

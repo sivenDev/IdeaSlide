@@ -529,6 +529,7 @@ mod tests {
                     "additionalProperties": false
                 }),
                 requires: Vec::new(),
+                ..Default::default()
             }],
         };
         let mut driver =
@@ -610,6 +611,7 @@ mod tests {
                         "additionalProperties": false
                     }),
                     requires: Vec::new(),
+                    ..Default::default()
                 },
                 AgentToolDescriptor {
                     name: "replace_page_elements".to_string(),
@@ -626,6 +628,7 @@ mod tests {
                         "additionalProperties": false
                     }),
                     requires: vec!["read_active_page".to_string()],
+                    ..Default::default()
                 },
             ],
         };

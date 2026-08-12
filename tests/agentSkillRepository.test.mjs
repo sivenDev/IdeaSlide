@@ -30,7 +30,7 @@ test('Skill host Tools expose opaque bounded references without widening editor 
   assert.match(registry, /Custom Skills cannot declare Tools, scripts, dependencies, or MCP/);
   assert.match(registry, /"persistable": false/);
   assert.match(runtime, /EPHEMERAL HOST TOOL RESULTS FOR THIS TURN ONLY/);
-  assert.match(runtime, /compatibility_host_rounds > 3/);
+  assert.match(runtime, /compatibility_host_rounds > policy\.max_steps/);
   assert.match(runtime, /execute_host_tool/);
   assert.match(runtime, /skillActivated/);
 });

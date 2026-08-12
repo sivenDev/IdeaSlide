@@ -7,6 +7,8 @@ export interface AgentToolDescriptor {
   description: string;
   inputSchema: Record<string, unknown>;
   requires?: string[];
+  source?: "editor" | "workspace" | "skill";
+  effect?: "read" | "write" | "destructive";
 }
 
 export interface AgentToolCall {

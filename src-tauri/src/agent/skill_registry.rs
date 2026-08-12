@@ -117,6 +117,8 @@ impl SkillTurnState {
                     "additionalProperties": false
                 }),
                 requires: Vec::new(),
+                source: super::types::AgentToolSource::Skill,
+                effect: super::types::AgentToolEffect::Read,
             });
         }
         if self
@@ -142,6 +144,8 @@ impl SkillTurnState {
                     "additionalProperties": false
                 }),
                 requires: Vec::new(),
+                source: super::types::AgentToolSource::Skill,
+                effect: super::types::AgentToolEffect::Read,
             });
         }
         tools
@@ -1523,6 +1527,7 @@ mod tests {
             description: "Read the active Page".to_string(),
             input_schema: serde_json::json!({"type": "object", "properties": {}, "additionalProperties": false}),
             requires: Vec::new(),
+            ..Default::default()
         }];
         let mut imported_ids = Vec::new();
         for index in 0..=MAX_CATALOG_SKILLS {
@@ -1576,6 +1581,7 @@ mod tests {
             description: "Read the active Page".to_string(),
             input_schema: serde_json::json!({"type": "object", "properties": {}, "additionalProperties": false}),
             requires: Vec::new(),
+            ..Default::default()
         }];
         let mut turn = SkillTurnState::capture(
             &registry,
@@ -1627,6 +1633,7 @@ mod tests {
             description: "Collision".to_string(),
             input_schema: serde_json::json!({"type": "object"}),
             requires: Vec::new(),
+            ..Default::default()
         }];
         assert!(SkillTurnState::capture(
             &registry,

@@ -29,16 +29,19 @@ export const MARKDOWN_AGENT_TOOLS: AgentToolDescriptor[] = [
   {
     name: "read_markdown_outline",
     description: "Read a bounded heading outline for the active Markdown document.",
+    effect: "read",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
     name: "read_markdown_document",
     description: "Read a short Markdown document with line numbers. Large documents require read_markdown_range.",
+    effect: "read",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
     name: "read_markdown_range",
     description: "Read an inclusive bounded line range and return the exact range hash required by replace_markdown_range.",
+    effect: "read",
     inputSchema: {
       type: "object",
       properties: {
@@ -54,6 +57,7 @@ export const MARKDOWN_AGENT_TOOLS: AgentToolDescriptor[] = [
   {
     name: "replace_markdown_range",
     description: "After read_markdown_range succeeds, replace one exact Markdown range through a single native CodeMirror transaction.",
+    effect: "write",
     requires: ["read_markdown_range"],
     inputSchema: {
       type: "object",

@@ -5,7 +5,8 @@ interface AvailableTool {
   name: string;
   description: string;
   requires: string[];
-  source: "editor" | "skill";
+  source: "editor" | "workspace" | "skill";
+  effect: "read" | "write" | "destructive";
 }
 
 function getAvailableTools(output: unknown): AvailableTool[] | undefined {
@@ -19,7 +20,8 @@ function getAvailableTools(output: unknown): AvailableTool[] | undefined {
       && typeof candidate.description === "string"
       && Array.isArray(candidate.requires)
       && candidate.requires.every((requirement) => typeof requirement === "string")
-      && (candidate.source === "editor" || candidate.source === "skill");
+      && (candidate.source === "editor" || candidate.source === "workspace" || candidate.source === "skill")
+      && (candidate.effect === "read" || candidate.effect === "write" || candidate.effect === "destructive");
   });
   return tools.length === availableTools.length ? tools : undefined;
 }
@@ -49,12 +51,13 @@ export function AgentToolActivity({ item }: { item: AgentToolItem }) {
       <summary>{header}</summary>
       <div className="ideanote-agent-tool-activity__details">
         {availableTools ? (
-          <div className="ideanote-agent-tool-catalog" aria-label="Available editor Tools">
+          <div className="ideanote-agent-tool-catalog" aria-label="Available Agent Tools">
             {availableTools.map((tool) => (
               <div className="ideanote-agent-tool-catalog__item" key={`${tool.source}:${tool.name}`}>
                 <div className="ideanote-agent-tool-catalog__heading">
                   <code>{tool.name}</code>
-                  {tool.source === "skill" && <span>Skill</span>}
+                  <span>{tool.source === "workspace" ? "Workspace" : tool.source === "skill" ? "Skill" : "Editor"}</span>
+                  <span>{tool.effect}</span>
                 </div>
                 <p>{tool.description}</p>
                 {tool.requires.length > 0 && <small>Requires {tool.requires.join(", ")}</small>}

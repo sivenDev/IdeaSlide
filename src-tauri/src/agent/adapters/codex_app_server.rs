@@ -331,6 +331,7 @@ mod tests {
                 description: "Apply a reversible editor mutation".to_string(),
                 input_schema: json!({"type": "object"}),
                 requires: Vec::new(),
+                ..Default::default()
             }],
         };
         let message = adapter().start_conversation(&input);

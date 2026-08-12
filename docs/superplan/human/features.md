@@ -364,3 +364,10 @@ Redesign the Settings navigation using the supplied reference as hierarchy inspi
 - created: 2026-08-12
 
 Remove the redundant Model field from AI Provider Settings while preserving the existing model catalog and Agent-side model selection. When a provider token is already configured, render the password input as visibly populated with a fixed masked value instead of an empty field with a Configured placeholder; do not decrypt or return the saved token to React, browser storage, logs, or accessibility APIs. Typing replaces the masked state with a transient new token, successful Provider Test securely stores it, and failed Test or closing Settings does not replace the configured credential. Update the AI Provider section description and focused Settings/security regressions.
+
+## F050: Add Codex-like Workspace File Operations to the Agent
+
+- status: done
+- created: 2026-08-12
+
+Give the Agent a Codex-like structured Workspace workflow: bounded file listing and glob discovery, text search, full or line-range UTF-8 reads, atomic multi-file patch transactions, Folder creation, entry move and Trash, change-set Diff inspection, and bounded undo of Agent patch transactions. Reuse the existing root-confined Workspace, safe-write, watcher, and document-protection services; keep Codex itself in its read-only sandbox and do not expose arbitrary Shell, process, network, dependency-install, or browser execution. Existing-file edits require a digest from a prior read, multi-file patches validate fully before any commit, and stale/external/open-document conflicts fail without partial writes. Move, Trash, deletion, and other destructive operations require explicit in-product approval. The capability is unavailable in Standalone mode, excludes internal/secret/binary/oversized content, leaves Workspace Explorer registry-driven, and must be truthfully reported in the Agent Tool catalog.

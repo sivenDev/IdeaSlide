@@ -20,5 +20,5 @@ test('right sidebar is an Agent-only application surface', async () => {
 test('disabled AI does not mount Agent UI', async () => {
   const shell = await readFile(new URL('../src/components/EditorLayout.tsx', import.meta.url), 'utf8');
   assert.match(shell, /activationState === "ready" \|\| activationState === "configuration-required"/);
-  assert.match(shell, /activeDocument && agentAvailable && showAgent && \(/);
+  assert.match(shell, /agentAvailable && showAgent && \(/);
 });

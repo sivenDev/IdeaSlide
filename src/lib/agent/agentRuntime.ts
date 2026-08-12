@@ -1,4 +1,4 @@
-import { cancelAgent, runAgent, submitAgentToolResult } from "./agentClient";
+import { cancelAgent, resolveAgentApproval, runAgent, submitAgentToolResult } from "./agentClient";
 import type {
   AgentMessage,
   AgentPolicySettings,
@@ -161,6 +161,9 @@ export function createNativeAgentRuntime(): AgentRuntime {
       const cancelled = await cancelAgent(turnId);
       activeTurns.delete(turnId);
       return cancelled;
+    },
+    async resolveApproval(turnId, requestId, approved) {
+      return resolveAgentApproval(turnId, requestId, approved);
     },
   };
 }

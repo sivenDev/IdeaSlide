@@ -62,6 +62,15 @@ export async function submitAgentToolResult(runId: string, result: unknown): Pro
   return invoke<boolean>("submit_agent_tool_result", { runId, result });
 }
 
+export async function resolveAgentApproval(
+  runId: string,
+  requestId: string,
+  approved: boolean,
+): Promise<boolean> {
+  requireTauri();
+  return invoke<boolean>("resolve_agent_approval", { runId, requestId, approved });
+}
+
 export async function saveAgentThread(record: AgentThreadRecord): Promise<AgentThreadRecord> {
   requireTauri();
   return invoke<AgentThreadRecord>("save_agent_thread", { record });

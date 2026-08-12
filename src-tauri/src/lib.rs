@@ -7,6 +7,7 @@ mod recovery;
 pub(crate) mod safe_write;
 mod settings;
 pub(crate) mod workspace;
+mod workspace_agent;
 mod workspace_watcher;
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -53,6 +54,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .manage(PendingFile(Mutex::new(None)))
         .manage(agent::state())
+        .manage(workspace_agent::WorkspaceAgentHost::default())
         .manage(PreviewRendererReady(preview_renderer_ready_flag))
         .manage(workspace_watcher::WorkspaceWatcherState::default())
         .invoke_handler(tauri::generate_handler![
@@ -106,6 +108,8 @@ pub fn run() {
             agent::run_agent,
             agent::submit_agent_tool_result,
             agent::cancel_agent,
+            agent::resolve_agent_approval,
+            workspace_agent::sync_workspace_agent_context,
             get_opened_file,
             preview_renderer_ready,
             is_preview_renderer_ready,

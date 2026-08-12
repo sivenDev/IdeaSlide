@@ -72,7 +72,7 @@ export function WorkbenchCrown({
         </div>
       )}
       <div className="ideanote-workbench-crown__drag" data-tauri-drag-region />
-      {document && agentAvailable && !agentOpen && (
+      {agentAvailable && !agentOpen && (
         <button className="ideanote-crown-action is-agent" type="button" aria-label="Show Agent" onClick={onToggleAgent}>
           <Bot aria-hidden size={16} />
         </button>

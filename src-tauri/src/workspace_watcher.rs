@@ -108,6 +108,26 @@ impl WorkspaceWatcherState {
         result
     }
 
+    pub fn with_expected_writes<T, F>(
+        &self,
+        root: &Path,
+        relative_paths: &[String],
+        write: F,
+    ) -> Result<T, String>
+    where
+        F: FnOnce() -> Result<T, String>,
+    {
+        let paths = relative_paths
+            .iter()
+            .map(|relative_path| self.begin_expected_write(root, relative_path))
+            .collect::<Vec<_>>();
+        let result = write();
+        for path in paths {
+            self.finish_expected_write(path.as_deref(), result.is_ok());
+        }
+        result
+    }
+
     fn start(&self, app: AppHandle, root: PathBuf) -> Result<(), String> {
         let service = WorkspaceService::open(&root)?;
         let canonical_root = service.root().to_path_buf();

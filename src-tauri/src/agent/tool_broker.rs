@@ -144,7 +144,7 @@ impl AgentToolBroker {
             .get("kind")
             .and_then(Value::as_str)
             .unwrap_or_default();
-        if !matches!(kind, "read" | "mutation" | "failure") {
+        if !matches!(kind, "read" | "mutation" | "workspaceMutation" | "failure") {
             return Err("Editor Tool returned an unsupported result kind.".to_string());
         }
         if kind == "mutation"
@@ -155,6 +155,17 @@ impl AgentToolBroker {
                 != Some("applied")
         {
             return Err("Mutation Tool returned a Change Set that was not applied.".to_string());
+        }
+        let descriptor = self
+            .tools
+            .get(&call.name)
+            .ok_or_else(|| "Agent Tool descriptor is unavailable.".to_string())?;
+        if kind == "workspaceMutation"
+            && descriptor.source != super::types::AgentToolSource::Workspace
+        {
+            return Err(
+                "Only Workspace Host Tools may return native Workspace mutations.".to_string(),
+            );
         }
         let result = redact_value(&result);
         let encoded = serde_json::to_vec(&result)
@@ -269,6 +280,7 @@ mod tests {
                 "additionalProperties": false
             }),
             requires: Vec::new(),
+            ..Default::default()
         }]
     }
 
@@ -283,6 +295,7 @@ mod tests {
                     "additionalProperties": false
                 }),
                 requires: Vec::new(),
+                ..Default::default()
             },
             AgentToolDescriptor {
                 name: "replace_page_elements".to_string(),
@@ -294,6 +307,7 @@ mod tests {
                     "additionalProperties": false
                 }),
                 requires: vec!["read_active_page".to_string()],
+                ..Default::default()
             },
         ]
     }
@@ -445,6 +459,59 @@ mod tests {
             )
             .unwrap();
         assert_eq!(applied["changeSet"]["status"], "applied");
+    }
+
+    #[test]
+    fn accepts_native_mutation_results_only_from_workspace_tools() {
+        let workspace_tool = AgentToolDescriptor {
+            name: "apply_workspace_patch".to_string(),
+            description: "Apply Workspace patch".to_string(),
+            input_schema: json!({"type": "object"}),
+            source: super::super::types::AgentToolSource::Workspace,
+            effect: super::super::types::AgentToolEffect::Write,
+            ..Default::default()
+        };
+        let call = AgentToolCall {
+            call_id: "workspace-mutation-1".to_string(),
+            name: workspace_tool.name.clone(),
+            arguments: json!({}),
+        };
+        let mut broker = AgentToolBroker::new(&[workspace_tool]).unwrap();
+        broker.begin(&call).unwrap();
+        let result = broker
+            .complete(
+                &call,
+                json!({
+                    "kind": "workspaceMutation",
+                    "callId": call.call_id,
+                    "name": call.name,
+                    "success": true,
+                    "summary": "Applied",
+                    "content": {"status": "applied"}
+                }),
+            )
+            .unwrap();
+        assert_eq!(result["content"]["status"], "applied");
+
+        let editor_call = AgentToolCall {
+            call_id: "editor-native-mutation".to_string(),
+            name: "read_outline".to_string(),
+            arguments: json!({"pageId": "page-1"}),
+        };
+        let mut editor_broker = AgentToolBroker::new(&tools()).unwrap();
+        editor_broker.begin(&editor_call).unwrap();
+        assert!(editor_broker
+            .complete(
+                &editor_call,
+                json!({
+                    "kind": "workspaceMutation",
+                    "callId": editor_call.call_id,
+                    "name": editor_call.name,
+                    "success": true,
+                    "summary": "Unsafe"
+                }),
+            )
+            .is_err());
     }
 
     #[test]

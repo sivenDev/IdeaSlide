@@ -111,7 +111,7 @@ pub(crate) enum AgentMessageRole {
     Assistant,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AgentToolDescriptor {
     pub name: String,
@@ -119,6 +119,28 @@ pub(crate) struct AgentToolDescriptor {
     pub input_schema: serde_json::Value,
     #[serde(default)]
     pub requires: Vec<String>,
+    #[serde(default)]
+    pub source: AgentToolSource,
+    #[serde(default)]
+    pub effect: AgentToolEffect,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum AgentToolSource {
+    #[default]
+    Editor,
+    Workspace,
+    Skill,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum AgentToolEffect {
+    #[default]
+    Read,
+    Write,
+    Destructive,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]

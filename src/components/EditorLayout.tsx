@@ -77,6 +77,7 @@ import type {
   WorkspaceEntry,
 } from "../types";
 import type { ActiveAgentEditorBinding } from "../lib/agent/types";
+import { syncWorkspaceAgentContext } from "../lib/agent/workspaceAgentTools";
 import { WorkspaceExplorer } from "./WorkspaceExplorer";
 import { WorkspaceSidebar } from "./WorkspaceSidebar";
 import { DocumentEditorHost } from "./DocumentEditorHost";
@@ -201,6 +202,7 @@ export function EditorLayout({
   const standaloneWritesInProgress = useRef(new Map<string, number>());
   const standaloneExpectedModified = useRef(new Map<string, string>());
   const checkedRecoveryKeys = useRef(new Set<string>());
+  const workspaceAgentGeneration = useRef({ key: "", value: 0 });
   const closeInProgress = useRef(false);
   const latestDocuments = useRef(state.documents);
   latestDocuments.current = state.documents;
@@ -209,19 +211,43 @@ export function EditorLayout({
     || Boolean(state.workspace?.readOnly)
     || Boolean(activeDocument?.readOnly)
     || activeDocument?.status === "read-only";
+  const workspaceAgentProtectedPaths = state.documents
+    .filter((document) => document.mode === "workspace" && Boolean(document.filePath))
+    .map((document) => document.filePath)
+    .sort();
+  const workspaceAgentContextKey = JSON.stringify({
+    root: state.workspace?.root,
+    readOnly: readOnly || Boolean(state.workspace?.readOnly),
+    protectedPaths: workspaceAgentProtectedPaths,
+  });
+
+  useEffect(() => {
+    if (workspaceAgentGeneration.current.key !== workspaceAgentContextKey) {
+      workspaceAgentGeneration.current = {
+        key: workspaceAgentContextKey,
+        value: workspaceAgentGeneration.current.value + 1,
+      };
+    }
+    void syncWorkspaceAgentContext({
+      root: state.workspace?.root,
+      readOnly: readOnly || Boolean(state.workspace?.readOnly),
+      protectedPaths: workspaceAgentProtectedPaths,
+      generation: workspaceAgentGeneration.current.value,
+    }).catch((error) => console.error("Failed to synchronize Workspace Agent context:", error));
+  }, [readOnly, state.workspace?.readOnly, state.workspace?.root, workspaceAgentContextKey]);
 
   useEffect(() => setWorkspaceDiagnosticsHidden(false), [state.workspace?.root, state.workspace?.metadata.diagnostics]);
   useEffect(() => {
     if (activationState === "disabled") {
       setShowAgent(false);
       setAgentBinding(undefined);
-    } else if (activeDocument && (activationState === "ready" || activationState === "configuration-required")) {
+    } else if ((activeDocument || state.workspace) && (activationState === "ready" || activationState === "configuration-required")) {
       setShowAgent(true);
     }
-  }, [activationState, activeDocument?.id]);
+  }, [activationState, activeDocument?.id, state.workspace?.root]);
   useEffect(() => {
-    if (!activeDocument) setShowAgent(false);
-  }, [activeDocument?.id]);
+    if (!activeDocument && !state.workspace) setShowAgent(false);
+  }, [activeDocument?.id, state.workspace?.root]);
   useEffect(() => {
     setAgentBinding((current) => current?.document.id === activeDocument?.id ? current : undefined);
   }, [activeDocument?.id]);
@@ -1142,7 +1168,8 @@ export function EditorLayout({
       isDirty: document.isDirty,
       status: document.status,
     }));
-  const agentAvailable = activationState === "ready" || activationState === "configuration-required";
+  const agentAvailable = Boolean(activeDocument || state.workspace)
+    && (activationState === "ready" || activationState === "configuration-required");
   const workspaceRoots = useMemo(() => {
     if (!state.workspace || recentWorkspaces.some((workspace) => workspace.path === state.workspace?.root)) {
       return recentWorkspaces;
@@ -1172,7 +1199,7 @@ export function EditorLayout({
     {
       id: "toggle-agent",
       label: showAgent ? "Hide Agent" : "Show Agent",
-      disabled: !activeDocument || !agentAvailable,
+      disabled: !agentAvailable,
       run: () => setShowAgent((visible) => !visible),
     },
     { id: "settings", label: "Open Settings", shortcut: "⌘,", run: onOpenSettings },
@@ -1334,7 +1361,7 @@ export function EditorLayout({
             </div>
           </div>
         </main>
-        {activeDocument && agentAvailable && showAgent && (
+        {agentAvailable && showAgent && (
           <>
             <ResizableDivider
               side="right"
@@ -1352,7 +1379,12 @@ export function EditorLayout({
             <div className={`h-full flex-shrink-0 overflow-hidden ${isResizingAgent ? "" : "transition-[width] duration-200"}`} style={{ width: agentPanelWidth }}>
               <div className="h-full" style={{ width: agentPanelWidth }}>
                 <RightSidebarHost>
-                  <AgentPanel binding={agentBinding} onOpenSettings={onOpenSettings} onClose={() => setShowAgent(false)} />
+                  <AgentPanel
+                    binding={agentBinding}
+                    workspace={state.workspace ? { name: state.workspace.name } : undefined}
+                    onOpenSettings={onOpenSettings}
+                    onClose={() => setShowAgent(false)}
+                  />
                 </RightSidebarHost>
               </div>
             </div>

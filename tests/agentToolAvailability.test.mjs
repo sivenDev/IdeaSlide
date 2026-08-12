@@ -8,11 +8,12 @@ test('Agent Tool availability expands to the real catalog and legacy count rows 
 
   assert.match(native, /"availableTools": available_tools/);
   assert.match(native, /"source": "editor"/);
+  assert.match(native, /"source": "workspace"/);
   assert.match(native, /"source": "skill"/);
-  assert.match(native, /host_tools\.is_empty\(\)/);
+  assert.match(native, /"effect": tool\.effect/);
   assert.doesNotMatch(native, /editor Tools and \{\} host Tools available/);
   assert.match(activity, /getAvailableTools/);
-  assert.match(activity, /aria-label="Available editor Tools"/);
+  assert.match(activity, /aria-label="Available Agent Tools"/);
   assert.match(activity, /if \(!hasDetails\)/);
   assert.match(activity, /ideanote-agent-tool-activity__header/);
 });

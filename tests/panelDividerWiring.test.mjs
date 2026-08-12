@@ -55,7 +55,7 @@ test('Workspace navigation is visible by default across workbench modes and rema
   assert.match(editor, /useState\(initialPanelState\.workspaceOpen \?\? true\)/);
   assert.match(editor, /style=\{\{ width: showWorkspace \? workspacePanelWidth : 0 \}\}/);
   assert.match(editor, /showWorkspace && \([\s\S]*?<ResizableDivider[\s\S]*?side="left"/);
-  assert.match(editor, /activeDocument && agentAvailable && showAgent && \([\s\S]*?<ResizableDivider[\s\S]*?side="right"/);
+  assert.match(editor, /agentAvailable && showAgent && \([\s\S]*?<ResizableDivider[\s\S]*?side="right"/);
   assert.match(editor, /onToggle=\{\(\) => setShowWorkspace/);
   assert.match(editor, /onToggle=\{\(\) => setShowAgent/);
 });
