@@ -3934,8 +3934,31 @@ body,
     text-transform: uppercase;
 }
 
-.ideanote-workspace-section-title {
-    padding: 13px 12px 7px;
+.ideanote-workspace-section-header {
+    display: flex;
+    height: 38px;
+    flex: 0 0 38px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 8px 0 12px;
+}
+
+.ideanote-workspace-section-add {
+    display: grid;
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
+    place-items: center;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--muted);
+}
+
+.ideanote-workspace-section-add:hover,
+.ideanote-workspace-section-add:focus-visible {
+    border-color: var(--line);
+    color: var(--graphite);
+    background: var(--hover);
 }
 
 .ideanote-workspace-scroll {

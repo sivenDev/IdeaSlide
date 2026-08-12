@@ -399,3 +399,10 @@ In the production .is editor, replace the separate right-side Navigator and top-
 - created: 2026-08-12
 
 Add persistent global settings for whether the AI Agent sidebar opens by default (default off), whether the IdeaSketch editor sidebar opens by default, and whether IdeaSketch Pages initially use name or thumbnail view. Apply these preferences as mount/start defaults while preserving normal in-session toggles.
+
+## F055: Add Workspace from sidebar header
+
+- status: done
+- created: 2026-08-12
+
+Add a compact + button to the right side of the Workspaces section title. Activating it opens the existing Workspace directory picker and adds/opens the selected directory through the current Workspace flow. Preserve the existing empty-state Open Workspace action and single active Workspace core.

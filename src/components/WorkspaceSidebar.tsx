@@ -144,7 +144,24 @@ export function WorkspaceSidebar({
           <PanelLeftClose aria-hidden size={16} />
         </button>
       </header>
-      <div className="ideanote-workspace-section-title">Workspaces</div>
+      <div className="ideanote-workspace-section-header">
+        <div className="ideanote-workspace-section-title">Workspaces</div>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className="ideanote-workspace-section-add"
+                type="button"
+                aria-label="Add Workspace"
+                onClick={() => onOpenWorkspace()}
+              >
+                <Plus {...iconProps} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Add Workspace</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
       <nav className="ideanote-workspace-scroll" aria-label="Workspaces and recent files">
         {error && (
           <div className="ideanote-navigation-error" role="alert">

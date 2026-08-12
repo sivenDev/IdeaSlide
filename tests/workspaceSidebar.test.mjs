@@ -28,3 +28,13 @@ test('active Workspace roots expose a compact accessible tree refresh action', (
   assert.match(source, /<TooltipContent>\{`Refresh \$\{workspace\.name\}`\}<\/TooltipContent>/);
   assert.match(source, /onClick=\{onRefreshWorkspace\}/);
 });
+
+test('Workspaces heading exposes an accessible add action through the existing open flow', () => {
+  assert.match(source, /className="ideanote-workspace-section-header"/);
+  assert.match(source, /className="ideanote-workspace-section-title">Workspaces<\/div>/);
+  assert.match(source, /className="ideanote-workspace-section-add"/);
+  assert.match(source, /aria-label="Add Workspace"/);
+  assert.match(source, /onClick=\{\(\) => onOpenWorkspace\(\)\}/);
+  assert.match(source, /<TooltipContent>Add Workspace<\/TooltipContent>/);
+  assert.match(source, /className="ideanote-open-workspace-empty"/);
+});
