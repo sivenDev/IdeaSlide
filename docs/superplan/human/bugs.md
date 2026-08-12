@@ -298,3 +298,10 @@ The production Tauri workbench does not visually or interactively match the appr
 - created: 2026-08-12
 
 Reproduce by reusing one Agent conversation across a Markdown document and an IdeaSketch .is document, then request an IdeaSketch read or mutation: the Agent UI reports the current editor Tools, but Codex resumes an upstream Thread whose persisted dynamic Tools belong to the previous editor, so read_active_page and replace_page_elements are unavailable. On successful completion, remove the terminal Completed-in label from the Working lifecycle row and render the elapsed duration beside Copy on the final assistant response only. Copy and final response metadata must remain hidden while the Turn or paced text presentation is still running. Preserve local conversation history, editor Tool safety prerequisites, cancellation, direct reversible edits, and the reviewed B034 Agent layout.
+
+## B036: Unify Light and Dark Theme Palette and Remove Legacy Accent Conflicts
+
+- status: done
+- created: 2026-08-12
+
+The F047 interface mixes the new green semantic theme with legacy purple selections, blue file accents, and inconsistent neutral surfaces, producing a visually fragmented Light theme and leaving the same risk in Dark. Establish one art-directed violet-led Light/Dark palette, migrate application-owned legacy accent and surface literals to semantic tokens, keep blue only for document/file semantics and green only for success/online status, preserve editor-owned document colors and all existing behavior, and verify both themes visually and with contrast/theme regressions.

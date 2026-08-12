@@ -198,7 +198,7 @@ export function WorkspaceSidebar({
                         <DropdownMenuItem onSelect={() => beginRename("workspace", workspace.path, workspace.name)}><Pencil {...iconProps} />Rename</DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => onRevealWorkspace(workspace.path)}><ExternalLink {...iconProps} />Show in Finder</DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-700 focus:text-red-800" onSelect={() => onRemoveWorkspace(workspace.path)}><Trash2 {...iconProps} />Remove from Workspaces</DropdownMenuItem>
+                        <DropdownMenuItem className="is-danger" onSelect={() => onRemoveWorkspace(workspace.path)}><Trash2 {...iconProps} />Remove from Workspaces</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -248,7 +248,7 @@ export function WorkspaceSidebar({
                           <DropdownMenuItem onSelect={() => beginRename("recent", recent.path, recent.name)}><Pencil {...iconProps} />Rename</DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => onRevealRecent(recent.path)}><ExternalLink {...iconProps} />Show in Finder</DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-red-700 focus:text-red-800" onSelect={() => onRemoveRecent(recent.path)}><Trash2 {...iconProps} />Remove</DropdownMenuItem>
+                          <DropdownMenuItem className="is-danger" onSelect={() => onRemoveRecent(recent.path)}><Trash2 {...iconProps} />Remove</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}

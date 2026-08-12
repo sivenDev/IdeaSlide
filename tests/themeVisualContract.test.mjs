@@ -78,6 +78,54 @@ test('Light and Dark expose one complete semantic theme contract', async () => {
   }
 });
 
+test('B036 exposes the exact Ink Violet Atelier palettes without legacy accent islands', async () => {
+  const css = await source('src/index.css');
+  const light = variables(themeBlock(css, ':root'));
+  const dark = variables(themeBlock(css, ':root[data-theme="dark"]'));
+
+  const expected = {
+    light: {
+      canvas: '#f6f5f8',
+      'surface-primary': '#fcfcfd',
+      'surface-secondary': '#f0eff4',
+      'surface-tertiary': '#f4f3f7',
+      'text-primary': '#25232a',
+      'selection-bg': '#e9e5f5',
+      'selection-text': '#493d7a',
+      'accent-primary': '#6557b8',
+      'accent-document': '#315fc9',
+      'status-success': '#247a55',
+    },
+    dark: {
+      canvas: '#121116',
+      'surface-primary': '#1c1a20',
+      'surface-secondary': '#17161b',
+      'surface-tertiary': '#211f26',
+      'text-primary': '#f2eff6',
+      'selection-bg': '#342e4b',
+      'selection-text': '#eee9ff',
+      'accent-primary': '#a99af2',
+      'accent-document': '#8aadff',
+      'status-success': '#6ed5a5',
+    },
+  };
+
+  for (const [role, value] of Object.entries(expected.light)) assert.equal(light.get(role), value, `Light --${role}`);
+  for (const [role, value] of Object.entries(expected.dark)) assert.equal(dark.get(role), value, `Dark --${role}`);
+
+  for (const legacy of ['#6965db', '#625dd6', '#5b57cf', '#7772dd', '#ecebff', '#eeedff', '#37338e']) {
+    assert.doesNotMatch(css, new RegExp(legacy, 'i'), `legacy application accent ${legacy} must be removed`);
+  }
+
+  for (const alias of [
+    '--idea-slide-accent: var(--accent-primary)',
+    '--idea-slide-accent-hover: var(--accent-primary-hover)',
+    '--idea-slide-accent-soft: var(--selection-bg)',
+    '--idea-slide-surface: var(--surface-primary)',
+    '--idea-slide-surface-hover: var(--interaction-hover)',
+  ]) assert.match(css, new RegExp(alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+});
+
 test('theme text, selection, status, and primary actions meet contrast targets', async () => {
   const css = await source('src/index.css');
   for (const selector of [':root', ':root[data-theme="dark"]']) {
@@ -121,4 +169,16 @@ test('theme polish is semantic, reduced-motion safe, and removes Markdown color 
   assert.match(slideCanvas, /<Excalidraw[\s\S]*?theme=\{resolvedTheme\}/);
   assert.doesNotMatch(slideCanvas, /DefaultItems\.ToggleTheme/);
   assert.match(slideCanvas, /viewBackgroundColor:\s*"#ffffff"/);
+});
+
+test('danger menu items retain danger semantics while highlighted', async () => {
+  const [css, workspace] = await Promise.all([
+    source('src/index.css'),
+    source('src/components/WorkspaceSidebar.tsx'),
+  ]);
+
+  assert.match(workspace, /className="is-danger"[\s\S]*?Remove from Workspaces/);
+  assert.match(workspace, /className="is-danger"[\s\S]*?onRemoveRecent[\s\S]*?Remove/);
+  assert.doesNotMatch(workspace, /text-red-700 focus:text-red-800/);
+  assert.match(css, /\.ideanote-compact-menu \[role="menuitem"\]\.is-danger:focus[\s\S]*color:\s*var\(--status-danger\) !important;[\s\S]*background:\s*color-mix\(in srgb, var\(--status-danger\) 11%, var\(--surface-elevated\)\) !important;/);
 });

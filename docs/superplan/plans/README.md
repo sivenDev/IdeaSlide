@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | `required` | 6 | 0 | 6 |
 | `feature` | 60 | 0 | 60 |
-| `bugfix` | 35 | 2 | 33 |
+| `bugfix` | 36 | 2 | 34 |
 
 ## Execution Order
 
@@ -136,3 +136,4 @@
 | `B033` | [Refine Markdown Editor Navigation, View Switching, and Controls](bugs/B033-refine-markdown-editor-navigation-view-switching-and-controls.md) | `complete` | 2026-08-11 |
 | `B034` | [Restore Reviewed Demo Parity in the Tauri Workbench](bugs/B034-restore-reviewed-demo-parity-in-tauri.md) | `in_progress` | 2026-08-11 |
 | `B035` | [Restore Editor Tool Rebinding and Terminal Agent Actions](bugs/B035-restore-editor-tool-rebinding-and-terminal-agent-actions.md) | `complete` | 2026-08-12 |
+| `B036` | [Unify Light and Dark Theme Palette and Remove Legacy Accent Conflicts](bugs/B036-unify-light-and-dark-theme-palette.md) | `complete` | 2026-08-12 |
