@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | `required` | 6 | 0 | 6 |
 | `feature` | 70 | 0 | 70 |
-| `bugfix` | 44 | 2 | 42 |
+| `bugfix` | 44 | 1 | 43 |
 
 ## Execution Order
 
@@ -142,7 +142,7 @@
 | `B029` | [Make Burst Agent Answers Visibly Progressive](bugs/B029-make-burst-agent-answers-visibly-progressive.md) | `complete` | 2026-08-09 |
 | `B030` | [Fix Transient Menus, Settings, and Agent History](bugs/B030-fix-transient-menus-settings-and-agent-history.md) | `complete` | 2026-08-11 |
 | `B031` | [Compact Workspace and Agent Menus and Remove Redundant Labels](bugs/B031-compact-workspace-agent-menus-and-labels.md) | `complete` | 2026-08-11 |
-| `B032` | [Refine Agent Controls, Window Chrome, Menus, and Workspace Dragging](bugs/B032-refine-agent-window-chrome-menus-and-workspace-dragging.md) | `in_progress` | 2026-08-11 |
+| `B032` | [Refine Agent Controls, Window Chrome, Menus, and Workspace Dragging](bugs/B032-refine-agent-window-chrome-menus-and-workspace-dragging.md) | `complete` | 2026-08-11 |
 | `B033` | [Refine Markdown Editor Navigation, View Switching, and Controls](bugs/B033-refine-markdown-editor-navigation-view-switching-and-controls.md) | `complete` | 2026-08-11 |
 | `B034` | [Restore Reviewed Demo Parity in the Tauri Workbench](bugs/B034-restore-reviewed-demo-parity-in-tauri.md) | `in_progress` | 2026-08-11 |
 | `B035` | [Restore Editor Tool Rebinding and Terminal Agent Actions](bugs/B035-restore-editor-tool-rebinding-and-terminal-agent-actions.md) | `complete` | 2026-08-12 |

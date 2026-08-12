@@ -2,7 +2,7 @@
 id: "B032"
 title: "Refine Agent Controls, Window Chrome, Menus, and Workspace Dragging"
 type: "bugfix"
-status: "in_progress"
+status: "complete"
 summary: "Replace confusing Agent controls with model-aware response telemetry, make desktop chrome state-aware, re-anchor Workspace menus, and add reliable file-tree dragging."
 source: "docs/superplan/human/bugs.md"
 created: "2026-08-11"
@@ -141,9 +141,16 @@ parent: ""
 - `git diff --check`
 - Superplan registry, exhaustive plan catalog/related closure, and generated index validation.
 
-- [ ] Refresh the review documentation, capability matrix, and genuine PNG evidence.
-- [ ] Run focused and full regression, build, browser, responsive, theme, interaction, and production-isolation checks.
-- [ ] Mark B032 done/complete, regenerate the plan index, inspect the final diff, and create `fix(B032): refine agent chrome and workspace dragging`.
+- [x] Refresh the review documentation, capability matrix, and genuine PNG evidence.
+- [x] Run focused and full regression, build, browser, responsive, theme, interaction, and production-isolation checks.
+- [x] Mark B032 done/complete, regenerate the plan index, inspect the final diff, and create `fix(B032): refine agent chrome and workspace dragging`.
+
+## Current Delivery Evidence
+
+- The scoped implementation was delivered by `d513eb0`, with follow-up B032 refinements in `ddfad29`, `4ab9131`, `c6902e3`, and `0411a0f` for editor identity, Recent actions/timeline, and bundled Skill controls.
+- `npm test` passed all 68 review-demo tests and `npm run build` completed successfully in `.temp/f041-native-workbench-review`.
+- The four review captures were verified as genuine PNG files at 1440x900, 1200x850, 1100x850, and 850x850.
+- The human confirmed B032 complete on 2026-08-13 before the `v0.3.0` release preparation.
 
 ## References
 

@@ -267,7 +267,7 @@ Refine only .temp/f041-native-workbench-review from the latest visual review. Wo
 
 ## B032: Refine Agent controls, window chrome, menus, and Workspace dragging
 
-- status: accepted
+- status: done
 - created: 2026-08-11
 
 Symptoms and acceptance:
