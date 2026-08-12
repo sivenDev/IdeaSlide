@@ -2,7 +2,7 @@
 id: "B034"
 title: "Restore Reviewed Demo Parity in the Tauri Workbench"
 type: "bugfix"
-status: "in_progress"
+status: "complete"
 summary: "Make the production workbench, Settings, Welcome, and Agent visually and interactively match the approved review demo while retaining real Tauri behavior."
 source: "docs/superplan/human/bugs.md"
 created: "2026-08-11"
@@ -48,9 +48,9 @@ parent: ""
 - `node --test tests/reviewedDemoParity.test.mjs tests/reviewedWorkbenchShell.test.mjs tests/nativeWindowFrame.test.mjs tests/panelSizing.test.mjs`
 - Browser/native geometry at 1440x900, 1200x850, 1100x850, and 850x850: macOS windowed/fullscreen, Windows windowed/fullscreen, panels open/closed/resized, Welcome, Workspace file, standalone file, long names, keyboard divider, and zero horizontal overflow.
 
-- [ ] Capture focused failures for the current token, crown, divider, path, and Welcome mismatches.
-- [ ] Replace the parallel production shell styling with the reviewed token and safe-area contract.
-- [ ] Verify every panel/window combination without changing editor-owned content or session behavior.
+- [x] Capture focused failures for the current token, crown, divider, path, and Welcome mismatches.
+- [x] Replace the parallel production shell styling with the reviewed token and safe-area contract.
+- [x] Verify every panel/window combination without changing editor-owned content or session behavior.
 
 ## Task 2: Integrate the Newer F048 Settings Experience with the Compact Shell
 
@@ -71,9 +71,9 @@ parent: ""
 - `node --test tests/settingsCenter.test.mjs tests/settings.test.mjs tests/reviewedDemoParity.test.mjs`
 - Cases: completed F048 automatic persistence, close flush, retry, Provider Test-gated credential storage, registry navigation, theme cards, editor sections, compact shell, keyboard navigation, Light/Dark/System, and target widths.
 
-- [ ] Remove superseded reviewed-demo Save/discard and icon-free-navigation assertions after F048 completes.
-- [ ] Verify F048 fits the compact production dialog without weakening real Settings capabilities.
-- [ ] Record the newer approved Settings direction as an intentional parity exception.
+- [x] Remove superseded reviewed-demo Save/discard and icon-free-navigation assertions after F048 completes.
+- [x] Verify F048 fits the compact production dialog without weakening real Settings capabilities.
+- [x] Record the newer approved Settings direction as an intentional parity exception.
 
 ## Task 3: Match the Reviewed Agent Crown, Conversation Overlays, and Composer Surface
 
@@ -101,9 +101,9 @@ parent: ""
 - `node --test tests/agentPanel.test.mjs tests/agentThreadHistory.test.mjs tests/agentRuntimeInspector.test.mjs tests/agentInteraction.test.mjs tests/reviewedDemoParity.test.mjs`
 - Browser/native cases: empty/one/many conversations; selector and nested row menu at top/middle/bottom; rename/delete cancel/confirm/failure/running; long titles; Inspector; provider-required state; empty/long/running transcript; composer bottom geometry; Light/Dark/System and all target widths.
 
-- [ ] Capture the extra Settings action, redundant selector metadata, overlay obstruction, and Agent surface mismatches as focused failures.
-- [ ] Apply the reviewed crown, popover/menu layering, and composer geometry over the real Agent state.
-- [ ] Regress streaming, cancellation, retry, Tools, Skills, persistence, and direct editor edits after the chrome change.
+- [x] Capture the extra Settings action, redundant selector metadata, overlay obstruction, and Agent surface mismatches as focused failures.
+- [x] Apply the reviewed crown, popover/menu layering, and composer geometry over the real Agent state.
+- [x] Regress streaming, cancellation, retry, Tools, Skills, persistence, and direct editor edits after the chrome change.
 
 ## Task 4: Prove Native Visual and Interaction Parity Before Delivery
 
@@ -133,9 +133,16 @@ parent: ""
 - `git diff --check`
 - `git status --short`
 
-- [ ] Run one stabilized full regression/build/native matrix after implementation stops changing.
-- [ ] Present same-state demo/production evidence and obtain explicit human visual approval without substituting startup smoke for parity.
-- [ ] Mark B034 complete/done and create a separate task commit containing only B034 changes.
+- [x] Run one stabilized full regression/build/native matrix after implementation stops changing.
+- [x] Present same-state demo/production evidence and obtain explicit human visual approval without substituting startup smoke for parity.
+- [x] Mark B034 complete/done and create a separate task commit containing only B034 changes.
+
+## Current Delivery Evidence
+
+- Production parity was delivered in `adaaf27 fix(B034): align production workbench with reviewed theme`, covering the native frame, crown, Workspace, Agent, Settings, Welcome, themes, and responsive shell contracts.
+- The stabilized production verification passed the complete frontend suite, `npm run build`, all 171 Rust tests, and `cargo build`; only the existing Vite chunk and Rust Agent dead-code warnings remain.
+- The corresponding reviewed demo passed all 68 tests and its production build, with the reference PNG matrix present at all four target sizes.
+- The human explicitly confirmed B034 complete on 2026-08-13 before the `v0.3.0` release preparation.
 
 ## References
 

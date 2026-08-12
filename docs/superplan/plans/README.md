@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | In Progress | Complete |
-| --- | --- | --- | --- |
-| `required` | 6 | 0 | 6 |
-| `feature` | 70 | 0 | 70 |
-| `bugfix` | 44 | 1 | 43 |
+| Type | Plans | Complete |
+| --- | --- | --- |
+| `required` | 6 | 6 |
+| `feature` | 70 | 70 |
+| `bugfix` | 44 | 44 |
 
 ## Execution Order
 
@@ -144,7 +144,7 @@
 | `B031` | [Compact Workspace and Agent Menus and Remove Redundant Labels](bugs/B031-compact-workspace-agent-menus-and-labels.md) | `complete` | 2026-08-11 |
 | `B032` | [Refine Agent Controls, Window Chrome, Menus, and Workspace Dragging](bugs/B032-refine-agent-window-chrome-menus-and-workspace-dragging.md) | `complete` | 2026-08-11 |
 | `B033` | [Refine Markdown Editor Navigation, View Switching, and Controls](bugs/B033-refine-markdown-editor-navigation-view-switching-and-controls.md) | `complete` | 2026-08-11 |
-| `B034` | [Restore Reviewed Demo Parity in the Tauri Workbench](bugs/B034-restore-reviewed-demo-parity-in-tauri.md) | `in_progress` | 2026-08-11 |
+| `B034` | [Restore Reviewed Demo Parity in the Tauri Workbench](bugs/B034-restore-reviewed-demo-parity-in-tauri.md) | `complete` | 2026-08-11 |
 | `B035` | [Restore Editor Tool Rebinding and Terminal Agent Actions](bugs/B035-restore-editor-tool-rebinding-and-terminal-agent-actions.md) | `complete` | 2026-08-12 |
 | `B036` | [Unify Light and Dark Theme Palette and Remove Legacy Accent Conflicts](bugs/B036-unify-light-and-dark-theme-palette.md) | `complete` | 2026-08-12 |
 | `B037` | [Restore Danger, Disabled, and Theme-Choice Visual Semantics](bugs/B037-restore-danger-disabled-and-theme-choice-semantics.md) | `complete` | 2026-08-12 |

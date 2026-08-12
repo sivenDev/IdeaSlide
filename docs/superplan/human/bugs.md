@@ -287,7 +287,7 @@ In the review demo Markdown editor: move the Outline navigation control to the f
 
 ## B034: Restore reviewed demo parity in the migrated Tauri workbench
 
-- status: accepted
+- status: done
 - created: 2026-08-11
 
 The production Tauri workbench does not visually or interactively match the approved .temp/f041-native-workbench-review baseline. Reproduction: compare the native app at the same light-theme desktop size with the reviewed demo. The production shell uses different color tokens and spacing, places macOS/window controls and the document identity differently, renders workspace/editor/Agent dividers differently, keeps an extra Agent Settings action, allows nested conversation actions to be obscured, presents a substantially different Settings dialog and controls, and adds a Settings action to Welcome. Restore parity across the outer shell, Crown, panel dividers, Agent header/history menus, Settings layout and controls, Welcome, Light/Dark/System, and windowed/fullscreen states while preserving real Tauri services and excluding demo-only mocks, Review Scenarios, and demo Excalidraw.
