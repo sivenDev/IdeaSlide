@@ -7,7 +7,7 @@
 | Type | Plans | In Progress | Complete |
 | --- | --- | --- | --- |
 | `required` | 6 | 0 | 6 |
-| `feature` | 69 | 1 | 68 |
+| `feature` | 70 | 2 | 68 |
 | `bugfix` | 43 | 2 | 41 |
 
 ## Execution Order
@@ -105,6 +105,7 @@
 | `F049` | [Simplify AI Provider Model and Token Fields](features/F049-simplify-ai-provider-model-and-token-fields.md) | `complete` | 2026-08-12 |
 | `F055` | [Add Workspace from the Sidebar Header](features/F055-add-workspace-from-sidebar-header.md) | `complete` | 2026-08-12 |
 | `F056` | [Add Automatic Desktop Updates from GitHub Releases](features/F056-automatic-desktop-updates-from-github-releases.md) | `in_progress` | 2026-08-12 |
+| `F057` | [Add an About Page to Settings](features/F057-add-an-about-page-to-settings.md) | `in_progress` | 2026-08-12 |
 
 ### Bugfix Plans
 

@@ -1,10 +1,11 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { Blocks, Bot, Check, FileText, RefreshCw, Settings2, Shapes, Sparkles, X } from "lucide-react";
+import { Blocks, Bot, Check, FileText, Info, RefreshCw, Settings2, Shapes, Sparkles, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SettingsEditProvider, useSettingsDraft } from "../hooks/useSettings";
 import { getSettingsSections, type SettingsSectionDefinition, type SettingsSectionIcon, type SettingsSectionId } from "../lib/settingsSectionRegistry";
 import { AgentSettings } from "./settings/AgentSettings";
 import { AiProviderSettings } from "./settings/AiProviderSettings";
+import { AboutSettings } from "./settings/AboutSettings";
 import { GeneralSettings } from "./settings/GeneralSettings";
 import { IdeaSketchSettings } from "./settings/IdeaSketchSettings";
 import { MarkdownSettings } from "./settings/MarkdownSettings";
@@ -12,6 +13,7 @@ import { SkillSettings } from "./settings/SkillSettings";
 
 function SectionContent({ section }: { section: SettingsSectionId }) {
   if (section === "general") return <GeneralSettings />;
+  if (section === "about") return <AboutSettings />;
   if (section === "ai-provider") return <AiProviderSettings />;
   if (section === "agent") return <AgentSettings />;
   if (section === "skills") return <SkillSettings />;
@@ -22,6 +24,7 @@ function SectionContent({ section }: { section: SettingsSectionId }) {
 
 const sectionIcons: Record<SettingsSectionIcon, typeof Settings2> = {
   settings: Settings2,
+  info: Info,
   bot: Bot,
   sparkles: Sparkles,
   blocks: Blocks,

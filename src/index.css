@@ -5864,6 +5864,101 @@ body,
     .ideanote-settings-content { padding: 25px 23px 34px; }
 }
 
+/* F057: compact, read-only application identity and official destinations. */
+.ideanote-about {
+    display: grid;
+    width: min(100%, 470px);
+    gap: 14px;
+}
+.ideanote-about__identity {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    align-items: center;
+    gap: 13px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background: var(--surface-inset);
+    padding: 15px;
+}
+.ideanote-about__mark {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border: 1px solid var(--border-strong);
+    border-radius: 9px;
+    color: var(--text-primary);
+    background: var(--surface-primary);
+    font: 720 11px/1 ui-monospace, monospace;
+    letter-spacing: -.04em;
+}
+.ideanote-about__product {
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 680;
+    letter-spacing: -.015em;
+}
+.ideanote-about__identity p {
+    max-width: 350px;
+    margin: 3px 0 0;
+    color: var(--text-tertiary);
+    font-size: 9px;
+    line-height: 1.5;
+}
+.ideanote-about__version {
+    display: flex;
+    min-height: 38px;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 0 2px;
+    color: var(--text-tertiary);
+    font-size: 9px;
+}
+.ideanote-about__version strong {
+    color: var(--text-primary);
+    font: 650 9px/1 ui-monospace, monospace;
+}
+.ideanote-about__links {
+    overflow: hidden;
+    border: 1px solid var(--border-subtle);
+    border-radius: 7px;
+    background: var(--surface-primary);
+}
+.ideanote-about__link {
+    display: grid;
+    width: 100%;
+    min-height: 48px;
+    grid-template-columns: 17px minmax(0, 1fr) 15px;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-secondary);
+    padding: 8px 11px;
+    text-align: left;
+}
+.ideanote-about__link + .ideanote-about__link { border-top: 1px solid var(--border-subtle); }
+.ideanote-about__link:hover { color: var(--text-primary); background: var(--interaction-hover); }
+.ideanote-about__link > span { display: grid; gap: 2px; }
+.ideanote-about__link strong { color: var(--text-primary); font-size: 10px; font-weight: 620; }
+.ideanote-about__link small { color: var(--text-tertiary); font-size: 8px; line-height: 1.3; }
+.ideanote-about__link > svg:last-child { color: var(--text-tertiary); }
+.ideanote-about__link:focus-visible {
+    position: relative;
+    z-index: 1;
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -2px;
+}
+.ideanote-about__error {
+    color: var(--status-danger);
+    font-size: 9px;
+    line-height: 1.45;
+}
+@media (max-width: 760px) {
+    .ideanote-about { gap: 12px; }
+    .ideanote-about__identity { grid-template-columns: 36px minmax(0, 1fr); gap: 10px; padding: 12px; }
+    .ideanote-about__mark { width: 36px; height: 36px; }
+}
+
 /* B043: one coordinated trajectory for the Workspace column and editor crown. */
 .idea-slide-editor-shell {
     --workspaces-motion-duration: 190ms;

@@ -1,5 +1,5 @@
-export type SettingsSectionId = "general" | "ai-provider" | "agent" | "skills" | "ideasketch" | (string & {});
-export type SettingsSectionIcon = "settings" | "bot" | "sparkles" | "blocks" | "shapes" | "file-text";
+export type SettingsSectionId = "general" | "about" | "ai-provider" | "agent" | "skills" | "ideasketch" | (string & {});
+export type SettingsSectionIcon = "settings" | "info" | "bot" | "sparkles" | "blocks" | "shapes" | "file-text";
 
 export interface SettingsSectionDefinition {
   id: SettingsSectionId;
@@ -25,6 +25,7 @@ export function getSettingsSections(): SettingsSectionDefinition[] {
 
 [
   { id: "general", label: "General", description: "Appearance and application preferences", icon: "settings", order: 10, owner: "application", group: "Application" },
+  { id: "about", label: "About", description: "Application identity, version, and official links", icon: "info", order: 15, owner: "application", group: "Application" },
   { id: "ai-provider", label: "AI Provider", description: "Connection, credentials, and retry policy", icon: "bot", order: 20, owner: "application", group: "AI" },
   { id: "agent", label: "Agent", description: "Availability, runtime, and conversation policy", icon: "sparkles", order: 30, owner: "application", group: "AI" },
   { id: "skills", label: "Skills", description: "Bundled and imported Agent Skills", icon: "blocks", order: 40, owner: "application", group: "AI" },

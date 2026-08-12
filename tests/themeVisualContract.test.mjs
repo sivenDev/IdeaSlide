@@ -171,6 +171,17 @@ test('theme polish is semantic, reduced-motion safe, and removes Markdown color 
   assert.match(slideCanvas, /viewBackgroundColor:\s*"#ffffff"/);
 });
 
+test('About styling stays on semantic theme tokens in compact layouts', async () => {
+  const css = await source('src/index.css');
+  const about = css.match(/\/\* F057:[\s\S]*?(?=\/\*|$)/)?.[0] ?? '';
+  assert.match(about, /var\(--surface-inset\)/);
+  assert.match(about, /var\(--border-subtle\)/);
+  assert.match(about, /var\(--text-primary\)/);
+  assert.match(about, /var\(--text-tertiary\)/);
+  assert.match(about, /var\(--focus-ring\)/);
+  assert.doesNotMatch(about, /#[0-9a-f]{3,8}\b/i);
+});
+
 test('danger menu items retain danger semantics while highlighted', async () => {
   const [css, workspace, resourceRow] = await Promise.all([
     source('src/index.css'),

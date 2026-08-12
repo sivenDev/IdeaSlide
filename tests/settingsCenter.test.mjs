@@ -9,6 +9,7 @@ test('Settings Center is registry-driven and reachable from the persistent workb
   const editor = await readFile(new URL('../src/components/EditorLayout.tsx', import.meta.url), 'utf8');
   assert.match(registry, /registerSettingsSection/);
   assert.match(registry, /id: "general"/);
+  assert.match(registry, /id: "about"/);
   assert.match(registry, /id: "ai-provider"/);
   assert.match(registry, /id: "agent"/);
   assert.match(registry, /id: "skills"/);
@@ -17,7 +18,7 @@ test('Settings Center is registry-driven and reachable from the persistent workb
   assert.match(registry, /group: "Application"/);
   assert.match(registry, /group: "AI"/);
   assert.match(registry, /group: "Editors"/);
-  for (const icon of ['settings', 'bot', 'sparkles', 'blocks', 'shapes', 'file-text']) {
+  for (const icon of ['settings', 'info', 'bot', 'sparkles', 'blocks', 'shapes', 'file-text']) {
     assert.match(registry, new RegExp(`icon: "${icon}"`));
   }
   assert.match(center, /getSettingsSections\(\)/);
@@ -27,6 +28,7 @@ test('Settings Center is registry-driven and reachable from the persistent workb
   assert.match(center, /ideanote-settings-page-header/);
   assert.match(center, /<MarkdownSettings/);
   assert.match(center, /<SkillSettings/);
+  assert.match(center, /<AboutSettings/);
   assert.doesNotMatch(center, /Save changes|saveDraft|discardDraft|dirty/);
   assert.match(center, /status === "saving"[\s\S]*Saving/);
   assert.match(center, /status === "saved"[\s\S]*Saved/);
