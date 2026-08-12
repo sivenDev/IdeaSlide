@@ -536,6 +536,17 @@ export function IdeaSketchEditor({
               <IdeaSketchNavigator
                 activeTab={navigatorTab}
                 onTabChange={setNavigatorTab}
+                headerAction={drawerOpen ? (
+                  <button
+                    type="button"
+                    className="ideanote-ideasketch-drawer-trigger is-drawer is-open"
+                    aria-label="Close IdeaSketch menu"
+                    aria-expanded={true}
+                    onClick={() => setDrawerOpen(false)}
+                  >
+                    <PanelLeftClose aria-hidden size={16} strokeWidth={1.9} />
+                  </button>
+                ) : undefined}
                 pages={editorState.document.pages}
                 activePageId={editorState.activePageId}
                 activePageDraft={draft}
@@ -585,17 +596,17 @@ export function IdeaSketchEditor({
           />
         )}
         <main className="ideanote-ideasketch-canvas">
-          <button
-            type="button"
-            className={`ideanote-ideasketch-drawer-trigger ${drawerOpen ? "is-open" : ""}`}
-            aria-label={drawerOpen ? "Close IdeaSketch menu" : "Open IdeaSketch menu"}
-            aria-expanded={drawerOpen}
-            onClick={() => setDrawerOpen((open) => !open)}
-          >
-            {drawerOpen
-              ? <PanelLeftClose aria-hidden size={18} strokeWidth={1.9} />
-              : <PanelLeft aria-hidden size={18} strokeWidth={1.9} />}
-          </button>
+          {!drawerOpen && (
+            <button
+              type="button"
+              className="ideanote-ideasketch-drawer-trigger is-canvas"
+              aria-label="Open IdeaSketch menu"
+              aria-expanded={false}
+              onClick={() => setDrawerOpen(true)}
+            >
+              <PanelLeft aria-hidden size={18} strokeWidth={1.9} />
+            </button>
+          )}
           <SlideCanvas
             key={draft.slideId}
             slideId={draft.slideId}

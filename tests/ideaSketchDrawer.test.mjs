@@ -4,23 +4,29 @@ import { readFile } from 'node:fs/promises';
 
 const readSource = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('IdeaSketch starts with one custom top-left trigger and a closed left drawer', async () => {
+test('IdeaSketch keeps the open control on Canvas and moves the close control into the drawer header', async () => {
   const editor = await readSource('src/components/IdeaSketchEditor.tsx');
   const styles = await readSource('src/index.css');
 
   assert.match(editor, /IDEASKETCH_DRAWER_STORAGE_KEY/);
   assert.match(editor, /const \[drawerOpen, setDrawerOpen\] = useState\(false\)/);
-  assert.match(editor, /className=\{`ideanote-ideasketch-drawer-trigger/);
-  assert.match(editor, /aria-label=\{drawerOpen \? "Close IdeaSketch menu" : "Open IdeaSketch menu"\}/);
   assert.match(editor, /import \{ PanelLeft, PanelLeftClose \} from "lucide-react"/);
-  assert.match(editor, /drawerOpen\s*\?\s*<PanelLeftClose aria-hidden size=\{18\} strokeWidth=\{1\.9\} \/>\s*:\s*<PanelLeft aria-hidden size=\{18\} strokeWidth=\{1\.9\} \/>/);
+  assert.match(editor, /className="ideanote-ideasketch-drawer-trigger is-drawer is-open"[\s\S]*?aria-label="Close IdeaSketch menu"[\s\S]*?<PanelLeftClose aria-hidden size=\{16\} strokeWidth=\{1\.9\} \/>/);
+  assert.match(editor, /className="ideanote-ideasketch-drawer-trigger is-canvas"[\s\S]*?aria-label="Open IdeaSketch menu"[\s\S]*?<PanelLeft aria-hidden size=\{18\} strokeWidth=\{1\.9\} \/>/);
+  assert.match(editor, /headerAction=\{drawerOpen \? \([\s\S]*?ideanote-ideasketch-drawer-trigger is-drawer/);
+  assert.match(editor, /\{!drawerOpen && \([\s\S]*?ideanote-ideasketch-drawer-trigger is-canvas/);
+  assert.doesNotMatch(editor, /aria-label=\{drawerOpen \?/);
   assert.doesNotMatch(editor, /\bMenu\b/);
   assert.match(editor, /className="ideanote-ideasketch-drawer"/);
   assert.match(editor, /<ResizableDivider[\s\S]*?side="left"[\s\S]*?panelLabel="IdeaSketch menu"[\s\S]*?showToggle=\{false\}/);
   assert.doesNotMatch(editor, /side="right"/);
   assert.doesNotMatch(editor, /DEFAULT_RIGHT_SIDEBAR_WIDTH|rightSidebarWidth|showNavigator/);
-  assert.match(styles, /\.ideanote-ideasketch-drawer-trigger\s*\{[\s\S]*?--ideanote-ideasketch-trigger-size:\s*2\.75rem;[\s\S]*?top:\s*1rem;[\s\S]*?width:\s*var\(--ideanote-ideasketch-trigger-size\);[\s\S]*?height:\s*var\(--ideanote-ideasketch-trigger-size\)/);
-  assert.match(styles, /@media screen and \(min-device-width:\s*1921px\)[\s\S]*?\.ideanote-ideasketch-drawer-trigger\s*\{[\s\S]*?--ideanote-ideasketch-trigger-size:\s*3rem/);
+  assert.match(styles, /\.ideanote-ideasketch-drawer-trigger\.is-canvas\s*\{[\s\S]*?top:\s*1rem;[\s\S]*?left:\s*1rem/);
+  assert.match(styles, /\.ideanote-ideasketch-drawer-trigger\.is-drawer\s*\{[\s\S]*?--ideanote-ideasketch-trigger-size:\s*2rem;[\s\S]*?top:\s*0\.375rem;[\s\S]*?right:\s*0\.375rem;[\s\S]*?border-radius:\s*0\.375rem;[\s\S]*?box-shadow:\s*none/);
+  assert.match(styles, /\.ideanote-ideasketch-drawer-trigger\.is-drawer\.is-open\s*\{[\s\S]*?color:\s*var\(--text-secondary\);[\s\S]*?box-shadow:\s*none/);
+  assert.match(styles, /@media screen and \(min-device-width:\s*1921px\)[\s\S]*?\.ideanote-ideasketch-drawer-trigger\.is-canvas\s*\{[\s\S]*?--ideanote-ideasketch-trigger-size:\s*3rem/);
+  assert.match(styles, /\.idea-slide-ideasketch-navigator__tab-bar\s*\{[\s\S]*?position:\s*relative;[\s\S]*?padding:\s*0 2\.625rem 0 0\.375rem/);
+  assert.doesNotMatch(styles, /is-drawer-open \.ideanote-ideasketch-drawer-trigger[\s\S]*?left:\s*calc\(min\(244px/);
 });
 
 test('the existing navigator stays intact above a separate Canvas command section', async () => {
@@ -56,7 +62,7 @@ test('drawer layout state is UI-only, Escape dismissible, responsive, and reduce
   assert.doesNotMatch(editor, /onEditorStateChange\([^\n]*drawer|onModelChange\([^\n]*drawer/i);
   assert.match(styles, /\.ideanote-ideasketch-editor\s*\{[\s\S]*?container-type:\s*inline-size/);
   assert.match(styles, /@container \(max-width:\s*700px\)[\s\S]*?width:\s*min\(244px, calc\(100% - 3rem\)\) !important/);
-  assert.match(styles, /left:\s*calc\(min\(244px, 100cqw - 3rem\) - var\(--ideanote-ideasketch-trigger-size\) - 0\.25rem\)/);
+  assert.doesNotMatch(styles, /left:\s*calc\(min\(244px, 100cqw - 3rem\) - var\(--ideanote-ideasketch-trigger-size\) - 0\.25rem\)/);
   assert.doesNotMatch(styles, /\.ideanote-ideasketch-drawer::before/);
   assert.match(styles, /\.ideanote-ideasketch-drawer\s*\{[\s\S]*?border-right:\s*0;[\s\S]*?box-shadow:\s*none/);
   assert.match(styles, /\.idea-slide-resize-rail__line\s*\{[\s\S]*?width:\s*1px;[\s\S]*?background:\s*var\(--line-strong\)/);

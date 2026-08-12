@@ -340,3 +340,10 @@ In the production .is editor, make the left IdeaSketch drawer narrower, remove t
 - created: 2026-08-12
 
 In the production .is editor, the boundary between the open IdeaSketch navigator and Canvas appears as several parallel vertical lines, and the navigator trigger does not provide a distinct close-navigation icon while the drawer is open. Render one quiet product-consistent divider/resizer boundary and show a clear Excalidraw-style close-sidebar icon in the open state while preserving resizing, accessible open/close labels, compact drawer geometry, and the closed-state navigation icon.
+
+## B042: Move the Open IdeaSketch Close Control into the Navigator
+
+- status: done
+- created: 2026-08-12
+
+When the production IdeaSketch navigator is open, place the close-navigation button in the sidebar's top area and hide the corresponding button from the Excalidraw Canvas. When the navigator is closed, keep the Canvas-side open-navigation button. Preserve the existing Pages/Cameras content, compact drawer geometry, resize behavior, Excalidraw-style icon treatment, accessible labels, and Escape closing.

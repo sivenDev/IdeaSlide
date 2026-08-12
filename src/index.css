@@ -2303,10 +2303,6 @@ body,
 
 .ideanote-ideasketch-drawer-trigger {
     --ideanote-ideasketch-trigger-size: 2.75rem;
-    position: absolute;
-    z-index: 24;
-    top: 1rem;
-    left: 1rem;
     display: grid;
     width: var(--ideanote-ideasketch-trigger-size);
     height: var(--ideanote-ideasketch-trigger-size);
@@ -2326,8 +2322,28 @@ body,
         box-shadow 120ms ease;
 }
 
+.ideanote-ideasketch-drawer-trigger.is-canvas {
+    position: absolute;
+    z-index: 24;
+    top: 1rem;
+    left: 1rem;
+}
+
+.ideanote-ideasketch-drawer-trigger.is-drawer {
+    --ideanote-ideasketch-trigger-size: 2rem;
+    position: absolute;
+    z-index: 2;
+    top: 0.375rem;
+    right: 0.375rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 0.375rem;
+    color: var(--text-secondary);
+    background: color-mix(in srgb, var(--surface-elevated) 74%, transparent);
+    box-shadow: none;
+}
+
 @media screen and (min-device-width: 1921px) {
-    .ideanote-ideasketch-drawer-trigger {
+    .ideanote-ideasketch-drawer-trigger.is-canvas {
         --ideanote-ideasketch-trigger-size: 3rem;
     }
 }
@@ -2343,6 +2359,18 @@ body,
     box-shadow:
         0 0 0 1px color-mix(in srgb, var(--accent-primary) 44%, var(--border-subtle)),
         0 1px 3px color-mix(in srgb, var(--text-primary) 14%, transparent);
+}
+
+.ideanote-ideasketch-drawer-trigger.is-drawer.is-open {
+    color: var(--text-secondary);
+    background: color-mix(in srgb, var(--surface-elevated) 74%, transparent);
+    box-shadow: none;
+}
+
+.ideanote-ideasketch-drawer-trigger.is-drawer:hover {
+    border-color: var(--border-default);
+    color: var(--text-primary);
+    background: var(--interaction-hover);
 }
 
 .ideanote-ideasketch-drawer-trigger:focus-visible {
@@ -2501,11 +2529,6 @@ body,
         display: none;
     }
 
-    .ideanote-ideasketch-workspace.is-drawer-open .ideanote-ideasketch-drawer-trigger {
-        z-index: 30;
-        left: calc(min(244px, 100cqw - 3rem) - var(--ideanote-ideasketch-trigger-size) - 0.25rem);
-    }
-
     .ideanote-ideasketch-drawer-commands__grid {
         grid-template-columns: 1fr;
     }
@@ -2537,11 +2560,12 @@ body,
 }
 
 .idea-slide-ideasketch-navigator__tab-bar {
+    position: relative;
     height: 2.75rem;
     flex: 0 0 2.75rem;
     border-bottom: 1px solid var(--idea-slide-boundary);
     background: var(--idea-slide-panel-soft);
-    padding: 0 0.375rem;
+    padding: 0 2.625rem 0 0.375rem;
 }
 
 .idea-slide-ideasketch-navigator__tab-list {

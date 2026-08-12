@@ -330,15 +330,48 @@ test('virtualized Page cards remain sortable in WebKit thumbnail mode', async (c
       Math.abs(topAlignment.triggerBottom - topAlignment.toolbarBottom) <= 1,
       `navigator/toolbar bottom edges differed by ${Math.abs(topAlignment.triggerBottom - topAlignment.toolbarBottom)}px`,
     );
+    assert.equal(
+      await page.locator('.ideanote-ideasketch-canvas .ideanote-ideasketch-drawer-trigger').count(),
+      1,
+    );
 
     await page.getByRole('button', { name: 'Open IdeaSketch menu' }).click();
     const openTrigger = page.getByRole('button', { name: 'Close IdeaSketch menu' });
     assert.equal(await openTrigger.locator('svg').getAttribute('class'), 'lucide lucide-panel-left-close');
+    assert.equal(await page.locator('.ideanote-ideasketch-drawer-trigger').count(), 1);
+    assert.equal(
+      await page.locator('.ideanote-ideasketch-drawer .ideanote-ideasketch-drawer-trigger').count(),
+      1,
+    );
+    assert.equal(
+      await page.locator('.ideanote-ideasketch-canvas .ideanote-ideasketch-drawer-trigger').count(),
+      0,
+    );
     await page.waitForFunction(() => {
       const drawer = document.querySelector('.ideanote-ideasketch-drawer-shell');
       const width = drawer instanceof HTMLElement ? drawer.getBoundingClientRect().width : 0;
       return width >= 243 && width <= 245;
     }, undefined, { timeout: 60_000 });
+
+    const headerGeometry = await page.evaluate(() => {
+      const drawer = document.querySelector('.ideanote-ideasketch-drawer');
+      const trigger = drawer?.querySelector('.ideanote-ideasketch-drawer-trigger');
+      const tabs = [...document.querySelectorAll('.idea-slide-ideasketch-navigator__tab')];
+      if (!(drawer instanceof HTMLElement) || !(trigger instanceof HTMLElement) || tabs.length !== 2) return null;
+      const drawerRect = drawer.getBoundingClientRect();
+      const triggerRect = trigger.getBoundingClientRect();
+      const tabRects = tabs.map((tab) => tab.getBoundingClientRect());
+      return {
+        insideDrawer: triggerRect.left >= drawerRect.left && triggerRect.right <= drawerRect.right,
+        overlapsTabs: tabRects.some((tabRect) => !(
+          triggerRect.right <= tabRect.left
+          || triggerRect.left >= tabRect.right
+          || triggerRect.bottom <= tabRect.top
+          || triggerRect.top >= tabRect.bottom
+        )),
+      };
+    });
+    assert.deepEqual(headerGeometry, { insideDrawer: true, overlapsTabs: false });
 
     const dividerLayers = await page.evaluate(() => {
       const drawer = document.querySelector('.ideanote-ideasketch-drawer');
@@ -360,6 +393,37 @@ test('virtualized Page cards remain sortable in WebKit thumbnail mode', async (c
     assert.notEqual(dividerLayers.lineBackground, 'rgba(0, 0, 0, 0)');
 
     const drawerDivider = page.getByRole('separator', { name: 'Resize IdeaSketch menu panel' });
+    await drawerDivider.press('Home');
+    await page.waitForFunction(() => {
+      const drawer = document.querySelector('.ideanote-ideasketch-drawer-shell');
+      return drawer instanceof HTMLElement && drawer.getBoundingClientRect().width <= 221;
+    });
+    const compactHeaderGeometry = await page.evaluate(() => {
+      const drawer = document.querySelector('.ideanote-ideasketch-drawer');
+      const trigger = drawer?.querySelector('.ideanote-ideasketch-drawer-trigger');
+      const tabs = [...document.querySelectorAll('.idea-slide-ideasketch-navigator__tab')];
+      if (!(drawer instanceof HTMLElement) || !(trigger instanceof HTMLElement) || tabs.length !== 2) return null;
+      const drawerRect = drawer.getBoundingClientRect();
+      const triggerRect = trigger.getBoundingClientRect();
+      return {
+        drawerWidth: drawerRect.width,
+        insideDrawer: triggerRect.left >= drawerRect.left && triggerRect.right <= drawerRect.right,
+        overlapsTabs: tabs.some((tab) => {
+          const tabRect = tab.getBoundingClientRect();
+          return !(
+            triggerRect.right <= tabRect.left
+            || triggerRect.left >= tabRect.right
+            || triggerRect.bottom <= tabRect.top
+            || triggerRect.top >= tabRect.bottom
+          );
+        }),
+      };
+    });
+    assert.ok(compactHeaderGeometry);
+    assert.ok(compactHeaderGeometry.drawerWidth >= 219 && compactHeaderGeometry.drawerWidth <= 221);
+    assert.equal(compactHeaderGeometry.insideDrawer, true);
+    assert.equal(compactHeaderGeometry.overlapsTabs, false);
+
     await drawerDivider.press('End');
     await page.waitForFunction(() => {
       const drawer = document.querySelector('.ideanote-ideasketch-drawer-shell');

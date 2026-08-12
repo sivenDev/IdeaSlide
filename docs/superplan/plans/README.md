@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | `required` | 6 | 0 | 6 |
 | `feature` | 66 | 0 | 66 |
-| `bugfix` | 41 | 2 | 39 |
+| `bugfix` | 42 | 2 | 40 |
 
 ## Execution Order
 
@@ -148,3 +148,4 @@
 | `B039` | [Refine the IdeaSketch Drawer Controls](bugs/B039-refine-ideasketch-drawer-controls.md) | `complete` | 2026-08-12 |
 | `B040` | [Refine the IdeaSketch Navigator Density](bugs/B040-refine-ideasketch-navigator-density.md) | `complete` | 2026-08-12 |
 | `B041` | [Remove Duplicate IdeaSketch Divider Lines and Restore Close Icon](bugs/B041-remove-duplicate-ideasketch-divider-lines-and-restore-close-icon.md) | `complete` | 2026-08-12 |
+| `B042` | [Move the Open IdeaSketch Close Control into the Navigator](bugs/B042-move-open-ideasketch-close-control-into-navigator.md) | `complete` | 2026-08-12 |
