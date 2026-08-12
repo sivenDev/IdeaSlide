@@ -332,11 +332,32 @@ test('virtualized Page cards remain sortable in WebKit thumbnail mode', async (c
     );
 
     await page.getByRole('button', { name: 'Open IdeaSketch menu' }).click();
+    const openTrigger = page.getByRole('button', { name: 'Close IdeaSketch menu' });
+    assert.equal(await openTrigger.locator('svg').getAttribute('class'), 'lucide lucide-panel-left-close');
     await page.waitForFunction(() => {
       const drawer = document.querySelector('.ideanote-ideasketch-drawer-shell');
       const width = drawer instanceof HTMLElement ? drawer.getBoundingClientRect().width : 0;
       return width >= 243 && width <= 245;
     }, undefined, { timeout: 60_000 });
+
+    const dividerLayers = await page.evaluate(() => {
+      const drawer = document.querySelector('.ideanote-ideasketch-drawer');
+      const line = document.querySelector('.ideanote-ideasketch-workspace > .idea-slide-resize-rail .idea-slide-resize-rail__line');
+      if (!(drawer instanceof HTMLElement) || !(line instanceof HTMLElement)) return null;
+      const drawerStyle = getComputedStyle(drawer);
+      const lineStyle = getComputedStyle(line);
+      return {
+        drawerBorderRightWidth: drawerStyle.borderRightWidth,
+        drawerBoxShadow: drawerStyle.boxShadow,
+        lineWidth: line.getBoundingClientRect().width,
+        lineBackground: lineStyle.backgroundColor,
+      };
+    });
+    assert.ok(dividerLayers);
+    assert.equal(dividerLayers.drawerBorderRightWidth, '0px');
+    assert.equal(dividerLayers.drawerBoxShadow, 'none');
+    assert.ok(dividerLayers.lineWidth >= 0.9 && dividerLayers.lineWidth <= 1.1);
+    assert.notEqual(dividerLayers.lineBackground, 'rgba(0, 0, 0, 0)');
 
     const drawerDivider = page.getByRole('separator', { name: 'Resize IdeaSketch menu panel' });
     await drawerDivider.press('End');

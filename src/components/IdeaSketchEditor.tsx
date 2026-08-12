@@ -1,6 +1,6 @@
 import { CaptureUpdateAction, restoreElements } from "@excalidraw/excalidraw";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PanelLeft } from "lucide-react";
+import { PanelLeft, PanelLeftClose } from "lucide-react";
 import type { DocumentModel, DocumentSession, IdeaSketchDocument, IdeaSketchPage } from "../types";
 import { useEditorSession } from "../hooks/useEditorSession";
 import { useAutoSave } from "../hooks/useAutoSave";
@@ -592,7 +592,9 @@ export function IdeaSketchEditor({
             aria-expanded={drawerOpen}
             onClick={() => setDrawerOpen((open) => !open)}
           >
-            <PanelLeft aria-hidden size={18} strokeWidth={1.9} />
+            {drawerOpen
+              ? <PanelLeftClose aria-hidden size={18} strokeWidth={1.9} />
+              : <PanelLeft aria-hidden size={18} strokeWidth={1.9} />}
           </button>
           <SlideCanvas
             key={draft.slideId}

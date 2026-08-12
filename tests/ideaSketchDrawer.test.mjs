@@ -12,8 +12,9 @@ test('IdeaSketch starts with one custom top-left trigger and a closed left drawe
   assert.match(editor, /const \[drawerOpen, setDrawerOpen\] = useState\(false\)/);
   assert.match(editor, /className=\{`ideanote-ideasketch-drawer-trigger/);
   assert.match(editor, /aria-label=\{drawerOpen \? "Close IdeaSketch menu" : "Open IdeaSketch menu"\}/);
-  assert.match(editor, /<PanelLeft aria-hidden size=\{18\}/);
-  assert.doesNotMatch(editor, /\bMenu\b|PanelLeftClose/);
+  assert.match(editor, /import \{ PanelLeft, PanelLeftClose \} from "lucide-react"/);
+  assert.match(editor, /drawerOpen\s*\?\s*<PanelLeftClose aria-hidden size=\{18\} strokeWidth=\{1\.9\} \/>\s*:\s*<PanelLeft aria-hidden size=\{18\} strokeWidth=\{1\.9\} \/>/);
+  assert.doesNotMatch(editor, /\bMenu\b/);
   assert.match(editor, /className="ideanote-ideasketch-drawer"/);
   assert.match(editor, /<ResizableDivider[\s\S]*?side="left"[\s\S]*?panelLabel="IdeaSketch menu"[\s\S]*?showToggle=\{false\}/);
   assert.doesNotMatch(editor, /side="right"/);
@@ -57,6 +58,9 @@ test('drawer layout state is UI-only, Escape dismissible, responsive, and reduce
   assert.match(styles, /@container \(max-width:\s*700px\)[\s\S]*?width:\s*min\(244px, calc\(100% - 3rem\)\) !important/);
   assert.match(styles, /left:\s*calc\(min\(244px, 100cqw - 3rem\) - var\(--ideanote-ideasketch-trigger-size\) - 0\.25rem\)/);
   assert.doesNotMatch(styles, /\.ideanote-ideasketch-drawer::before/);
+  assert.match(styles, /\.ideanote-ideasketch-drawer\s*\{[\s\S]*?border-right:\s*0;[\s\S]*?box-shadow:\s*none/);
+  assert.match(styles, /\.idea-slide-resize-rail__line\s*\{[\s\S]*?width:\s*1px;[\s\S]*?background:\s*var\(--line-strong\)/);
+  assert.match(styles, /@container \(max-width:\s*700px\)[\s\S]*?\.ideanote-ideasketch-workspace\.is-drawer-open \.ideanote-ideasketch-drawer-shell[\s\S]*?box-shadow:\s*16px 0 34px/);
   assert.match(styles, /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*?ideanote-ideasketch/);
 });
 

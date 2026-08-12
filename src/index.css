@@ -2278,10 +2278,10 @@ body,
     min-width: 0;
     flex-direction: column;
     overflow: hidden;
-    border-right: 1px solid var(--border-default);
+    border-right: 0;
     color: var(--text-primary);
     background: color-mix(in srgb, var(--surface-tertiary) 92%, var(--selection-bg));
-    box-shadow: 8px 0 22px color-mix(in srgb, var(--text-primary) 7%, transparent);
+    box-shadow: none;
 }
 
 .ideanote-ideasketch-drawer__navigation {

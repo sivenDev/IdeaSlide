@@ -333,3 +333,10 @@ In the production .is editor, remove the remaining Excalidraw top-left menu butt
 - created: 2026-08-12
 
 In the production .is editor, make the left IdeaSketch drawer narrower, remove the violet line on its left edge, remove Current Page from the Cameras toolbar, place Add camera to the right of Present, and reduce the Pages/Cameras tab label size so the navigator matches the product's compact visual system. Preserve drawer resizing, Page and Camera data/operations, presentation choices, read-only behavior, and Canvas commands.
+
+## B041: Remove Duplicate IdeaSketch Divider Lines and Restore Close Icon
+
+- status: done
+- created: 2026-08-12
+
+In the production .is editor, the boundary between the open IdeaSketch navigator and Canvas appears as several parallel vertical lines, and the navigator trigger does not provide a distinct close-navigation icon while the drawer is open. Render one quiet product-consistent divider/resizer boundary and show a clear Excalidraw-style close-sidebar icon in the open state while preserving resizing, accessible open/close labels, compact drawer geometry, and the closed-state navigation icon.

@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | `required` | 6 | 0 | 6 |
 | `feature` | 66 | 0 | 66 |
-| `bugfix` | 40 | 2 | 38 |
+| `bugfix` | 41 | 2 | 39 |
 
 ## Execution Order
 
@@ -147,3 +147,4 @@
 | `B038` | [Prevent Blank Agent Panel Space During Rapid Resize](bugs/B038-prevent-blank-agent-panel-space-during-rapid-resize.md) | `complete` | 2026-08-12 |
 | `B039` | [Refine the IdeaSketch Drawer Controls](bugs/B039-refine-ideasketch-drawer-controls.md) | `complete` | 2026-08-12 |
 | `B040` | [Refine the IdeaSketch Navigator Density](bugs/B040-refine-ideasketch-navigator-density.md) | `complete` | 2026-08-12 |
+| `B041` | [Remove Duplicate IdeaSketch Divider Lines and Restore Close Icon](bugs/B041-remove-duplicate-ideasketch-divider-lines-and-restore-close-icon.md) | `complete` | 2026-08-12 |
