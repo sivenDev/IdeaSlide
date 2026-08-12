@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: stable-release
+  cancel-in-progress: false
+
 jobs:
   create-release:
     runs-on: ubuntu-latest
@@ -18,11 +22,17 @@ jobs:
         id: create
         with:
           script: |
+            const tag = context.ref.replace('refs/tags/', '');
+            const semver = /^v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
+            if (!semver.test(tag)) {
+              core.setFailed(`Release tag ${tag} is not valid SemVer prefixed with v.`);
+              return;
+            }
             const { data } = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              tag_name: context.ref.replace('refs/tags/', ''),
-              name: `IdeaSlide ${context.ref.replace('refs/tags/', '')}`,
+              tag_name: tag,
+              name: `IdeaNote ${tag}`,
               body: [
                 '## Installation',
                 '',
@@ -55,6 +65,7 @@ jobs:
     needs: create-release
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         include:
           - platform: windows-latest
@@ -156,6 +167,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macos_deployment_target }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -164,7 +177,7 @@ jobs:
         with:
           tauriScript: npm run tauri
           tagName: ${{ github.ref_name }}
-          releaseName: IdeaSlide ${{ github.ref_name }}
+          releaseName: IdeaNote ${{ github.ref_name }}
           releaseDraft: true
           prerelease: false
           releaseId: ${{ needs.create-release.outputs.release_id }}
@@ -176,11 +189,91 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macos_deployment_target }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tauriScript: npm run tauri
           tagName: ${{ github.ref_name }}
-          releaseName: IdeaSlide ${{ github.ref_name }}
+          releaseName: IdeaNote ${{ github.ref_name }}
           releaseDraft: true
           prerelease: false
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: --target ${{ matrix.target }}
+
+  publish-release:
+    needs: [create-release, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+        with:
+          script: |
+            const releaseId = Number(process.env.RELEASE_ID);
+            const tag = context.ref.replace('refs/tags/', '');
+            const version = tag.slice(1);
+            const assets = await github.paginate(github.rest.repos.listReleaseAssets, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: releaseId,
+              per_page: 100,
+            });
+            const latestAsset = assets.find((asset) => asset.name === 'latest.json');
+            if (!latestAsset) {
+              core.setFailed('Updater manifest latest.json is missing.');
+              return;
+            }
+            const updaterSignatures = assets.filter((asset) => asset.name.endsWith('.sig'));
+            if (updaterSignatures.length < 3) {
+              core.setFailed(`Expected signed updater assets for three targets, found ${updaterSignatures.length}.`);
+              return;
+            }
+            const response = await github.request('GET /repos/{owner}/{repo}/releases/assets/{asset_id}', {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              asset_id: latestAsset.id,
+              headers: { accept: 'application/octet-stream' },
+            });
+            const manifestText = Buffer.isBuffer(response.data)
+              ? response.data.toString('utf8')
+              : Buffer.from(response.data).toString('utf8');
+            let manifest;
+            try {
+              manifest = JSON.parse(manifestText);
+            } catch (error) {
+              core.setFailed(`Updater manifest is invalid JSON: ${error.message}`);
+              return;
+            }
+            if (String(manifest.version).replace(/^v/, '') !== version) {
+              core.setFailed(`Updater manifest version ${manifest.version} does not match tag ${tag}.`);
+              return;
+            }
+            const requiredPlatforms = ['windows-x86_64', 'darwin-aarch64', 'darwin-x86_64'];
+            for (const platform of requiredPlatforms) {
+              const entry = manifest.platforms?.[platform];
+              if (typeof entry?.url !== 'string' || typeof entry?.signature !== 'string' || !entry.signature.trim()) {
+                core.setFailed(`Updater manifest is missing a complete ${platform} entry.`);
+                return;
+              }
+              const updaterUrl = new URL(entry.url);
+              const expectedPathPrefix = `/sivenDev/IdeaSlide/releases/download/${tag}/`;
+              const decodedPath = decodeURIComponent(updaterUrl.pathname);
+              if (updaterUrl.origin !== 'https://github.com' || !decodedPath.startsWith(expectedPathPrefix)) {
+                core.setFailed(`Updater URL for ${platform} is not an IdeaSlide GitHub Release asset.`);
+                return;
+              }
+              const updaterAssetName = decodedPath.slice(expectedPathPrefix.length);
+              const assetNames = new Set(assets.map((asset) => asset.name));
+              if (!updaterAssetName || !assetNames.has(updaterAssetName) || !assetNames.has(`${updaterAssetName}.sig`)) {
+                core.setFailed(`Updater assets for ${platform} are missing their bundle or signature.`);
+                return;
+              }
+            }
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: releaseId,
+              name: `IdeaNote ${tag}`,
+              draft: false,
+              prerelease: false,
+            });

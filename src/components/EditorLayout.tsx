@@ -92,6 +92,7 @@ import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 import { AgentPanel } from "./AgentPanel";
 import { RightSidebarHost } from "./RightSidebarHost";
 import { useNativeWindowFrame } from "../hooks/useNativeWindowFrame";
+import { useAppUpdate } from "../hooks/useAppUpdate";
 
 const AGENT_PANEL_DEFAULT_WIDTH = 352;
 const AGENT_PANEL_MIN_WIDTH = 260;
@@ -168,6 +169,7 @@ export function EditorLayout({
 }: EditorLayoutProps) {
   const { state, dispatch } = useAppStore();
   const { activationState, hydrated, settings } = useSettings();
+  const appUpdate = useAppUpdate();
   const nativeFrame = useNativeWindowFrame();
   const initialPanelState = useMemo(loadPanelState, []);
   const [isSaving, setIsSaving] = useState(false);
@@ -1246,6 +1248,16 @@ export function EditorLayout({
               onRevealRecent={(path) => void handleRevealPath(path)}
               onRetry={() => void refreshNavigation()}
               onOpenSettings={onOpenSettings}
+              update={{
+                state: appUpdate.state,
+                onDismiss: appUpdate.dismiss,
+                onRestoreNotice: appUpdate.restore,
+                onDownload: () => void appUpdate.download(),
+                onInstall: () => void appUpdate.install(confirmSessionExit),
+                onRetry: () => void (appUpdate.state.retryAction === "install"
+                  ? appUpdate.install(confirmSessionExit)
+                  : appUpdate.retry()),
+              }}
               activeWorkspaceTree={state.workspace ? (
                 <WorkspaceExplorer
                   entries={state.workspace.entries}

@@ -406,3 +406,10 @@ Add persistent global settings for whether the AI Agent sidebar opens by default
 - created: 2026-08-12
 
 Add a compact + button to the right side of the Workspaces section title. Activating it opens the existing Workspace directory picker and adds/opens the selected directory through the current Workspace flow. Preserve the existing empty-state Open Workspace action and single active Workspace core.
+
+## F056: Add automatic desktop updates from GitHub Releases
+
+- status: accepted
+- created: 2026-08-12
+
+When a newer GitHub tag release is available, check from the native desktop app and show a ChatGPT-style update notice above the lower-left Settings row. If the notice is dismissed, keep a compact Update action to the right of Settings until the available version is installed or no longer applicable. The update flow must use signed Tauri updater artifacts from published GitHub Releases, expose clear checking, downloading, ready-to-restart, and failure states, preserve unsaved-change safeguards before relaunch, and keep browser or preview-renderer contexts inert.

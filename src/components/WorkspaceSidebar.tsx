@@ -12,7 +12,7 @@ import {
   Settings,
   Trash2,
 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { NativeWindowFrame } from "../hooks/useNativeWindowFrame";
 import { groupRecentFiles } from "../lib/recentFiles";
 import type { RecentFile, RecentWorkspace } from "../types";
@@ -31,8 +31,23 @@ import {
   TooltipTrigger,
 } from "./ui/Tooltip";
 import { DocumentFileGlyph } from "./DocumentFileGlyph";
+import { AppUpdateNotice } from "./AppUpdateNotice";
+import type { AppUpdateState } from "../lib/appUpdates";
 
 const iconProps = { "aria-hidden": true, size: 14, strokeWidth: 1.8 } as const;
+
+function compactUpdateLabel(update: AppUpdateState): string {
+  if (update.phase === "downloading") {
+    if (update.totalBytes && update.totalBytes > 0) {
+      return `${Math.min(100, Math.round((update.downloadedBytes / update.totalBytes) * 100))}%`;
+    }
+    return "Downloading";
+  }
+  if (update.phase === "ready") return "Restart";
+  if (update.phase === "installing") return "Installing";
+  if (update.phase === "error") return "Retry";
+  return "Update";
+}
 
 function CreateMenu({
   label,
@@ -79,6 +94,7 @@ export function WorkspaceSidebar({
   onRevealRecent,
   onRetry,
   onOpenSettings,
+  update,
 }: {
   frame: NativeWindowFrame;
   activeRoot?: string;
@@ -100,9 +116,25 @@ export function WorkspaceSidebar({
   onRevealRecent: (path: string) => void;
   onRetry: () => void;
   onOpenSettings: () => void;
+  update?: {
+    state: AppUpdateState;
+    onDismiss: () => void;
+    onRestoreNotice: () => void;
+    onDownload: () => void;
+    onInstall: () => void;
+    onRetry: () => void;
+  };
 }) {
   const [renaming, setRenaming] = useState<{ kind: "workspace" | "recent"; path: string }>();
   const [draftName, setDraftName] = useState("");
+  const compactUpdateRef = useRef<HTMLButtonElement>(null);
+  const wasUpdateDismissed = useRef(update?.state.dismissed ?? false);
+
+  useEffect(() => {
+    const dismissed = update?.state.dismissed ?? false;
+    if (dismissed && !wasUpdateDismissed.current) compactUpdateRef.current?.focus();
+    wasUpdateDismissed.current = dismissed;
+  }, [update?.state.dismissed]);
   const [collapsedWorkspaceRoots, setCollapsedWorkspaceRoots] = useState<Set<string>>(() => new Set());
   const timeline = useMemo(() => groupRecentFiles(recents), [recents]);
 
@@ -304,7 +336,30 @@ export function WorkspaceSidebar({
         </section>
       </nav>
       <footer className="ideanote-workspace-footer">
-        <button type="button" onClick={onOpenSettings}><Settings {...iconProps} /><span>Settings</span><kbd>⌘,</kbd></button>
+        {update?.state.availableVersion && !update.state.dismissed && update.state.phase !== "idle" && update.state.phase !== "checking" && (
+          <AppUpdateNotice
+            update={update.state}
+            onDismiss={update.onDismiss}
+            onDownload={update.onDownload}
+            onInstall={update.onInstall}
+            onRetry={update.onRetry}
+          />
+        )}
+        <div className="ideanote-workspace-footer__row">
+          <button className="ideanote-workspace-footer__settings" type="button" onClick={onOpenSettings}><Settings {...iconProps} /><span>Settings</span><kbd>⌘,</kbd></button>
+          {update?.state.availableVersion && update.state.dismissed && (
+            <button
+              ref={compactUpdateRef}
+              className="ideanote-workspace-footer__update"
+              type="button"
+              aria-label={`${compactUpdateLabel(update.state)} IdeaNote ${update.state.availableVersion}`}
+              disabled={update.state.phase === "installing"}
+              onClick={update.state.phase === "ready" ? update.onInstall : update.onRestoreNotice}
+            >
+              {compactUpdateLabel(update.state)}
+            </button>
+          )}
+        </div>
       </footer>
     </aside>
   );
