@@ -52,13 +52,23 @@ test('divider supports independently bounded resizing for Workspace, Agent, and 
 
 test('Workspace navigation is visible by default across workbench modes and remains collapsible', async () => {
   const editor = await readFile(new URL('../src/components/EditorLayout.tsx', import.meta.url), 'utf8');
+  const styles = await readFile(new URL('../src/index.css', import.meta.url), 'utf8');
 
   assert.match(editor, /useState\(initialPanelState\.workspaceOpen \?\? true\)/);
   assert.match(editor, /style=\{\{ width: showWorkspace \? workspacePanelWidth : 0 \}\}/);
+  assert.match(editor, /ideanote-workspace-motion/);
+  assert.match(editor, /showWorkspace \? "is-open" : "is-closed"/);
+  assert.match(editor, /isResizingWorkspace \? "is-resizing" : ""/);
+  assert.match(editor, /ideanote-workspace-motion__content/);
+  assert.match(editor, /!showWorkspace && <div className="ideanote-workspace-motion__seam" aria-hidden="true" \/>/);
   assert.match(editor, /showWorkspace && \([\s\S]*?<ResizableDivider[\s\S]*?side="left"/);
   assert.match(editor, /agentAvailable && showAgent && \([\s\S]*?<ResizableDivider[\s\S]*?side="right"/);
   assert.match(editor, /onToggle=\{\(\) => setShowWorkspace/);
   assert.match(editor, /onToggle=\{\(\) => setShowAgent/);
+  assert.match(styles, /\.ideanote-workspace-motion\s*\{[\s\S]*?transition:\s*width var\(--workspaces-motion-duration\) var\(--workspaces-motion-easing\)/);
+  assert.match(styles, /\.ideanote-workspace-motion\.is-resizing[\s\S]*?transition:\s*none/);
+  assert.match(styles, /\.ideanote-workspace-motion__seam\s*\{[\s\S]*?width:\s*7px[\s\S]*?flex:\s*0 0 7px[\s\S]*?margin:\s*0 -3px/);
+  assert.match(styles, /prefers-reduced-motion:\s*reduce[\s\S]*?\.ideanote-workspace-motion[\s\S]*?transition:\s*none\s*!important/);
 });
 
 test('resize rail styling exposes a full-height interaction gutter and visible active state', async () => {

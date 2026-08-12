@@ -55,6 +55,23 @@ test('document crown contains status-close identity and no visible save or revis
   assert.doesNotMatch(editor, /aria-label="Save"/);
 });
 
+test('Workspace restore control keeps crown geometry mounted through the panel transition', async () => {
+  const crown = await readSource('src/components/WorkbenchCrown.tsx');
+  const styles = await readSource('src/index.css');
+
+  assert.doesNotMatch(crown, /!workspaceOpen && \(/);
+  assert.match(crown, /aria-hidden=\{workspaceOpen\}/);
+  assert.match(crown, /disabled=\{workspaceOpen\}/);
+  assert.match(crown, /is-workspace[^`"]*\$\{workspaceOpen \? "is-hidden" : "is-visible"\}/);
+  assert.match(styles, /--workspaces-motion-duration:\s*190ms/);
+  assert.match(styles, /--workspaces-motion-easing:\s*cubic-bezier\(\.2,\s*\.8,\s*\.2,\s*1\)/);
+  assert.match(styles, /\.ideanote-crown-action\.is-workspace[\s\S]*?position:\s*absolute[\s\S]*?transition:[\s\S]*?opacity calc\(var\(--workspaces-motion-duration\) \* \.72\) ease-out/);
+  assert.match(styles, /\.ideanote-crown-action\.is-workspace\.is-hidden[\s\S]*?opacity:\s*0[\s\S]*?pointer-events:\s*none/);
+  assert.match(styles, /\.ideanote-workbench-crown\.without-workspace\s*\{\s*padding-left:\s*53px/);
+  assert.match(styles, /\.ideanote-workbench-crown\.without-workspace\.is-macos\.is-windowed\s*\{\s*padding-left:\s*122px/);
+  assert.match(styles, /\.ideanote-workbench-crown\.without-workspace\.is-fullscreen\s*\{\s*padding-left:\s*50px/);
+});
+
 test('Agent restore is context-gated and open Agent closes from its own header', async () => {
   const crown = await readSource('src/components/WorkbenchCrown.tsx');
   const editor = await readSource('src/components/EditorLayout.tsx');
@@ -75,8 +92,9 @@ test('native crown reserves real macOS and Windows control footprints and releas
   assert.match(sidebar, /className=\{`ideanote-workspace-crown \$\{frame\.className\}`\}/);
   assert.match(styles, /\.ideanote-workspace-crown\.is-macos\.is-windowed\s*\{[\s\S]*?padding-left:\s*82px/);
   assert.match(styles, /\.ideanote-workspace-crown\.is-fullscreen\s*\{[\s\S]*?padding-left:\s*10px/);
-  assert.match(styles, /\.ideanote-workbench-crown\.without-workspace\.is-fullscreen\s*\{[\s\S]*?padding-left:\s*10px/);
+  assert.match(styles, /\.ideanote-workbench-crown\.without-workspace\.is-fullscreen\s*\{[\s\S]*?padding-left:\s*50px/);
   assert.match(styles, /\.ideanote-workbench-crown\.is-windows\.is-windowed\s*\{[\s\S]*?padding-right:\s*142px/);
+  assert.match(styles, /\.ideanote-workbench-crown\s*\{[\s\S]*?transition:[\s\S]*?padding-left var\(--workspaces-motion-duration\) var\(--workspaces-motion-easing\)/);
   assert.equal(config.app.windows[0].titleBarStyle, 'Overlay');
   assert.equal(config.app.windows[0].trafficLightPosition.x, 13);
   assert.equal(config.app.windows[0].trafficLightPosition.y, 26);

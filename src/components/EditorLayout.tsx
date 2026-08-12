@@ -1224,8 +1224,11 @@ export function EditorLayout({
   return (
     <div className="idea-slide-editor-shell flex h-screen flex-col">
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div className={`h-full flex-shrink-0 overflow-hidden ${isResizingWorkspace ? "" : "transition-[width] duration-200"}`} style={{ width: showWorkspace ? workspacePanelWidth : 0 }}>
-          <div className="h-full" style={{ width: workspacePanelWidth }}>
+        <div
+          className={`ideanote-workspace-motion ${showWorkspace ? "is-open" : "is-closed"} ${isResizingWorkspace ? "is-resizing" : ""}`}
+          style={{ width: showWorkspace ? workspacePanelWidth : 0 }}
+        >
+          <div className="ideanote-workspace-motion__content" style={{ width: workspacePanelWidth }}>
             <WorkspaceSidebar
               frame={nativeFrame}
               activeRoot={state.workspace?.root}
@@ -1294,6 +1297,7 @@ export function EditorLayout({
             onToggle={() => setShowWorkspace(false)}
           />
         )}
+        {!showWorkspace && <div className="ideanote-workspace-motion__seam" aria-hidden="true" />}
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <WorkbenchCrown
             document={activeDocument}

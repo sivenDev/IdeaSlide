@@ -5844,3 +5844,99 @@ body,
     .ideanote-settings-nav__item { gap: 7px; padding-right: 7px; padding-left: 10px; }
     .ideanote-settings-content { padding: 25px 23px 34px; }
 }
+
+/* B043: one coordinated trajectory for the Workspace column and editor crown. */
+.idea-slide-editor-shell {
+    --workspaces-motion-duration: 190ms;
+    --workspaces-motion-easing: cubic-bezier(.2, .8, .2, 1);
+}
+
+.ideanote-workspace-motion {
+    height: 100%;
+    flex-shrink: 0;
+    overflow: hidden;
+    transition: width var(--workspaces-motion-duration) var(--workspaces-motion-easing);
+    will-change: width;
+}
+
+.ideanote-workspace-motion.is-resizing {
+    transition: none;
+    will-change: auto;
+}
+
+.ideanote-workspace-motion__content {
+    height: 100%;
+    opacity: 1;
+    transform: translateX(0);
+    transition:
+        opacity var(--workspaces-motion-duration) var(--workspaces-motion-easing),
+        transform var(--workspaces-motion-duration) var(--workspaces-motion-easing);
+    will-change: opacity, transform;
+}
+
+.ideanote-workspace-motion.is-closed .ideanote-workspace-motion__content {
+    opacity: 0;
+    transform: translateX(-10px);
+}
+
+.ideanote-workspace-motion.is-resizing .ideanote-workspace-motion__content {
+    transition: none;
+    will-change: auto;
+}
+
+.ideanote-workspace-motion__seam {
+    width: 7px;
+    flex: 0 0 7px;
+    align-self: stretch;
+    margin: 0 -3px;
+    pointer-events: none;
+}
+
+.ideanote-workbench-crown {
+    transition:
+        padding-left var(--workspaces-motion-duration) var(--workspaces-motion-easing),
+        color var(--theme-paint-duration) ease,
+        background-color var(--theme-paint-duration) ease,
+        border-color var(--theme-paint-duration) ease,
+        box-shadow var(--theme-paint-duration) ease;
+}
+
+.ideanote-workbench-crown.without-workspace { padding-left: 53px; }
+.ideanote-workbench-crown.without-workspace.is-macos.is-windowed { padding-left: 122px; }
+.ideanote-workbench-crown.without-workspace.is-fullscreen { padding-left: 50px; }
+
+.ideanote-crown-action.is-workspace {
+    position: absolute;
+    top: 7px;
+    left: 13px;
+    z-index: 2;
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    transform-origin: left center;
+    transition:
+        opacity calc(var(--workspaces-motion-duration) * .72) ease-out,
+        transform var(--workspaces-motion-duration) var(--workspaces-motion-easing),
+        border-color 120ms ease,
+        color 120ms ease,
+        background-color 120ms ease;
+    will-change: opacity, transform;
+}
+
+.ideanote-crown-action.is-workspace.is-macos.is-windowed,
+.ideanote-workbench-crown.is-macos.is-windowed > .ideanote-crown-action.is-workspace { left: 82px; }
+.ideanote-workbench-crown.is-fullscreen > .ideanote-crown-action.is-workspace { left: 10px; }
+
+.ideanote-crown-action.is-workspace.is-hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-6px) scale(.82);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ideanote-workspace-motion,
+    .ideanote-workspace-motion__content,
+    .ideanote-workbench-crown,
+    .ideanote-crown-action.is-workspace {
+        transition: none !important;
+    }
+}

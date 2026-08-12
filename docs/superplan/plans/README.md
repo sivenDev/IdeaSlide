@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | `required` | 6 | 0 | 6 |
 | `feature` | 69 | 1 | 68 |
-| `bugfix` | 42 | 2 | 40 |
+| `bugfix` | 43 | 2 | 41 |
 
 ## Execution Order
 
@@ -152,3 +152,4 @@
 | `B040` | [Refine the IdeaSketch Navigator Density](bugs/B040-refine-ideasketch-navigator-density.md) | `complete` | 2026-08-12 |
 | `B041` | [Remove Duplicate IdeaSketch Divider Lines and Restore Close Icon](bugs/B041-remove-duplicate-ideasketch-divider-lines-and-restore-close-icon.md) | `complete` | 2026-08-12 |
 | `B042` | [Move the Open IdeaSketch Close Control into the Navigator](bugs/B042-move-open-ideasketch-close-control-into-navigator.md) | `complete` | 2026-08-12 |
+| `B043@fix-welcome-sidebar-motion` | [Keep Welcome Title Motion Coherent While Opening Workspaces](bugs/B043@fix-welcome-sidebar-motion-keep-welcome-title-motion-coherent.md) | `complete` | 2026-08-12 |

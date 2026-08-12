@@ -39,11 +39,16 @@ export function WorkbenchCrown({
   const state = document ? condition(document, isSaving) : undefined;
   return (
     <header className={`ideanote-workbench-crown ${workspaceOpen ? "has-workspace" : "without-workspace"} ${frame.className}`} data-tauri-drag-region>
-      {!workspaceOpen && (
-        <button className="ideanote-crown-action is-workspace" type="button" aria-label="Show Workspaces" onClick={onToggleWorkspace}>
-          <PanelLeft aria-hidden size={16} />
-        </button>
-      )}
+      <button
+        className={`ideanote-crown-action is-workspace ${workspaceOpen ? "is-hidden" : "is-visible"}`}
+        type="button"
+        aria-label="Show Workspaces"
+        aria-hidden={workspaceOpen}
+        disabled={workspaceOpen}
+        onClick={onToggleWorkspace}
+      >
+        <PanelLeft aria-hidden size={16} />
+      </button>
       {document && (
         <div className="ideanote-document-identity">
           <button

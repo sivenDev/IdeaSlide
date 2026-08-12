@@ -347,3 +347,10 @@ In the production .is editor, the boundary between the open IdeaSketch navigator
 - created: 2026-08-12
 
 When the production IdeaSketch navigator is open, place the close-navigation button in the sidebar's top area and hide the corresponding button from the Excalidraw Canvas. When the navigator is closed, keep the Canvas-side open-navigation button. Preserve the existing Pages/Cameras content, compact drawer geometry, resize behavior, Excalidraw-style icon treatment, accessible labels, and Escape closing.
+
+## B043@fix-welcome-sidebar-motion: Keep Welcome title motion coherent while opening Workspaces
+
+- status: done
+- created: 2026-08-12
+
+When the Workspaces sidebar opens from the fileless Welcome state, the title first re-anchors because the restore button and native-frame padding disappear, then moves again as the sidebar width animates. Preserve a polished animated open/close transition while keeping the title on one continuous visual trajectory, with reduced-motion support.
