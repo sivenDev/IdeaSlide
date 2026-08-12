@@ -381,7 +381,7 @@ Add a refresh button to each Workspace root row beside the existing create and o
 
 ## F052: Merge the IdeaSketch menu and navigator into a left drawer
 
-- status: accepted
+- status: done
 - created: 2026-08-12
 
 In the .is editor, replace the separate right-side navigator and the current top-left Excalidraw menu popover with one navigation surface opened from the top-left menu button. The surface enters from the left and contains the existing menu actions together with the Pages and Cameras lists, preserving their current operations.

@@ -273,20 +273,26 @@ kbd { font-size: 9px; color: var(--muted); }
 .line-ending-choice { display: flex; align-items: center; gap: 6px; color: var(--warning); font: 8px/1 ui-monospace, monospace; white-space: nowrap; }
 .line-ending-choice select { height: 24px; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); font-size: 8px; }
 
-.ideasketch-workspace { flex: 1 1 auto; min-height: 0; display: flex; overflow: hidden; }
+.ideasketch-workspace { position: relative; flex: 1 1 auto; min-height: 0; display: flex; overflow: hidden; background: var(--paper); }
 .ideasketch-canvas { position: relative; flex: 1 1 auto; min-width: 0; min-height: 0; }
 .ideasketch-canvas .excalidraw, .presentation-stage .excalidraw { width: 100%; height: 100%; }
 .ideasketch-canvas .excalidraw .App-menu_top { top: 5px; }
-.ideasketch-navigator { flex: 0 0 232px; min-width: 0; overflow: hidden; background: var(--frost); }
-.ideasketch-navigator > header { height: 38px; display: flex; align-items: center; justify-content: space-between; padding: 0 7px; border-bottom: 1px solid var(--line); }
-.ideasketch-navigator > header > button, .navigator-row-actions button { display: grid; place-items: center; width: 24px; height: 24px; border: 0; border-radius: 4px; background: transparent; color: var(--steel); cursor: pointer; }
-.ideasketch-navigator button:hover { background: var(--hover); color: var(--graphite); }
-.navigator-tabs { display: flex; gap: 3px; }
-.navigator-tabs button { height: 26px; border: 0; border-radius: 4px; padding: 0 8px; background: transparent; color: var(--muted); font-size: 9px; cursor: pointer; }
-.navigator-tabs button.is-active { background: var(--paper); color: var(--graphite); box-shadow: inset 0 0 0 1px var(--line); }
-.navigator-list { height: calc(100% - 38px); overflow: auto; padding: 7px; }
+.ideasketch-tool-drawer { position: relative; z-index: 12; flex: 0 0 304px; min-width: 0; display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid var(--line-strong); background: color-mix(in srgb, var(--frost) 94%, var(--selection)); box-shadow: 8px 0 22px rgb(33 28 52 / 7%); }
+.ideasketch-tool-drawer::before { position: absolute; z-index: 2; top: 0; bottom: 0; left: 0; width: 3px; background: var(--cobalt); content: ""; }
+.drawer-header { flex: 0 0 53px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 11px 0 15px; border-bottom: 1px solid var(--line); }
+.drawer-header > div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.drawer-header span { color: var(--muted); font: 700 7px/1 ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase; }
+.drawer-header strong { overflow: hidden; color: var(--graphite); font-size: 11px; font-weight: 680; text-overflow: ellipsis; white-space: nowrap; }
+.drawer-header > button, .navigator-row-actions button { display: grid; place-items: center; width: 25px; height: 25px; border: 0; border-radius: 5px; background: transparent; color: var(--steel); cursor: pointer; }
+.ideasketch-tool-drawer button:hover { background: var(--hover); color: var(--graphite); }
+.drawer-tabs { flex: 0 0 39px; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 3px; padding: 6px 9px; border-bottom: 1px solid var(--line); }
+.drawer-tabs button { min-width: 0; display: flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 5px; background: transparent; color: var(--muted); font-size: 9px; cursor: pointer; }
+.drawer-tabs button.is-active { background: var(--paper); color: var(--graphite); box-shadow: inset 0 0 0 1px var(--line), 0 1px 2px rgb(31 35 42 / 5%); }
+.drawer-tab-count { display: grid; min-width: 17px; height: 17px; place-items: center; border-radius: 9px; background: color-mix(in srgb, var(--cobalt) 10%, transparent); color: var(--cobalt); font: 700 7px/1 ui-monospace, monospace; }
+.drawer-navigation { flex: 1 1 auto; min-height: 120px; overflow: hidden; }
+.navigator-list { height: 100%; overflow: auto; padding: 8px 9px 12px; }
 .navigator-row { margin-bottom: 4px; border: 1px solid transparent; border-radius: 5px; background: transparent; }
-.navigator-row.is-active { border-color: var(--line-strong); background: var(--paper); }
+.navigator-row.is-active { border-color: color-mix(in srgb, var(--cobalt) 38%, var(--line)); background: var(--paper); box-shadow: inset 2px 0 0 var(--cobalt); }
 .navigator-main { width: 100%; min-width: 0; height: 34px; display: grid; grid-template-columns: 22px minmax(0,1fr); align-items: center; gap: 4px; border: 0; padding: 0 7px; background: transparent; color: var(--steel); text-align: left; cursor: pointer; }
 .navigator-main > span { color: var(--muted); font: 8px/1 ui-monospace, monospace; }
 .navigator-main input { width: 100%; min-width: 0; height: 25px; border: 0; outline: 0; padding: 0 3px; background: transparent; color: var(--graphite); font-size: 9px; }
@@ -296,9 +302,22 @@ kbd { font-size: 9px; color: var(--muted); }
 .navigator-add, .navigator-present { width: 100%; height: 31px; display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 6px; border: 1px dashed var(--line-strong); border-radius: 5px; background: transparent; color: var(--steel); font-size: 9px; cursor: pointer; }
 .navigator-present { border-style: solid; background: var(--graphite); color: var(--paper); }
 .navigator-empty { padding: 14px 8px; color: var(--muted); font-size: 9px; line-height: 1.5; }
-.toolbar-menu { display: flex; align-items: center; gap: 2px; padding-left: 6px; color: var(--muted); }
-.toolbar-menu > button { padding: 0 5px; font-size: 8px; }
-.editor-toast { position: absolute; z-index: 30; right: 16px; top: 48px; max-width: 340px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--graphite); color: var(--paper); box-shadow: var(--shadow); font-size: 9px; cursor: pointer; }
+.drawer-commands { flex: 0 0 auto; padding: 10px 10px 12px; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 62%, transparent); }
+.drawer-commands h2 { margin: 0 0 8px 3px; color: var(--muted); font: 700 7px/1 ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase; }
+.drawer-command-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 4px; }
+.drawer-command-grid button { min-width: 0; height: 32px; display: flex; align-items: center; gap: 7px; border: 1px solid transparent; border-radius: 5px; padding: 0 8px; background: transparent; color: var(--steel); font-size: 8px; text-align: left; cursor: pointer; }
+.drawer-command-grid button:hover { border-color: var(--line); background: var(--paper); }
+.drawer-command-grid button svg { flex: 0 0 auto; color: var(--cobalt); }
+.drawer-command-grid button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drawer-export-row { height: 33px; display: flex; align-items: center; gap: 2px; margin-top: 5px; padding: 0 4px 0 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--paper); color: var(--muted); }
+.drawer-export-row > button { height: 24px; border: 0; border-radius: 4px; padding: 0 6px; background: transparent; color: var(--steel); font-size: 8px; cursor: pointer; }
+.drawer-help { width: 100%; height: 28px; display: flex; align-items: center; gap: 7px; margin-top: 3px; border: 0; border-radius: 5px; padding: 0 8px; background: transparent; color: var(--muted); font-size: 8px; cursor: pointer; }
+.ideasketch-drawer-trigger { position: absolute; z-index: 20; top: 12px; left: 12px; display: grid; width: 42px; height: 42px; place-items: center; border: 1px solid color-mix(in srgb, var(--cobalt) 28%, var(--line-strong)); border-radius: 10px; padding: 0; background: color-mix(in srgb, var(--paper) 91%, var(--selection)); color: var(--selection-text); box-shadow: 0 5px 14px rgb(35 31 55 / 12%); cursor: pointer; }
+.ideasketch-drawer-trigger::before { position: absolute; top: 8px; bottom: 8px; left: -1px; width: 3px; border-radius: 0 2px 2px 0; background: var(--cobalt); content: ""; }
+.ideasketch-drawer-trigger:hover, .ideasketch-drawer-trigger.is-open { border-color: var(--cobalt); background: var(--selection); color: var(--selection-text); }
+.ideasketch-page-readout { position: absolute; z-index: 19; top: 17px; left: 62px; height: 30px; display: flex; align-items: center; border: 1px solid var(--line); border-radius: 6px; padding: 0 9px; background: color-mix(in srgb, var(--paper) 90%, transparent); color: var(--muted); box-shadow: 0 3px 10px rgb(24 28 35 / 7%); font: 8px/1 ui-monospace, monospace; pointer-events: none; }
+.ideasketch-canvas .excalidraw .App-menu_top { visibility: hidden; pointer-events: none; }
+.editor-toast { position: absolute; z-index: 30; right: 16px; top: 16px; max-width: 340px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--graphite); color: var(--paper); box-shadow: var(--shadow); font-size: 9px; cursor: pointer; }
 .presentation-mode { position: fixed; z-index: 110; inset: 0; overflow: hidden; background: #fff; }
 .presentation-stage { position: absolute; inset: 0; }
 .presentation-controls { position: absolute; z-index: 5; left: 50%; bottom: 18px; display: flex; align-items: center; gap: 8px; transform: translateX(-50%); padding: 6px; border: 1px solid #c8cbd0; border-radius: 7px; background: rgb(255 255 255 / 94%); box-shadow: 0 8px 28px rgb(20 22 26 / 18%); color: #252930; }
@@ -571,5 +590,8 @@ kbd { font-size: 9px; color: var(--muted); }
   .scenario-list { grid-template-columns: 1fr; }
   .editor-notice, .editor-decision-card { grid-template-columns: 18px minmax(0,1fr); }
   .notice-actions, .decision-actions { grid-column: 2; flex-wrap: wrap; }
+  .ideasketch-workspace .ideasketch-tool-drawer { position: absolute; z-index: 28; inset: 0 auto 0 0; width: min(330px, calc(100% - 48px)) !important; max-width: calc(100% - 48px); box-shadow: 16px 0 34px rgb(18 20 26 / 28%); }
+  .ideasketch-workspace .ideasketch-tool-drawer + .resizable-divider { display: none; }
+  .drawer-command-grid { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }

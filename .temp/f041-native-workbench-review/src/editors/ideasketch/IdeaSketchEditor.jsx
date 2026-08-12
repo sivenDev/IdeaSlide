@@ -1,5 +1,5 @@
 import { CaptureUpdateAction, Excalidraw, exportToBlob, exportToSvg } from "@excalidraw/excalidraw";
-import { ChevronDown, ChevronUp, Copy, Download, Eye, FileImage, Focus, MonitorPlay, PanelRightClose, Plus, Sparkles, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, CircleHelp, Copy, Download, Eye, Focus, Menu, PaintBucket, PanelLeftClose, Plus, RotateCcw, Sparkles, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ResizableDivider } from "../../components/layout/ResizableDivider.jsx";
 import { describeSketch, ensureIdeaSketchModel, moveItem } from "./ideaSketchModel.js";
@@ -45,10 +45,9 @@ function PresentationMode({ model, laserEnabled, onClose }) {
   );
 }
 
-function Navigator({ model, setModel, activePage, setActivePage, apiRef, readOnly, open, setOpen, onPresent, width }) {
-  const [tab, setTab] = useState("pages");
-  if (!open) return null;
+function IdeaSketchDrawer({ model, setModel, activePage, setActivePage, apiRef, readOnly, setOpen, width, tab, setTab, onPresent, onConvert, onExport, onCanvasBackground, onReset, onHelp, drawerRef }) {
   const update = (next) => { setModel(next); };
+  const activeCameras = model.cameras.filter((camera) => camera.pageId === activePage);
   const addPage = () => {
     const page = { id: crypto.randomUUID(), name: `Page ${model.pages.length + 1}`, elements: [] };
     update({ ...model, pages: [...model.pages, page], activePageId: page.id });
@@ -71,11 +70,50 @@ function Navigator({ model, setModel, activePage, setActivePage, apiRef, readOnl
     const camera = { id: crypto.randomUUID(), name: `Camera ${model.cameras.length + 1}`, pageId: activePage, x: appState.scrollX ?? 0, y: appState.scrollY ?? 0, zoom: appState.zoom?.value ?? 1 };
     update({ ...model, cameras: [...model.cameras, camera] });
   };
+  const moveCamera = (cameraId, offset) => {
+    const fromIndex = activeCameras.findIndex((camera) => camera.id === cameraId);
+    const reordered = moveItem(activeCameras, fromIndex, offset);
+    if (reordered[fromIndex]?.id === cameraId) return;
+    let pageCameraIndex = 0;
+    update({
+      ...model,
+      cameras: model.cameras.map((camera) => camera.pageId === activePage ? reordered[pageCameraIndex++] : camera),
+    });
+  };
   return (
-    <aside className="ideasketch-navigator" style={{ flexBasis: width }}>
-      <header><div className="navigator-tabs"><button className={tab === "pages" ? "is-active" : ""} type="button" onClick={() => setTab("pages")}>Pages</button><button className={tab === "cameras" ? "is-active" : ""} type="button" onClick={() => setTab("cameras")}>Cameras</button></div><button type="button" title="Close Navigator" onClick={() => setOpen(false)}><PanelRightClose size={14} /></button></header>
-      {tab === "pages" ? <div className="navigator-list">{model.pages.map((page, index) => <div className={`navigator-row ${activePage === page.id ? "is-active" : ""}`} key={page.id}><button className="navigator-main" type="button" onClick={() => setActivePage(page.id)}><span>{String(index + 1).padStart(2, "0")}</span><input aria-label={`Page name ${index + 1}`} value={page.name} readOnly={readOnly} onChange={(event) => update({ ...model, pages: model.pages.map((item) => item.id === page.id ? { ...item, name: event.target.value } : item) })} /></button><div className="navigator-row-actions"><button type="button" title="Move up" onClick={() => update({ ...model, pages: moveItem(model.pages, index, -1) })}><ChevronUp size={12} /></button><button type="button" title="Move down" onClick={() => update({ ...model, pages: moveItem(model.pages, index, 1) })}><ChevronDown size={12} /></button><button type="button" title="Duplicate Page" onClick={() => duplicatePage(page)}><Copy size={12} /></button><button type="button" title="Delete Page" onClick={() => deletePage(page)}><Trash2 size={12} /></button></div></div>)}<button className="navigator-add" type="button" onClick={addPage} disabled={readOnly}><Plus size={13} />Add Page</button></div>
-        : <div className="navigator-list">{model.cameras.map((camera, index) => <div className="navigator-row camera-row" key={camera.id}><button className="navigator-main" type="button" onClick={() => { setActivePage(camera.pageId); window.setTimeout(() => apiRef.current?.scrollToContent?.(apiRef.current.getSceneElements(), { fitToContent: true, animate: true }), 80); }}><Focus size={13} /><input aria-label={`Camera name ${index + 1}`} value={camera.name} readOnly={readOnly} onChange={(event) => update({ ...model, cameras: model.cameras.map((item) => item.id === camera.id ? { ...item, name: event.target.value } : item) })} /></button><div className="navigator-row-actions"><button type="button" title="Move up" onClick={() => update({ ...model, cameras: moveItem(model.cameras, index, -1) })}><ChevronUp size={12} /></button><button type="button" title="Move down" onClick={() => update({ ...model, cameras: moveItem(model.cameras, index, 1) })}><ChevronDown size={12} /></button><button type="button" title="Delete Camera" onClick={() => update({ ...model, cameras: model.cameras.filter((item) => item.id !== camera.id) })}><Trash2 size={12} /></button></div></div>)}{!model.cameras.length && <p className="navigator-empty">Capture the current viewport to define a presentation step.</p>}<button className="navigator-add" type="button" onClick={addCamera} disabled={readOnly}><Plus size={13} />Add Camera</button><button className="navigator-present" type="button" onClick={onPresent}><MonitorPlay size={13} />Present from first Camera</button></div>}
+    <aside
+      ref={drawerRef}
+      tabIndex={-1}
+      className="ideasketch-tool-drawer"
+      style={{ width, flexBasis: width }}
+      aria-label="IdeaSketch menu"
+      onKeyDownCapture={(event) => {
+        if (event.key === "Escape") { event.preventDefault(); setOpen(false); }
+      }}
+    >
+      <header className="drawer-header">
+        <div><span>Canvas tools</span><strong>IdeaSketch</strong></div>
+        <button type="button" aria-label="Close IdeaSketch menu" onClick={() => setOpen(false)}><PanelLeftClose size={15} /></button>
+      </header>
+      <div className="drawer-tabs" role="tablist" aria-label="Pages and Cameras">
+        <button className={tab === "pages" ? "is-active" : ""} role="tab" aria-selected={tab === "pages"} type="button" onClick={() => setTab("pages")}><span>Pages</span><span className="drawer-tab-count">{model.pages.length}</span></button>
+        <button className={tab === "cameras" ? "is-active" : ""} role="tab" aria-selected={tab === "cameras"} type="button" onClick={() => setTab("cameras")}><span>Cameras</span><span className="drawer-tab-count">{activeCameras.length}</span></button>
+      </div>
+      <div className="drawer-navigation">
+        {tab === "pages" ? <div className="navigator-list">{model.pages.map((page, index) => <div className={`navigator-row ${activePage === page.id ? "is-active" : ""}`} key={page.id}><button className="navigator-main" type="button" onClick={() => setActivePage(page.id)}><span>{String(index + 1).padStart(2, "0")}</span><input aria-label={`Page name ${index + 1}`} value={page.name} readOnly={readOnly} onChange={(event) => update({ ...model, pages: model.pages.map((item) => item.id === page.id ? { ...item, name: event.target.value } : item) })} /></button><div className="navigator-row-actions"><button type="button" title="Move up" onClick={() => update({ ...model, pages: moveItem(model.pages, index, -1) })}><ChevronUp size={12} /></button><button type="button" title="Move down" onClick={() => update({ ...model, pages: moveItem(model.pages, index, 1) })}><ChevronDown size={12} /></button><button type="button" title="Duplicate Page" onClick={() => duplicatePage(page)}><Copy size={12} /></button><button type="button" title="Delete Page" onClick={() => deletePage(page)}><Trash2 size={12} /></button></div></div>)}<button className="navigator-add" type="button" onClick={addPage} disabled={readOnly}><Plus size={13} />Add Page</button></div>
+          : <div className="navigator-list">{activeCameras.map((camera, index) => <div className="navigator-row camera-row" key={camera.id}><button className="navigator-main" type="button" onClick={() => window.setTimeout(() => apiRef.current?.scrollToContent?.(apiRef.current.getSceneElements(), { fitToContent: true, animate: true }), 80)}><Focus size={13} /><input aria-label={`Camera name ${index + 1}`} value={camera.name} readOnly={readOnly} onChange={(event) => update({ ...model, cameras: model.cameras.map((item) => item.id === camera.id ? { ...item, name: event.target.value } : item) })} /></button><div className="navigator-row-actions"><button type="button" title="Move up" onClick={() => moveCamera(camera.id, -1)}><ChevronUp size={12} /></button><button type="button" title="Move down" onClick={() => moveCamera(camera.id, 1)}><ChevronDown size={12} /></button><button type="button" title="Delete Camera" onClick={() => update({ ...model, cameras: model.cameras.filter((item) => item.id !== camera.id) })}><Trash2 size={12} /></button></div></div>)}{!activeCameras.length && <p className="navigator-empty">Capture the current viewport to define a presentation step on this Page.</p>}<button className="navigator-add" type="button" onClick={addCamera} disabled={readOnly}><Plus size={13} />Add Camera</button></div>}
+      </div>
+      <section className="drawer-commands" aria-label="Canvas and export actions">
+        <h2>Canvas & export</h2>
+        <div className="drawer-command-grid">
+          <button type="button" onClick={onConvert} disabled={readOnly}><Sparkles size={14} /><span>Clean diagram</span></button>
+          <button type="button" onClick={onPresent}><Eye size={14} /><span>Present</span></button>
+          <button type="button" onClick={onCanvasBackground}><PaintBucket size={14} /><span>Canvas background</span></button>
+          <button type="button" onClick={onReset} disabled={readOnly}><RotateCcw size={14} /><span>Reset canvas</span></button>
+        </div>
+        <div className="drawer-export-row"><Download size={14} /><button type="button" onClick={() => onExport("png")}>PNG</button><button type="button" onClick={() => onExport("svg")}>SVG</button><button type="button" onClick={() => onExport("drawio")}>draw.io</button></div>
+        <button className="drawer-help" type="button" onClick={onHelp}><CircleHelp size={14} />Help</button>
+      </section>
     </aside>
   );
 }
@@ -83,12 +121,15 @@ function Navigator({ model, setModel, activePage, setActivePage, apiRef, readOnl
 export function IdeaSketchEditor({ document, onChange, onRegisterAdapter, laserEnabled = true }) {
   const [model, setModelState] = useState(() => ensureIdeaSketchModel(document.content));
   const [activePage, setActivePageState] = useState(() => ensureIdeaSketchModel(document.content).activePageId);
-  const [navigatorOpen, setNavigatorOpen] = useState(true);
-  const [navigatorWidth, setNavigatorWidth] = useState(() => Number(localStorage.getItem("ideanote-review-ideasketch-navigator-width")) || 232);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerWidth, setDrawerWidth] = useState(() => Number(localStorage.getItem("ideanote-review-ideasketch-drawer-width")) || 304);
+  const [drawerTab, setDrawerTabState] = useState(() => localStorage.getItem("ideanote-review-ideasketch-drawer-tab") === "cameras" ? "cameras" : "pages");
+  const [canvasBackground, setCanvasBackground] = useState("#ffffff");
   const [presenting, setPresenting] = useState(false);
   const [toast, setToast] = useState("");
   const apiRef = useRef(null);
   const editorRootRef = useRef(null);
+  const drawerRef = useRef(null);
   const modelRef = useRef(model);
   const ignoreFirstChange = useRef(true);
   const activePageModel = useMemo(() => model.pages.find((page) => page.id === activePage) ?? model.pages[0], [model, activePage]);
@@ -97,6 +138,7 @@ export function IdeaSketchEditor({ document, onChange, onRegisterAdapter, laserE
   const publish = (next) => { modelRef.current = next; setModelState(next); onChange(next); };
   const setActivePage = (pageId) => { setActivePageState(pageId); publish({ ...modelRef.current, activePageId: pageId }); ignoreFirstChange.current = true; };
   const setModel = (next) => { publish(next); if (next.activePageId !== activePage) { setActivePageState(next.activePageId); ignoreFirstChange.current = true; } };
+  const setDrawerTab = (nextTab) => { setDrawerTabState(nextTab); localStorage.setItem("ideanote-review-ideasketch-drawer-tab", nextTab); };
 
   useEffect(() => {
     onRegisterAdapter?.({
@@ -123,6 +165,10 @@ export function IdeaSketchEditor({ document, onChange, onRegisterAdapter, laserE
     observer.observe(root, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, [document.sessionId]);
+
+  useEffect(() => {
+    if (drawerOpen) window.requestAnimationFrame(() => drawerRef.current?.focus());
+  }, [drawerOpen]);
 
   const handleSceneChange = (elements) => {
     if (ignoreFirstChange.current) { ignoreFirstChange.current = false; return; }
@@ -154,22 +200,32 @@ export function IdeaSketchEditor({ document, onChange, onRegisterAdapter, laserE
       setToast(`${kind.toUpperCase()} export prepared in the browser.`);
     } catch (error) { setToast(`Export failed: ${error.message}`); }
   };
+  const cycleCanvasBackground = () => {
+    const backgrounds = ["#ffffff", "#f6f4fb", "#eef3f8", "#fff8e8"];
+    const next = backgrounds[(backgrounds.indexOf(canvasBackground) + 1) % backgrounds.length];
+    setCanvasBackground(next);
+    apiRef.current?.updateScene?.({ appState: { viewBackgroundColor: next } });
+    setToast("Canvas background updated for this review session.");
+  };
+  const resetCanvas = () => {
+    if (document.readOnly) return;
+    apiRef.current?.updateScene?.({ elements: [], captureUpdate: CaptureUpdateAction.IMMEDIATELY });
+    setToast("Current Page canvas reset. Use Undo to restore it.");
+  };
 
   return (
     <div className="ideasketch-editor" ref={editorRootRef}>
-      <div className="editor-native-toolbar">
-        <span className="toolbar-meta">Page {model.pages.findIndex((page) => page.id === activePage) + 1} of {model.pages.length}</span>
-        <button type="button" title="Convert selection" onClick={convertSelection}><Sparkles size={14} />Clean diagram</button>
-        <button type="button" title="Present" onClick={() => setPresenting(true)}><Eye size={14} />Present</button>
-        <div className="toolbar-menu"><Download size={14} /><button type="button" onClick={() => exportCurrent("png")}>PNG</button><button type="button" onClick={() => exportCurrent("svg")}>SVG</button><button type="button" onClick={() => exportCurrent("drawio")}>draw.io</button></div>
-        <span className="toolbar-spacer" />
-        {!navigatorOpen && <button type="button" onClick={() => setNavigatorOpen(true)}><FileImage size={14} />Navigator</button>}
-      </div>
       {toast && <button className="editor-toast" type="button" onClick={() => setToast("")}>{toast}</button>}
-      <div className="ideasketch-workspace">
-        <main className="ideasketch-canvas"><Excalidraw key={activePage} excalidrawAPI={(api) => { apiRef.current = api; }} initialData={{ elements: activePageModel.elements, appState: { viewBackgroundColor: "#ffffff" } }} onChange={handleSceneChange} viewModeEnabled={document.readOnly} /></main>
-        {navigatorOpen && <ResizableDivider label="Resize IdeaSketch Navigator" value={navigatorWidth} min={180} max={380} direction={-1} onChange={(value) => { setNavigatorWidth(value); localStorage.setItem("ideanote-review-ideasketch-navigator-width", String(value)); }} />}
-        <Navigator model={model} setModel={setModel} activePage={activePage} setActivePage={setActivePage} apiRef={apiRef} readOnly={document.readOnly} open={navigatorOpen} setOpen={setNavigatorOpen} onPresent={() => setPresenting(true)} width={navigatorWidth} />
+      <div className={`ideasketch-workspace ${drawerOpen ? "drawer-is-open" : ""}`}>
+        {drawerOpen && <IdeaSketchDrawer model={model} setModel={setModel} activePage={activePage} setActivePage={setActivePage} apiRef={apiRef} readOnly={document.readOnly} setOpen={setDrawerOpen} width={drawerWidth} tab={drawerTab} setTab={setDrawerTab} onPresent={() => setPresenting(true)} onConvert={convertSelection} onExport={exportCurrent} onCanvasBackground={cycleCanvasBackground} onReset={resetCanvas} onHelp={() => setToast("Use Pages to organize scenes, Cameras to define presentation steps, and Canvas & export for document actions.")} drawerRef={drawerRef} />}
+        {drawerOpen && <ResizableDivider label="Resize IdeaSketch menu" value={drawerWidth} min={260} max={420} direction={1} onChange={(value) => { setDrawerWidth(value); localStorage.setItem("ideanote-review-ideasketch-drawer-width", String(value)); }} />}
+        <main className="ideasketch-canvas">
+          {drawerOpen
+            ? <button className="ideasketch-drawer-trigger is-open" type="button" aria-label="Close IdeaSketch menu" aria-expanded="true" onClick={() => setDrawerOpen(false)}><PanelLeftClose size={18} /></button>
+            : <button className="ideasketch-drawer-trigger" type="button" aria-label="Open IdeaSketch menu" aria-expanded="false" onClick={() => setDrawerOpen(true)}><Menu size={18} /></button>}
+          <div className="ideasketch-page-readout">Page {model.pages.findIndex((page) => page.id === activePage) + 1} of {model.pages.length}</div>
+          <Excalidraw key={activePage} excalidrawAPI={(api) => { apiRef.current = api; }} initialData={{ elements: activePageModel.elements, appState: { viewBackgroundColor: canvasBackground } }} onChange={handleSceneChange} viewModeEnabled={document.readOnly} />
+        </main>
       </div>
       {presenting && <PresentationMode model={{ ...model, activePageId: activePage }} laserEnabled={laserEnabled} onClose={() => setPresenting(false)} />}
     </div>

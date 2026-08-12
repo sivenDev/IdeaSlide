@@ -2,7 +2,7 @@
 id: "F052"
 title: "Prototype the Unified Left IdeaSketch Drawer"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Prototype a left-side IdeaSketch drawer that combines Pages, Cameras, and Canvas menu actions inside the isolated browser demo."
 source: "docs/superplan/human/features.md"
 created: "2026-08-12"
@@ -33,8 +33,8 @@ parent: ""
 **Verification:**
 - `cd .temp/f041-native-workbench-review && node --test tests/ideasketchDrawer.test.mjs`
 
-- [ ] Add focused source-level acceptance checks that fail against the current right-side Navigator layout.
-- [ ] Confirm the failures distinguish the requested drawer from the existing toolbar-plus-panel composition.
+- [x] Add focused source-level acceptance checks that fail against the current right-side Navigator layout.
+- [x] Confirm the failures distinguish the requested drawer from the existing toolbar-plus-panel composition.
 
 ## Task 2: Recompose IdeaSketch into the Left Tool Drawer
 
@@ -53,8 +53,8 @@ parent: ""
 - `cd .temp/f041-native-workbench-review && node --test tests/ideasketchDrawer.test.mjs`
 - Browser cases: open/close/resize; Pages and Cameras switching and mutations; export/conversion/presentation actions; narrow-window fallback; Light/Dark themes; no overlap with Workspace or Agent panels.
 
-- [ ] Build the left drawer around the existing single IdeaSketch state and action paths.
-- [ ] Calibrate hierarchy, spacing, responsive behavior, focus, and motion to the demo's existing visual system.
+- [x] Build the left drawer around the existing single IdeaSketch state and action paths.
+- [x] Calibrate hierarchy, spacing, responsive behavior, focus, and motion to the demo's existing visual system.
 
 ## Task 3: Verify and Deliver the Reviewable Prototype
 
@@ -74,8 +74,17 @@ parent: ""
 - `git diff --check`
 - Browser acceptance with `launch-plan.is` at representative desktop and narrow widths.
 
-- [ ] Run the focused test while iterating, then the full demo suite/build once the prototype stabilizes.
-- [ ] Inspect the final diff and browser result, update Superplan progress, and create one `feat(F052)` commit containing only this demo prototype.
+- [x] Run the focused test while iterating, then the full demo suite/build once the prototype stabilizes.
+- [x] Inspect the final diff and browser result, update Superplan progress, and create one `feat(F052)` commit containing only this demo prototype.
+
+## Completion Evidence
+
+- The focused drawer contract first failed all three checks against the previous toolbar-plus-right-Navigator composition, then passed 3/3 after the prototype was implemented.
+- `npm test` passed all 68 isolated demo tests, including the new left-drawer, combined-command, Escape, responsive, persistence, and production-isolation checks.
+- `npm run build` completed successfully. Vite reported only the demo's existing large-chunk advisory; there were no build errors.
+- Browser review at the default 1601×1222 viewport confirmed the Canvas starts at full width, the 42px top-left menu trigger opens a 304px left drawer, counted Pages/Cameras tabs and existing mutations work, the keyboard resize separator changes the drawer to 312px, Canvas background feedback appears, Present opens and exits, and the console contains no errors.
+- Browser review at 700×850 confirmed the drawer switches to a 330px overlay inside the editor region, hides its resize divider, preserves the outer Workspace column, and keeps Canvas controls reachable behind the dismissible surface. Escape closed the drawer and an Add Camera action updated the current Page's counted list.
+- The final design stays within the demo's violet-gray visual system and adds one distinctive blue left-edge tool rail connecting the menu trigger to the opened drawer. Production `src`, Tauri code, and document formats were unchanged.
 
 ## References
 - `docs/superplan/human/features.md`
