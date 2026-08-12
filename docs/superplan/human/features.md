@@ -392,3 +392,10 @@ In the .is editor, replace the separate right-side navigator and the current top
 - created: 2026-08-12
 
 In the production .is editor, replace the separate right-side Navigator and top-left Excalidraw menu popover with the accepted F052 left drawer. Move the existing Pages/Cameras navigator into the drawer without changing its content, ordering, empty states, Present, Add Camera, drag sorting, or Page-scoped behavior. Add the existing canvas and export menu functions as a separate section below the unchanged navigator content, preserve native Tauri export and editor flows, and keep drawer width/tab state outside the .is document.
+
+## F054: Configure Default Sidebar and Page View States
+
+- status: done
+- created: 2026-08-12
+
+Add persistent global settings for whether the AI Agent sidebar opens by default (default off), whether the IdeaSketch editor sidebar opens by default, and whether IdeaSketch Pages initially use name or thumbnail view. Apply these preferences as mount/start defaults while preserving normal in-session toggles.

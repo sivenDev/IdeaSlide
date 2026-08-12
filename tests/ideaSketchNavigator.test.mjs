@@ -23,17 +23,18 @@ test('IdeaSketch navigator switches between fixed Pages and Cameras tabs', async
   assert.match(source, /activePageDraft/);
   assert.match(source, /canvasInteractionActive/);
   assert.match(source, /canvasInteractionActive=\{canvasInteractionActive\}/);
+  assert.match(source, /initialViewMode=\{initialPageViewMode\}/);
   assert.match(styles, /\.idea-slide-ideasketch-navigator__tab\s*\{[\s\S]*?font-size:\s*0\.6875rem/);
   assert.match(styles, /\.idea-slide-ideasketch-navigator__tab\[data-state="active"\]::after/);
   assert.match(styles, /\.idea-slide-ideasketch-navigator__tab-count/);
 });
 
-test('IdeaSketch editor keeps one compact navigator inside a closed-by-default left drawer', async () => {
+test('IdeaSketch editor keeps one compact navigator inside a configurable left drawer', async () => {
   const source = await readSource('src/components/IdeaSketchEditor.tsx');
 
   assert.match(source, /const DEFAULT_DRAWER_WIDTH = 244/);
   assert.match(source, /const \[drawerWidth, setDrawerWidth\]/);
-  assert.match(source, /const \[drawerOpen, setDrawerOpen\] = useState\(false\)/);
+  assert.match(source, /const \[drawerOpen, setDrawerOpen\] = useState\(settings\.ideaSketch\.openSidebarByDefault\)/);
   assert.match(source, /const \[navigatorTab, setNavigatorTab\][\s\S]*?initialDrawerState\.tab \?\? "pages"/);
   assert.match(source, /openDrawer\("cameras"\)/);
   assert.match(source, /<IdeaSketchNavigator/);

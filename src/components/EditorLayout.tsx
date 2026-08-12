@@ -167,7 +167,7 @@ export function EditorLayout({
   onPendingStandalonePathHandled,
 }: EditorLayoutProps) {
   const { state, dispatch } = useAppStore();
-  const { activationState } = useSettings();
+  const { activationState, hydrated, settings } = useSettings();
   const nativeFrame = useNativeWindowFrame();
   const initialPanelState = useMemo(loadPanelState, []);
   const [isSaving, setIsSaving] = useState(false);
@@ -175,7 +175,7 @@ export function EditorLayout({
   const [workspacePanelWidth, setWorkspacePanelWidth] = useState(() => clampWorkspacePanelWidth(
     initialPanelState.workspaceWidth ?? WORKSPACE_PANEL_DEFAULT_WIDTH,
   ));
-  const [showAgent, setShowAgent] = useState(true);
+  const [showAgent, setShowAgent] = useState(false);
   const [agentPanelWidth, setAgentPanelWidth] = useState(() => Math.max(
     AGENT_PANEL_MIN_WIDTH,
     Math.min(AGENT_PANEL_MAX_WIDTH, initialPanelState.agentWidth ?? AGENT_PANEL_DEFAULT_WIDTH),
@@ -203,10 +203,12 @@ export function EditorLayout({
   const standaloneExpectedModified = useRef(new Map<string, string>());
   const checkedRecoveryKeys = useRef(new Set<string>());
   const workspaceAgentGeneration = useRef({ key: "", value: 0 });
+  const agentDefaultApplied = useRef(false);
   const closeInProgress = useRef(false);
   const latestDocuments = useRef(state.documents);
   latestDocuments.current = state.documents;
   const activeDocument = state.documents.find((document) => document.id === state.activeSessionId);
+  const hasAgentContext = Boolean(activeDocument || state.workspace);
   const effectiveReadOnly = readOnly
     || Boolean(state.workspace?.readOnly)
     || Boolean(activeDocument?.readOnly)
@@ -238,16 +240,15 @@ export function EditorLayout({
 
   useEffect(() => setWorkspaceDiagnosticsHidden(false), [state.workspace?.root, state.workspace?.metadata.diagnostics]);
   useEffect(() => {
-    if (activationState === "disabled") {
+    if (activationState === "disabled" || !hasAgentContext) {
       setShowAgent(false);
-      setAgentBinding(undefined);
-    } else if ((activeDocument || state.workspace) && (activationState === "ready" || activationState === "configuration-required")) {
-      setShowAgent(true);
+      if (activationState === "disabled") setAgentBinding(undefined);
+      return;
     }
-  }, [activationState, activeDocument?.id, state.workspace?.root]);
-  useEffect(() => {
-    if (!activeDocument && !state.workspace) setShowAgent(false);
-  }, [activeDocument?.id, state.workspace?.root]);
+    if (!hydrated || agentDefaultApplied.current) return;
+    agentDefaultApplied.current = true;
+    setShowAgent(settings.agent.openPanelByDefault);
+  }, [activationState, hasAgentContext, hydrated, settings.agent.openPanelByDefault]);
   useEffect(() => {
     setAgentBinding((current) => current?.document.id === activeDocument?.id ? current : undefined);
   }, [activeDocument?.id]);

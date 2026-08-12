@@ -86,6 +86,19 @@ export function AgentSettings() {
           })).catch(() => undefined); }}
         />
       </SettingsField>
+      <SettingsField
+        title="Open Agent by default"
+        description="Open the Agent panel when a new workbench starts with an active file or Workspace."
+      >
+        <SettingsSwitch
+          label="Open Agent by default"
+          checked={settings.agent.openPanelByDefault}
+          onCheckedChange={(openPanelByDefault) => { void updateSettings((current) => ({
+            ...current,
+            agent: { ...current.agent, openPanelByDefault },
+          })).catch(() => undefined); }}
+        />
+      </SettingsField>
       <SettingsField title="Runtime selection">
         <div className="ideanote-settings-readout" role="status">
           <strong>{runtimeSelection.descriptor?.label ?? "Automatic selection"}</strong>

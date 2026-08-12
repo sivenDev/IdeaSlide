@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { load, type Store } from "@tauri-apps/plugin-store";
 
-export const SETTINGS_SCHEMA_VERSION = 5;
+export const SETTINGS_SCHEMA_VERSION = 6;
 const SETTINGS_STORE_PATH = "settings.json";
 const SETTINGS_STORE_KEY = "settings";
 const BROWSER_STORAGE_KEY = "ideanote.settings.v1";
@@ -24,6 +24,7 @@ export interface AppSettings {
     };
   };
   agent: {
+    openPanelByDefault: boolean;
     maxSteps: number;
     showToolActivity: boolean;
     contextWarningPercent: number;
@@ -34,6 +35,8 @@ export interface AppSettings {
   };
   ideaSketch: {
     previewLaserEnabled: boolean;
+    openSidebarByDefault: boolean;
+    pageViewMode: "name" | "thumbnail";
   };
   markdown: {
     showLineNumbers: boolean;
@@ -62,6 +65,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
     },
   },
   agent: {
+    openPanelByDefault: false,
     maxSteps: 8,
     showToolActivity: true,
     contextWarningPercent: 75,
@@ -72,6 +76,8 @@ export const DEFAULT_SETTINGS = Object.freeze({
   },
   ideaSketch: {
     previewLaserEnabled: true,
+    openSidebarByDefault: false,
+    pageViewMode: "name",
   },
   markdown: {
     showLineNumbers: false,
@@ -147,6 +153,9 @@ export function normalizeSettings(value: unknown): AppSettings {
       },
     },
     agent: {
+      openPanelByDefault: typeof agent.openPanelByDefault === "boolean"
+        ? agent.openPanelByDefault
+        : DEFAULT_SETTINGS.agent.openPanelByDefault,
       maxSteps,
       showToolActivity: typeof agent.showToolActivity === "boolean" ? agent.showToolActivity : true,
       contextWarningPercent,
@@ -170,7 +179,11 @@ export function normalizeSettings(value: unknown): AppSettings {
     ideaSketch: {
       previewLaserEnabled: typeof ideaSketch.previewLaserEnabled === "boolean"
         ? ideaSketch.previewLaserEnabled
-        : true,
+        : DEFAULT_SETTINGS.ideaSketch.previewLaserEnabled,
+      openSidebarByDefault: typeof ideaSketch.openSidebarByDefault === "boolean"
+        ? ideaSketch.openSidebarByDefault
+        : DEFAULT_SETTINGS.ideaSketch.openSidebarByDefault,
+      pageViewMode: ideaSketch.pageViewMode === "thumbnail" ? "thumbnail" : "name",
     },
     markdown: {
       showLineNumbers: typeof markdown.showLineNumbers === "boolean"

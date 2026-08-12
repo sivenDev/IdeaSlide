@@ -35,10 +35,15 @@ test('saved editable documents autosave in both modes while Page-scoped Cameras 
   assert.match(source, /const MIN_DRAWER_WIDTH = 220/);
   assert.match(source, /const MAX_DRAWER_WIDTH = 420/);
   assert.match(source, /const \[drawerWidth, setDrawerWidth\]/);
-  assert.match(source, /const \[drawerOpen, setDrawerOpen\] = useState\(false\)/);
+  assert.match(source, /const \{ hydrated, settings \} = useSettings\(\)/);
+  assert.match(source, /const \[drawerOpen, setDrawerOpen\] = useState\(settings\.ideaSketch\.openSidebarByDefault\)/);
+  assert.match(source, /drawerDefaultApplied/);
+  assert.match(source, /if \(!hydrated \|\| drawerDefaultApplied\.current\) return/);
   assert.match(source, /navigatorTab/);
   assert.match(source, /model\.pages\.find/);
   assert.match(source, /activePageDraft=\{draft\}/);
+  assert.match(source, /initialPageViewMode=\{settings\.ideaSketch\.pageViewMode\}/);
+  assert.match(source, /pageViewPreferenceReady=\{hydrated\}/);
   assert.match(source, /canvasInteractionActive=\{canvasInteractionActive\}/);
   assert.doesNotMatch(source, /ideanote-ideasketch-editor__chrome/);
   assert.doesNotMatch(source, /Show Pages\. Current Page/);

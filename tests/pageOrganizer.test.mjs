@@ -32,4 +32,14 @@ test('Pages organizer supports both views and the complete v1 Page lifecycle', (
   assert.match(source, /canvasInteractionActive = false/);
   assert.match(source, /canvasInteractionActive \|\| editingPageId \|\| draggingPageId \|\| pointerActive/);
   assert.match(source, /paused: thumbnailPaused/);
+  assert.match(source, /initialViewMode\?: PageViewMode/);
+  assert.match(source, /initialViewMode = "name"/);
+  assert.match(source, /useState<PageViewMode>\(initialViewMode\)/);
+  assert.match(source, /initialViewModeReady\?: boolean/);
+  assert.match(source, /initialViewModeApplied/);
+});
+
+test('Pages organizer keeps Name mode thumbnail-free and allows a Thumbnail startup preference', () => {
+  assert.match(source, /enabled: viewMode === "thumbnail"/);
+  assert.match(source, /viewMode === "thumbnail"[\s\S]*?buildPageThumbnailDemands/);
 });

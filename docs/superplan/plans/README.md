@@ -7,7 +7,7 @@
 | Type | Plans | In Progress | Complete |
 | --- | --- | --- | --- |
 | `required` | 6 | 0 | 6 |
-| `feature` | 66 | 0 | 66 |
+| `feature` | 67 | 0 | 67 |
 | `bugfix` | 42 | 2 | 40 |
 
 ## Execution Order
@@ -93,6 +93,7 @@
 | `F044-03` | [Add Complete Settings and Agent Experiences](features/F044-complete-mocked-tauri-review-demo/F044-03-settings-agent-and-editor-tool-experience.md) | `complete` | 2026-08-11 |
 | `F053` | [Migrate the Unified IdeaSketch Drawer into Tauri](features/F053-migrate-unified-ideasketch-drawer-to-tauri.md) | `complete` | 2026-08-12 |
 | `F044-04` | [Add Reliability Scenarios and Package the Complete Review Demo](features/F044-complete-mocked-tauri-review-demo/F044-04-reliability-scenarios-browser-qa-and-review-package.md) | `complete` | 2026-08-11 |
+| `F054` | [Configure Default Sidebar and Page View States](features/F054-configure-default-sidebar-and-page-view-states.md) | `complete` | 2026-08-12 |
 | `F045` | [Refine Review Demo Workspace Actions and Document Chrome](features/F045-refine-review-demo-workspace-actions-and-document-chrome.md) | `complete` | 2026-08-11 |
 | `F046-01` | [Migrate the Reviewed Shell, Workspaces, and Recents](features/F046-migrate-reviewed-demo-frontend-into-tauri/F046-01-production-shell-workspaces-and-recents.md) | `complete` | 2026-08-11 |
 | `F046-02` | [Align Settings, Themes, and the Production Markdown Editor](features/F046-migrate-reviewed-demo-frontend-into-tauri/F046-02-settings-themes-and-markdown.md) | `complete` | 2026-08-11 |

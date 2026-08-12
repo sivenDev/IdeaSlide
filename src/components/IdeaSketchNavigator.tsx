@@ -4,6 +4,7 @@ import type { EditorSlideDraft } from "../lib/editorSession";
 import type { ReactNode } from "react";
 import { CameraList } from "./CameraList";
 import { PageOrganizer } from "./PageOrganizer";
+import type { PageViewMode } from "./PageOrganizer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/Tabs";
 
 export type IdeaSketchNavigatorTab = "pages" | "cameras";
@@ -17,6 +18,8 @@ interface IdeaSketchNavigatorProps {
   cameras: Camera[];
   activeCameraId?: string;
   readOnly?: boolean;
+  initialPageViewMode?: PageViewMode;
+  pageViewPreferenceReady?: boolean;
   headerAction?: ReactNode;
   onTabChange: (tab: IdeaSketchNavigatorTab) => void;
   onPageSelect: (pageId: string) => void;
@@ -41,6 +44,8 @@ export function IdeaSketchNavigator({
   cameras,
   activeCameraId,
   readOnly = false,
+  initialPageViewMode = "name",
+  pageViewPreferenceReady = true,
   headerAction,
   onTabChange,
   onPageSelect,
@@ -82,6 +87,8 @@ export function IdeaSketchNavigator({
             activeDraft={activePageDraft}
             canvasInteractionActive={canvasInteractionActive}
             readOnly={readOnly}
+            initialViewMode={initialPageViewMode}
+            initialViewModeReady={pageViewPreferenceReady}
             onSelect={onPageSelect}
             onAdd={onPageAdd}
             onRename={onPageRename}

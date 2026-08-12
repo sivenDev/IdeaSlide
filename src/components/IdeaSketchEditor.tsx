@@ -4,6 +4,7 @@ import { PanelLeft, PanelLeftClose } from "lucide-react";
 import type { DocumentModel, DocumentSession, IdeaSketchDocument, IdeaSketchPage } from "../types";
 import { useEditorSession } from "../hooks/useEditorSession";
 import { useAutoSave } from "../hooks/useAutoSave";
+import { useSettings } from "../hooks/useSettings";
 import {
   createEmptyIdeaSketchPage,
   createIdeaSketchEditorState,
@@ -109,13 +110,15 @@ export function IdeaSketchEditor({
   onAgentBindingChange,
 }: IdeaSketchEditorProps) {
   if (!document.model) throw new Error("IdeaSketch document model is missing");
+  const { hydrated, settings } = useSettings();
   const [editorState, setEditorState] = useState<IdeaSketchEditorState>(() =>
     createIdeaSketchEditorState(document.model!, document.editorState?.activePageId),
   );
   const editorStateRef = useRef(editorState);
   const emittedModelRef = useRef<IdeaSketchDocument | undefined>(undefined);
   const initialDrawerState = useMemo(loadDrawerState, []);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(settings.ideaSketch.openSidebarByDefault);
+  const drawerDefaultApplied = useRef(false);
   const [drawerWidth, setDrawerWidth] = useState(
     initialDrawerState.width ?? DEFAULT_DRAWER_WIDTH,
   );
@@ -158,6 +161,12 @@ export function IdeaSketchEditor({
     const nextActivePage = next.document.pages.find((page) => page.id === next.activePageId);
     if (nextActivePage) syncMountedCanvasToPage(nextActivePage);
   }, [document.editorState?.activePageId, document.model, syncMountedCanvasToPage]);
+
+  useEffect(() => {
+    if (!hydrated || drawerDefaultApplied.current) return;
+    drawerDefaultApplied.current = true;
+    setDrawerOpen(settings.ideaSketch.openSidebarByDefault);
+  }, [hydrated, settings.ideaSketch.openSidebarByDefault]);
 
   useEffect(() => {
     window.localStorage.setItem(IDEASKETCH_DRAWER_STORAGE_KEY, JSON.stringify({
@@ -554,6 +563,8 @@ export function IdeaSketchEditor({
                 cameras={cameras}
                 activeCameraId={activeCameraId}
                 readOnly={readOnly}
+                initialPageViewMode={settings.ideaSketch.pageViewMode}
+                pageViewPreferenceReady={hydrated}
                 onPageSelect={selectPage}
                 onPageAdd={addPage}
                 onPageRename={renamePage}

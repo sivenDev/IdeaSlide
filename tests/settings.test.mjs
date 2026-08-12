@@ -26,7 +26,7 @@ test('AI defaults to enabled and requires configuration before runtime activatio
 
 test('settings normalization is versioned and bounds Agent policy and Provider retries', async () => {
   const { SETTINGS_SCHEMA_VERSION, normalizeSettings } = await loadSettingsModule();
-  assert.equal(SETTINGS_SCHEMA_VERSION, 5);
+  assert.equal(SETTINGS_SCHEMA_VERSION, 6);
   const normalized = normalizeSettings({
     schemaVersion: 999,
     ai: {
@@ -56,6 +56,12 @@ test('settings normalization is versioned and bounds Agent policy and Provider r
   assert.equal(normalized.agent.diagnosticRetention, 100);
   assert.equal(normalized.agent.compatibilityReplayMessageLimit, 10);
   assert.equal(normalized.agent.showDeliveryTelemetry, false);
+  assert.equal(normalized.agent.openPanelByDefault, false);
+  assert.deepEqual(normalized.ideaSketch, {
+    previewLaserEnabled: true,
+    openSidebarByDefault: false,
+    pageViewMode: 'name',
+  });
   assert.equal(normalized.markdown.showLineNumbers, false);
 
   const migrated = normalizeSettings({
@@ -65,7 +71,20 @@ test('settings normalization is versioned and bounds Agent policy and Provider r
   assert.deepEqual(migrated.ai.retry, { enabled: true, maxAttempts: 3 });
   assert.deepEqual(migrated.ai.availableModels, ['gpt-5-mini']);
   assert.deepEqual(migrated.markdown, { showLineNumbers: false });
+  assert.equal(migrated.agent.openPanelByDefault, false);
+  assert.equal(migrated.ideaSketch.openSidebarByDefault, false);
+  assert.equal(migrated.ideaSketch.pageViewMode, 'name');
   assert.equal(normalizeSettings({ markdown: { showLineNumbers: true } }).markdown.showLineNumbers, true);
+  assert.equal(normalizeSettings({ agent: { openPanelByDefault: true } }).agent.openPanelByDefault, true);
+  assert.deepEqual(normalizeSettings({ ideaSketch: {
+    openSidebarByDefault: true,
+    pageViewMode: 'thumbnail',
+  } }).ideaSketch, {
+    previewLaserEnabled: true,
+    openSidebarByDefault: true,
+    pageViewMode: 'thumbnail',
+  });
+  assert.equal(normalizeSettings({ ideaSketch: { pageViewMode: 'tiles' } }).ideaSketch.pageViewMode, 'name');
   assert.equal(normalizeSettings({ ai: { retry: { maxAttempts: 0 } } }).ai.retry.maxAttempts, 1);
   assert.deepEqual(normalizeSettings(undefined).agent, {
     maxSteps: 8,
@@ -75,6 +94,7 @@ test('settings normalization is versioned and bounds Agent policy and Provider r
     diagnosticRetention: 20,
     compatibilityReplayMessageLimit: 60,
     showDeliveryTelemetry: true,
+    openPanelByDefault: false,
   });
 });
 
@@ -108,6 +128,8 @@ test('Agent settings keep automatic runtime selection concise and move the AI ga
   assert.match(agentSettings, /title="Runtime selection"/);
   assert.doesNotMatch(agentSettings, /Codex when compatible, otherwise the configured provider/);
   assert.match(agentSettings, /title="Enable AI"/);
+  assert.match(agentSettings, /title="Open Agent by default"/);
+  assert.match(agentSettings, /checked=\{settings\.agent\.openPanelByDefault\}/);
   assert.match(agentSettings, /checked=\{settings\.ai\.enabled\}/);
   assert.match(agentSettings, /listAgentRuntimes\(\)/);
   assert.match(agentSettings, /selectAgentRuntime\(runtimes/);
@@ -116,4 +138,17 @@ test('Agent settings keep automatic runtime selection concise and move the AI ga
   assert.match(agentSettings, /title="Runtime diagnostics retained"/);
   assert.match(agentSettings, /title="Compatibility replay messages"/);
   assert.match(agentSettings, /title="Show source delivery"/);
+});
+
+test('IdeaSketch settings expose sidebar and Page view defaults', async () => {
+  const ideaSketchSettings = await readFile(
+    new URL('../src/components/settings/IdeaSketchSettings.tsx', import.meta.url),
+    'utf8',
+  );
+  assert.match(ideaSketchSettings, /title="Open sidebar by default"/);
+  assert.match(ideaSketchSettings, /checked=\{settings\.ideaSketch\.openSidebarByDefault\}/);
+  assert.match(ideaSketchSettings, /title="Default Page view"/);
+  assert.match(ideaSketchSettings, /aria-label="Default Page view"/);
+  assert.match(ideaSketchSettings, /<option value="name">Name<\/option>/);
+  assert.match(ideaSketchSettings, /<option value="thumbnail">Thumbnail<\/option>/);
 });

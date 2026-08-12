@@ -24,10 +24,11 @@ test('Page thumbnail hook only schedules visible demand and debounces the active
   assert.doesNotMatch(source, /useSlideThumbnails|previewRendererClient|renderSlides/);
 });
 
-test('Page organizer defaults to Name view and virtualizes both presentations', async () => {
+test('Page organizer accepts a Name default and virtualizes both presentations', async () => {
   const source = await readSource('src/components/PageOrganizer.tsx');
   assert.match(source, /type PageViewMode = "name" \| "thumbnail"/);
-  assert.match(source, /useState<PageViewMode>\("name"\)/);
+  assert.match(source, /initialViewMode = "name"/);
+  assert.match(source, /useState<PageViewMode>\(initialViewMode\)/);
   assert.match(source, /useVirtualizer/);
   assert.match(source, /overscan: 4/);
   assert.match(source, /aria-label="Name view"/);

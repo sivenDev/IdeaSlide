@@ -39,6 +39,8 @@ interface PageOrganizerProps {
   activeDraft: EditorSlideDraft;
   canvasInteractionActive?: boolean;
   readOnly?: boolean;
+  initialViewMode?: PageViewMode;
+  initialViewModeReady?: boolean;
   onSelect: (pageId: string) => void;
   onAdd: () => void;
   onRename: (pageId: string, title: string) => void;
@@ -214,13 +216,16 @@ export function PageOrganizer({
   activeDraft,
   canvasInteractionActive = false,
   readOnly = false,
+  initialViewMode = "name",
+  initialViewModeReady = true,
   onSelect,
   onAdd,
   onRename,
   onReorder,
   onDelete,
 }: PageOrganizerProps) {
-  const [viewMode, setViewMode] = useState<PageViewMode>("name");
+  const [viewMode, setViewMode] = useState<PageViewMode>(initialViewMode);
+  const initialViewModeApplied = useRef(false);
   const [editingPageId, setEditingPageId] = useState<string>();
   const [editingTitle, setEditingTitle] = useState("");
   const [draggingPageId, setDraggingPageId] = useState<string>();
@@ -263,6 +268,12 @@ export function PageOrganizer({
     enabled: viewMode === "thumbnail",
     paused: thumbnailPaused,
   });
+
+  useEffect(() => {
+    if (!initialViewModeReady || initialViewModeApplied.current) return;
+    initialViewModeApplied.current = true;
+    setViewMode(initialViewMode);
+  }, [initialViewMode, initialViewModeReady]);
 
   useEffect(() => {
     virtualizer.measure();

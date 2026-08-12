@@ -9,7 +9,7 @@ test('IdeaSketch keeps the open control on Canvas and moves the close control in
   const styles = await readSource('src/index.css');
 
   assert.match(editor, /IDEASKETCH_DRAWER_STORAGE_KEY/);
-  assert.match(editor, /const \[drawerOpen, setDrawerOpen\] = useState\(false\)/);
+  assert.match(editor, /const \[drawerOpen, setDrawerOpen\] = useState\(settings\.ideaSketch\.openSidebarByDefault\)/);
   assert.match(editor, /import \{ PanelLeft, PanelLeftClose \} from "lucide-react"/);
   assert.match(editor, /className="ideanote-ideasketch-drawer-trigger is-drawer is-open"[\s\S]*?aria-label="Close IdeaSketch menu"[\s\S]*?<PanelLeftClose aria-hidden size=\{16\} strokeWidth=\{1\.9\} \/>/);
   assert.match(editor, /className="ideanote-ideasketch-drawer-trigger is-canvas"[\s\S]*?aria-label="Open IdeaSketch menu"[\s\S]*?<PanelLeft aria-hidden size=\{18\} strokeWidth=\{1\.9\} \/>/);
