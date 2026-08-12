@@ -357,3 +357,10 @@ Optimize the application theme styling around two complete user-facing Light and
 - created: 2026-08-12
 
 Redesign the Settings navigation using the supplied reference as hierarchy inspiration while preserving IdeaNote's Ink Violet Light/Dark identity. Use a clearer icon-led sidebar, compact grouping, a strong selected-section marker, and a page header with registry-provided description; do not add search for the current six sections. Remove the Save changes button and make configuration changes apply and persist automatically: switches, selects, and theme choices immediately; text and numeric inputs through a short race-safe debounce with flush on blur/close; Provider token only after a successful existing Test so partial or invalid secrets are never silently stored. Show unobtrusive saving/saved/error feedback, provide retry for failure, preserve registry-driven editor sections, secure credential boundaries, keyboard accessibility, compact layouts, and all current settings behavior.
+
+## F049: Simplify AI Provider Model and Token Fields
+
+- status: done
+- created: 2026-08-12
+
+Remove the redundant Model field from AI Provider Settings while preserving the existing model catalog and Agent-side model selection. When a provider token is already configured, render the password input as visibly populated with a fixed masked value instead of an empty field with a Configured placeholder; do not decrypt or return the saved token to React, browser storage, logs, or accessibility APIs. Typing replaces the masked state with a transient new token, successful Provider Test securely stores it, and failed Test or closing Settings does not replace the configured credential. Update the AI Provider section description and focused Settings/security regressions.

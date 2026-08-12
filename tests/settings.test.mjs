@@ -80,6 +80,7 @@ test('settings normalization is versioned and bounds Agent policy and Provider r
 
 test('credentials use native commands and are not part of persisted settings', async () => {
   const frontend = await readFile(new URL('../src/lib/settings.ts', import.meta.url), 'utf8');
+  const providerSettings = await readFile(new URL('../src/components/settings/AiProviderSettings.tsx', import.meta.url), 'utf8');
   const backend = await readFile(new URL('../src-tauri/src/settings.rs', import.meta.url), 'utf8');
   const cargo = await readFile(new URL('../src-tauri/Cargo.toml', import.meta.url), 'utf8');
   assert.match(frontend, /invoke<CredentialStatus>\("set_ai_credential"/);
@@ -94,6 +95,9 @@ test('credentials use native commands and are not part of persisted settings', a
   assert.match(cargo, /aes-gcm\s*=\s*"0\.10"/);
   assert.match(cargo, /zeroize\s*=\s*"1"/);
   assert.doesNotMatch(cargo, /\bkeyring\s*=/);
+  assert.match(providerSettings, /CONFIGURED_TOKEN_MASK/);
+  assert.doesNotMatch(providerSettings, /setApiKey\(CONFIGURED_TOKEN_MASK\)|probeAiProvider\([^\n]*CONFIGURED_TOKEN_MASK|storeCredential\(CONFIGURED_TOKEN_MASK/);
+  assert.doesNotMatch(providerSettings, /aria-label=\{CONFIGURED_TOKEN_MASK\}|placeholder=\{CONFIGURED_TOKEN_MASK\}/);
 });
 
 test('Agent settings keep automatic runtime selection concise and move the AI gate here', async () => {

@@ -25,7 +25,7 @@ export function getSettingsSections(): SettingsSectionDefinition[] {
 
 [
   { id: "general", label: "General", description: "Appearance and application preferences", icon: "settings", order: 10, owner: "application", group: "Application" },
-  { id: "ai-provider", label: "AI Provider", description: "Connection, credentials, and model selection", icon: "bot", order: 20, owner: "application", group: "AI" },
+  { id: "ai-provider", label: "AI Provider", description: "Connection, credentials, and retry policy", icon: "bot", order: 20, owner: "application", group: "AI" },
   { id: "agent", label: "Agent", description: "Availability, runtime, and conversation policy", icon: "sparkles", order: 30, owner: "application", group: "AI" },
   { id: "skills", label: "Skills", description: "Bundled and imported Agent Skills", icon: "blocks", order: 40, owner: "application", group: "AI" },
   { id: "ideasketch", label: "IdeaSketch", description: "Visual editor and presentation preferences", icon: "shapes", order: 100, owner: "editor", group: "Editors" },

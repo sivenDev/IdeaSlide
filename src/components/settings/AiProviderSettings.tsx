@@ -7,8 +7,9 @@ import { SettingsSwitch } from "./SettingsSwitch";
 interface TestedProvider {
   baseUrl: string;
   apiKey: string;
-  models: string[];
 }
+
+const CONFIGURED_TOKEN_MASK = "••••••••••••";
 
 export function AiProviderSettings() {
   const {
@@ -21,6 +22,7 @@ export function AiProviderSettings() {
     storeCredential,
   } = useSettingsDraft();
   const [testing, setTesting] = useState(false);
+  const [replacingCredential, setReplacingCredential] = useState(false);
   const [tested, setTested] = useState<TestedProvider>();
   const [testMessage, setTestMessage] = useState<string>();
   const [messageTone, setMessageTone] = useState<"success" | "error">("success");
@@ -48,7 +50,8 @@ export function AiProviderSettings() {
       }));
       const testedCredentialFingerprint = apiKey.trim() ? "__configured__" : credentialFingerprint;
       setApiKey("");
-      setTested({ baseUrl: normalizedBaseUrl, apiKey: testedCredentialFingerprint, models: result.models });
+      setReplacingCredential(false);
+      setTested({ baseUrl: normalizedBaseUrl, apiKey: testedCredentialFingerprint });
       setMessageTone("success");
       setTestMessage(`${result.models.length} model${result.models.length === 1 ? "" : "s"} available`);
     } catch (cause) {
@@ -80,9 +83,11 @@ export function AiProviderSettings() {
             type="password"
             autoComplete="new-password"
             aria-label="AI provider token"
-            placeholder={credentialConfigured ? "Configured" : "Enter token"}
+            placeholder={credentialConfigured ? "Enter replacement token" : "Enter token"}
             className="ideanote-settings-control ideanote-provider-control"
-            value={apiKey}
+            value={credentialConfigured && !replacingCredential && !apiKey ? CONFIGURED_TOKEN_MASK : apiKey}
+            onFocus={() => { if (credentialConfigured && !apiKey) setReplacingCredential(true); }}
+            onBlur={() => { if (credentialConfigured && !apiKey) setReplacingCredential(false); }}
             onChange={(event) => setApiKey(event.target.value)}
           />
         </SettingsField>
@@ -100,21 +105,6 @@ export function AiProviderSettings() {
               <span className={messageTone === "success" ? "is-success" : "is-error"} role="status">{testMessage}</span>
             )}
           </div>
-        </SettingsField>
-        <SettingsField title="Model">
-          <select
-            aria-label="AI model"
-            className="ideanote-settings-control ideanote-provider-control"
-            disabled={!testCurrent || !tested?.models.length}
-            value={testCurrent && tested?.models.includes(settings.ai.model) ? settings.ai.model : ""}
-            onChange={(event) => { void updateSettings((current) => ({
-              ...current,
-              ai: { ...current.ai, model: event.target.value },
-            })).catch(() => undefined); }}
-          >
-            <option value="">{testCurrent ? "Select model" : "Test provider first"}</option>
-            {testCurrent && tested?.models.map((model) => <option key={model} value={model}>{model}</option>)}
-          </select>
         </SettingsField>
         <SettingsField title="Automatic retry">
           <SettingsSwitch

@@ -52,20 +52,32 @@ test('Appearance choices use their visual previews without redundant icons', asy
   assert.doesNotMatch(source, /lucide-react|\bSun\b|\bMoon\b|\bMonitor\b|<Icon/);
 });
 
-test('AI Provider settings use password, Test, and tested model selection', async () => {
+test('AI Provider settings use a configured password mask and keep model selection in Agent', async () => {
   const source = await readFile(new URL('../src/components/settings/AiProviderSettings.tsx', import.meta.url), 'utf8');
+  const registry = await readFile(new URL('../src/lib/settingsSectionRegistry.ts', import.meta.url), 'utf8');
+  const modelSelector = await readFile(new URL('../src/components/agent/AgentModelSelector.tsx', import.meta.url), 'utf8');
   const commands = await readFile(new URL('../src/lib/tauriCommands.ts', import.meta.url), 'utf8');
   const backend = await readFile(new URL('../src-tauri/src/provider_probe.rs', import.meta.url), 'utf8');
   assert.match(source, /type="password"/);
+  assert.match(source, /const CONFIGURED_TOKEN_MASK = "[^"\r\n]+"/);
+  assert.match(source, /const \[replacingCredential, setReplacingCredential\] = useState\(false\)/);
+  assert.match(source, /value=\{credentialConfigured && !replacingCredential && !apiKey \? CONFIGURED_TOKEN_MASK : apiKey\}/);
+  assert.match(source, /onFocus=\{\(\) => \{ if \(credentialConfigured && !apiKey\) setReplacingCredential\(true\); \}\}/);
+  assert.match(source, /onBlur=\{\(\) => \{ if \(credentialConfigured && !apiKey\) setReplacingCredential\(false\); \}\}/);
+  assert.match(source, /setApiKey\(""\);[\s\S]*setReplacingCredential\(false\)/);
   assert.doesNotMatch(source, /Show API key|Hide API key|Remove credential/);
   assert.match(source, /probeAiProvider/);
   assert.match(source, /await storeCredential\(apiKey\.trim\(\)\)/);
   assert.match(source, /await updateSettings/);
+  assert.match(source, /availableModels: result\.models/);
+  assert.match(source, /model: result\.models\.includes\(current\.ai\.model\)/);
   assert.match(source, /apiKey\.trim\(\) \? "__configured__" : credentialFingerprint/);
   assert.doesNotMatch(source, /saveDraft/);
   assert.match(source, /Testing…/);
-  assert.match(source, /disabled=\{!testCurrent \|\| !tested\?\.models\.length\}/);
-  assert.match(source, /<select[\s\S]*aria-label="AI model"/);
+  assert.doesNotMatch(source, /<SettingsField title="Model">|aria-label="AI model"|<select/);
+  assert.doesNotMatch(registry, /Connection, credentials, and model selection/);
+  assert.match(registry, /description: "Connection, credentials, and retry policy"/);
+  assert.match(modelSelector, /models\.map/);
   assert.match(commands, /invoke<ProviderProbeResult>\("probe_ai_provider"/);
   assert.match(backend, /MAX_RESPONSE_BYTES/);
   assert.match(backend, /The provider rejected the token/);
