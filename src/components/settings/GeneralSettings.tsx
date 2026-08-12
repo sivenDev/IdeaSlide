@@ -16,6 +16,7 @@ export function GeneralSettings() {
           <button
             key={value}
             type="button"
+            data-theme-option={value}
             className={settings.general.theme === value ? "is-selected" : ""}
             aria-pressed={settings.general.theme === value}
             onClick={() => updateSettings((current) => ({
@@ -23,8 +24,11 @@ export function GeneralSettings() {
               general: { ...current.general, theme: value },
             }))}
           >
-            <Icon aria-hidden size={16} />
-            <strong>{label}</strong>
+            <span className="ideanote-theme-preview" aria-hidden>
+              <span className="ideanote-theme-preview__rail" />
+              <span className="ideanote-theme-preview__canvas"><span /></span>
+            </span>
+            <span className="ideanote-theme-option__label"><Icon aria-hidden size={14} /><strong>{label}</strong></span>
           </button>
         ))}
       </div>

@@ -105,7 +105,7 @@ function ToolbarButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex h-7 w-7 items-center justify-center rounded-md text-gray-500 transition hover:bg-[#ecebff] hover:text-[#5752bd] disabled:cursor-not-allowed disabled:opacity-35"
+      className="ideanote-markdown-icon-button flex h-7 w-7 items-center justify-center rounded-md disabled:cursor-not-allowed disabled:opacity-35"
     >
       {children}
     </button>
@@ -143,7 +143,7 @@ function MarkdownPreviewImage({
     return () => { cancelled = true; };
   }, [documentFullPath, src]);
   if (resolved) return <img src={resolved} alt={alt} title={title} />;
-  return <span className="inline-flex rounded-md border border-dashed border-gray-300 bg-gray-50 px-2 py-1 text-xs text-gray-400">{failed ? `Image unavailable: ${alt || src}` : "Loading image…"}</span>;
+  return <span className="ideanote-markdown-image-status inline-flex rounded-md border border-dashed px-2 py-1 text-xs">{failed ? `Image unavailable: ${alt || src}` : "Loading image…"}</span>;
 }
 
 export function MarkdownEditor({
@@ -402,7 +402,7 @@ export function MarkdownEditor({
   const preview = (
     <div
       ref={previewRef}
-      className="ideanote-markdown-preview h-full overflow-auto bg-white"
+      className="ideanote-markdown-preview h-full overflow-auto"
       onScroll={() => {
         if (!scrollSync || syncingScroll.current || !previewRef.current) return;
         const previewElement = previewRef.current;
@@ -419,8 +419,8 @@ export function MarkdownEditor({
   );
 
   return (
-    <div className="ideanote-markdown-editor flex h-full min-h-0 flex-col bg-[#f7f8fa]">
-      <div className="ideanote-markdown-toolbar flex h-10 flex-none items-center justify-start gap-2 border-b border-gray-200 bg-white px-2.5">
+    <div className="ideanote-markdown-editor flex h-full min-h-0 flex-col">
+      <div className="ideanote-markdown-toolbar flex h-10 flex-none items-center justify-start gap-2 px-2.5">
         <div className="flex items-center gap-0.5">
           <ToolbarButton label={showOutline ? "Hide outline" : "Show outline"} onClick={() => updateEditorState({ showOutline: !showOutline })}>
             {showOutline ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}
@@ -428,10 +428,10 @@ export function MarkdownEditor({
         </div>
         <div className="flex items-center gap-2">
           {model.lineEnding === "mixed" && !model.normalization && (
-            <label className="flex items-center gap-1.5 text-[11px] font-medium text-amber-700">
+            <label className="ideanote-markdown-normalization flex items-center gap-1.5 text-[11px] font-medium">
               Normalize line endings
               <select
-                className="h-7 rounded-md border border-amber-200 bg-amber-50 px-1.5 text-[11px] outline-none"
+                className="h-7 rounded-md px-1.5 text-[11px] outline-none"
                 defaultValue=""
                 onChange={(event) => {
                   if (!event.target.value) return;
@@ -446,14 +446,14 @@ export function MarkdownEditor({
               </select>
             </label>
           )}
-          <button type="button" onClick={() => updateEditorState({ scrollSync: !scrollSync })} className={`rounded-md px-2 py-1 text-[11px] font-medium ${scrollSync ? "bg-[#ecebff] text-[#5752bd]" : "text-gray-400 hover:bg-gray-100"}`}>Sync scroll</button>
-          <div className="flex rounded-lg bg-gray-100 p-0.5" aria-label="Markdown view mode">
+          <button type="button" onClick={() => updateEditorState({ scrollSync: !scrollSync })} className={`ideanote-markdown-sync rounded-md px-2 py-1 text-[11px] font-medium ${scrollSync ? "is-active" : ""}`}>Sync scroll</button>
+          <div className="ideanote-markdown-view-modes flex rounded-lg p-0.5" aria-label="Markdown view mode">
             {([
               ["edit", <ListTree key="edit" size={13} />, "Edit"],
               ["split", <Rows3 key="split" size={13} />, "Split"],
               ["preview", <Eye key="preview" size={13} />, "Preview"],
             ] as const).map(([mode, icon, label]) => (
-              <button key={mode} type="button" title={label} aria-pressed={viewMode === mode} onClick={() => updateEditorState({ viewMode: mode })} className={`flex h-7 items-center gap-1 rounded-md px-2 text-[11px] font-medium transition ${viewMode === mode ? "bg-white text-[#5752bd] shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
+              <button key={mode} type="button" title={label} aria-pressed={viewMode === mode} onClick={() => updateEditorState({ viewMode: mode })} className={`flex h-7 items-center gap-1 rounded-md px-2 text-[11px] font-medium ${viewMode === mode ? "is-active" : ""}`}>
                 {icon}<span>{label}</span>
               </button>
             ))}
@@ -463,12 +463,12 @@ export function MarkdownEditor({
 
       <div className="flex min-h-0 flex-1">
         {showOutline && (
-          <aside className="ideanote-markdown-outline w-52 flex-none overflow-auto border-r border-gray-200 bg-[#f4f5f7] px-2 py-3" aria-label="Document outline">
-            <div className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-400">Outline</div>
+          <aside className="ideanote-markdown-outline w-52 flex-none overflow-auto px-2 py-3" aria-label="Document outline">
+            <div className="ideanote-markdown-outline__label px-2 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em]">Outline</div>
             {headings.length === 0 ? (
-              <div className="px-2 py-6 text-xs leading-5 text-gray-400">Add headings to navigate this document.</div>
+              <div className="ideanote-markdown-outline__empty px-2 py-6 text-xs leading-5">Add headings to navigate this document.</div>
             ) : headings.map((heading) => (
-              <button key={`${heading.line}-${heading.id}`} type="button" onClick={() => jumpToHeading(heading)} className="block w-full truncate rounded-md py-1.5 pr-2 text-left text-xs text-gray-600 hover:bg-white hover:text-[#5752bd]" style={{ paddingLeft: `${8 + (heading.level - 1) * 10}px` }} title={heading.text}>
+              <button key={`${heading.line}-${heading.id}`} type="button" onClick={() => jumpToHeading(heading)} className="ideanote-markdown-outline__item block w-full truncate rounded-md py-1.5 pr-2 text-left text-xs" style={{ paddingLeft: `${8 + (heading.level - 1) * 10}px` }} title={heading.text}>
                 {heading.text}
               </button>
             ))}
@@ -493,7 +493,7 @@ export function MarkdownEditor({
               role="separator"
               aria-label="Resize Markdown source and preview"
               aria-orientation="vertical"
-              className={`relative z-10 w-px flex-none cursor-col-resize bg-gray-200 before:absolute before:-left-1.5 before:top-0 before:h-full before:w-3 ${resizingSplit ? "bg-[#7772dd]" : "hover:bg-[#aaa6e8]"}`}
+              className={`ideanote-markdown-split-divider relative z-10 w-px flex-none cursor-col-resize before:absolute before:-left-1.5 before:top-0 before:h-full before:w-3 ${resizingSplit ? "is-resizing" : ""}`}
               onMouseDown={(event) => {
                 event.preventDefault();
                 setResizingSplit(true);
@@ -504,7 +504,7 @@ export function MarkdownEditor({
             <div className="min-w-0" style={{ width: viewMode === "split" ? `${(1 - splitRatio) * 100}%` : "100%" }}>{preview}</div>
           )}
           {previewStale && viewMode !== "edit" && (
-            <div className="pointer-events-none absolute right-4 top-3 rounded-full border border-gray-200 bg-white/90 px-2 py-1 text-[10px] font-medium text-gray-400 shadow-sm">Updating preview…</div>
+            <div className="ideanote-markdown-preview-status pointer-events-none absolute right-4 top-3 rounded-full px-2 py-1 text-[10px] font-medium">Updating preview…</div>
           )}
         </div>
       </div>

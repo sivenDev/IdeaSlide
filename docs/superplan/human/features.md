@@ -343,3 +343,10 @@ Refine only .temp/f041-native-workbench-review after human review. Remove creati
 - created: 2026-08-11
 
 Migrate every user-facing product capability and the approved desktop interaction/layout from .temp/f041-native-workbench-review into the production Tauri application. Replace mock desktop/settings/agent boundaries with real Tauri v2 commands, persistence, permissions, and existing production services while preserving the registry-driven Workspace + Single File core, real-file safety, local-first recovery, responsive shell, themes, Settings, Markdown, Agent, menus, recents, window chrome, and Workspace file operations. Keep the existing production IdeaSketch/Excalidraw editor implementation and its editor-owned navigation; do not migrate the demo Excalidraw editor. Demo-only review scenarios, deterministic fixtures, failure injection, and reset controls remain test infrastructure rather than production UI.
+
+## F047: Polish Light and Dark Themes with a ChatGPT-Inspired Visual System
+
+- status: done
+- created: 2026-08-12
+
+Optimize the application theme styling around two complete user-facing Light and Dark palettes inspired by the ChatGPT desktop client: restrained neutral surfaces, clear panel hierarchy, accessible contrast, consistent controls, menus, dialogs, editor chrome, Agent activity, hover/focus/disabled/error states, and polished transitions. Preserve the existing persisted System option as an automatic resolver to the same Light or Dark palettes, keep editor-owned document colors unchanged, and retain all real Workspace, Settings, Agent, Markdown, IdeaSketch, and native-window behavior.

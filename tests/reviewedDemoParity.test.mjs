@@ -4,37 +4,23 @@ import { readFile } from 'node:fs/promises';
 
 const source = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('production shell owns the exact reviewed light and dark token contract', async () => {
+test('production shell preserves reviewed geometry while F047 owns semantic theme aliases', async () => {
   const css = await source('src/index.css');
   for (const token of [
-    '--paper: #ffffff',
-    '--workspace: #e9eae7',
-    '--agent: #f4f4f2',
-    '--frost: #f1f2f4',
-    '--graphite: #252930',
-    '--steel: #69727e',
-    '--muted: #8b929b',
-    '--line: #d5d8dc',
-    '--line-strong: #c4c8ce',
-    '--selection: #d9e2f7',
-    '--cobalt: #2f5dcc',
-    '--danger: #b4433c',
+    '--paper: var(--surface-primary)',
+    '--workspace: var(--surface-secondary)',
+    '--agent: var(--surface-tertiary)',
+    '--frost: var(--surface-inset)',
+    '--graphite: var(--text-primary)',
+    '--steel: var(--text-secondary)',
+    '--muted: var(--text-tertiary)',
+    '--line: var(--border-subtle)',
+    '--line-strong: var(--border-default)',
+    '--selection: var(--selection-bg)',
+    '--cobalt: var(--accent-document)',
+    '--danger: var(--status-danger)',
   ]) assert.match(css, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  for (const token of [
-    '--paper: #17191d',
-    '--workspace: #202329',
-    '--agent: #1c1f24',
-    '--frost: #191c21',
-    '--graphite: #e5e7eb',
-    '--steel: #a7aeb8',
-    '--muted: #7f8792',
-    '--line: #30343b',
-    '--line-strong: #3c424b',
-    '--selection: #253a62',
-    '--cobalt: #7396ec',
-    '--focus: #83a6fb',
-    '--danger: #ea7d75',
-  ]) assert.match(css, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(css, /:root\[data-theme="dark"\][\s\S]*--surface-primary:\s*#[0-9a-f]{6}/i);
 });
 
 test('reviewed workbench geometry and document identity are executable contracts', async () => {

@@ -14,6 +14,7 @@ import {
 
 interface SettingsContextValue {
   settings: AppSettings;
+  resolvedTheme: "light" | "dark";
   hydrated: boolean;
   saving: boolean;
   error?: string;
@@ -53,6 +54,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string>();
   const [credentialConfigured, setCredentialConfigured] = useState(false);
   const [themePreview, setThemePreview] = useState<AppSettings["general"]["theme"]>();
+  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
     let active = true;
@@ -78,6 +80,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       const resolved = theme === "system"
         ? (media.matches ? "dark" : "light")
         : theme;
+      setResolvedTheme(resolved);
       document.documentElement.dataset.theme = resolved;
       document.documentElement.style.colorScheme = resolved;
     };
@@ -146,6 +149,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<SettingsContextValue>(() => ({
     settings,
+    resolvedTheme,
     hydrated,
     saving,
     error,
@@ -156,7 +160,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     previewTheme: setThemePreview,
     storeCredential,
     removeCredential,
-  }), [credentialConfigured, error, hydrated, removeCredential, replaceSettings, saving, settings, storeCredential, updateSettings]);
+  }), [credentialConfigured, error, hydrated, removeCredential, replaceSettings, resolvedTheme, saving, settings, storeCredential, updateSettings]);
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 }

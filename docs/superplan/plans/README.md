@@ -7,7 +7,7 @@
 | Type | Plans | In Progress | Complete |
 | --- | --- | --- | --- |
 | `required` | 6 | 0 | 6 |
-| `feature` | 59 | 0 | 59 |
+| `feature` | 60 | 0 | 60 |
 | `bugfix` | 35 | 2 | 33 |
 
 ## Execution Order
@@ -95,6 +95,7 @@
 | `F046-02` | [Align Settings, Themes, and the Production Markdown Editor](features/F046-migrate-reviewed-demo-frontend-into-tauri/F046-02-settings-themes-and-markdown.md) | `complete` | 2026-08-11 |
 | `F046-03` | [Migrate the Reviewed Agent Panel onto the Real Agent Core](features/F046-migrate-reviewed-demo-frontend-into-tauri/F046-03-real-agent-panel.md) | `complete` | 2026-08-11 |
 | `F046-04` | [Complete Native Integration, Cleanup, and End-to-End Verification](features/F046-migrate-reviewed-demo-frontend-into-tauri/F046-04-native-integration-cleanup-and-verification.md) | `complete` | 2026-08-11 |
+| `F047` | [Polish Light and Dark Themes with a ChatGPT-Inspired Visual System](features/F047-polish-light-and-dark-themes.md) | `complete` | 2026-08-12 |
 
 ### Bugfix Plans
 
