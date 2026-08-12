@@ -354,3 +354,10 @@ When the production IdeaSketch navigator is open, place the close-navigation but
 - created: 2026-08-12
 
 When the Workspaces sidebar opens from the fileless Welcome state, the title first re-anchors because the restore button and native-frame padding disappear, then moves again as the sidebar width animates. Preserve a polished animated open/close transition while keeping the title on one continuous visual trajectory, with reduced-motion support.
+
+## B044: Relaunch IdeaNote after a successful macOS update
+
+- status: proposed
+- created: 2026-08-13
+
+On macOS, installing a signed update successfully replaces /Applications/IdeaNote.app with the new runtime version, but the running application does not automatically relaunch. The updater controller intends to call the Tauri process relaunch API after install, and its current unit test only proves a fake client call; diagnose the native install/relaunch boundary and preserve unsaved-change safeguards before proposing a fix.
