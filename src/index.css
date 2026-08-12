@@ -2304,74 +2304,59 @@ body,
     overflow: hidden;
 }
 
+.ideanote-ideasketch-canvas .excalidraw .main-menu-trigger {
+    display: none !important;
+}
+
 .ideanote-ideasketch-drawer-trigger {
     position: absolute;
     z-index: 24;
     top: 0.75rem;
     left: 0.75rem;
     display: grid;
-    width: 2.625rem;
-    height: 2.625rem;
+    width: 2.25rem;
+    height: 2.25rem;
     place-items: center;
-    border: 1px solid color-mix(in srgb, var(--accent-primary) 28%, var(--border-default));
-    border-radius: 0.625rem;
+    border: 0;
+    border-radius: 0.5rem;
     padding: 0;
-    color: var(--selection-text);
-    background: color-mix(in srgb, var(--surface-elevated) 91%, var(--selection-bg));
-    box-shadow: 0 5px 14px color-mix(in srgb, var(--text-primary) 12%, transparent);
+    color: var(--text-primary);
+    background: var(--surface-elevated);
+    box-shadow:
+        0 0 0 1px var(--border-subtle),
+        0 1px 3px color-mix(in srgb, var(--text-primary) 14%, transparent);
     cursor: pointer;
     transition:
-        border-color 120ms ease,
         color 120ms ease,
         background 120ms ease,
-        box-shadow 120ms ease,
-        transform 120ms ease;
+        box-shadow 120ms ease;
 }
 
-.ideanote-ideasketch-drawer-trigger::before {
-    position: absolute;
-    top: 0.5rem;
-    bottom: 0.5rem;
-    left: -1px;
-    width: 3px;
-    border-radius: 0 2px 2px 0;
-    background: var(--accent-primary);
-    content: "";
+.ideanote-ideasketch-drawer-trigger:hover {
+    color: var(--text-primary);
+    background: var(--interaction-hover);
 }
 
-.ideanote-ideasketch-drawer-trigger:hover,
 .ideanote-ideasketch-drawer-trigger.is-open {
-    border-color: var(--accent-primary);
     color: var(--selection-text);
     background: var(--selection-bg);
-}
-
-.ideanote-ideasketch-drawer-trigger:active {
-    transform: translateY(1px);
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--accent-primary) 44%, var(--border-subtle)),
+        0 1px 3px color-mix(in srgb, var(--text-primary) 14%, transparent);
 }
 
 .ideanote-ideasketch-drawer-trigger:focus-visible {
     outline: none;
     box-shadow:
-        0 0 0 3px color-mix(in srgb, var(--focus-ring) 28%, transparent),
-        0 5px 14px color-mix(in srgb, var(--text-primary) 12%, transparent);
+        0 0 0 2px var(--focus-ring),
+        0 1px 3px color-mix(in srgb, var(--text-primary) 14%, transparent);
 }
 
 .ideanote-ideasketch-drawer-commands {
     flex: 0 0 auto;
     border-top: 1px solid var(--border-subtle);
-    padding: 0.75rem 0.75rem 0.875rem;
+    padding: 0.625rem 0.75rem 0.75rem;
     background: color-mix(in srgb, var(--surface-elevated) 64%, transparent);
-}
-
-.ideanote-ideasketch-drawer-commands h2 {
-    margin: 0 0 0.625rem 0.1875rem;
-    color: var(--text-tertiary);
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.59375rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
 }
 
 .ideanote-ideasketch-drawer-commands__grid {
@@ -2518,7 +2503,7 @@ body,
 
     .ideanote-ideasketch-workspace.is-drawer-open .ideanote-ideasketch-drawer-trigger {
         z-index: 30;
-        left: calc(min(330px, 100cqw - 3rem) - 2.875rem);
+        left: calc(min(330px, 100cqw - 3rem) - 2.5rem);
     }
 
     .ideanote-ideasketch-drawer-commands__grid {

@@ -96,7 +96,7 @@ test('Custom Canvas commands and selection renderer keep stable callback identit
   assert.match(source, /const openImageExport = useCallback\(/);
   assert.match(source, /const changeCanvasBackground = useCallback\(/);
   assert.match(source, /const clearCanvas = useCallback\(/);
-  assert.match(source, /const openHelp = useCallback\(/);
+  assert.doesNotMatch(source, /const openHelp = useCallback\(/);
   assert.match(source, /const renderSelectionActions = useCallback\(/);
   assert.match(source, /renderTopRightUI=\{!viewMode && canConvertSelection && onConvertSelection\s*\? renderSelectionActions/s);
 });

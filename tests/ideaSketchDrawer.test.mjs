@@ -11,6 +11,8 @@ test('IdeaSketch starts with one custom top-left trigger and a closed left drawe
   assert.match(editor, /const \[drawerOpen, setDrawerOpen\] = useState\(false\)/);
   assert.match(editor, /className=\{`ideanote-ideasketch-drawer-trigger/);
   assert.match(editor, /aria-label=\{drawerOpen \? "Close IdeaSketch menu" : "Open IdeaSketch menu"\}/);
+  assert.match(editor, /<PanelLeft aria-hidden size=\{18\}/);
+  assert.doesNotMatch(editor, /\bMenu\b|PanelLeftClose/);
   assert.match(editor, /className="ideanote-ideasketch-drawer"/);
   assert.match(editor, /<ResizableDivider[\s\S]*?side="left"[\s\S]*?panelLabel="IdeaSketch menu"[\s\S]*?showToggle=\{false\}/);
   assert.doesNotMatch(editor, /side="right"/);
@@ -51,6 +53,7 @@ test('drawer layout state is UI-only, Escape dismissible, responsive, and reduce
 
 test('SlideCanvas exposes supported live commands without restoring Excalidraw MainMenu', async () => {
   const canvas = await readSource('src/components/SlideCanvas.tsx');
+  const styles = await readSource('src/index.css');
 
   assert.doesNotMatch(canvas, /\bMainMenu\b/);
   assert.match(canvas, /export interface SlideCanvasCommandApi/);
@@ -58,13 +61,13 @@ test('SlideCanvas exposes supported live commands without restoring Excalidraw M
   assert.match(canvas, /openImageExport/);
   assert.match(canvas, /changeCanvasBackground/);
   assert.match(canvas, /clearCanvas/);
-  assert.match(canvas, /openHelp/);
+  assert.doesNotMatch(canvas, /openHelp|name: "help"/);
   assert.match(canvas, /openDialog:\s*\{ name: "imageExport" \}/);
-  assert.match(canvas, /openDialog:\s*\{ name: "help" \}/);
   assert.match(canvas, /exportExcalidrawToDrawio/);
   assert.match(canvas, /CaptureUpdateAction\.IMMEDIATELY/);
   assert.match(canvas, /newElementWith/);
   assert.match(canvas, /layoutRefreshToken/);
+  assert.match(styles, /\.ideanote-ideasketch-canvas\s+\.excalidraw\s+\.main-menu-trigger\s*\{[\s\S]*?display:\s*none/);
 });
 
 test('the command footer keeps mutating actions read-only safe and clear requires confirmation', async () => {
@@ -73,11 +76,12 @@ test('the command footer keeps mutating actions read-only safe and clear require
   const editor = await readSource('src/components/IdeaSketchEditor.tsx');
 
   assert.match(commands, /disabled=\{readOnly \|\| !ready\}/);
-  assert.match(commands, /Canvas &amp; export/);
+  assert.doesNotMatch(commands, /Canvas &amp; export|<h2>/);
   assert.match(commands, /Export image/);
   assert.match(commands, /Export draw\.io/);
   assert.match(commands, /Canvas background/);
   assert.match(commands, /Clear canvas/);
+  assert.doesNotMatch(commands, /CircleHelp|>Help<|onHelp/);
   assert.match(dialog, /AlertDialog\.Root/);
   assert.match(dialog, /You can undo this action from the Canvas/);
   assert.match(editor, /onClearCanvas=\{\(\) => setClearCanvasDialogOpen\(true\)\}/);

@@ -13,12 +13,11 @@ test('SlideCanvas moves the former Excalidraw MainMenu actions behind its live c
   assert.match(source, /openImageExport/);
   assert.match(source, /changeCanvasBackground/);
   assert.match(source, /clearCanvas/);
-  assert.match(source, /openHelp/);
+  assert.doesNotMatch(source, /openHelp|name: "help"/);
   assert.match(source, /api\.getSceneElements\(\)/);
   assert.match(source, /api\.getFiles\(\)/);
   assert.match(source, /exportExcalidrawToDrawio/);
   assert.match(source, /openDialog:\s*\{ name: "imageExport" \}/);
-  assert.match(source, /openDialog:\s*\{ name: "help" \}/);
 });
 
 test('SlideCanvas reserves public top-right UI for contextual selection conversion only', async () => {

@@ -179,6 +179,7 @@ test('SlideCanvas comparable props omit obsolete Canvas action and Navigator cal
   assert.doesNotMatch(source, /onAddCamera/);
   assert.doesNotMatch(source, /isNavigatorOpen/);
   assert.doesNotMatch(source, /onToggleNavigator/);
+  assert.doesNotMatch(source, /onHelp|openHelp/);
   assert.match(source, /onConvertSelection/);
 });
 

@@ -319,3 +319,10 @@ Nested Workspace file and directory Move to Trash menu items render as ordinary 
 - created: 2026-08-12
 
 When the right Agent sidebar divider is dragged quickly from left to right, a blank strip appears on the right side of the panel instead of the Agent content continuously filling the resized width. The panel should track the pointer without animated width lag or exposed empty space, while preserving its min/max sizing, keyboard resizing, persisted width, and normal show/hide transition.
+
+## B039: Refine the IdeaSketch drawer controls
+
+- status: done
+- created: 2026-08-12
+
+In the production .is editor, remove the remaining Excalidraw top-left menu button, remove the Canvas & export section heading and Help action highlighted in the supplied screenshot, and restyle the drawer open/close trigger to match Excalidraw toolbar controls. Use the same navigation icon for both open and hidden states while preserving accessible labels, drawer behavior, Pages/Cameras content, and the remaining export/background/clear actions.

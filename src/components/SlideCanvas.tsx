@@ -41,7 +41,6 @@ export interface SlideCanvasCommandApi {
   openImageExport: () => void;
   changeCanvasBackground: (color: string) => void;
   clearCanvas: () => void;
-  openHelp: () => void;
 }
 
 interface SlideCanvasProps {
@@ -534,13 +533,6 @@ function SlideCanvasInner({
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,
     });
   }, [viewMode]);
-  const openHelp = useCallback(() => {
-    excalidrawApiRef.current?.updateScene({
-      appState: { openDialog: { name: "help" } },
-      captureUpdate: CaptureUpdateAction.NEVER,
-    });
-  }, []);
-
   useEffect(() => {
     if (apiReadyVersion === 0 || !onCommandApiReady) return;
     const commandApi: SlideCanvasCommandApi = {
@@ -548,7 +540,6 @@ function SlideCanvasInner({
       openImageExport,
       changeCanvasBackground,
       clearCanvas,
-      openHelp,
     };
     onCommandApiReady(commandApi, slideId);
     return () => onCommandApiReady(undefined, slideId);
@@ -558,7 +549,6 @@ function SlideCanvasInner({
     clearCanvas,
     handleExportDrawio,
     onCommandApiReady,
-    openHelp,
     openImageExport,
     slideId,
   ]);

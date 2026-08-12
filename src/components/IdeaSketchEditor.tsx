@@ -1,6 +1,6 @@
 import { CaptureUpdateAction, restoreElements } from "@excalidraw/excalidraw";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Menu, PanelLeftClose } from "lucide-react";
+import { PanelLeft } from "lucide-react";
 import type { DocumentModel, DocumentSession, IdeaSketchDocument, IdeaSketchPage } from "../types";
 import { useEditorSession } from "../hooks/useEditorSession";
 import { useAutoSave } from "../hooks/useAutoSave";
@@ -561,7 +561,6 @@ export function IdeaSketchEditor({
               onExportDrawio={() => canvasCommandApiRef.current?.exportDrawio()}
               onBackgroundChange={(color) => canvasCommandApiRef.current?.changeCanvasBackground(color)}
               onClearCanvas={() => setClearCanvasDialogOpen(true)}
-              onHelp={() => canvasCommandApiRef.current?.openHelp()}
             />
           </aside>
         </div>
@@ -586,9 +585,7 @@ export function IdeaSketchEditor({
             aria-expanded={drawerOpen}
             onClick={() => setDrawerOpen((open) => !open)}
           >
-            {drawerOpen
-              ? <PanelLeftClose aria-hidden size={18} strokeWidth={1.9} />
-              : <Menu aria-hidden size={18} strokeWidth={1.9} />}
+            <PanelLeft aria-hidden size={18} strokeWidth={1.9} />
           </button>
           <SlideCanvas
             key={draft.slideId}
