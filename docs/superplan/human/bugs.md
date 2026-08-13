@@ -368,3 +368,10 @@ On macOS, installing a signed update successfully replaces /Applications/IdeaNot
 - created: 2026-08-13
 
 Multi-line Markdown selections show detached purple blocks at line boundaries. The regression was introduced by F059 applying an inset box-shadow border to every CodeMirror selection-layer rectangle. Restore a continuous, readable focused and unfocused selection range without changing editor state, history, document content, or Agent selection behavior.
+
+## B046: Replace blocky Markdown selection geometry
+
+- status: done
+- created: 2026-08-13
+
+Markdown selection geometry remains wrong after B045: CodeMirror drawSelection deliberately fills horizontal space across line breaks, producing detached-looking blocks for both inline and multi-line selections. First prove a character-tight native-selection treatment in the tracked review demo, covering inline, cross-line, wrapped, focused, unfocused, Light and Dark states; only after demo acceptance migrate the same selection boundary to the production Tauri Markdown editor without changing history, document state, or Agent selection context.

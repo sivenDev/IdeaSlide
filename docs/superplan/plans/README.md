@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `required` | 6 | 6 |
 | `feature` | 72 | 72 |
-| `bugfix` | 45 | 45 |
+| `bugfix` | 46 | 46 |
 
 ## Execution Order
 
@@ -158,3 +158,4 @@
 | `B043@fix-welcome-sidebar-motion` | [Keep Welcome Title Motion Coherent While Opening Workspaces](bugs/B043@fix-welcome-sidebar-motion-keep-welcome-title-motion-coherent.md) | `complete` | 2026-08-12 |
 | `B044` | [Relaunch IdeaNote After a Successful macOS Update](bugs/B044-relaunch-ideanote-after-successful-macos-update.md) | `complete` | 2026-08-13 |
 | `B045` | [Fix Fragmented Markdown Selection Range Styling](bugs/B045-fix-fragmented-markdown-selection-range-styling.md) | `complete` | 2026-08-13 |
+| `B046` | [Replace Blocky Markdown Selection Geometry](bugs/B046-replace-blocky-markdown-selection-geometry.md) | `complete` | 2026-08-13 |

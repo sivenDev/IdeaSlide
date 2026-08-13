@@ -4,7 +4,6 @@ import { markdown } from "@codemirror/lang-markdown";
 import { searchKeymap } from "@codemirror/search";
 import { Compartment, EditorState, Transaction } from "@codemirror/state";
 import {
-  drawSelection,
   dropCursor,
   EditorView,
   highlightActiveLine,
@@ -64,7 +63,6 @@ export function useCodeMirrorEditor({
             ? [lineNumbers(), highlightActiveLineGutter()]
             : []),
           history(),
-          drawSelection(),
           dropCursor(),
           highlightActiveLine(),
           markdown(),
@@ -97,10 +95,10 @@ export function useCodeMirrorEditor({
             ".cm-gutters": { backgroundColor: "var(--ideanote-editor-gutter, #f4f5f7)", color: "var(--ideanote-editor-muted, #a0a5ae)", borderRight: "1px solid var(--ideanote-editor-line, #e4e6eb)" },
             ".cm-activeLine": { backgroundColor: "var(--ideanote-editor-active, #f0efff70)" },
             ".cm-activeLineGutter": { backgroundColor: "var(--ideanote-editor-active-gutter, #e8e7fb)", color: "var(--ideanote-cobalt, #625dd6)" },
-            "&.cm-focused .cm-selectionBackground, &.cm-focused ::selection": {
+            "&.cm-focused ::selection": {
               backgroundColor: "var(--ideanote-editor-selection, #c7bef5) !important",
             },
-            "&:not(.cm-focused) .cm-selectionBackground": {
+            "&:not(.cm-focused) ::selection": {
               backgroundColor: "var(--ideanote-editor-selection-unfocused, #dfdbef) !important",
             },
             ".cm-focused": { outline: "none" },

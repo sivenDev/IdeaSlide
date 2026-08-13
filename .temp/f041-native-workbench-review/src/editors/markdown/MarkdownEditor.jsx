@@ -2,7 +2,7 @@ import { defaultKeymap, history, historyKeymap, redo, undo } from "@codemirror/c
 import { markdown } from "@codemirror/lang-markdown";
 import { searchKeymap } from "@codemirror/search";
 import { Compartment, EditorState } from "@codemirror/state";
-import { drawSelection, EditorView, highlightActiveLine, keymap, lineNumbers } from "@codemirror/view";
+import { EditorView, highlightActiveLine, keymap, lineNumbers } from "@codemirror/view";
 import { Braces, Columns2, Eye, PanelLeftClose, PanelLeftOpen, Redo2, Undo2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
@@ -40,7 +40,7 @@ export function MarkdownEditor({ document, onChange, onRegisterAdapter, showLine
       doc: document.content,
       extensions: [
         lineNumberCompartment.of(showLineNumbers ? lineNumbers() : []),
-        highlightActiveLine(), drawSelection(), history(), markdown(), EditorView.lineWrapping,
+        highlightActiveLine(), history(), markdown(), EditorView.lineWrapping,
         keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]), theme,
         EditorView.editable.of(!document.readOnly),
         EditorView.updateListener.of((update) => {
