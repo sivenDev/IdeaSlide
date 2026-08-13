@@ -375,3 +375,10 @@ Multi-line Markdown selections show detached purple blocks at line boundaries. T
 - created: 2026-08-13
 
 Markdown selection geometry remains wrong after B045: CodeMirror drawSelection deliberately fills horizontal space across line breaks, producing detached-looking blocks for both inline and multi-line selections. First prove a character-tight native-selection treatment in the tracked review demo, covering inline, cross-line, wrapped, focused, unfocused, Light and Dark states; only after demo acceptance migrate the same selection boundary to the production Tauri Markdown editor without changing history, document state, or Agent selection context.
+
+## B047: Match Tauri Markdown selection to the approved demo
+
+- status: done
+- created: 2026-08-13
+
+The Tauri Markdown editor still renders incorrect inline and cross-line selections after B046, while the approved review demo is correct. Reproduce the production-only mismatch, then migrate the demo's exact Markdown-host CSS selector boundary (.cm-content, .cm-line, and descendant ::selection targets) into Tauri instead of relying on the approximate EditorView theme ancestor selector. Preserve one EditorView, history, document state, Agent selection context, and Edit/Split/Preview behavior.

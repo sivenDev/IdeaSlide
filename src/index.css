@@ -5688,6 +5688,12 @@ body,
     color: var(--text-primary);
     background: var(--surface-primary) !important;
 }
+.ideanote-markdown-source .cm-content::selection,
+.ideanote-markdown-source .cm-line::selection,
+.ideanote-markdown-source .cm-line *::selection {
+    color: var(--selection-text);
+    background: var(--ideanote-editor-selection);
+}
 .ideanote-markdown-toolbar {
     border-bottom: 1px solid var(--border-subtle);
     color: var(--text-secondary);

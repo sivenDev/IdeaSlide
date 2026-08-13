@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `required` | 6 | 6 |
 | `feature` | 72 | 72 |
-| `bugfix` | 46 | 46 |
+| `bugfix` | 47 | 47 |
 
 ## Execution Order
 
@@ -159,3 +159,4 @@
 | `B044` | [Relaunch IdeaNote After a Successful macOS Update](bugs/B044-relaunch-ideanote-after-successful-macos-update.md) | `complete` | 2026-08-13 |
 | `B045` | [Fix Fragmented Markdown Selection Range Styling](bugs/B045-fix-fragmented-markdown-selection-range-styling.md) | `complete` | 2026-08-13 |
 | `B046` | [Replace Blocky Markdown Selection Geometry](bugs/B046-replace-blocky-markdown-selection-geometry.md) | `complete` | 2026-08-13 |
+| `B047` | [Match Tauri Markdown Selection to the Approved Demo](bugs/B047-match-tauri-markdown-selection-to-approved-demo.md) | `complete` | 2026-08-13 |

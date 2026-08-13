@@ -418,7 +418,7 @@ export function MarkdownEditor({
             aria-hidden={viewMode === "preview"}
             style={{ width: viewMode === "preview" ? 0 : viewMode === "split" ? `${splitRatio * 100}%` : "100%" }}
           >
-            <div ref={editor.hostRef} className="h-full" aria-label="Markdown source editor" />
+            <div ref={editor.hostRef} className="ideanote-markdown-source h-full" aria-label="Markdown source editor" />
             {viewMode !== "preview" && (
               <div className="ideanote-markdown-history" aria-label="Markdown history">
                 <ToolbarButton label="Undo" disabled={readOnly || !editor.canUndo} onClick={editor.undo}><Undo2 size={14} /></ToolbarButton>
