@@ -427,3 +427,10 @@ Add a read-only About section under the Settings Application group. It should ma
 - created: 2026-08-13
 
 Add a persistent Markdown setting controlling whether the editor's left Outline navigation opens by default. Default the preference to off, apply it when a Markdown editor has no saved per-document outline state, and preserve the existing in-editor Outline toggle and saved document-session state.
+
+## F059: Improve Markdown selection and rich code previews
+
+- status: accepted
+- created: 2026-08-13
+
+Improve the Markdown source editor so selected text has an unmistakable visible range. Extend Markdown preview support to safe HTML elements and fenced code blocks. Render normal fenced code blocks clearly, preview Mermaid fences as diagrams, and preview HTML fences in an isolated, application-safe surface. Preserve the Markdown source text and existing Edit, Split, Preview, autosave, recovery, link, image, and Agent editing behavior.
