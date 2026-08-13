@@ -396,6 +396,12 @@ export function MarkdownEditor({
               </button>
             ))}
           </div>
+          {viewMode !== "preview" && (
+            <div className="ideanote-markdown-history" aria-label="Markdown history">
+              <ToolbarButton label="Undo" disabled={readOnly || !editor.canUndo} onClick={editor.undo}><Undo2 size={14} /></ToolbarButton>
+              <ToolbarButton label="Redo" disabled={readOnly || !editor.canRedo} onClick={editor.redo}><Redo2 size={14} /></ToolbarButton>
+            </div>
+          )}
         </div>
       </div>
 
@@ -419,12 +425,6 @@ export function MarkdownEditor({
             style={{ width: viewMode === "preview" ? 0 : viewMode === "split" ? `${splitRatio * 100}%` : "100%" }}
           >
             <div ref={editor.hostRef} className="ideanote-markdown-source h-full" aria-label="Markdown source editor" />
-            {viewMode !== "preview" && (
-              <div className="ideanote-markdown-history" aria-label="Markdown history">
-                <ToolbarButton label="Undo" disabled={readOnly || !editor.canUndo} onClick={editor.undo}><Undo2 size={14} /></ToolbarButton>
-                <ToolbarButton label="Redo" disabled={readOnly || !editor.canRedo} onClick={editor.redo}><Redo2 size={14} /></ToolbarButton>
-              </div>
-            )}
           </div>
           {viewMode === "split" && (
             <div

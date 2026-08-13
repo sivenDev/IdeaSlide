@@ -37,6 +37,28 @@ function sectionIcon(section: SettingsSectionDefinition) {
   return <Icon aria-hidden size={15} strokeWidth={1.8} />;
 }
 
+function SettingsNavItem({
+  section,
+  activeSection,
+  onSelect,
+}: {
+  section: SettingsSectionDefinition;
+  activeSection: SettingsSectionId;
+  onSelect: (section: SettingsSectionId) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`ideanote-settings-nav__item ${activeSection === section.id ? "is-active" : ""}`}
+      aria-current={activeSection === section.id ? "page" : undefined}
+      onClick={() => onSelect(section.id)}
+    >
+      {sectionIcon(section)}
+      <span>{section.label}</span>
+    </button>
+  );
+}
+
 function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const sections = getSettingsSections();
   const [activeSection, setActiveSection] = useState<SettingsSectionId>(sections[0]?.id ?? "general");
@@ -48,7 +70,8 @@ function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
     }
   }, [activeSection, open, sections]);
 
-  const groups = ["Application", "AI", "Editors"] as const;
+  const topLevelSections = sections.filter((section) => section.group === "Application");
+  const groups = ["AI", "Editors"] as const;
   const activeDefinition = sections.find((section) => section.id === activeSection) ?? sections[0];
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
@@ -81,23 +104,27 @@ function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
           </header>
           <div className="flex min-h-0 flex-1">
             <nav className="ideanote-settings-nav" aria-label="Settings sections">
+              <div className="ideanote-settings-nav__group is-top-level">
+                {topLevelSections.map((section) => (
+                  <SettingsNavItem
+                    key={section.id}
+                    section={section}
+                    activeSection={activeSection}
+                    onSelect={setActiveSection}
+                  />
+                ))}
+              </div>
               {groups.map((group) => (
                 <div key={group} className="ideanote-settings-nav__group">
                   <div className="ideanote-settings-nav__group-label">{group}</div>
-                  {sections.filter((section) => section.group === group).map((section) => {
-                    return (
-                      <button
-                        key={section.id}
-                        type="button"
-                      className={`ideanote-settings-nav__item ${activeSection === section.id ? "is-active" : ""}`}
-                      aria-current={activeSection === section.id ? "page" : undefined}
-                      onClick={() => setActiveSection(section.id)}
-                    >
-                        {sectionIcon(section)}
-                        <span>{section.label}</span>
-                      </button>
-                    );
-                  })}
+                  {sections.filter((section) => section.group === group).map((section) => (
+                    <SettingsNavItem
+                      key={section.id}
+                      section={section}
+                      activeSection={activeSection}
+                      onSelect={setActiveSection}
+                    />
+                  ))}
                 </div>
               ))}
             </nav>

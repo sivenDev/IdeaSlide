@@ -13,16 +13,22 @@ test('Markdown keeps one CodeMirror host through Preview, Split, and Edit', asyn
   assert.doesNotMatch(editor, /\(viewMode === "edit" \|\| viewMode === "split"\) && \(/);
 });
 
-test('Markdown top chrome starts with Outline and keeps history at lower left', async () => {
+test('Markdown top chrome starts with Outline and places history after view modes', async () => {
   const editor = await readSource('src/components/MarkdownEditor.tsx');
   const outline = editor.indexOf('label={showOutline ? "Hide outline" : "Show outline"}');
   const viewMode = editor.indexOf('aria-label="Markdown view mode"');
+  const history = editor.indexOf('className="ideanote-markdown-history"');
   assert.ok(outline >= 0 && outline < viewMode);
+  assert.ok(viewMode >= 0 && viewMode < history);
   assert.match(editor, /ideanote-markdown-toolbar[^"\n]*justify-start/);
   assert.doesNotMatch(editor, /ideanote-markdown-toolbar[^"\n]*justify-between/);
   assert.match(editor, /className="ideanote-markdown-history"/);
+  assert.match(editor, /aria-label="Markdown view mode"[\s\S]*?viewMode !== "preview"[\s\S]*?className="ideanote-markdown-history"/);
   assert.match(editor, /disabled=\{readOnly \|\| !editor\.canUndo\}/);
   assert.match(editor, /disabled=\{readOnly \|\| !editor\.canRedo\}/);
+  const styles = await readSource('src/index.css');
+  const historyStyle = styles.match(/\.ideanote-markdown-history \{([\s\S]*?)\n\}/)?.[1] ?? '';
+  assert.doesNotMatch(historyStyle, /position:\s*absolute|bottom:|left:|box-shadow:/);
   assert.doesNotMatch(editor, /label="Heading"|label="Bold"|label="Italic"|label="Link"|label="Bullet list"|label="Code block"/);
 });
 

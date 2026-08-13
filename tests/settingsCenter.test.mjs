@@ -22,7 +22,11 @@ test('Settings Center is registry-driven and reachable from the persistent workb
     assert.match(registry, new RegExp(`icon: "${icon}"`));
   }
   assert.match(center, /getSettingsSections\(\)/);
+  assert.match(center, /topLevelSections/);
   assert.match(center, /groups\.map/);
+  assert.doesNotMatch(center, /const groups = \["Application"/);
+  assert.doesNotMatch(center, />\{group\}<\/div>[\s\S]*section\.group === "Application"/);
+  assert.match(center, /const groups = \["AI", "Editors"\]/);
   assert.match(center, /sectionIcon/);
   assert.match(center, /activeDefinition\.description/);
   assert.match(center, /ideanote-settings-page-header/);

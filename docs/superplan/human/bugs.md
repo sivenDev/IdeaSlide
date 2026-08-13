@@ -382,3 +382,10 @@ Markdown selection geometry remains wrong after B045: CodeMirror drawSelection d
 - created: 2026-08-13
 
 The Tauri Markdown editor still renders incorrect inline and cross-line selections after B046, while the approved review demo is correct. Reproduce the production-only mismatch, then migrate the demo's exact Markdown-host CSS selector boundary (.cm-content, .cm-line, and descendant ::selection targets) into Tauri instead of relying on the approximate EditorView theme ancestor selector. Preserve one EditorView, history, document state, Agent selection context, and Edit/Split/Preview behavior.
+
+## B048: Align update, Settings navigation, and Markdown history controls
+
+- status: done
+- created: 2026-08-13
+
+1. When an update is available and its large notice has been dismissed, the compact Update action to the right of Settings should use the violet primary color shown in the supplied reference. 2. In Settings navigation, General and About should appear directly as top-level navigation items without an Application category label; AI and Editors remain grouped. 3. In the Markdown editor, move Undo and Redo from the lower-left floating control to the top toolbar immediately to the right of Edit, Split, and Preview. Preserve current actions, disabled behavior, accessibility, themes, and responsive layout.

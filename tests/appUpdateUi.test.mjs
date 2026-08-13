@@ -45,10 +45,9 @@ test('update presentation has isolated responsive theme and reduced-motion styli
   const compactUpdateStyle = styles.match(
     /\.ideanote-workspace-footer__update \{([\s\S]*?)\n\}/,
   )?.[1] ?? '';
-  assert.match(compactUpdateStyle, /border:\s*1px solid var\(--border-default\)/);
-  assert.match(compactUpdateStyle, /color:\s*var\(--text-secondary\)/);
-  assert.match(compactUpdateStyle, /background:\s*transparent/);
-  assert.doesNotMatch(compactUpdateStyle, /accent-primary/);
+  assert.match(compactUpdateStyle, /border:\s*1px solid var\(--accent-primary\)/);
+  assert.match(compactUpdateStyle, /color:\s*var\(--accent-contrast\)/);
+  assert.match(compactUpdateStyle, /background:\s*var\(--accent-primary\)/);
   assert.match(styles, /color: var\(--accent-contrast\)/);
   assert.match(styles, /html\[data-theme="dark"\] \.ideanote-workspace-footer__settings/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?ideanote-app-update/);
