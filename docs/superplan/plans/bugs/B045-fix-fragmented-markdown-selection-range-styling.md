@@ -2,7 +2,7 @@
 id: "B045"
 title: "Fix Fragmented Markdown Selection Range Styling"
 type: "bugfix"
-status: "draft"
+status: "complete"
 summary: "Restore continuous Markdown selection highlighting without detached boundary blocks."
 source: "docs/superplan/human/bugs.md"
 created: "2026-08-13"
@@ -39,9 +39,9 @@ parent: ""
 - `node --test tests/markdownSelection.test.mjs tests/markdownEditorRefinement.test.mjs tests/themeVisualContract.test.mjs`
 - Browser acceptance in Light and Dark: select across line boundaries and wrapped lines, then move focus to toolbar and Preview; inspect for continuous fill and absence of detached edge blocks.
 
-- [ ] Add a focused regression that rejects per-fragment selection borders or shadows.
-- [ ] Remove the root-cause styling and obsolete token without weakening focused/unfocused distinction.
-- [ ] Verify multi-line selection appearance and unchanged editor lifecycle behavior.
+- [x] Add a focused regression that rejects per-fragment selection borders or shadows.
+- [x] Remove the root-cause styling and obsolete token without weakening focused/unfocused distinction.
+- [x] Verify multi-line selection appearance and unchanged editor lifecycle behavior.
 
 ## Task 2: Verify and Deliver B045
 
@@ -63,9 +63,18 @@ parent: ""
 - `git diff --check`
 - `git status --short`
 
-- [ ] Run focused checks during implementation and one stabilized full frontend/build regression.
-- [ ] Confirm the screenshot artifact is gone across focus and theme states without selection lifecycle regressions.
-- [ ] Mark B045 complete/done and create a separate `fix(B045)` commit.
+- [x] Run focused checks during implementation and one stabilized full frontend/build regression.
+- [x] Confirm the screenshot artifact is gone across focus and theme states without selection lifecycle regressions.
+- [x] Mark B045 complete/done and create a separate `fix(B045)` commit.
+
+## Delivery Evidence
+
+- The focused regression first failed against the F059 implementation because `.cm-selectionBackground` still carried an inset `boxShadow` and the `--ideanote-editor-selection-border` token. It now rejects both contracts while retaining focused/unfocused selectors, `drawSelection()`, one `EditorView`, and no secondary selection state.
+- The root-cause fix removes only the per-fragment shadows and obsolete border token. Focused and unfocused selection fills remain distinct and continue to use the existing semantic Light/Dark theme boundary.
+- Focused verification passed: `node --test tests/markdownSelection.test.mjs tests/markdownEditorRefinement.test.mjs tests/themeVisualContract.test.mjs` (13/13).
+- Browser acceptance reproduced a multi-line select-all range in Dark and Light themes. Every CodeMirror selection rectangle reported `box-shadow: none` and `border-width: 0`, while focused and unfocused computed background colors remained different; the detached purple edge blocks from the supplied screenshot were absent at the root styling boundary.
+- The stabilized frontend regression passed: `node --test --test-concurrency=1 --test-reporter=dot tests/*.test.mjs`. Production TypeScript/Vite build passed with only the existing mixed static/dynamic import and large-chunk advisories.
+- Final workflow validation, generated-index validation, diff checks, and exact task-path review passed before the B045 commit.
 
 ## References
 

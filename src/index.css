@@ -5685,7 +5685,6 @@ body,
     --ideanote-editor-active-gutter: color-mix(in srgb, var(--accent-primary) 13%, var(--surface-inset));
     --ideanote-editor-selection: color-mix(in srgb, var(--accent-primary) 34%, var(--surface-primary));
     --ideanote-editor-selection-unfocused: color-mix(in srgb, var(--accent-primary) 18%, var(--surface-primary));
-    --ideanote-editor-selection-border: color-mix(in srgb, var(--accent-primary) 72%, var(--border-strong));
     color: var(--text-primary);
     background: var(--surface-primary) !important;
 }

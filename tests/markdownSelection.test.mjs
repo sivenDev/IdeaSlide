@@ -12,10 +12,11 @@ test('Markdown selection styling distinguishes focused and unfocused ranges with
   assert.match(hook, /drawSelection\(\)/);
   assert.match(hook, /&\.cm-focused .*\.cm-selectionBackground/);
   assert.match(hook, /&:not\(\.cm-focused\).*\.cm-selectionBackground/);
-  assert.match(hook, /--ideanote-editor-selection-border/);
   assert.match(hook, /--ideanote-editor-selection-unfocused/);
   assert.equal((hook.match(/new EditorView/g) ?? []).length, 1);
-  assert.match(css, /--ideanote-editor-selection-border:/);
   assert.match(css, /--ideanote-editor-selection-unfocused:/);
+  assert.doesNotMatch(hook, /\.cm-selectionBackground[\s\S]{0,240}boxShadow/);
+  assert.doesNotMatch(hook, /--ideanote-editor-selection-border/);
+  assert.doesNotMatch(css, /--ideanote-editor-selection-border:/);
   assert.doesNotMatch(hook, /useState\([^)]*selection|selectionCompartment/);
 });

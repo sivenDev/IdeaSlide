@@ -99,11 +99,9 @@ export function useCodeMirrorEditor({
             ".cm-activeLineGutter": { backgroundColor: "var(--ideanote-editor-active-gutter, #e8e7fb)", color: "var(--ideanote-cobalt, #625dd6)" },
             "&.cm-focused .cm-selectionBackground, &.cm-focused ::selection": {
               backgroundColor: "var(--ideanote-editor-selection, #c7bef5) !important",
-              boxShadow: "inset 0 0 0 1px var(--ideanote-editor-selection-border, #7565c9)",
             },
             "&:not(.cm-focused) .cm-selectionBackground": {
               backgroundColor: "var(--ideanote-editor-selection-unfocused, #dfdbef) !important",
-              boxShadow: "inset 0 0 0 1px var(--ideanote-editor-selection-border, #7565c9)",
             },
             ".cm-focused": { outline: "none" },
           }),

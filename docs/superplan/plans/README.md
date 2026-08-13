@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Draft | Complete |
-| --- | --- | --- | --- |
-| `required` | 6 | 0 | 6 |
-| `feature` | 72 | 0 | 72 |
-| `bugfix` | 45 | 1 | 44 |
+| Type | Plans | Complete |
+| --- | --- | --- |
+| `required` | 6 | 6 |
+| `feature` | 72 | 72 |
+| `bugfix` | 45 | 45 |
 
 ## Execution Order
 
@@ -157,4 +157,4 @@
 | `B042` | [Move the Open IdeaSketch Close Control into the Navigator](bugs/B042-move-open-ideasketch-close-control-into-navigator.md) | `complete` | 2026-08-12 |
 | `B043@fix-welcome-sidebar-motion` | [Keep Welcome Title Motion Coherent While Opening Workspaces](bugs/B043@fix-welcome-sidebar-motion-keep-welcome-title-motion-coherent.md) | `complete` | 2026-08-12 |
 | `B044` | [Relaunch IdeaNote After a Successful macOS Update](bugs/B044-relaunch-ideanote-after-successful-macos-update.md) | `complete` | 2026-08-13 |
-| `B045` | [Fix Fragmented Markdown Selection Range Styling](bugs/B045-fix-fragmented-markdown-selection-range-styling.md) | `draft` | 2026-08-13 |
+| `B045` | [Fix Fragmented Markdown Selection Range Styling](bugs/B045-fix-fragmented-markdown-selection-range-styling.md) | `complete` | 2026-08-13 |

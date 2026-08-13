@@ -364,7 +364,7 @@ On macOS, installing a signed update successfully replaces /Applications/IdeaNot
 
 ## B045: Fix fragmented Markdown selection range styling
 
-- status: accepted
+- status: done
 - created: 2026-08-13
 
 Multi-line Markdown selections show detached purple blocks at line boundaries. The regression was introduced by F059 applying an inset box-shadow border to every CodeMirror selection-layer rectangle. Restore a continuous, readable focused and unfocused selection range without changing editor state, history, document content, or Agent selection behavior.
