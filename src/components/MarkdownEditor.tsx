@@ -159,7 +159,7 @@ export function MarkdownEditor({
   onOpenDocumentLink,
   documentFullPath,
 }: MarkdownEditorProps) {
-  const { settings } = useSettings();
+  const { hydrated, settings } = useSettings();
   const model = document.model;
   if (!model) throw new Error("Markdown document model is missing");
   const modelRef = useRef(model);
@@ -169,7 +169,10 @@ export function MarkdownEditor({
   const syncingScroll = useRef(false);
   const initialState = document.editorState?.markdown;
   const [viewMode, setViewMode] = useState<MarkdownViewMode>(initialState?.viewMode ?? "split");
-  const [showOutline, setShowOutline] = useState(initialState?.showOutline ?? true);
+  const [showOutline, setShowOutline] = useState(
+    initialState?.showOutline ?? settings.markdown.openOutlineByDefault,
+  );
+  const outlineDefaultApplied = useRef(typeof initialState?.showOutline === "boolean");
   const [scrollSync, setScrollSync] = useState(initialState?.scrollSync ?? true);
   const [splitRatio, setSplitRatio] = useState(initialState?.splitRatio ?? 0.5);
   const splitRatioRef = useRef(splitRatio);
@@ -180,6 +183,12 @@ export function MarkdownEditor({
   useEffect(() => {
     modelRef.current = document.model!;
   }, [document.model]);
+
+  useEffect(() => {
+    if (!hydrated || outlineDefaultApplied.current) return;
+    outlineDefaultApplied.current = true;
+    setShowOutline(settings.markdown.openOutlineByDefault);
+  }, [hydrated, settings.markdown.openOutlineByDefault]);
 
   useEffect(() => {
     setPreviewStale(true);

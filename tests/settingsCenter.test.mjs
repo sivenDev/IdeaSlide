@@ -107,4 +107,6 @@ test('Settings pages rely on the registry header and mark continuous fields as d
   assert.match(sources[1], /onBlur=\{\(\) => \{ void flush\(\)\.catch/);
   assert.match(sources[2], /persistence:\s*"debounced"/);
   assert.match(sources[2], /onBlur=\{\(\) => \{ void flush\(\)\.catch/);
+  assert.match(sources[5], /title="Open Outline by default"/);
+  assert.match(sources[5], /checked=\{settings\.markdown\.openOutlineByDefault\}/);
 });

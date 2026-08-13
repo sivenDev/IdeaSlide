@@ -36,3 +36,19 @@ test('Markdown line numbers default off and reconfigure without rebuilding edito
   assert.match(hook, /reconfigure\(showLineNumbers/);
   assert.equal((hook.match(/new EditorView/g) ?? []).length, 1);
 });
+
+test('Markdown Outline uses the default-off setting only when document state is absent', async () => {
+  const settings = await import('../src/lib/settings.ts');
+  const editor = await readSource('src/components/MarkdownEditor.tsx');
+  assert.equal(settings.DEFAULT_SETTINGS.markdown.openOutlineByDefault, false);
+  assert.match(
+    editor,
+    /useState\(\s*initialState\?\.showOutline \?\? settings\.markdown\.openOutlineByDefault,?\s*\)/,
+  );
+  assert.match(editor, /outlineDefaultApplied = useRef\(typeof initialState\?\.showOutline === "boolean"\)/);
+  assert.match(editor, /if \(!hydrated \|\| outlineDefaultApplied\.current\) return/);
+  assert.match(editor, /setShowOutline\(settings\.markdown\.openOutlineByDefault\)/);
+  assert.match(editor, /updateEditorState\(\{ showOutline: !showOutline \}\)/);
+  assert.match(editor, /if \(typeof patch\.showOutline === "boolean"\) setShowOutline\(patch\.showOutline\)/);
+  assert.doesNotMatch(editor, /updateSettings[\s\S]*showOutline/);
+});

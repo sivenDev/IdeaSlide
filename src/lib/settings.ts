@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { load, type Store } from "@tauri-apps/plugin-store";
 
-export const SETTINGS_SCHEMA_VERSION = 6;
+export const SETTINGS_SCHEMA_VERSION = 7;
 const SETTINGS_STORE_PATH = "settings.json";
 const SETTINGS_STORE_KEY = "settings";
 const BROWSER_STORAGE_KEY = "ideanote.settings.v1";
@@ -40,6 +40,7 @@ export interface AppSettings {
   };
   markdown: {
     showLineNumbers: boolean;
+    openOutlineByDefault: boolean;
   };
 }
 
@@ -81,6 +82,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   },
   markdown: {
     showLineNumbers: false,
+    openOutlineByDefault: false,
   },
 } satisfies AppSettings);
 
@@ -188,7 +190,10 @@ export function normalizeSettings(value: unknown): AppSettings {
     markdown: {
       showLineNumbers: typeof markdown.showLineNumbers === "boolean"
         ? markdown.showLineNumbers
-        : false,
+        : DEFAULT_SETTINGS.markdown.showLineNumbers,
+      openOutlineByDefault: typeof markdown.openOutlineByDefault === "boolean"
+        ? markdown.openOutlineByDefault
+        : DEFAULT_SETTINGS.markdown.openOutlineByDefault,
     },
   };
 }

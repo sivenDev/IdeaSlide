@@ -420,3 +420,10 @@ When a newer GitHub tag release is available, check from the native desktop app 
 - created: 2026-08-12
 
 Add a read-only About section under the Settings Application group. It should match the existing compact Settings hierarchy and show the IdeaNote product identity, the actual running application version, and clear official GitHub and Releases links without introducing editable preferences, diagnostics, telemetry, or duplicated updater controls.
+
+## F058: Configure Markdown Outline Default
+
+- status: done
+- created: 2026-08-13
+
+Add a persistent Markdown setting controlling whether the editor's left Outline navigation opens by default. Default the preference to off, apply it when a Markdown editor has no saved per-document outline state, and preserve the existing in-editor Outline toggle and saved document-session state.

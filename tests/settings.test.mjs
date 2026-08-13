@@ -26,7 +26,7 @@ test('AI defaults to enabled and requires configuration before runtime activatio
 
 test('settings normalization is versioned and bounds Agent policy and Provider retries', async () => {
   const { SETTINGS_SCHEMA_VERSION, normalizeSettings } = await loadSettingsModule();
-  assert.equal(SETTINGS_SCHEMA_VERSION, 6);
+  assert.equal(SETTINGS_SCHEMA_VERSION, 7);
   const normalized = normalizeSettings({
     schemaVersion: 999,
     ai: {
@@ -62,7 +62,10 @@ test('settings normalization is versioned and bounds Agent policy and Provider r
     openSidebarByDefault: false,
     pageViewMode: 'name',
   });
-  assert.equal(normalized.markdown.showLineNumbers, false);
+  assert.deepEqual(normalized.markdown, {
+    showLineNumbers: false,
+    openOutlineByDefault: false,
+  });
 
   const migrated = normalizeSettings({
     schemaVersion: 1,
@@ -70,11 +73,16 @@ test('settings normalization is versioned and bounds Agent policy and Provider r
   });
   assert.deepEqual(migrated.ai.retry, { enabled: true, maxAttempts: 3 });
   assert.deepEqual(migrated.ai.availableModels, ['gpt-5-mini']);
-  assert.deepEqual(migrated.markdown, { showLineNumbers: false });
+  assert.deepEqual(migrated.markdown, {
+    showLineNumbers: false,
+    openOutlineByDefault: false,
+  });
   assert.equal(migrated.agent.openPanelByDefault, false);
   assert.equal(migrated.ideaSketch.openSidebarByDefault, false);
   assert.equal(migrated.ideaSketch.pageViewMode, 'name');
   assert.equal(normalizeSettings({ markdown: { showLineNumbers: true } }).markdown.showLineNumbers, true);
+  assert.equal(normalizeSettings({ markdown: { openOutlineByDefault: true } }).markdown.openOutlineByDefault, true);
+  assert.equal(normalizeSettings({ markdown: { openOutlineByDefault: "yes" } }).markdown.openOutlineByDefault, false);
   assert.equal(normalizeSettings({ agent: { openPanelByDefault: true } }).agent.openPanelByDefault, true);
   assert.deepEqual(normalizeSettings({ ideaSketch: {
     openSidebarByDefault: true,
@@ -151,4 +159,17 @@ test('IdeaSketch settings expose sidebar and Page view defaults', async () => {
   assert.match(ideaSketchSettings, /aria-label="Default Page view"/);
   assert.match(ideaSketchSettings, /<option value="name">Name<\/option>/);
   assert.match(ideaSketchSettings, /<option value="thumbnail">Thumbnail<\/option>/);
+});
+
+test('Markdown settings expose line-number and Outline defaults', async () => {
+  const markdownSettings = await readFile(
+    new URL('../src/components/settings/MarkdownSettings.tsx', import.meta.url),
+    'utf8',
+  );
+  assert.match(markdownSettings, /title="Open Outline by default"/);
+  assert.match(markdownSettings, /label="Open Markdown Outline by default"/);
+  assert.match(markdownSettings, /checked=\{settings\.markdown\.openOutlineByDefault\}/);
+  assert.match(markdownSettings, /markdown: \{ \.\.\.current\.markdown, openOutlineByDefault \}/);
+  assert.match(markdownSettings, /title="Line numbers"/);
+  assert.match(markdownSettings, /checked=\{settings\.markdown\.showLineNumbers\}/);
 });
