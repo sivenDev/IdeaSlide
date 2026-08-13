@@ -1,4 +1,4 @@
-import { createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EditorView } from "@codemirror/view";
 import GithubSlugger from "github-slugger";
 import {
@@ -10,9 +10,6 @@ import {
   Rows3,
   Undo2,
 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import type {
   DocumentModel,
   DocumentSession,
@@ -24,7 +21,6 @@ import { useAutoSave } from "../hooks/useAutoSave";
 import { useCodeMirrorEditor } from "../hooks/useCodeMirrorEditor";
 import { useSettings } from "../hooks/useSettings";
 import { normalizeMarkdownLineEndings, updateMarkdownText } from "../lib/markdownDocument";
-import { readDocumentImage } from "../lib/tauriCommands";
 import { createAgentToolHost } from "../lib/agent/agentToolHost";
 import { markdownAgentExtension } from "../lib/agent/extensions/markdownAgentExtension";
 import {
@@ -35,6 +31,7 @@ import type {
   ActiveAgentEditorBinding,
   AgentChangeSet,
 } from "../lib/agent/types";
+import { MarkdownPreview } from "./MarkdownPreview";
 
 interface MarkdownEditorProps {
   document: DocumentSession<MarkdownDocument>;
@@ -110,40 +107,6 @@ function ToolbarButton({
       {children}
     </button>
   );
-}
-
-function MarkdownPreviewImage({
-  src = "",
-  alt = "",
-  title,
-  documentFullPath,
-}: {
-  src?: string;
-  alt?: string;
-  title?: string;
-  documentFullPath?: string;
-}) {
-  const [resolved, setResolved] = useState<string>();
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    setFailed(false);
-    if (/^data:image\/(?:png|jpeg|gif|webp);base64,/i.test(src)) {
-      setResolved(src);
-      return;
-    }
-    if (!documentFullPath || !src || /^\w+:\/\//.test(src) || !("__TAURI_INTERNALS__" in window)) {
-      setResolved(undefined);
-      setFailed(Boolean(src));
-      return;
-    }
-    let cancelled = false;
-    readDocumentImage(documentFullPath, src)
-      .then((value) => { if (!cancelled) setResolved(value); })
-      .catch(() => { if (!cancelled) setFailed(true); });
-    return () => { cancelled = true; };
-  }, [documentFullPath, src]);
-  if (resolved) return <img src={resolved} alt={alt} title={title} />;
-  return <span className="ideanote-markdown-image-status inline-flex rounded-md border border-dashed px-2 py-1 text-xs">{failed ? `Image unavailable: ${alt || src}` : "Loading image…"}</span>;
 }
 
 export function MarkdownEditor({
@@ -368,36 +331,6 @@ export function MarkdownEditor({
   }, [document.id, onAgentBindingChange]);
 
   const headings = useMemo(() => projectHeadings(previewText), [previewText]);
-  const previewComponents = useMemo(() => {
-    const slugger = new GithubSlugger();
-    const heading = (level: number) => ({ children }: { children?: React.ReactNode }) => {
-      const text = String(children ?? "");
-      return createElement(`h${level}`, { id: slugger.slug(text) }, children);
-    };
-    return {
-      h1: heading(1), h2: heading(2), h3: heading(3),
-      h4: heading(4), h5: heading(5), h6: heading(6),
-      a: ({ href = "", children }: { href?: string; children?: React.ReactNode }) => (
-        <a
-          href={href}
-          onClick={(event) => {
-            event.preventDefault();
-            if (href.startsWith("#")) {
-              previewRef.current?.querySelector<HTMLElement>(`#${CSS.escape(href.slice(1))}`)?.scrollIntoView({ behavior: "smooth" });
-            } else if (/^https?:\/\//i.test(href)) {
-              void openUrl(href);
-            } else if (href) {
-              onOpenDocumentLink?.(href);
-            }
-          }}
-        >{children}</a>
-      ),
-      img: ({ src = "", alt = "", title }: { src?: string; alt?: string; title?: string }) => (
-        <MarkdownPreviewImage src={src} alt={alt} title={title} documentFullPath={documentFullPath} />
-      ),
-    };
-  }, [documentFullPath, onOpenDocumentLink, previewText]);
-
   const jumpToHeading = (heading: MarkdownHeading) => {
     const view = editor.getView();
     if (!view) return;
@@ -409,22 +342,18 @@ export function MarkdownEditor({
   };
 
   const preview = (
-    <div
-      ref={previewRef}
-      className="ideanote-markdown-preview h-full overflow-auto"
-      onScroll={() => {
-        if (!scrollSync || syncingScroll.current || !previewRef.current) return;
-        const previewElement = previewRef.current;
-        const range = previewElement.scrollHeight - previewElement.clientHeight;
+    <MarkdownPreview
+      text={previewText}
+      previewRef={previewRef}
+      documentFullPath={documentFullPath}
+      onOpenDocumentLink={onOpenDocumentLink}
+      onScrollRatio={(ratio) => {
+        if (!scrollSync || syncingScroll.current) return;
         syncingScroll.current = true;
-        editor.scrollToRatio(range > 0 ? previewElement.scrollTop / range : 0);
+        editor.scrollToRatio(ratio);
         requestAnimationFrame(() => { syncingScroll.current = false; });
       }}
-    >
-      <div className="mx-auto max-w-[780px] px-10 py-10 pb-32">
-        <ReactMarkdown remarkPlugins={[remarkGfm]} components={previewComponents}>{previewText}</ReactMarkdown>
-      </div>
-    </div>
+    />
   );
 
   return (

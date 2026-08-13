@@ -15,10 +15,14 @@ test('Markdown is a registry-driven editor contribution and not an EditorLayout 
 
 test('Markdown uses CodeMirror native history, one source of truth, and safe GFM preview', async () => {
   const editor = await readSource('src/components/MarkdownEditor.tsx');
+  const preview = await readSource('src/components/MarkdownPreview.tsx');
   const hook = await readSource('src/hooks/useCodeMirrorEditor.ts');
   assert.match(editor, /useCodeMirrorEditor/);
-  assert.match(editor, /ReactMarkdown/);
-  assert.match(editor, /remarkGfm/);
+  assert.match(editor, /MarkdownPreview/);
+  assert.match(preview, /ReactMarkdown/);
+  assert.match(preview, /remarkGfm/);
+  assert.match(preview, /rehypeRaw/);
+  assert.match(preview, /rehypeSanitize/);
   assert.doesNotMatch(editor, /rehypeRaw|dangerouslySetInnerHTML/);
   assert.match(hook, /history\(\)/);
   assert.match(hook, /historyKeymap/);

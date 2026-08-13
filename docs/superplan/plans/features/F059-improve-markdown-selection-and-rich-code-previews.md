@@ -2,7 +2,7 @@
 id: "F059"
 title: "Improve Markdown Selection and Rich Code Previews"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Make Markdown selections unmistakable and add safe HTML, highlighted code, Mermaid, and isolated HTML previews."
 source: "docs/superplan/human/features.md"
 created: "2026-08-13"
@@ -40,9 +40,9 @@ parent: ""
 - `node --test tests/markdownSelection.test.mjs tests/markdownEditorRefinement.test.mjs tests/themeVisualContract.test.mjs`
 - Browser cases in Light and Dark: pointer drag, Shift+Arrow, Shift+PageDown, Select All, selection across wrapped lines, toolbar focus, Split/Preview focus, Undo/Redo, and theme switching.
 
-- [ ] Add focused failures that distinguish focused/unfocused and multi-line selection visibility from active-line and search highlighting.
-- [ ] Apply selection-specific CodeMirror styling through the existing semantic theme boundary without remounting the editor.
-- [ ] Verify selection, history, dirty state, Agent context, and theme behavior together.
+- [x] Add focused failures that distinguish focused/unfocused and multi-line selection visibility from active-line and search highlighting.
+- [x] Apply selection-specific CodeMirror styling through the existing semantic theme boundary without remounting the editor.
+- [x] Verify selection, history, dirty state, Agent context, and theme behavior together.
 
 ## Task 2: Build a Safe Extensible Markdown Preview Boundary
 
@@ -68,9 +68,9 @@ parent: ""
 - `node --test tests/markdownRichPreview.test.mjs tests/markdownEditorContract.test.mjs tests/markdownEditorRefinement.test.mjs`
 - Fixtures: allowed semantic HTML; nested tables/details; script/style/event handlers; unsafe links; iframe/object/form/meta/base tags; malformed HTML; known/unknown/no-language fences; oversized and excessive special blocks.
 
-- [ ] Add failing pure-policy and renderer-wiring tests for allowlisted HTML, rejected content, fence classification, and bounded work.
-- [ ] Extract the preview boundary and integrate sanitized HTML without regressing headings, links, local images, scroll sync, or stale-preview behavior.
-- [ ] Document and verify the exact supported HTML/security contract.
+- [x] Add failing pure-policy and renderer-wiring tests for allowlisted HTML, rejected content, fence classification, and bounded work.
+- [x] Extract the preview boundary and integrate sanitized HTML without regressing headings, links, local images, scroll sync, or stale-preview behavior.
+- [x] Document and verify the exact supported HTML/security contract.
 
 ## Task 3: Deliver Ordinary, Mermaid, and HTML Code Block Experiences
 
@@ -97,9 +97,9 @@ parent: ""
 - `node --test tests/markdownRichPreview.test.mjs tests/themeVisualContract.test.mjs tests/markdownEditorContract.test.mjs`
 - Browser cases: copy by keyboard/pointer; common and unknown languages; multiple Mermaid diagrams; Mermaid syntax error and oversize limit; Mermaid Light/Dark redraw; HTML layout/styles; script/event/form/navigation/popup/external-image attempts; rapid editing and unmount during async rendering.
 
-- [ ] Implement the shared code-block frame and ordinary highlighted/plain fallback behavior.
-- [ ] Add bounded strict Mermaid rendering with cleanup, theme response, source access, and local failures.
-- [ ] Add sandboxed CSP-constrained HTML preview and prove hostile examples cannot escape or fetch externally.
+- [x] Implement the shared code-block frame and ordinary highlighted/plain fallback behavior.
+- [x] Add bounded strict Mermaid rendering with cleanup, theme response, source access, and local failures.
+- [x] Add sandboxed CSP-constrained HTML preview and prove hostile examples cannot escape or fetch externally.
 
 ## Task 4: Verify and Deliver F059
 
@@ -126,9 +126,20 @@ parent: ""
 - `git diff --check`
 - `git status --short`
 
-- [ ] Run focused checks while implementing and one stabilized full frontend/build/native regression after behavior stops changing.
-- [ ] Review real hostile HTML/Mermaid fixtures, selection states, themes, keyboard access, performance, and lifecycle preservation against every Exit Criterion.
-- [ ] Mark F059 complete/done, refresh the plan index, and create a separate `feat(F059)` task commit containing only this feature.
+- [x] Run focused checks while implementing and one stabilized full frontend/build/native regression after behavior stops changing.
+- [x] Review real hostile HTML/Mermaid fixtures, selection states, themes, keyboard access, performance, and lifecycle preservation against every Exit Criterion.
+- [x] Mark F059 complete/done, refresh the plan index, and create a separate `feat(F059)` task commit containing only this feature.
+
+## Delivery Evidence
+
+- CodeMirror retains one mounted `EditorView` and now gives focused and unfocused selections distinct theme-aware fills plus a visible inset boundary. Browser inspection confirmed multi-line selection fragments remain bounded after focus moves to Markdown controls.
+- Markdown Preview now routes `rehype-raw` immediately through an explicit `rehype-sanitize` schema. Existing headings, links, local/data images, preview scrolling, and stale-preview ownership remain inside the extracted `MarkdownPreview` boundary.
+- Ordinary fenced blocks use a shared keyboard-accessible frame with language labels, clipboard feedback, Lowlight highlighting for known languages, and inert plain-text fallback. Rich work is capped at 50 KB per block and the first 24 Mermaid/HTML blocks per document; later blocks remain readable source with a local limit message.
+- Mermaid is lazy loaded, serialized, debounced, initialized with `securityLevel: "strict"`, sanitized after rendering, and redrawn for Light/Dark changes. Browser acceptance proved successful SVG output, block-local syntax failure, Source/Preview switching, and rapid-mode cleanup behavior.
+- HTML fences are sanitized with explicit tag/attribute allowlists and CSS URL/import scrubbing, then mounted in an iframe with `sandbox=""` and CSP directives including `default-src 'none'`, `script-src 'none'`, and `form-action 'none'`. Hostile browser fixtures removed scripts, events, forms, controls, and external CSS/resource attempts without modifying the parent document.
+- Focused feature checks passed, and the stabilized full frontend regression passed: `node --test --test-concurrency=1 --test-reporter=dot tests/*.test.mjs`. Production TypeScript/Vite build passed with only the existing static/dynamic import and large-chunk advisories.
+- `npm run tauri dev` compiled the native application and ran `target/debug/idea-slide`; it was then terminated normally. Only existing Rust dead-code warnings and the macOS input-method port log appeared.
+- Final browser acceptance covered safe inline HTML, code highlighting/copy, Mermaid success/failure and theme redraw, sandboxed HTML, block-local toggles, and focused/unfocused selection visibility. Final workflow validation and diff checks passed before the task commit.
 
 ## References
 

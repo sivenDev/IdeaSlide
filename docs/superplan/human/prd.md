@@ -3,7 +3,7 @@
 - status: accepted
 - document_version: 1.0
 - created: 2026-08-03
-- last_updated: 2026-08-11
+- last_updated: 2026-08-13
 - product: IdeaNote
 - predecessor: IdeaSlide
 - implementation_authorized: true
@@ -502,7 +502,7 @@ Manifest：
 
 ### 12.1 Markdown (`.md`)
 
-标准 UTF-8 Markdown 文档，使用 CodeMirror 6 作为唯一编辑状态与原生 Undo/Redo 历史。支持 Edit、Split、Preview、GFM 安全预览、Outline、标题跳转、同文档锚点、受限相对文档链接和文档目录内的安全本地图片。保留 UTF-8 BOM 与 LF/CRLF；未编辑的 mixed line endings 原样保留，编辑后保存前必须选择 LF 或 CRLF。Markdown 与 IdeaSketch 共用打开、保存、自动保存、Recovery、只读和外部修改保护生命周期。
+标准 UTF-8 Markdown 文档，使用 CodeMirror 6 作为唯一编辑状态与原生 Undo/Redo 历史。编辑器选区在聚焦、失焦、跨行和 Light/Dark/System 主题下保持清晰边界。支持 Edit、Split、Preview、GFM 安全预览、Outline、标题跳转、同文档锚点、受限相对文档链接和文档目录内的安全本地图片。Preview 支持经明确 allowlist 清理的常用 Markdown HTML；普通 fenced code block 提供语言标签、复制、常用语言高亮与纯文本回退；`mermaid` fence 以 strict security mode 进行有界图表预览；`html` fence 经独立清理后仅在无权限 sandbox iframe 和限制性 CSP 中预览，并保留逐块 Source/Preview 切换。保留 UTF-8 BOM 与 LF/CRLF；未编辑的 mixed line endings 原样保留，编辑后保存前必须选择 LF 或 CRLF。Markdown 与 IdeaSketch 共用打开、保存、自动保存、Recovery、只读和外部修改保护生命周期。
 
 ### 12.2 IdeaTable (`.it`)
 

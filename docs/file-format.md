@@ -21,7 +21,7 @@ Markdown files remain ordinary UTF-8 text files. They are not wrapped in JSON, Z
 - LF and CRLF are detected, normalized to LF only inside the mounted CodeMirror document, and restored when serialized.
 - An untouched mixed-ending file is preserved byte-for-byte. Once edited, the user must explicitly choose LF or CRLF before saving.
 - CodeMirror is authoritative for normal and Agent edits, so native editor Undo/Redo remains the only history system.
-- Preview uses `react-markdown` with GFM and does not enable raw HTML.
+- Preview uses `react-markdown` with GFM. Common semantic Markdown HTML is parsed and passed through an explicit allowlist sanitizer before joining the preview DOM. Script, event, form, embedded browsing, unsafe URL, and style-injection capabilities are rejected. Fenced `html` blocks use a separate sanitized `iframe` preview with an empty sandbox permission set and a restrictive CSP; fenced `mermaid` blocks render in Mermaid strict security mode. Ordinary fenced blocks remain inert highlighted source.
 - Local preview images are loaded only through a document-directory-confined Tauri command. Traversal, remote image fetching, unsupported image types, and files above 10 MB are rejected.
 
 Markdown saves use the same collision-free staging and atomic replacement boundary as IdeaSketch. Workspace Mode stages under `<workspace>/.ideanote/tmp/`; Single File Mode uses safe target-filesystem staging and does not create `.ideanote/`.

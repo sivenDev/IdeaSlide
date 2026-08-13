@@ -97,7 +97,14 @@ export function useCodeMirrorEditor({
             ".cm-gutters": { backgroundColor: "var(--ideanote-editor-gutter, #f4f5f7)", color: "var(--ideanote-editor-muted, #a0a5ae)", borderRight: "1px solid var(--ideanote-editor-line, #e4e6eb)" },
             ".cm-activeLine": { backgroundColor: "var(--ideanote-editor-active, #f0efff70)" },
             ".cm-activeLineGutter": { backgroundColor: "var(--ideanote-editor-active-gutter, #e8e7fb)", color: "var(--ideanote-cobalt, #625dd6)" },
-            ".cm-selectionBackground, ::selection": { backgroundColor: "var(--ideanote-editor-selection, #d9d7ff) !important" },
+            "&.cm-focused .cm-selectionBackground, &.cm-focused ::selection": {
+              backgroundColor: "var(--ideanote-editor-selection, #c7bef5) !important",
+              boxShadow: "inset 0 0 0 1px var(--ideanote-editor-selection-border, #7565c9)",
+            },
+            "&:not(.cm-focused) .cm-selectionBackground": {
+              backgroundColor: "var(--ideanote-editor-selection-unfocused, #dfdbef) !important",
+              boxShadow: "inset 0 0 0 1px var(--ideanote-editor-selection-border, #7565c9)",
+            },
             ".cm-focused": { outline: "none" },
           }),
         ],

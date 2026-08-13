@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Draft | Complete |
-| --- | --- | --- | --- |
-| `required` | 6 | 0 | 6 |
-| `feature` | 72 | 1 | 71 |
-| `bugfix` | 44 | 0 | 44 |
+| Type | Plans | Complete |
+| --- | --- | --- |
+| `required` | 6 | 6 |
+| `feature` | 72 | 72 |
+| `bugfix` | 44 | 44 |
 
 ## Execution Order
 
@@ -100,7 +100,7 @@
 | `F046-03` | [Migrate the Reviewed Agent Panel onto the Real Agent Core](features/F046-migrate-reviewed-demo-frontend-into-tauri/F046-03-real-agent-panel.md) | `complete` | 2026-08-11 |
 | `F058` | [Configure Markdown Outline Default](features/F058-configure-markdown-outline-default.md) | `complete` | 2026-08-13 |
 | `F046-04` | [Complete Native Integration, Cleanup, and End-to-End Verification](features/F046-migrate-reviewed-demo-frontend-into-tauri/F046-04-native-integration-cleanup-and-verification.md) | `complete` | 2026-08-11 |
-| `F059` | [Improve Markdown Selection and Rich Code Previews](features/F059-improve-markdown-selection-and-rich-code-previews.md) | `draft` | 2026-08-13 |
+| `F059` | [Improve Markdown Selection and Rich Code Previews](features/F059-improve-markdown-selection-and-rich-code-previews.md) | `complete` | 2026-08-13 |
 | `F047` | [Polish Light and Dark Themes with a ChatGPT-Inspired Visual System](features/F047-polish-light-and-dark-themes.md) | `complete` | 2026-08-12 |
 | `F051` | [Add a Workspace Tree Refresh Action](features/F051-add-workspace-tree-refresh-action.md) | `complete` | 2026-08-12 |
 | `F048` | [Refine Settings Navigation and Apply Changes Automatically](features/F048-refine-settings-navigation-and-auto-apply.md) | `complete` | 2026-08-12 |

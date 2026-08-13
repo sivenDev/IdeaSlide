@@ -430,7 +430,7 @@ Add a persistent Markdown setting controlling whether the editor's left Outline 
 
 ## F059: Improve Markdown selection and rich code previews
 
-- status: accepted
+- status: done
 - created: 2026-08-13
 
 Improve the Markdown source editor so selected text has an unmistakable visible range. Extend Markdown preview support to safe HTML elements and fenced code blocks. Render normal fenced code blocks clearly, preview Mermaid fences as diagrams, and preview HTML fences in an isolated, application-safe surface. Preserve the Markdown source text and existing Edit, Split, Preview, autosave, recovery, link, image, and Agent editing behavior.
