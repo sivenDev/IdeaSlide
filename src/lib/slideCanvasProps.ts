@@ -9,6 +9,7 @@ interface SlideCanvasComparableProps {
   onApiReady?: unknown;
   onCommandApiReady?: unknown;
   onConvertSelection?: unknown;
+  onSelectionPresenceChange?: unknown;
   onInteractionChange?: unknown;
   editorRefreshToken?: number;
   layoutRefreshToken?: number;
@@ -30,6 +31,7 @@ export function areSlideCanvasPropsEqual(
     previousProps.onApiReady === nextProps.onApiReady &&
     previousProps.onCommandApiReady === nextProps.onCommandApiReady &&
     previousProps.onConvertSelection === nextProps.onConvertSelection &&
+    previousProps.onSelectionPresenceChange === nextProps.onSelectionPresenceChange &&
     previousProps.onInteractionChange === nextProps.onInteractionChange &&
     previousProps.editorRefreshToken === nextProps.editorRefreshToken &&
     previousProps.layoutRefreshToken === nextProps.layoutRefreshToken &&

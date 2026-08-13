@@ -2291,6 +2291,7 @@ body,
 }
 
 .ideanote-ideasketch-canvas {
+    --ideanote-ideasketch-trigger-size: 2.75rem;
     position: relative;
     min-width: 0;
     flex: 1;
@@ -2301,8 +2302,11 @@ body,
     display: none !important;
 }
 
+.ideanote-ideasketch-canvas.has-lower-left-trigger .excalidraw .layer-ui__wrapper__footer-left {
+    margin-inline-start: calc(var(--ideanote-ideasketch-trigger-size) + 0.75rem);
+}
+
 .ideanote-ideasketch-drawer-trigger {
-    --ideanote-ideasketch-trigger-size: 2.75rem;
     display: grid;
     width: var(--ideanote-ideasketch-trigger-size);
     height: var(--ideanote-ideasketch-trigger-size);
@@ -2329,6 +2333,11 @@ body,
     left: 1rem;
 }
 
+.ideanote-ideasketch-drawer-trigger.is-canvas.is-lower-left {
+    top: auto;
+    bottom: 1rem;
+}
+
 .ideanote-ideasketch-drawer-trigger.is-drawer {
     --ideanote-ideasketch-trigger-size: 2rem;
     position: absolute;
@@ -2343,7 +2352,7 @@ body,
 }
 
 @media screen and (min-device-width: 1921px) {
-    .ideanote-ideasketch-drawer-trigger.is-canvas {
+    .ideanote-ideasketch-canvas {
         --ideanote-ideasketch-trigger-size: 3rem;
     }
 }

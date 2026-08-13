@@ -54,6 +54,7 @@ interface SlideCanvasProps {
   onApiReady?: (api: any, slideId: string) => void;
   onCommandApiReady?: (api: SlideCanvasCommandApi | undefined, slideId: string) => void;
   onConvertSelection?: (target: StyleConversionTarget) => void;
+  onSelectionPresenceChange?: (selected: boolean) => void;
   onInteractionChange?: (active: boolean) => void;
   editorRefreshToken: number;
   layoutRefreshToken?: number;
@@ -81,6 +82,7 @@ function SlideCanvasInner({
   onApiReady,
   onCommandApiReady,
   onConvertSelection,
+  onSelectionPresenceChange,
   onInteractionChange,
   editorRefreshToken,
   layoutRefreshToken = 0,
@@ -90,10 +92,12 @@ function SlideCanvasInner({
   // Use a ref to always have the latest onChange without causing re-renders
   const containerRef = useRef<HTMLDivElement>(null);
   const onChangeRef = useRef(onChange);
+  const onSelectionPresenceChangeRef = useRef(onSelectionPresenceChange);
   const onInteractionChangeRef = useRef(onInteractionChange);
   const isMountedRef = useRef(true);
   const interactionActiveRef = useRef(false);
   const interactionIdleTimeoutRef = useRef<number | null>(null);
+  const selectionPresentRef = useRef<boolean | undefined>(undefined);
   const [canConvertSelection, setCanConvertSelection] = useState(() =>
     getStyleConversionAvailability(elements, appState.selectedElementIds, Boolean(viewMode)),
   );
@@ -105,6 +109,9 @@ function SlideCanvasInner({
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+  useEffect(() => {
+    onSelectionPresenceChangeRef.current = onSelectionPresenceChange;
+  }, [onSelectionPresenceChange]);
   useEffect(() => {
     onInteractionChangeRef.current = onInteractionChange;
   }, [onInteractionChange]);
@@ -164,6 +171,11 @@ function SlideCanvasInner({
       selectedIdsSignature: buildSelectedElementIdsSignature(nextAppState.selectedElementIds),
       readOnly: Boolean(viewMode),
     };
+    const nextSelectionPresent = nextObservation.selectedIdsSignature.length > 0;
+    if (selectionPresentRef.current !== nextSelectionPresent) {
+      selectionPresentRef.current = nextSelectionPresent;
+      onSelectionPresenceChangeRef.current?.(nextSelectionPresent);
+    }
     const previousObservation = selectionObservationRef.current;
     if (
       previousObservation.elements === nextObservation.elements &&

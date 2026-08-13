@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `required` | 6 | 6 |
 | `feature` | 72 | 72 |
-| `bugfix` | 48 | 48 |
+| `bugfix` | 49 | 49 |
 
 ## Execution Order
 
@@ -161,3 +161,4 @@
 | `B046` | [Replace Blocky Markdown Selection Geometry](bugs/B046-replace-blocky-markdown-selection-geometry.md) | `complete` | 2026-08-13 |
 | `B047` | [Match Tauri Markdown Selection to the Approved Demo](bugs/B047-match-tauri-markdown-selection-to-approved-demo.md) | `complete` | 2026-08-13 |
 | `B048` | [Align Update, Settings Navigation, and Markdown History Controls](bugs/B048-align-update-settings-navigation-and-markdown-history-controls.md) | `complete` | 2026-08-13 |
+| `B049` | [Prevent IdeaSketch Navigation Trigger Overlap](bugs/B049-prevent-ideasketch-navigation-trigger-overlap.md) | `complete` | 2026-08-14 |

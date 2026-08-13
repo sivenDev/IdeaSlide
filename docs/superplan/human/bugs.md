@@ -389,3 +389,10 @@ The Tauri Markdown editor still renders incorrect inline and cross-line selectio
 - created: 2026-08-13
 
 1. When an update is available and its large notice has been dismissed, the compact Update action to the right of Settings should use the violet primary color shown in the supplied reference. 2. In Settings navigation, General and About should appear directly as top-level navigation items without an Application category label; AI and Editors remain grouped. 3. In the Markdown editor, move Undo and Redo from the lower-left floating control to the top toolbar immediately to the right of Edit, Split, and Preview. Preserve current actions, disabled behavior, accessibility, themes, and responsive layout.
+
+## B049: Prevent IdeaSketch navigation trigger from overlapping Excalidraw controls
+
+- status: done
+- created: 2026-08-14
+
+When the IdeaSketch drawer is closed, its floating navigation trigger occupies the same upper-left canvas region as Excalidraw's selection properties panel. Selecting an element causes the two controls to overlap. Keep the trigger at the Canvas upper-left by default; while selection controls are present, move it to the lower-left and shift Excalidraw's existing lower-left controls to its right. Return both to their normal positions when selection clears, without consuming permanent Canvas width, using a right-side slot, or moving editor state into the workbench shell.

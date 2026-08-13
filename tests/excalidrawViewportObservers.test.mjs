@@ -87,6 +87,14 @@ test('Selection availability is keyed by scene identity and selected IDs', async
   assert.match(source, /previousObservation\.elements === nextObservation\.elements/);
   assert.match(source, /previousObservation\.selectedIdsSignature === nextObservation\.selectedIdsSignature/);
   assert.match(source, /previousObservation\.readOnly === nextObservation\.readOnly/);
+  assert.match(source, /const selectionPresentRef = useRef<boolean \| undefined>\(undefined\);/);
+  assert.match(source, /onSelectionPresenceChangeRef\.current\?\.\(nextSelectionPresent\)/);
+  assert.match(source, /if \(selectionPresentRef\.current !== nextSelectionPresent\)/);
+  assert.ok(
+    source.indexOf('onSelectionPresenceChangeRef.current?.(nextSelectionPresent)')
+      < source.indexOf('previousObservation.elements === nextObservation.elements'),
+    'initial selection presence must be reported before unchanged observations return early',
+  );
 });
 
 test('Custom Canvas commands and selection renderer keep stable callback identities', async () => {

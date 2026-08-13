@@ -132,6 +132,7 @@ export function IdeaSketchEditor({
   const [cameraDrawingRequestToken, setCameraDrawingRequestToken] = useState(0);
   const [selectedCameraId, setSelectedCameraId] = useState<string>();
   const [canvasInteractionActive, setCanvasInteractionActive] = useState(false);
+  const [selectionControlsActive, setSelectionControlsActive] = useState(false);
   const excalidrawApiRef = useRef<any>(null);
   const excalidrawSlideIdRef = useRef<string | undefined>(undefined);
   const canvasCommandApiRef = useRef<SlideCanvasCommandApi | undefined>(undefined);
@@ -528,6 +529,8 @@ export function IdeaSketchEditor({
     onAgentBindingChange(undefined, document.id);
   }, [document.id, onAgentBindingChange]);
 
+  const lowerLeftTriggerActive = !drawerOpen && selectionControlsActive;
+
   return (
     <div className="ideanote-ideasketch-editor">
       <div className={`ideanote-ideasketch-workspace ${drawerOpen ? "is-drawer-open" : ""}`}>
@@ -606,11 +609,13 @@ export function IdeaSketchEditor({
             onResize={(nextSize) => setDrawerWidth(clampDrawerWidth(nextSize))}
           />
         )}
-        <main className="ideanote-ideasketch-canvas">
+        <main
+          className={`ideanote-ideasketch-canvas ${lowerLeftTriggerActive ? "has-lower-left-trigger" : ""}`}
+        >
           {!drawerOpen && (
             <button
               type="button"
-              className="ideanote-ideasketch-drawer-trigger is-canvas"
+              className={`ideanote-ideasketch-drawer-trigger is-canvas ${lowerLeftTriggerActive ? "is-lower-left" : ""}`}
               aria-label="Open IdeaSketch menu"
               aria-expanded={false}
               onClick={() => setDrawerOpen(true)}
@@ -629,6 +634,7 @@ export function IdeaSketchEditor({
             onApiReady={handleApiReady}
             onCommandApiReady={handleCommandApiReady}
             onConvertSelection={handleConvertSelection}
+            onSelectionPresenceChange={setSelectionControlsActive}
             onInteractionChange={handleCanvasInteractionChange}
             viewMode={readOnly}
             editorRefreshToken={editorRefreshToken}

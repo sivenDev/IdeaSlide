@@ -112,6 +112,29 @@ test('areSlideCanvasPropsEqual forces rerender when callback identity changes', 
   );
 });
 
+test('areSlideCanvasPropsEqual tracks the selection-presence observer', async () => {
+  const { areSlideCanvasPropsEqual } = await loadModule();
+  const elements = [];
+  const appState = {};
+  const files = {};
+  const onChange = () => {};
+  const onSelectionPresenceChange = () => {};
+  const base = {
+    slideId: 'slide-1',
+    elements,
+    appState,
+    files,
+    onChange,
+    onSelectionPresenceChange,
+  };
+
+  assert.equal(areSlideCanvasPropsEqual(base, base), true);
+  assert.equal(
+    areSlideCanvasPropsEqual(base, { ...base, onSelectionPresenceChange: () => {} }),
+    false,
+  );
+});
+
 test('areSlideCanvasPropsEqual forces rerender when editor refresh token changes', async () => {
   const { areSlideCanvasPropsEqual } = await loadModule();
 

@@ -335,6 +335,88 @@ test('virtualized Page cards remain sortable in WebKit thumbnail mode', async (c
       1,
     );
 
+    const initialLowerLeftGeometry = await page.evaluate(() => {
+      const canvas = document.querySelector('.ideanote-ideasketch-canvas');
+      const trigger = canvas?.querySelector('.ideanote-ideasketch-drawer-trigger');
+      const footerLeft = canvas?.querySelector('.excalidraw .layer-ui__wrapper__footer-left');
+      if (
+        !(canvas instanceof HTMLElement)
+        || !(trigger instanceof HTMLElement)
+        || !(footerLeft instanceof HTMLElement)
+      ) return null;
+      const canvasRect = canvas.getBoundingClientRect();
+      const triggerRect = trigger.getBoundingClientRect();
+      const footerLeftRect = footerLeft.getBoundingClientRect();
+      return {
+        canvasLeft: canvasRect.left,
+        triggerLeft: triggerRect.left,
+        triggerTop: triggerRect.top,
+        footerLeft: footerLeftRect.left,
+      };
+    });
+    assert.ok(initialLowerLeftGeometry);
+    assert.ok(Math.abs(initialLowerLeftGeometry.triggerLeft - initialLowerLeftGeometry.canvasLeft - 16) <= 1);
+    assert.ok(Math.abs(initialLowerLeftGeometry.footerLeft - initialLowerLeftGeometry.canvasLeft - 16) <= 1);
+
+    const excalidrawCanvas = await page.locator('.excalidraw__canvas.interactive').boundingBox();
+    assert.ok(excalidrawCanvas);
+    await page.mouse.click(excalidrawCanvas.x + excalidrawCanvas.width * 0.5, excalidrawCanvas.y + excalidrawCanvas.height * 0.5);
+    await page.keyboard.press('r');
+    await page.mouse.move(excalidrawCanvas.x + excalidrawCanvas.width * 0.55, excalidrawCanvas.y + excalidrawCanvas.height * 0.4);
+    await page.mouse.down();
+    await page.mouse.move(excalidrawCanvas.x + excalidrawCanvas.width * 0.68, excalidrawCanvas.y + excalidrawCanvas.height * 0.55, { steps: 8 });
+    await page.mouse.up();
+    await page.locator('.ideanote-ideasketch-drawer-trigger.is-lower-left').waitFor({ timeout: 60_000 });
+    await page.locator('.excalidraw .App-menu__left').waitFor({ timeout: 60_000 });
+
+    const selectedLowerLeftGeometry = await page.evaluate(() => {
+      const canvas = document.querySelector('.ideanote-ideasketch-canvas');
+      const trigger = canvas?.querySelector('.ideanote-ideasketch-drawer-trigger.is-lower-left');
+      const footerLeft = canvas?.querySelector('.excalidraw .layer-ui__wrapper__footer-left');
+      const properties = canvas?.querySelector('.excalidraw .App-menu__left');
+      if (
+        !(canvas instanceof HTMLElement)
+        || !(trigger instanceof HTMLElement)
+        || !(footerLeft instanceof HTMLElement)
+        || !(properties instanceof HTMLElement)
+      ) return null;
+      const canvasRect = canvas.getBoundingClientRect();
+      const triggerRect = trigger.getBoundingClientRect();
+      const footerLeftRect = footerLeft.getBoundingClientRect();
+      const propertiesRect = properties.getBoundingClientRect();
+      const overlaps = (left, right) => !(
+        left.right <= right.left
+        || left.left >= right.right
+        || left.bottom <= right.top
+        || left.top >= right.bottom
+      );
+      return {
+        triggerBottomInset: canvasRect.bottom - triggerRect.bottom,
+        footerStartsAfterTrigger: footerLeftRect.left >= triggerRect.right + 11,
+        overlapsFooter: overlaps(triggerRect, footerLeftRect),
+        overlapsProperties: overlaps(triggerRect, propertiesRect),
+      };
+    });
+    assert.deepEqual(selectedLowerLeftGeometry, {
+      triggerBottomInset: 16,
+      footerStartsAfterTrigger: true,
+      overlapsFooter: false,
+      overlapsProperties: false,
+    });
+
+    await page.mouse.click(
+      excalidrawCanvas.x + excalidrawCanvas.width * 0.82,
+      excalidrawCanvas.y + excalidrawCanvas.height * 0.72,
+    );
+    await page.waitForFunction(() => {
+      const trigger = document.querySelector('.ideanote-ideasketch-drawer-trigger');
+      return trigger instanceof HTMLElement && !trigger.classList.contains('is-lower-left');
+    }, undefined, { timeout: 60_000 });
+    const resetTriggerTop = await page.locator('.ideanote-ideasketch-drawer-trigger').evaluate(
+      (trigger) => trigger.getBoundingClientRect().top,
+    );
+    assert.ok(Math.abs(resetTriggerTop - initialLowerLeftGeometry.triggerTop) <= 1);
+
     await page.getByRole('button', { name: 'Open IdeaSketch menu' }).click();
     const openTrigger = page.getByRole('button', { name: 'Close IdeaSketch menu' });
     assert.equal(await openTrigger.locator('svg').getAttribute('class'), 'lucide lucide-panel-left-close');
