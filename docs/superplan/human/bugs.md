@@ -396,3 +396,10 @@ The Tauri Markdown editor still renders incorrect inline and cross-line selectio
 - created: 2026-08-14
 
 When the IdeaSketch drawer is closed, its floating navigation trigger occupies the same upper-left canvas region as Excalidraw's selection properties panel. Selecting an element causes the two controls to overlap. Keep the trigger at the Canvas upper-left by default; while selection controls are present, move it to the lower-left and shift Excalidraw's existing lower-left controls to its right. Return both to their normal positions when selection clears, without consuming permanent Canvas width, using a right-side slot, or moving editor state into the workbench shell.
+
+## B050: Translate the Enacta Agent Kernel RFC into Chinese
+
+- status: done
+- created: 2026-08-14
+
+RFC 003 was delivered in English, but the required document language is Chinese. Translate the complete RFC, including headings, prose, tables, decisions, risks, migration stages, and acceptance criteria, while preserving protocol method names, type names, code snippets, local paths, URLs, commit hashes, licenses, and other exact technical identifiers. Do not change the accepted architecture decision or implement runtime behavior.

@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `required` | 6 | 6 |
 | `feature` | 73 | 73 |
-| `bugfix` | 49 | 49 |
+| `bugfix` | 50 | 50 |
 
 ## Execution Order
 
@@ -163,3 +163,4 @@
 | `B047` | [Match Tauri Markdown Selection to the Approved Demo](bugs/B047-match-tauri-markdown-selection-to-approved-demo.md) | `complete` | 2026-08-13 |
 | `B048` | [Align Update, Settings Navigation, and Markdown History Controls](bugs/B048-align-update-settings-navigation-and-markdown-history-controls.md) | `complete` | 2026-08-13 |
 | `B049` | [Prevent IdeaSketch Navigation Trigger Overlap](bugs/B049-prevent-ideasketch-navigation-trigger-overlap.md) | `complete` | 2026-08-14 |
+| `B050` | [Translate the Enacta Agent Kernel RFC into Chinese](bugs/B050-translate-enacta-agent-kernel-rfc-into-chinese.md) | `complete` | 2026-08-14 |
