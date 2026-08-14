@@ -7,7 +7,7 @@
 | Type | Plans | Complete |
 | --- | --- | --- |
 | `required` | 6 | 6 |
-| `feature` | 74 | 74 |
+| `feature` | 75 | 75 |
 | `bugfix` | 50 | 50 |
 
 ## Execution Order
@@ -105,6 +105,7 @@
 | `F060` | [Define the Enacta Agent Kernel and Plugin Architecture RFC](features/F060-enacta-agent-kernel-and-plugin-architecture-rfc.md) | `complete` | 2026-08-14 |
 | `F051` | [Add a Workspace Tree Refresh Action](features/F051-add-workspace-tree-refresh-action.md) | `complete` | 2026-08-12 |
 | `F061` | [Open Markdown Files from the Operating System](features/F061-open-markdown-files-from-the-operating-system.md) | `complete` | 2026-08-14 |
+| `F062` | [Define Enacta V2 as an Agent-First Personal Colleague](features/F062-define-enacta-v2-agent-first-product-guide.md) | `complete` | 2026-08-14 |
 | `F048` | [Refine Settings Navigation and Apply Changes Automatically](features/F048-refine-settings-navigation-and-auto-apply.md) | `complete` | 2026-08-12 |
 | `F049` | [Simplify AI Provider Model and Token Fields](features/F049-simplify-ai-provider-model-and-token-fields.md) | `complete` | 2026-08-12 |
 | `F055` | [Add Workspace from the Sidebar Header](features/F055-add-workspace-from-sidebar-header.md) | `complete` | 2026-08-12 |
