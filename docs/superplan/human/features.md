@@ -434,3 +434,10 @@ Add a persistent Markdown setting controlling whether the editor's left Outline 
 - created: 2026-08-13
 
 Improve the Markdown source editor so selected text has an unmistakable visible range. Extend Markdown preview support to safe HTML elements and fenced code blocks. Render normal fenced code blocks clearly, preview Mermaid fences as diagrams, and preview HTML fences in an isolated, application-safe surface. Preserve the Markdown source text and existing Edit, Split, Preview, autosave, recovery, link, image, and Agent editing behavior.
+
+## F060: Define the Enacta Agent Kernel and Plugin Architecture RFC
+
+- status: done
+- created: 2026-08-14
+
+Create a decision-ready RFC for evolving the existing Enacta Agent runtime into an Enacta-owned Agent Kernel rather than replacing it wholesale with a third-party runtime. The RFC must preserve the current editor Tool Broker, registry-driven editor extensions, real-file source of truth, revision and external-change protection, editor-native Undo/Redo, cancellation, approvals, and durable Agent history. It should borrow the composable plugin and tool-pipeline architecture of DeepSeek Harness; the bidirectional Thread/Turn/Item, dynamic host-tool, steering, cancellation, approval, and schema-versioning patterns of Codex; the provider catalog, diagnostics, session recovery, rewind, and background execution ideas of jcode; and the long-running workflow, trigger, human-gate, and multi-Agent orchestration concepts of Octos. Define Kernel boundaries, event and plugin protocols, capability-based security, trusted/in-process versus isolated plugin execution, migration from the current Rust Agent Core, staged delivery, alternatives, risks, and acceptance criteria without implementing the runtime.

@@ -7,7 +7,7 @@
 | Type | Plans | Complete |
 | --- | --- | --- |
 | `required` | 6 | 6 |
-| `feature` | 72 | 72 |
+| `feature` | 73 | 73 |
 | `bugfix` | 49 | 49 |
 
 ## Execution Order
@@ -102,6 +102,7 @@
 | `F046-04` | [Complete Native Integration, Cleanup, and End-to-End Verification](features/F046-migrate-reviewed-demo-frontend-into-tauri/F046-04-native-integration-cleanup-and-verification.md) | `complete` | 2026-08-11 |
 | `F059` | [Improve Markdown Selection and Rich Code Previews](features/F059-improve-markdown-selection-and-rich-code-previews.md) | `complete` | 2026-08-13 |
 | `F047` | [Polish Light and Dark Themes with a ChatGPT-Inspired Visual System](features/F047-polish-light-and-dark-themes.md) | `complete` | 2026-08-12 |
+| `F060` | [Define the Enacta Agent Kernel and Plugin Architecture RFC](features/F060-enacta-agent-kernel-and-plugin-architecture-rfc.md) | `complete` | 2026-08-14 |
 | `F051` | [Add a Workspace Tree Refresh Action](features/F051-add-workspace-tree-refresh-action.md) | `complete` | 2026-08-12 |
 | `F048` | [Refine Settings Navigation and Apply Changes Automatically](features/F048-refine-settings-navigation-and-auto-apply.md) | `complete` | 2026-08-12 |
 | `F049` | [Simplify AI Provider Model and Token Fields](features/F049-simplify-ai-provider-model-and-token-fields.md) | `complete` | 2026-08-12 |
