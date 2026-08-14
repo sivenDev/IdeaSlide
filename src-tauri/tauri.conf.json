@@ -51,6 +51,13 @@
         "description": "IdeaNote IdeaSketch file",
         "role": "Editor",
         "mimeType": "application/x-ideaslide"
+      },
+      {
+        "ext": ["md"],
+        "name": "IdeaNote Markdown",
+        "description": "IdeaNote Markdown file",
+        "role": "Editor",
+        "mimeType": "text/markdown"
       }
     ]
   },

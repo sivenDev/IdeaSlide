@@ -441,3 +441,10 @@ Improve the Markdown source editor so selected text has an unmistakable visible 
 - created: 2026-08-14
 
 Create a decision-ready RFC for evolving the existing Enacta Agent runtime into an Enacta-owned Agent Kernel rather than replacing it wholesale with a third-party runtime. The RFC must preserve the current editor Tool Broker, registry-driven editor extensions, real-file source of truth, revision and external-change protection, editor-native Undo/Redo, cancellation, approvals, and durable Agent history. It should borrow the composable plugin and tool-pipeline architecture of DeepSeek Harness; the bidirectional Thread/Turn/Item, dynamic host-tool, steering, cancellation, approval, and schema-versioning patterns of Codex; the provider catalog, diagnostics, session recovery, rewind, and background execution ideas of jcode; and the long-running workflow, trigger, human-gate, and multi-Agent orchestration concepts of Octos. Define Kernel boundaries, event and plugin protocols, capability-based security, trusted/in-process versus isolated plugin execution, migration from the current Rust Agent Core, staged delivery, alternatives, risks, and acceptance criteria without implementing the runtime.
+
+## F061: Open Markdown Files from the Operating System
+
+- status: done
+- created: 2026-08-14
+
+Register .md as an IdeaNote document association and route operating-system open events through the existing registry-backed standalone document flow, matching the current .is cold-start and hot-start behavior. Opening a Markdown file from Finder or Open With must activate the Markdown editor without weakening unsupported-file filtering or adding editor-specific logic to the workbench shell.

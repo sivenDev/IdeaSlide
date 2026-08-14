@@ -11,11 +11,12 @@ pub(crate) mod workspace;
 mod workspace_agent;
 mod workspace_watcher;
 
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::{command, Emitter, Manager, RunEvent};
 
-/// Stores the file path when the app is launched by opening a .is file.
+/// Stores a registered document path while the frontend is starting.
 struct PendingFile(Mutex<Option<String>>);
 
 /// Readiness flag for the hidden preview renderer window.
@@ -43,6 +44,10 @@ fn get_opened_file(state: tauri::State<'_, PendingFile>) -> Option<String> {
 #[command]
 fn exit_application(app_handle: tauri::AppHandle) {
     app_handle.exit(0);
+}
+
+fn opened_file_path(path: &Path) -> Option<String> {
+    document_formats::is_openable_path(path).then(|| path.to_string_lossy().to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -156,8 +161,7 @@ pub fn run() {
             if let RunEvent::Opened { urls } = &event {
                 for url in urls {
                     if let Ok(path) = url.to_file_path() {
-                        if path.extension().is_some_and(|ext| ext == "is") {
-                            let path_str = path.to_string_lossy().to_string();
+                        if let Some(path_str) = opened_file_path(&path) {
                             // Store for cold-start (frontend not ready yet)
                             if let Some(state) = app_handle.try_state::<PendingFile>() {
                                 *state.0.lock().unwrap() = Some(path_str.clone());
@@ -169,4 +173,32 @@ pub fn run() {
                 }
             }
         });
+}
+
+#[cfg(test)]
+mod opened_file_tests {
+    use super::opened_file_path;
+    use std::path::Path;
+
+    #[test]
+    fn opened_file_path_accepts_registered_document_formats() {
+        assert_eq!(
+            opened_file_path(Path::new("drawing.is")).as_deref(),
+            Some("drawing.is")
+        );
+        assert_eq!(
+            opened_file_path(Path::new("notes.md")).as_deref(),
+            Some("notes.md")
+        );
+        assert_eq!(
+            opened_file_path(Path::new("README.MD")).as_deref(),
+            Some("README.MD")
+        );
+    }
+
+    #[test]
+    fn opened_file_path_rejects_unsupported_extensions() {
+        assert_eq!(opened_file_path(Path::new("notes.txt")), None);
+        assert_eq!(opened_file_path(Path::new("README")), None);
+    }
 }
