@@ -468,4 +468,4 @@ Optimize docs/product/enacta-product-guide-v2.md without expanding the V2 vision
 - status: accepted
 - created: 2026-08-19
 
-在 Workspace 目录的“+”操作中新增导入 Excalidraw 能力，将 .excalidraw 文件转换为 .is 文件；在 IdeaSketch 编辑器 Pages 导航栏增加导入 Excalidraw 文件按钮，导入后新增一个 Page。
+在 Workspace 根目录和子目录操作区新增独立的 Import 下拉按钮，不改动现有“+”创建菜单；Import 菜单提供 Excalidraw 导入，将 .excalidraw 文件转换为 .is 文件。在 IdeaSketch 编辑器 Pages 导航栏的“+”旁新增同样独立的 Import 下拉按钮，导入 Excalidraw 后新增并选中一个 Page。
