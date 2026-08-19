@@ -124,22 +124,54 @@ test('the command footer keeps mutating actions read-only safe and clear require
   assert.match(editor, /canvasCommandApiRef\.current\?\.clearCanvas\(\)/);
 });
 
-test('the command menu is a default-hidden disclosure with both diagram exports in the Page group', async () => {
+test('the actions menu is a default-hidden disclosure toggled from the Drag Pages row', async () => {
   const commands = await readSource('src/components/IdeaSketchDrawerCommands.tsx');
+  const editor = await readSource('src/components/IdeaSketchEditor.tsx');
+  const navigator = await readSource('src/components/IdeaSketchNavigator.tsx');
+  const organizer = await readSource('src/components/PageOrganizer.tsx');
 
-  // The menu starts collapsed and only renders its groups when expanded.
-  assert.match(commands, /const \[expanded, setExpanded\] = useState\(false\)/);
-  assert.match(commands, /\{expanded && \(/);
+  // The editor owns the default-hidden expanded state and a single toggle handler.
+  assert.match(editor, /const \[actionsExpanded, setActionsExpanded\] = useState\(false\)/);
+  assert.match(
+    editor,
+    /const toggleActions = useCallback\(\(\) => \{\s*setActionsExpanded\(\(value\) => !value\);\s*\}, \[\]\)/,
+  );
 
-  // One up/down toggle button controls the body via an accessible disclosure.
+  // The up/down toggle button rides the Pages "Drag Pages" hint row.
+  assert.match(
+    editor,
+    /hintTrailing=\{\s*<ActionsToggleButton\s+expanded=\{actionsExpanded\}\s+onToggle=\{toggleActions\}\s*\/>\s*\}/,
+  );
+  assert.match(navigator, /hintTrailing=\{hintTrailing\}/);
+  assert.match(organizer, /className="ideanote-page-organizer__hint"[\s\S]*?\{hintTrailing\}/);
+
+  // The command body is controlled; its header toggle only appears off the Pages tab.
+  assert.match(editor, /expanded=\{actionsExpanded\}/);
+  assert.match(editor, /showHeaderToggle=\{navigatorTab !== "pages"\}/);
+  assert.match(editor, /onToggle=\{toggleActions\}/);
+  assert.match(commands, /showHeaderToggle && \(/);
   assert.match(commands, /className="ideanote-ideasketch-drawer-commands__toggle"/);
+
+  // The shared toggle is an accessible disclosure with an up/down chevron.
+  assert.match(commands, /export function ActionsToggleButton/);
   assert.match(commands, /aria-expanded=\{expanded\}/);
-  assert.match(commands, /aria-controls=\{bodyId\}/);
-  assert.match(commands, /onClick=\{\(\) => setExpanded\(\(value\) => !value\)\}/);
+  assert.match(commands, /aria-controls=\{IDEASKETCH_ACTIONS_BODY_ID\}/);
   assert.match(commands, /expanded \? \(\s*<ChevronDown/);
   assert.match(commands, /\) : \(\s*<ChevronUp/);
 
-  // Export image and Export draw.io moved into the Page group; Canvas keeps only background + clear.
+  // The toggle carries its own hover tooltip so it works on the Pages hint row too.
+  assert.match(commands, /const label = expanded \? "Hide actions" : "Show actions"/);
+  assert.match(
+    commands,
+    /<TooltipProvider>\s*<Tooltip>\s*<TooltipTrigger asChild>[\s\S]*?aria-label=\{label\}[\s\S]*?<TooltipContent side="top">\{label\}<\/TooltipContent>/,
+  );
+
+  // The command component is controlled (no internal state) and collapses to nothing.
+  assert.doesNotMatch(commands, /useState/);
+  assert.match(commands, /if \(!expanded && !showHeaderToggle\) \{\s*return null;/);
+  assert.match(commands, /\{expanded && \(/);
+
+  // Export image and Export draw.io live in the Page group; Canvas keeps only background + clear.
   const pageGroup = commands.slice(
     commands.indexOf('aria-label="Page"'),
     commands.indexOf('aria-label="Canvas"'),
@@ -151,4 +183,24 @@ test('the command menu is a default-hidden disclosure with both diagram exports 
   assert.doesNotMatch(canvasGroup, /label="Export draw\.io"/);
   assert.match(canvasGroup, /Canvas background/);
   assert.match(canvasGroup, /label="Clear canvas"/);
+});
+
+test('the command groups drop their headings and divide Canvas with a rule', async () => {
+  const commands = await readSource('src/components/IdeaSketchDrawerCommands.tsx');
+  const styles = await readSource('src/index.css');
+
+  // The visible group headings are gone in both markup and styles.
+  assert.doesNotMatch(commands, /__group-title/);
+  assert.doesNotMatch(styles, /__group-title/);
+
+  // The accessible group names remain on the wrappers.
+  assert.match(commands, /role="group"\s+aria-label="Page"/);
+  assert.match(commands, /role="group"\s+aria-label="Canvas"/);
+
+  // The Canvas group is set apart by a divider rule.
+  assert.match(commands, /__group--divided"[\s\S]*?aria-label="Canvas"/);
+  assert.match(
+    styles,
+    /\.ideanote-ideasketch-drawer-commands__group--divided\s*\{[\s\S]*?border-top:\s*1px solid var\(--border-subtle\)/,
+  );
 });

@@ -21,6 +21,7 @@ interface IdeaSketchNavigatorProps {
   initialPageViewMode?: PageViewMode;
   pageViewPreferenceReady?: boolean;
   headerAction?: ReactNode;
+  hintTrailing?: ReactNode;
   onTabChange: (tab: IdeaSketchNavigatorTab) => void;
   onPageSelect: (pageId: string) => void;
   onPageAdd: () => void;
@@ -48,6 +49,7 @@ export function IdeaSketchNavigator({
   initialPageViewMode = "name",
   pageViewPreferenceReady = true,
   headerAction,
+  hintTrailing,
   onTabChange,
   onPageSelect,
   onPageAdd,
@@ -91,6 +93,7 @@ export function IdeaSketchNavigator({
             readOnly={readOnly}
             initialViewMode={initialPageViewMode}
             initialViewModeReady={pageViewPreferenceReady}
+            hintTrailing={hintTrailing}
             onSelect={onPageSelect}
             onAdd={onPageAdd}
             onDuplicate={onPageDuplicate}

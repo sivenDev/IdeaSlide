@@ -25,7 +25,10 @@ import {
 } from "../lib/excalidrawStyleConversion";
 import { SlideCanvas, type SlideCanvasCommandApi } from "./SlideCanvas";
 import { ResizableDivider } from "./ResizableDivider";
-import { IdeaSketchDrawerCommands } from "./IdeaSketchDrawerCommands";
+import {
+  ActionsToggleButton,
+  IdeaSketchDrawerCommands,
+} from "./IdeaSketchDrawerCommands";
 import { IdeaSketchClearCanvasDialog } from "./IdeaSketchClearCanvasDialog";
 import type { ActiveAgentEditorBinding, AgentChangeSet } from "../lib/agent/types";
 import { createAgentToolHost } from "../lib/agent/agentToolHost";
@@ -130,6 +133,10 @@ export function IdeaSketchEditor({
   const [navigatorTab, setNavigatorTab] = useState<IdeaSketchNavigatorTab>(
     initialDrawerState.tab ?? "pages",
   );
+  const [actionsExpanded, setActionsExpanded] = useState(false);
+  const toggleActions = useCallback(() => {
+    setActionsExpanded((value) => !value);
+  }, []);
   const [canvasLayoutRefreshToken, setCanvasLayoutRefreshToken] = useState(0);
   const [canvasCommandReady, setCanvasCommandReady] = useState(false);
   const [clearCanvasDialogOpen, setClearCanvasDialogOpen] = useState(false);
@@ -627,6 +634,12 @@ export function IdeaSketchEditor({
                 pages={editorState.document.pages}
                 activePageId={editorState.activePageId}
                 activePageDraft={draft}
+                hintTrailing={
+                  <ActionsToggleButton
+                    expanded={actionsExpanded}
+                    onToggle={toggleActions}
+                  />
+                }
                 canvasInteractionActive={canvasInteractionActive}
                 cameras={cameras}
                 activeCameraId={activeCameraId}
@@ -650,6 +663,9 @@ export function IdeaSketchEditor({
             <IdeaSketchDrawerCommands
               ready={canvasCommandReady}
               readOnly={readOnly}
+              expanded={actionsExpanded}
+              showHeaderToggle={navigatorTab !== "pages"}
+              onToggle={toggleActions}
               backgroundColor={/^#[0-9a-f]{6}$/i.test(String(draft.appState.viewBackgroundColor))
                 ? String(draft.appState.viewBackgroundColor)
                 : "#ffffff"}

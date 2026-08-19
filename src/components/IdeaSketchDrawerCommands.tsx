@@ -1,4 +1,3 @@
-import { useId, useState } from "react";
 import {
   ChevronDown,
   ChevronUp,
@@ -18,10 +17,15 @@ import {
   TooltipTrigger,
 } from "./ui/Tooltip";
 
+export const IDEASKETCH_ACTIONS_BODY_ID = "ideasketch-actions-body";
+
 interface IdeaSketchDrawerCommandsProps {
   ready: boolean;
   readOnly: boolean;
   backgroundColor: string;
+  expanded: boolean;
+  showHeaderToggle: boolean;
+  onToggle: () => void;
   onImportExcalidraw: () => void;
   onExportExcalidraw: () => void;
   onExportIdeaSketch: () => void;
@@ -32,6 +36,39 @@ interface IdeaSketchDrawerCommandsProps {
 }
 
 const iconProps = { size: 15, strokeWidth: 1.8, "aria-hidden": true } as const;
+
+export function ActionsToggleButton({
+  expanded,
+  onToggle,
+}: {
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const label = expanded ? "Hide actions" : "Show actions";
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="ideanote-ideasketch-actions-toggle"
+            aria-expanded={expanded}
+            aria-controls={IDEASKETCH_ACTIONS_BODY_ID}
+            aria-label={label}
+            onClick={onToggle}
+          >
+            {expanded ? (
+              <ChevronDown size={14} strokeWidth={2} aria-hidden />
+            ) : (
+              <ChevronUp size={14} strokeWidth={2} aria-hidden />
+            )}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top">{label}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
 interface CommandRowProps {
   icon: LucideIcon;
@@ -70,6 +107,9 @@ export function IdeaSketchDrawerCommands({
   ready,
   readOnly,
   backgroundColor,
+  expanded,
+  showHeaderToggle,
+  onToggle,
   onImportExcalidraw,
   onExportExcalidraw,
   onExportIdeaSketch,
@@ -78,9 +118,10 @@ export function IdeaSketchDrawerCommands({
   onBackgroundChange,
   onClearCanvas,
 }: IdeaSketchDrawerCommandsProps) {
-  const [expanded, setExpanded] = useState(false);
-  const bodyId = useId();
   const backgroundDisabled = readOnly || !ready;
+  if (!expanded && !showHeaderToggle) {
+    return null;
+  }
   return (
     <TooltipProvider>
       <section
@@ -89,35 +130,21 @@ export function IdeaSketchDrawerCommands({
         }`}
         aria-label="Page and Canvas actions"
       >
-        <button
-          type="button"
-          className="ideanote-ideasketch-drawer-commands__toggle"
-          aria-expanded={expanded}
-          aria-controls={bodyId}
-          onClick={() => setExpanded((value) => !value)}
-        >
-          <span className="ideanote-ideasketch-drawer-commands__toggle-label">
-            Actions
-          </span>
-          {expanded ? (
-            <ChevronDown size={14} strokeWidth={2} aria-hidden />
-          ) : (
-            <ChevronUp size={14} strokeWidth={2} aria-hidden />
-          )}
-        </button>
+        {showHeaderToggle && (
+          <div className="ideanote-ideasketch-drawer-commands__toggle">
+            <span className="ideanote-ideasketch-drawer-commands__toggle-label">
+              Actions
+            </span>
+            <ActionsToggleButton expanded={expanded} onToggle={onToggle} />
+          </div>
+        )}
         {expanded && (
-          <div id={bodyId} className="ideanote-ideasketch-drawer-commands__body">
+          <div id={IDEASKETCH_ACTIONS_BODY_ID} className="ideanote-ideasketch-drawer-commands__body">
             <div
               className="ideanote-ideasketch-drawer-commands__group"
               role="group"
               aria-label="Page"
             >
-              <p
-                className="ideanote-ideasketch-drawer-commands__group-title"
-                aria-hidden
-              >
-                Page
-              </p>
               <div className="ideanote-ideasketch-drawer-commands__list">
                 <CommandRow
                   icon={Upload}
@@ -158,16 +185,10 @@ export function IdeaSketchDrawerCommands({
             </div>
 
             <div
-              className="ideanote-ideasketch-drawer-commands__group"
+              className="ideanote-ideasketch-drawer-commands__group ideanote-ideasketch-drawer-commands__group--divided"
               role="group"
               aria-label="Canvas"
             >
-              <p
-                className="ideanote-ideasketch-drawer-commands__group-title"
-                aria-hidden
-              >
-                Canvas
-              </p>
               <div className="ideanote-ideasketch-drawer-commands__list">
                 <Tooltip>
                   <TooltipTrigger asChild>

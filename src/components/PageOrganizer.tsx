@@ -15,7 +15,14 @@ import {
 } from "@dnd-kit/sortable";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Copy, GripVertical, Image, List, Pencil, Plus, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { usePageThumbnails, type PageThumbnailView } from "../hooks/usePageThumbnails";
 import { cn } from "../lib/cn";
 import type { EditorSlideDraft } from "../lib/editorSession";
@@ -41,6 +48,7 @@ interface PageOrganizerProps {
   readOnly?: boolean;
   initialViewMode?: PageViewMode;
   initialViewModeReady?: boolean;
+  hintTrailing?: ReactNode;
   onSelect: (pageId: string) => void;
   onAdd: () => void;
   onDuplicate: (pageId: string) => void;
@@ -224,6 +232,7 @@ export function PageOrganizer({
   readOnly = false,
   initialViewMode = "name",
   initialViewModeReady = true,
+  hintTrailing,
   onSelect,
   onAdd,
   onDuplicate,
@@ -427,7 +436,12 @@ export function PageOrganizer({
           </div>
         </SortableContext>
       </DndContext>
-      <div className="ideanote-page-organizer__hint">Drag Pages to change their order</div>
+      <div className="ideanote-page-organizer__hint">
+        <span className="ideanote-page-organizer__hint-text">
+          Drag Pages to change their order
+        </span>
+        {hintTrailing}
+      </div>
     </section>
   );
 }
