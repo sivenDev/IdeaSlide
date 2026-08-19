@@ -27,6 +27,14 @@ function AppContent() {
   const windowLabel = isTauriRuntime ? getCurrentWindow().label : "main";
   const isRendererWindow = windowLabel === "preview-renderer";
 
+  useEffect(() => {
+    const handleContextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener("contextmenu", handleContextMenu, true);
+    return () => window.removeEventListener("contextmenu", handleContextMenu, true);
+  }, []);
+
   const requestStandalonePath = useCallback((path: string) => {
     setPendingStandalonePath(path);
   }, []);

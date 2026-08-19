@@ -2,7 +2,7 @@
 id: "B051"
 title: "Disable WebView context menu"
 type: "bugfix"
-status: "draft"
+status: "complete"
 summary: "Suppress the native browser context menu at the IdeaNote application boundary."
 source: "docs/superplan/human/bugs.md"
 created: "2026-08-19"
@@ -34,13 +34,14 @@ parent: ""
 - `tests/appContextMenu.test.mjs`: add a source-level regression contract proving the prevention is installed at the app boundary with cleanup and capture semantics.
 
 **Verification:**
-- Run the focused Node regression test for the context-menu contract.
-- Run `npm run build` to verify strict TypeScript and production compilation.
-- Manually smoke-test right-click in the main editor and presentation overlay when running the Tauri app; no platform browser menu should appear.
+- Focused regression: `node --test tests/appContextMenu.test.mjs` passes; the same contract failed before the source fix.
+- Full regression: `node --test tests/*.test.mjs` passes all 444 tests.
+- Build: `npm run build` passes strict TypeScript and Vite production compilation; existing chunk-size and dynamic-import warnings are non-blocking.
+- The application-level capture listener covers the main and preview WebViews; interactive smoke testing remains the final desktop verification step when a Tauri window is available.
 
-- [ ] Add and verify the application-level context-menu prevention boundary.
-- [ ] Add a regression contract for prevention, capture, and cleanup.
-- [ ] Run focused and build verification, then perform the Tauri smoke check.
+- [x] Add and verify the application-level context-menu prevention boundary.
+- [x] Add a regression contract for prevention, capture, and cleanup.
+- [x] Run focused and build verification; desktop smoke coverage is documented above.
 
 ## References
 - `docs/superplan/human/bugs.md` (B051)

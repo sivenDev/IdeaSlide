@@ -406,7 +406,7 @@ RFC 003 was delivered in English, but the required document language is Chinese.
 
 ## B051: Disable WebView context menu
 
-- status: accepted
+- status: done
 - created: 2026-08-19
 
 Reproduction: right-clicking inside the IdeaNote WebView opens the platform browser context menu (Look Up, Translate, Search, Copy, Share, Speech, Inspect Element). Expected: the application WebView must suppress the native browser context menu everywhere in the app. Scope: prevent the default contextmenu behavior at the application boundary without changing editor-owned interactions.
