@@ -7,20 +7,34 @@ const readSource = (path) => readFile(new URL(`../${path}`, import.meta.url), 'u
 test('Page interchange lives below navigation with read-only-safe exports and a disabled import', async () => {
   const commands = await readSource('src/components/IdeaSketchDrawerCommands.tsx');
 
-  // All three interchange controls are clearly labeled inside the lower command grid.
-  assert.match(commands, /Import Excalidraw/);
-  assert.match(commands, /Export Excalidraw/);
-  assert.match(commands, /Export \.is/);
+  // Commands are split into labeled Page and Canvas groups (no truncating 2-column grid).
+  assert.match(commands, /role="group"\s*\n?\s*aria-label="Page"/);
+  assert.match(commands, /role="group"\s*\n?\s*aria-label="Canvas"/);
+  assert.doesNotMatch(commands, /__grid/);
+
+  // All three interchange controls are present with full, untruncated labels.
+  assert.match(commands, /label="Import Excalidraw"/);
+  assert.match(commands, /label="Export Excalidraw"/);
+  assert.match(commands, /label="Export \.is"/);
 
   // Import is a Canvas mutation (disabled read-only); both exports only require Canvas readiness.
-  assert.match(commands, /disabled=\{readOnly\} onClick=\{onImportExcalidraw\}/);
-  assert.match(commands, /disabled=\{!ready\} onClick=\{onExportExcalidraw\}/);
-  assert.match(commands, /disabled=\{!ready\} onClick=\{onExportIdeaSketch\}/);
+  assert.match(commands, /label="Import Excalidraw"[\s\S]*?disabled=\{readOnly\}[\s\S]*?onClick=\{onImportExcalidraw\}/);
+  assert.match(commands, /label="Export Excalidraw"[\s\S]*?disabled=\{!ready\}[\s\S]*?onClick=\{onExportExcalidraw\}/);
+  assert.match(commands, /label="Export \.is"[\s\S]*?disabled=\{!ready\}[\s\S]*?onClick=\{onExportIdeaSketch\}/);
 
-  // The existing image/draw.io/background/clear ownership is preserved.
-  assert.match(commands, /disabled=\{!ready\} onClick=\{onExportImage\}/);
-  assert.match(commands, /disabled=\{!ready\} onClick=\{onExportDrawio\}/);
-  assert.match(commands, /disabled=\{readOnly \|\| !ready\} onClick=\{onClearCanvas\}/);
+  // The existing image/draw.io/background/clear ownership and gating is preserved.
+  assert.match(commands, /label="Export image"[\s\S]*?disabled=\{!ready\}[\s\S]*?onClick=\{onExportImage\}/);
+  assert.match(commands, /label="Export draw\.io"[\s\S]*?disabled=\{!ready\}[\s\S]*?onClick=\{onExportDrawio\}/);
+  assert.match(commands, /const backgroundDisabled = readOnly \|\| !ready/);
+  assert.match(commands, /Canvas background[\s\S]*?disabled=\{backgroundDisabled\}/);
+  assert.match(commands, /label="Clear canvas"[\s\S]*?disabled=\{readOnly \|\| !ready\}[\s\S]*?onClick=\{onClearCanvas\}/);
+
+  // Every control carries a full hover/focus tooltip describing what it does.
+  assert.match(commands, /import \{[\s\S]*?TooltipProvider[\s\S]*?\} from "\.\/ui\/Tooltip"/);
+  assert.match(commands, /<TooltipProvider>/);
+  assert.match(commands, /<TooltipTrigger asChild>/);
+  assert.match(commands, /<TooltipContent side="right">/);
+  assert.match(commands, /description="Export the current Page as a standalone \.is document\."/);
 });
 
 test('the Pages toolbar no longer owns any import affordance', async () => {

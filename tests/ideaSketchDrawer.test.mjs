@@ -123,3 +123,32 @@ test('the command footer keeps mutating actions read-only safe and clear require
   assert.match(editor, /onClearCanvas=\{\(\) => setClearCanvasDialogOpen\(true\)\}/);
   assert.match(editor, /canvasCommandApiRef\.current\?\.clearCanvas\(\)/);
 });
+
+test('the command menu is a default-hidden disclosure with both diagram exports in the Page group', async () => {
+  const commands = await readSource('src/components/IdeaSketchDrawerCommands.tsx');
+
+  // The menu starts collapsed and only renders its groups when expanded.
+  assert.match(commands, /const \[expanded, setExpanded\] = useState\(false\)/);
+  assert.match(commands, /\{expanded && \(/);
+
+  // One up/down toggle button controls the body via an accessible disclosure.
+  assert.match(commands, /className="ideanote-ideasketch-drawer-commands__toggle"/);
+  assert.match(commands, /aria-expanded=\{expanded\}/);
+  assert.match(commands, /aria-controls=\{bodyId\}/);
+  assert.match(commands, /onClick=\{\(\) => setExpanded\(\(value\) => !value\)\}/);
+  assert.match(commands, /expanded \? \(\s*<ChevronDown/);
+  assert.match(commands, /\) : \(\s*<ChevronUp/);
+
+  // Export image and Export draw.io moved into the Page group; Canvas keeps only background + clear.
+  const pageGroup = commands.slice(
+    commands.indexOf('aria-label="Page"'),
+    commands.indexOf('aria-label="Canvas"'),
+  );
+  const canvasGroup = commands.slice(commands.indexOf('aria-label="Canvas"'));
+  assert.match(pageGroup, /label="Export image"/);
+  assert.match(pageGroup, /label="Export draw\.io"/);
+  assert.doesNotMatch(canvasGroup, /label="Export image"/);
+  assert.doesNotMatch(canvasGroup, /label="Export draw\.io"/);
+  assert.match(canvasGroup, /Canvas background/);
+  assert.match(canvasGroup, /label="Clear canvas"/);
+});
