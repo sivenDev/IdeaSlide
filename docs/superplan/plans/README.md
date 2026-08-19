@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Complete |
-| --- | --- | --- |
-| `required` | 6 | 6 |
-| `feature` | 78 | 78 |
-| `bugfix` | 51 | 51 |
+| Type | Plans | In Progress | Complete |
+| --- | --- | --- | --- |
+| `required` | 6 | 0 | 6 |
+| `feature` | 79 | 1 | 78 |
+| `bugfix` | 51 | 0 | 51 |
 
 ## Execution Order
 
@@ -109,6 +109,7 @@
 | `F063` | [Sharpen Enacta V2 First-Use and MVP Product Strategy](features/F063-sharpen-enacta-v2-first-use-and-mvp-strategy.md) | `complete` | 2026-08-14 |
 | `F064` | [Import Excalidraw Files into IdeaSketch](features/F064-import-excalidraw-files-into-ideasketch.md) | `complete` | 2026-08-19 |
 | `F065` | [Duplicate pages from the IdeaSketch Pages list](features/F065-duplicate-pages-from-pages-list.md) | `complete` | 2026-08-19 |
+| `F066` | [Add IdeaSketch Excalidraw and IS Page Export Actions](features/F066-add-ideasketch-excalidraw-and-is-page-export-actions.md) | `complete` | 2026-08-19 |
 | `F048` | [Refine Settings Navigation and Apply Changes Automatically](features/F048-refine-settings-navigation-and-auto-apply.md) | `complete` | 2026-08-12 |
 | `F049` | [Simplify AI Provider Model and Token Fields](features/F049-simplify-ai-provider-model-and-token-fields.md) | `complete` | 2026-08-12 |
 | `F055` | [Add Workspace from the Sidebar Header](features/F055-add-workspace-from-sidebar-header.md) | `complete` | 2026-08-12 |

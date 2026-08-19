@@ -1,14 +1,20 @@
 import {
   Download,
+  FileJson,
   ImageDown,
+  Package,
   Palette,
   Trash2,
+  Upload,
 } from "lucide-react";
 
 interface IdeaSketchDrawerCommandsProps {
   ready: boolean;
   readOnly: boolean;
   backgroundColor: string;
+  onImportExcalidraw: () => void;
+  onExportExcalidraw: () => void;
+  onExportIdeaSketch: () => void;
   onExportImage: () => void;
   onExportDrawio: () => void;
   onBackgroundChange: (color: string) => void;
@@ -21,14 +27,29 @@ export function IdeaSketchDrawerCommands({
   ready,
   readOnly,
   backgroundColor,
+  onImportExcalidraw,
+  onExportExcalidraw,
+  onExportIdeaSketch,
   onExportImage,
   onExportDrawio,
   onBackgroundChange,
   onClearCanvas,
 }: IdeaSketchDrawerCommandsProps) {
   return (
-    <section className="ideanote-ideasketch-drawer-commands" aria-label="Canvas and export actions">
+    <section className="ideanote-ideasketch-drawer-commands" aria-label="Page and Canvas actions">
       <div className="ideanote-ideasketch-drawer-commands__grid">
+        <button type="button" disabled={readOnly} onClick={onImportExcalidraw}>
+          <Upload {...iconProps} />
+          <span>Import Excalidraw</span>
+        </button>
+        <button type="button" disabled={!ready} onClick={onExportExcalidraw}>
+          <FileJson {...iconProps} />
+          <span>Export Excalidraw</span>
+        </button>
+        <button type="button" disabled={!ready} onClick={onExportIdeaSketch}>
+          <Package {...iconProps} />
+          <span>Export .is</span>
+        </button>
         <button type="button" disabled={!ready} onClick={onExportImage}>
           <ImageDown {...iconProps} />
           <span>Export image</span>

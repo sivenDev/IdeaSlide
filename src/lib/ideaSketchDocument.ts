@@ -63,6 +63,11 @@ function assertRecord(value: unknown, label: string): asserts value is Record<st
   }
 }
 
+function clonePageData<T>(value: T): T {
+  if (typeof structuredClone === "function") return structuredClone(value);
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 function normalizeScene(content: unknown): Omit<IdeaSketchPage, "id" | "title"> {
   assertRecord(content, "IdeaSketch Page content");
   const files = content.files && typeof content.files === "object"
@@ -115,6 +120,35 @@ export function createEmptyIdeaSketchDocument(
       elements: [],
       appState: {},
       files: {},
+    }],
+  };
+}
+
+interface OnePageDocumentOptions {
+  now?: string;
+  pageId?: string;
+}
+
+export function createIdeaSketchDocumentFromPage(
+  page: IdeaSketchPage,
+  options: OnePageDocumentOptions = {},
+): IdeaSketchDocument {
+  const now = options.now ?? new Date().toISOString();
+  const id = options.pageId ?? (isValidPageId(page.id) ? page.id : createPageId());
+  const title = typeof page.title === "string" && page.title.trim()
+    ? page.title
+    : "Untitled page";
+  return {
+    type: "ideasketch",
+    formatVersion: IDEA_SKETCH_FORMAT_VERSION,
+    created: now,
+    modified: now,
+    pages: [{
+      id,
+      title,
+      elements: clonePageData(page.elements as any[]),
+      appState: clonePageData(page.appState ?? {}),
+      files: clonePageData(page.files ?? {}),
     }],
   };
 }

@@ -24,6 +24,8 @@ test('IdeaSketch navigator switches between fixed Pages and Cameras tabs', async
   assert.match(source, /canvasInteractionActive/);
   assert.match(source, /canvasInteractionActive=\{canvasInteractionActive\}/);
   assert.match(source, /initialViewMode=\{initialPageViewMode\}/);
+  assert.doesNotMatch(source, /onPageImport/);
+  assert.doesNotMatch(source, /onImport=/);
   assert.match(styles, /\.idea-slide-ideasketch-navigator__tab\s*\{[\s\S]*?font-size:\s*0\.6875rem/);
   assert.match(styles, /\.idea-slide-ideasketch-navigator__tab\[data-state="active"\]::after/);
   assert.match(styles, /\.idea-slide-ideasketch-navigator__tab-count/);

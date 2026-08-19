@@ -476,3 +476,10 @@ Optimize docs/product/enacta-product-guide-v2.md without expanding the V2 vision
 - created: 2026-08-19
 
 Add a copy action to each editable page row in the IdeaSketch Pages list. Copying a page should preserve its canvas content and media, create a distinct page identity, insert the copy next to the source, and make the copy active.
+
+## F066: Add IdeaSketch Excalidraw and IS page export actions
+
+- status: done
+- created: 2026-08-19
+
+在 IdeaSketch 编辑器的 Pages 导航下新增独立的导入/导出入口：提供 Import Excalidraw，将选中的 .excalidraw 文件导入为当前文档的新 Page；提供 Export Excalidraw，将当前 Page 导出为 Excalidraw 文件；提供 Export IS，将当前页面导出为 .is 格式。保持现有 Pages 与 Cameras 导航、Add Page 行为和本地文件安全边界，所有用户文案使用英文。

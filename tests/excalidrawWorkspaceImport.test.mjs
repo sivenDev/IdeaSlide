@@ -27,18 +27,18 @@ test('Workspace import keeps creation menus separate and wires root and nested d
   assert.match(editor, /trashWorkspaceEntry\(root, createdPath\)/);
 });
 
-test('Pages expose a separate import menu and import creates a new reducer-managed page', async () => {
+test('Page import is relocated below navigation and still creates a new reducer-managed page', async () => {
   const [organizer, navigator, editor] = await Promise.all([
     readSource('src/components/PageOrganizer.tsx'),
     readSource('src/components/IdeaSketchNavigator.tsx'),
     readSource('src/components/IdeaSketchEditor.tsx'),
   ]);
-  assert.match(organizer, /onImport\?: \(\) => void/);
+  // The Pages toolbar and navigator no longer own an import affordance.
+  assert.doesNotMatch(organizer, /onImport|Import Page|ImportMenu/);
   assert.match(organizer, /aria-label="Add Page"/);
-  assert.match(organizer, /label="Import Page"/);
-  assert.match(organizer, /disabled=\{readOnly \|\| !onImport\}/);
-  assert.match(navigator, /onPageImport\?: \(\) => void/);
-  assert.match(navigator, /onImport=\{onPageImport\}/);
+  assert.doesNotMatch(navigator, /onPageImport|onImport=/);
+  // Import now lives in the drawer command surface, routed to the same reducer-backed coordinator.
+  assert.match(editor, /onImportExcalidraw=\{importPage\}/);
   assert.match(editor, /const importPage = useCallback\(async \(\) =>/);
   assert.match(editor, /chooseExcalidrawFile\(\)/);
   assert.match(editor, /parseExcalidrawImport\(JSON\.parse\(text\)/);

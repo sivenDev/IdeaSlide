@@ -16,6 +16,7 @@ import {
 import { extractCameras, reorderCameras, type Camera } from "../lib/cameraUtils";
 import { chooseExcalidrawFile, isDesktopOperationCancelled } from "../lib/tauriCommands";
 import { createIdeaSketchPageFromImport, parseExcalidrawImport } from "../lib/excalidrawImport";
+import { exportPageAsExcalidraw, exportPageAsIdeaSketch } from "../lib/ideaSketchPageExport";
 import {
   buildCurrentPageStyleConversion,
   buildNewPageStyleConversion,
@@ -349,6 +350,39 @@ export function IdeaSketchEditor({
     const page = model.pages.find((candidate) => candidate.id === editorStateRef.current.activePageId);
     if (page) onStartPresentation(document.id, page, mode);
   }, [document.id, flushAndGetDocument, onStartPresentation]);
+  const resolveActivePageForExport = useCallback(() => {
+    const model = flushAndGetDocument();
+    return model.pages.find((candidate) => candidate.id === editorStateRef.current.activePageId);
+  }, [flushAndGetDocument]);
+  const reportExportError = useCallback(async (error: unknown) => {
+    if (isDesktopOperationCancelled(error)) return;
+    await message(`The Page could not be exported: ${error instanceof Error ? error.message : String(error)}`, {
+      title: "Export Error",
+      kind: "error",
+    });
+  }, []);
+  const exportActivePageAsExcalidraw = useCallback(async () => {
+    const page = resolveActivePageForExport();
+    if (!page) return;
+    try {
+      const result = await exportPageAsExcalidraw(page);
+      if (result.status === "cancelled") return;
+      excalidrawApiRef.current?.setToast({ message: `Exported ${result.fileName}`, duration: 4200 });
+    } catch (error) {
+      await reportExportError(error);
+    }
+  }, [reportExportError, resolveActivePageForExport]);
+  const exportActivePageAsIdeaSketch = useCallback(async () => {
+    const page = resolveActivePageForExport();
+    if (!page) return;
+    try {
+      const result = await exportPageAsIdeaSketch(page);
+      if (result.status === "cancelled") return;
+      excalidrawApiRef.current?.setToast({ message: `Exported ${result.fileName}`, duration: 4200 });
+    } catch (error) {
+      await reportExportError(error);
+    }
+  }, [reportExportError, resolveActivePageForExport]);
   const handleApiReady = useCallback((api: any, slideId: string) => {
     excalidrawApiRef.current = api;
     excalidrawSlideIdRef.current = slideId;
@@ -602,7 +636,6 @@ export function IdeaSketchEditor({
                 onPageSelect={selectPage}
                 onPageAdd={addPage}
                 onPageDuplicate={duplicatePage}
-                onPageImport={importPage}
                 onPageRename={renamePage}
                 onPageReorder={reorderPage}
                 onPageDelete={deletePage}
@@ -620,6 +653,9 @@ export function IdeaSketchEditor({
               backgroundColor={/^#[0-9a-f]{6}$/i.test(String(draft.appState.viewBackgroundColor))
                 ? String(draft.appState.viewBackgroundColor)
                 : "#ffffff"}
+              onImportExcalidraw={importPage}
+              onExportExcalidraw={exportActivePageAsExcalidraw}
+              onExportIdeaSketch={exportActivePageAsIdeaSketch}
               onExportImage={() => canvasCommandApiRef.current?.openImageExport()}
               onExportDrawio={() => canvasCommandApiRef.current?.exportDrawio()}
               onBackgroundChange={(color) => canvasCommandApiRef.current?.changeCanvasBackground(color)}

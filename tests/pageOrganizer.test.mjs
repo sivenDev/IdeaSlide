@@ -24,6 +24,9 @@ test('Pages organizer supports both views and the complete v1 Page lifecycle', (
   assert.match(source, /onSelect/);
   assert.doesNotMatch(source, /aria-expanded/);
   assert.doesNotMatch(source, /__popover/);
+  assert.doesNotMatch(source, /ImportMenu/);
+  assert.doesNotMatch(source, /onImport/);
+  assert.doesNotMatch(source, /Import Page/);
   assert.match(source, /thumbnail/i);
   assert.match(source, /useVirtualizer/);
   assert.match(source, /verticalListSortingStrategy/);

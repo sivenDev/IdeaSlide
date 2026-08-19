@@ -25,7 +25,6 @@ interface IdeaSketchNavigatorProps {
   onPageSelect: (pageId: string) => void;
   onPageAdd: () => void;
   onPageDuplicate: (pageId: string) => void;
-  onPageImport?: () => void;
   onPageRename: (pageId: string, title: string) => void;
   onPageReorder: (pageId: string, toIndex: number) => void;
   onPageDelete: (pageId: string) => void;
@@ -53,7 +52,6 @@ export function IdeaSketchNavigator({
   onPageSelect,
   onPageAdd,
   onPageDuplicate,
-  onPageImport,
   onPageRename,
   onPageReorder,
   onPageDelete,
@@ -96,7 +94,6 @@ export function IdeaSketchNavigator({
             onSelect={onPageSelect}
             onAdd={onPageAdd}
             onDuplicate={onPageDuplicate}
-            onImport={onPageImport}
             onRename={onPageRename}
             onReorder={onPageReorder}
             onDelete={onPageDelete}
