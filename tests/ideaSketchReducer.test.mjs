@@ -28,6 +28,28 @@ test('the last Page cannot be removed', () => {
   assert.equal(ideaSketchReducer(state, { type: 'DELETE_PAGE', pageId: 'only' }), state);
 });
 
+test('duplicating a Page inserts an active independent copy after its source', () => {
+  const source = {
+    id: 'source',
+    title: 'Overview',
+    elements: [{ id: 'element-1', type: 'rectangle' }],
+    appState: { viewBackgroundColor: '#fff' },
+    files: { image: { id: 'image', dataURL: 'data:image/png;base64,AA==' } },
+  };
+  const copy = structuredClone(source);
+  copy.id = 'copy';
+  copy.title = 'Overview (Copy)';
+  const state = createIdeaSketchEditorState(document([source, page('after', 'After')]), 'source');
+  const next = ideaSketchReducer(state, { type: 'DUPLICATE_PAGE', sourcePageId: 'source', page: copy });
+
+  assert.deepEqual(next.document.pages.map((item) => item.id), ['source', 'copy', 'after']);
+  assert.equal(next.activePageId, 'copy');
+  assert.deepEqual(next.document.pages[1].elements, source.elements);
+  assert.notEqual(next.document.pages[1], source);
+  assert.notEqual(next.document.pages[1].elements, source.elements);
+  assert.notEqual(next.document.pages[1].files, source.files);
+});
+
 test('scene commits require matching Page identity and preserve the Page title', () => {
   const state = createIdeaSketchEditorState(document([page('page-a', 'Named')]));
   const ignored = ideaSketchReducer(state, { type: 'UPDATE_PAGE_SCENE', pageId: 'page-a', page: { ...page('wrong'), elements: [{ id: 'x' }] } });

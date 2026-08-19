@@ -8,6 +8,9 @@ test('Pages organizer supports both views and the complete v1 Page lifecycle', (
   assert.match(source, /aria-label="Pages"/);
   assert.match(source, /aria-label="Add Page"/);
   assert.match(source, /onRename/);
+  assert.match(source, /onDuplicate/);
+  assert.match(source, /aria-label=\{"Copy " \+ page\.title\}/);
+  assert.match(source, /<Copy /);
   assert.match(source, /onReorder/);
   assert.match(source, /<DndContext/);
   assert.match(source, /<SortableContext/);

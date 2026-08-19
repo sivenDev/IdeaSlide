@@ -14,7 +14,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { GripVertical, Image, List, Pencil, Plus, Trash2 } from "lucide-react";
+import { Copy, GripVertical, Image, List, Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { usePageThumbnails, type PageThumbnailView } from "../hooks/usePageThumbnails";
 import { cn } from "../lib/cn";
@@ -44,6 +44,7 @@ interface PageOrganizerProps {
   initialViewModeReady?: boolean;
   onSelect: (pageId: string) => void;
   onAdd: () => void;
+  onDuplicate: (pageId: string) => void;
   onImport?: () => void;
   onRename: (pageId: string, title: string) => void;
   onReorder: (pageId: string, toIndex: number) => void;
@@ -66,6 +67,7 @@ interface SortablePageRowProps {
   onCancelRename: () => void;
   onStartRename: () => void;
   onDelete: () => void;
+  onDuplicate: () => void;
 }
 
 function PageThumbnailPreview({ page, thumbnail }: {
@@ -111,6 +113,7 @@ function SortablePageRow({
   onCancelRename,
   onStartRename,
   onDelete,
+  onDuplicate,
 }: SortablePageRowProps) {
   const sortable = useSortable({ id: page.id, disabled: readOnly || editing });
   const style: CSSProperties = {
@@ -198,6 +201,9 @@ function SortablePageRow({
           <button type="button" aria-label={"Rename " + page.title} onClick={onStartRename}>
             <Pencil aria-hidden="true" />
           </button>
+          <button type="button" aria-label={"Copy " + page.title} onClick={onDuplicate}>
+            <Copy aria-hidden="true" />
+          </button>
           <button
             type="button"
             aria-label={"Delete " + page.title}
@@ -222,6 +228,7 @@ export function PageOrganizer({
   initialViewModeReady = true,
   onSelect,
   onAdd,
+  onDuplicate,
   onImport,
   onRename,
   onReorder,
@@ -419,6 +426,7 @@ export function PageOrganizer({
                         setEditingTitle(page.title);
                       }}
                       onDelete={() => onDelete(page.id)}
+                      onDuplicate={() => onDuplicate(page.id)}
                     />
                   </div>
                 );

@@ -469,3 +469,10 @@ Optimize docs/product/enacta-product-guide-v2.md without expanding the V2 vision
 - created: 2026-08-19
 
 在 Workspace 根目录和子目录操作区新增独立的 Import 下拉按钮，不改动现有“+”创建菜单；Import 菜单提供 Excalidraw 导入，将 .excalidraw 文件转换为 .is 文件。在 IdeaSketch 编辑器 Pages 导航栏的“+”旁新增同样独立的 Import 下拉按钮，导入 Excalidraw 后新增并选中一个 Page。
+
+## F065: Duplicate pages from the IdeaSketch Pages list
+
+- status: done
+- created: 2026-08-19
+
+Add a copy action to each editable page row in the IdeaSketch Pages list. Copying a page should preserve its canvas content and media, create a distinct page identity, insert the copy next to the source, and make the copy active.

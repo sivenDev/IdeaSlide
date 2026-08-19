@@ -8,6 +8,7 @@ export interface IdeaSketchEditorState {
 export type IdeaSketchAction =
   | { type: "SELECT_PAGE"; pageId: string }
   | { type: "ADD_PAGE"; page: IdeaSketchPage; index?: number }
+  | { type: "DUPLICATE_PAGE"; sourcePageId: string; page: IdeaSketchPage }
   | { type: "RENAME_PAGE"; pageId: string; title: string }
   | { type: "REORDER_PAGE"; pageId: string; toIndex: number }
   | { type: "DELETE_PAGE"; pageId: string }
@@ -45,6 +46,16 @@ export function ideaSketchReducer(
       const index = Math.max(0, Math.min(action.index ?? state.document.pages.length, state.document.pages.length));
       const pages = [...state.document.pages];
       pages.splice(index, 0, action.page);
+      return withPages(state, pages, action.page.id);
+    }
+    case "DUPLICATE_PAGE": {
+      if (
+        state.document.pages.some((page) => page.id === action.page.id)
+        || !state.document.pages.some((page) => page.id === action.sourcePageId)
+      ) return state;
+      const sourceIndex = state.document.pages.findIndex((page) => page.id === action.sourcePageId);
+      const pages = [...state.document.pages];
+      pages.splice(sourceIndex + 1, 0, action.page);
       return withPages(state, pages, action.page.id);
     }
     case "RENAME_PAGE": {

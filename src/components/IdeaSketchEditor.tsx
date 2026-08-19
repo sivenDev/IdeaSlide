@@ -281,6 +281,16 @@ export function IdeaSketchEditor({
     flushDraft();
     applyAction({ type: "ADD_PAGE", page: createEmptyIdeaSketchPage(editorStateRef.current.document.pages.length) });
   }, [applyAction, flushDraft]);
+  const duplicatePage = useCallback((pageId: string) => {
+    if (readOnly) return;
+    flushDraft();
+    const sourcePage = editorStateRef.current.document.pages.find((page) => page.id === pageId);
+    if (!sourcePage) return;
+    const page = structuredClone(sourcePage);
+    page.id = globalThis.crypto?.randomUUID?.() ?? `page-${Date.now()}`;
+    page.title = `${sourcePage.title} (Copy)`;
+    applyAction({ type: "DUPLICATE_PAGE", sourcePageId: pageId, page });
+  }, [applyAction, flushDraft, readOnly]);
   const importPage = useCallback(async () => {
     if (readOnly) return;
     try {
@@ -591,6 +601,7 @@ export function IdeaSketchEditor({
                 pageViewPreferenceReady={hydrated}
                 onPageSelect={selectPage}
                 onPageAdd={addPage}
+                onPageDuplicate={duplicatePage}
                 onPageImport={importPage}
                 onPageRename={renamePage}
                 onPageReorder={reorderPage}
