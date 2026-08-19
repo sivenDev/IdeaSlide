@@ -462,3 +462,10 @@ Create `docs/product/enacta-product-guide-v2.md` as a Chinese V2 product guide t
 - created: 2026-08-14
 
 Optimize docs/product/enacta-product-guide-v2.md without expanding the V2 vision. Make Phase 1 deliver one complete and trustworthy first outcome loop from a fuzzy idea through IdeaSketch to a reviewable HTML or document Artifact; distinguish the primary acquisition loop, retention loop, and high-frequency voice entry; define a ten-minute first-use path; keep Agent Home structurally stable around Today, Waiting for Me, In Progress, and Recent Outcomes; earn permissions progressively and provide action receipts; simplify early memory to visible, source-backed user controls and periodic review before advanced decay or compaction; introduce Work and Private as governed contexts before personality-heavy personas; define an explicit Outcome completion contract; and revise roadmap gates and metrics accordingly. Preserve the long-term Agent-first colleague direction, real-file authority, Kernel and editor safety boundaries, governed shared memory, later multi-persona expansion, and the requirement for separate implementation authorization.
+
+## F064: Import Excalidraw files into IdeaSketch
+
+- status: accepted
+- created: 2026-08-19
+
+在 Workspace 目录的“+”操作中新增导入 Excalidraw 能力，将 .excalidraw 文件转换为 .is 文件；在 IdeaSketch 编辑器 Pages 导航栏增加导入 Excalidraw 文件按钮，导入后新增一个 Page。

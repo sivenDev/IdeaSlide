@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Complete |
-| --- | --- | --- |
-| `required` | 6 | 6 |
-| `feature` | 76 | 76 |
-| `bugfix` | 50 | 50 |
+| Type | Plans | Draft | Complete |
+| --- | --- | --- | --- |
+| `required` | 6 | 0 | 6 |
+| `feature` | 77 | 1 | 76 |
+| `bugfix` | 50 | 0 | 50 |
 
 ## Execution Order
 
@@ -107,6 +107,7 @@
 | `F061` | [Open Markdown Files from the Operating System](features/F061-open-markdown-files-from-the-operating-system.md) | `complete` | 2026-08-14 |
 | `F062` | [Define Enacta V2 as an Agent-First Personal Colleague](features/F062-define-enacta-v2-agent-first-product-guide.md) | `complete` | 2026-08-14 |
 | `F063` | [Sharpen Enacta V2 First-Use and MVP Product Strategy](features/F063-sharpen-enacta-v2-first-use-and-mvp-strategy.md) | `complete` | 2026-08-14 |
+| `F064` | [Import Excalidraw Files into IdeaSketch](features/F064-import-excalidraw-files-into-ideasketch.md) | `draft` | 2026-08-19 |
 | `F048` | [Refine Settings Navigation and Apply Changes Automatically](features/F048-refine-settings-navigation-and-auto-apply.md) | `complete` | 2026-08-12 |
 | `F049` | [Simplify AI Provider Model and Token Fields](features/F049-simplify-ai-provider-model-and-token-fields.md) | `complete` | 2026-08-12 |
 | `F055` | [Add Workspace from the Sidebar Header](features/F055-add-workspace-from-sidebar-header.md) | `complete` | 2026-08-12 |
