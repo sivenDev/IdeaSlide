@@ -403,3 +403,10 @@ When the IdeaSketch drawer is closed, its floating navigation trigger occupies t
 - created: 2026-08-14
 
 RFC 003 was delivered in English, but the required document language is Chinese. Translate the complete RFC, including headings, prose, tables, decisions, risks, migration stages, and acceptance criteria, while preserving protocol method names, type names, code snippets, local paths, URLs, commit hashes, licenses, and other exact technical identifiers. Do not change the accepted architecture decision or implement runtime behavior.
+
+## B051: Disable WebView context menu
+
+- status: accepted
+- created: 2026-08-19
+
+Reproduction: right-clicking inside the IdeaNote WebView opens the platform browser context menu (Look Up, Translate, Search, Copy, Share, Speech, Inspect Element). Expected: the application WebView must suppress the native browser context menu everywhere in the app. Scope: prevent the default contextmenu behavior at the application boundary without changing editor-owned interactions.
