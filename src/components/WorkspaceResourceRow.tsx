@@ -16,6 +16,7 @@ import {
 import { getWorkspaceRenameSelectionEnd } from "../lib/workspaceRename";
 import type { DocumentStatus, WorkspaceEntry } from "../types";
 import { DocumentFileGlyph } from "./DocumentFileGlyph";
+import { ImportMenu } from "./ImportMenu";
 import { Input } from "./ui/Input";
 import {
   DropdownMenu,
@@ -49,6 +50,7 @@ interface WorkspaceResourceRowProps {
   onReveal: () => void;
   onCreateFolder: () => void;
   onCreateDocument: (fileType: string) => void;
+  onImport: () => void;
 }
 
 function documentStatusLabel(status: DocumentStatus | undefined, dirty: boolean): string {
@@ -101,6 +103,7 @@ export function WorkspaceResourceRow({
   onReveal,
   onCreateFolder,
   onCreateDocument,
+  onImport,
 }: WorkspaceResourceRowProps) {
   const isMissingEntry = documentStatus === "missing" || documentStatus === "root-missing";
   const canMutate = !readOnly && !entry.readOnly && entry.kind !== "symlink" && !isMissingEntry;
@@ -273,6 +276,12 @@ export function WorkspaceResourceRow({
                 <DropdownMenuItem onSelect={onCreateFolder}><FolderPlus {...rowActionIconProps} />New Folder</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          )}
+          {entry.kind === "directory" && (
+            <ImportMenu
+              label={`Import into ${entry.name}`}
+              onImportExcalidraw={onImport}
+            />
           )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

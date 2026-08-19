@@ -31,6 +31,7 @@ interface WorkspaceExplorerProps {
   onOpen: (entry: WorkspaceEntry) => void;
   onCreateFolder: (parentPath: string) => Promise<WorkspaceEntry>;
   onCreateDocument: (parentPath: string, fileType: string) => Promise<WorkspaceEntry | undefined>;
+  onImport: (parentPath: string) => void;
   onRename: (path: string, name: string) => Promise<void>;
   onMove: (request: WorkspaceDropRequest) => Promise<void>;
   onTrash: (path: string) => Promise<void>;
@@ -91,6 +92,7 @@ export function WorkspaceExplorer({
   onOpen,
   onCreateFolder,
   onCreateDocument,
+  onImport,
   onRename,
   onMove,
   onTrash,
@@ -157,6 +159,7 @@ export function WorkspaceExplorer({
         onReveal={() => onReveal(entry.path)}
         onCreateFolder={() => void createFolder(entry.path)}
         onCreateDocument={(fileType) => void createDocument(entry.path, fileType)}
+        onImport={() => onImport(entry.path)}
         onTrash={() => void (async () => {
           const confirmed = await ask(`Move “${entry.name}” to Trash?`, {
             title: "Move to Trash",

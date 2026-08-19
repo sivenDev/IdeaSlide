@@ -8,6 +8,7 @@ import { useUnsavedChangesDialog } from "../hooks/useUnsavedChangesDialog";
 import {
   addRecentFile,
   chooseAndOpenStandaloneDocument,
+  chooseExcalidrawFile,
   chooseStandaloneSavePath,
   createWorkspaceDocument,
   createWorkspaceFolder,
@@ -62,6 +63,11 @@ import {
 } from "../lib/unsavedChanges";
 import { isProtectedDocumentSession } from "../lib/appStoreReducer";
 import { getFileTypeDefinition, getFileTypeDefinitionByPath } from "../lib/fileTypeRegistry";
+import {
+  createIdeaSketchDocumentFromImport,
+  deriveImportBaseName,
+  parseExcalidrawImport,
+} from "../lib/excalidrawImport";
 import {
   projectWorkspaceEntryDrop,
   workspaceParentPath,
@@ -760,6 +766,75 @@ export function EditorLayout({
     await Promise.all(result.discarded.map(clearRecoveryForDocument));
     return true;
   }, [clearRecoveryForDocument, requestUnsavedChangesDecision, saveDocument, state.activeSessionId, state.documents]);
+
+  const handleImportInWorkspace = useCallback(async (root: string, parentPath = "") => {
+    if (!await confirmSessionExit()) return;
+    let createdPath: string | undefined;
+    try {
+      const { path: sourcePath, text } = await chooseExcalidrawFile();
+      const scene = parseExcalidrawImport(JSON.parse(text) as unknown, sourcePath);
+      const model = createIdeaSketchDocumentFromImport(scene);
+      const baseName = deriveImportBaseName(sourcePath) || "Imported";
+      let created: WorkspaceEntry | undefined;
+      let metadataError: string | null | undefined;
+      for (let index = 0; index < 100; index += 1) {
+        const suffix = index === 0 ? "" : ` ${index + 1}`;
+        const name = `${baseName}${suffix}.is`;
+        try {
+          const result = await createWorkspaceDocument(root, parentPath, "ideasketch", name);
+          created = result.value;
+          metadataError = result.metadataError;
+          break;
+        } catch (error) {
+          if (/already exists/i.test(error instanceof Error ? error.message : String(error))) continue;
+          throw error;
+        }
+      }
+      if (!created) throw new Error("Could not choose a non-conflicting destination name");
+      createdPath = created.path;
+      const saved = await saveWorkspaceDocument(root, created.path, model);
+      if (saved.metadataError) metadataError = saved.metadataError;
+
+      if (state.workspace?.root === root) {
+        await refreshTree();
+        dispatch({ type: "SELECT_WORKSPACE_PATH", path: created.path });
+        activateWorkspaceEntry(created);
+      } else {
+        const workspace = await openWorkspace(root);
+        dispatch({ type: "OPEN_WORKSPACE", workspace });
+        dispatch({ type: "SELECT_WORKSPACE_PATH", path: created.path });
+        dispatch({
+          type: "OPEN_DOCUMENT",
+          document: {
+            id: crypto.randomUUID(),
+            mode: "workspace",
+            filePath: created.path,
+            displayName: created.name,
+            fileType: "ideasketch",
+            status: "loading",
+            readOnly: workspace.readOnly || created.readOnly,
+            sourceModified: created.modified ?? undefined,
+            isDirty: false,
+            revision: 0,
+          },
+        });
+      }
+      if (metadataError) {
+        await message(`The file was imported, but Workspace state could not be saved: ${metadataError}`, {
+          title: "Import Workspace State Warning",
+          kind: "warning",
+        });
+      }
+    } catch (error) {
+      if (createdPath) await trashWorkspaceEntry(root, createdPath).catch(() => undefined);
+      if (isDesktopOperationCancelled(error)) return;
+      await message(`The Excalidraw file could not be imported: ${error instanceof Error ? error.message : String(error)}`, {
+        title: "Import Error",
+        kind: "error",
+      });
+    }
+  }, [activateWorkspaceEntry, confirmSessionExit, dispatch, refreshTree, state.workspace?.root]);
+
   const confirmSessionExitRef = useRef(confirmSessionExit);
   confirmSessionExitRef.current = confirmSessionExit;
 
@@ -1232,6 +1307,7 @@ export function EditorLayout({
             <WorkspaceSidebar
               frame={nativeFrame}
               activeRoot={state.workspace?.root}
+              readOnly={Boolean(state.workspace?.readOnly)}
               workspaces={workspaceRoots}
               recents={recentFiles}
               loading={navigationLoading}
@@ -1239,6 +1315,7 @@ export function EditorLayout({
               onToggle={() => setShowWorkspace(false)}
               onOpenWorkspace={(path) => void handleOpenWorkspace(path)}
               onCreateInWorkspace={(root, fileType) => void handleCreateInWorkspace(root, fileType)}
+              onImportInWorkspace={(root) => void handleImportInWorkspace(root)}
               onRefreshWorkspace={() => void refreshTree().catch((error) => {
                 handleWorkspaceActionError("Workspace refresh failed", error);
               })}
@@ -1272,6 +1349,7 @@ export function EditorLayout({
                   onOpen={openEntry}
                   onCreateFolder={handleCreateFolder}
                   onCreateDocument={handleCreateDocument}
+                  onImport={(parentPath) => void handleImportInWorkspace(state.workspace!.root, parentPath)}
                   onRename={handleRename}
                   onMove={handleMove}
                   onTrash={handleTrash}

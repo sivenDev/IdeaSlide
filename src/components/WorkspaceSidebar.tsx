@@ -31,6 +31,7 @@ import {
   TooltipTrigger,
 } from "./ui/Tooltip";
 import { DocumentFileGlyph } from "./DocumentFileGlyph";
+import { ImportMenu } from "./ImportMenu";
 import { AppUpdateNotice } from "./AppUpdateNotice";
 import type { AppUpdateState } from "../lib/appUpdates";
 
@@ -76,6 +77,7 @@ function CreateMenu({
 export function WorkspaceSidebar({
   frame,
   activeRoot,
+  readOnly = false,
   workspaces,
   recents,
   loading,
@@ -84,6 +86,7 @@ export function WorkspaceSidebar({
   onToggle,
   onOpenWorkspace,
   onCreateInWorkspace,
+  onImportInWorkspace,
   onRefreshWorkspace,
   onRenameWorkspace,
   onRemoveWorkspace,
@@ -98,6 +101,7 @@ export function WorkspaceSidebar({
 }: {
   frame: NativeWindowFrame;
   activeRoot?: string;
+  readOnly?: boolean;
   workspaces: RecentWorkspace[];
   recents: RecentFile[];
   loading: boolean;
@@ -106,6 +110,7 @@ export function WorkspaceSidebar({
   onToggle: () => void;
   onOpenWorkspace: (path?: string) => void;
   onCreateInWorkspace: (root: string, fileType: "ideasketch" | "markdown" | "directory") => void;
+  onImportInWorkspace: (root: string) => void;
   onRefreshWorkspace: () => void;
   onRenameWorkspace: (root: string, name: string) => void;
   onRemoveWorkspace: (root: string) => void;
@@ -246,6 +251,11 @@ export function WorkspaceSidebar({
                 {!isRenaming && (
                   <div className="ideanote-tree-actions">
                     <CreateMenu label={workspace.name} onCreate={(fileType) => onCreateInWorkspace(workspace.path, fileType)} />
+                    <ImportMenu
+                      label={`Import into ${workspace.name}`}
+                      disabled={active && readOnly}
+                      onImportExcalidraw={() => onImportInWorkspace(workspace.path)}
+                    />
                     {active && (
                       <TooltipProvider>
                         <Tooltip>

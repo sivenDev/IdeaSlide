@@ -2,7 +2,7 @@
 id: "F064"
 title: "Import Excalidraw Files into IdeaSketch"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Import .excalidraw scenes into new .is files or Pages through the shared IdeaSketch model and safe native file boundary."
 source: "docs/superplan/human/features.md"
 created: "2026-08-19"
@@ -37,8 +37,8 @@ parent: ""
 - `node --test tests/excalidrawImport.test.mjs`
 - Cases: valid scene, minimal scene, malformed JSON, missing/invalid elements, deleted elements, embedded files, title/filename sanitization, deterministic fallback title, unknown fields, and source immutability.
 
-- [ ] Add focused behavior tests for the parser and projections.
-- [ ] Implement the pure import module and make all focused cases pass.
+- [x] Add focused behavior tests for the parser and projections.
+- [x] Implement the pure import module and make all focused cases pass.
 
 ## Task 2: Add the Native File Boundary and Dedicated Workspace Import Menus
 
@@ -70,9 +70,9 @@ parent: ""
 - `npm run build`
 - Cases: root/subfolder destination, name collision suffixing, source untouched, cancel/no write, malformed file, read-only Workspace, and refresh/open behavior.
 
-- [ ] Add failing Workspace import, dedicated-menu separation, and native-read regressions.
-- [ ] Implement the command, coordinator, and root/directory Import dropdown wiring without changing “+” menu contents.
-- [ ] Verify collision safety and open/refresh behavior.
+- [x] Add failing Workspace import, dedicated-menu separation, and native-read regressions.
+- [x] Implement the command, coordinator, and root/directory Import dropdown wiring without changing “+” menu contents.
+- [x] Verify collision safety and open/refresh behavior.
 
 ## Task 3: Add the Pages Import Menu and Complete Delivery
 
@@ -105,9 +105,19 @@ parent: ""
 - `git diff --check`
 - Tauri smoke: import into Workspace root and nested folder, import into an existing Page list, cancel both dialogs, save/reopen, and compare scene/files/title/order.
 
-- [ ] Add failing Page import callback, dedicated-menu separation, and dirty-session regressions.
-- [ ] Implement the Page Import dropdown and editor transaction without changing Add Page behavior.
-- [ ] Run full verification, update F064 evidence/status/index, and create the task commit.
+- [x] Add failing Page import callback, dedicated-menu separation, and dirty-session regressions.
+- [x] Implement the Page Import dropdown and editor transaction without changing Add Page behavior.
+- [x] Run full verification, update F064 evidence/status/index, and create the task commit.
+
+## Delivery Evidence
+
+- Shared parser and projection coverage: `node --test tests/excalidrawImport.test.mjs` (5/5).
+- Import menu, Workspace coordinator, and Page wiring coverage: `node --test tests/excalidrawWorkspaceImport.test.mjs tests/workspaceSidebar.test.mjs tests/workspaceExplorerWiring.test.mjs tests/tauriCommands.test.mjs` (20/20 across the focused suites).
+- Full frontend regression: `node --test tests/*.test.mjs` (443/443).
+- Native import boundary: focused command test passed (1/1), with oversized-file coverage also passing in the same command module. The full Rust suite reached 174 passed / 1 failed; the only failure was the pre-existing installed-Codex handshake test because the local runtime is not the pinned `0.147.0`.
+- Production build: `npm run build` passed with only existing chunk-size and dynamic-import warnings.
+- Diff hygiene: `git diff --check` passed.
+- Behavior implemented: dedicated Import dropdowns beside unchanged creation/Add Page controls; bounded UTF-8 native reads; collision-safe Workspace `.is` creation with atomic save and cleanup; Page import flushes the active draft, adds/selects a Page, and uses the existing dirty/autosave lifecycle; cancellation is silent and malformed input reports an English error.
 
 ## References
 - `docs/superplan/human/features.md`

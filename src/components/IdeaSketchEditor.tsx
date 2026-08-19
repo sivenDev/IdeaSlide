@@ -1,4 +1,5 @@
 import { CaptureUpdateAction, restoreElements } from "@excalidraw/excalidraw";
+import { message } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PanelLeft, PanelLeftClose } from "lucide-react";
 import type { DocumentModel, DocumentSession, IdeaSketchDocument, IdeaSketchPage } from "../types";
@@ -13,6 +14,8 @@ import {
   type IdeaSketchEditorState,
 } from "../lib/ideaSketchReducer";
 import { extractCameras, reorderCameras, type Camera } from "../lib/cameraUtils";
+import { chooseExcalidrawFile, isDesktopOperationCancelled } from "../lib/tauriCommands";
+import { createIdeaSketchPageFromImport, parseExcalidrawImport } from "../lib/excalidrawImport";
 import {
   buildCurrentPageStyleConversion,
   buildNewPageStyleConversion,
@@ -278,6 +281,24 @@ export function IdeaSketchEditor({
     flushDraft();
     applyAction({ type: "ADD_PAGE", page: createEmptyIdeaSketchPage(editorStateRef.current.document.pages.length) });
   }, [applyAction, flushDraft]);
+  const importPage = useCallback(async () => {
+    if (readOnly) return;
+    try {
+      const { path, text } = await chooseExcalidrawFile();
+      const scene = parseExcalidrawImport(JSON.parse(text) as unknown, path);
+      flushDraft();
+      const page = createIdeaSketchPageFromImport(scene, {
+        title: scene.title,
+      });
+      applyAction({ type: "ADD_PAGE", page });
+    } catch (error) {
+      if (isDesktopOperationCancelled(error)) return;
+      await message(`The Excalidraw page could not be imported: ${error instanceof Error ? error.message : String(error)}`, {
+        title: "Import Error",
+        kind: "error",
+      });
+    }
+  }, [applyAction, flushDraft, readOnly]);
   const renamePage = useCallback((pageId: string, title: string) => {
     applyAction({ type: "RENAME_PAGE", pageId, title });
   }, [applyAction]);
@@ -570,6 +591,7 @@ export function IdeaSketchEditor({
                 pageViewPreferenceReady={hydrated}
                 onPageSelect={selectPage}
                 onPageAdd={addPage}
+                onPageImport={importPage}
                 onPageRename={renamePage}
                 onPageReorder={reorderPage}
                 onPageDelete={deletePage}

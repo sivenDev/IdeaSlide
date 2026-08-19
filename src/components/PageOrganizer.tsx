@@ -21,6 +21,7 @@ import { cn } from "../lib/cn";
 import type { EditorSlideDraft } from "../lib/editorSession";
 import { buildPageThumbnailDemands } from "../lib/pageThumbnailScheduler";
 import type { IdeaSketchPage } from "../types";
+import { ImportMenu } from "./ImportMenu";
 import {
   Tooltip,
   TooltipContent,
@@ -43,6 +44,7 @@ interface PageOrganizerProps {
   initialViewModeReady?: boolean;
   onSelect: (pageId: string) => void;
   onAdd: () => void;
+  onImport?: () => void;
   onRename: (pageId: string, title: string) => void;
   onReorder: (pageId: string, toIndex: number) => void;
   onDelete: (pageId: string) => void;
@@ -220,6 +222,7 @@ export function PageOrganizer({
   initialViewModeReady = true,
   onSelect,
   onAdd,
+  onImport,
   onRename,
   onReorder,
   onDelete,
@@ -362,6 +365,11 @@ export function PageOrganizer({
             </TooltipTrigger>
             <TooltipContent>Add Page</TooltipContent>
           </Tooltip>
+          <ImportMenu
+            onImportExcalidraw={() => onImport?.()}
+            disabled={readOnly || !onImport}
+            label="Import Page"
+          />
         </TooltipProvider>
       </div>
       <DndContext

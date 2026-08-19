@@ -77,6 +77,7 @@ pub fn run() {
             commands::scan_workspace,
             commands::refresh_workspace,
             commands::read_workspace_file,
+            commands::read_import_file,
             commands::open_workspace_document,
             commands::create_workspace_folder,
             commands::create_workspace_document,

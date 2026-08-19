@@ -230,6 +230,17 @@ export async function chooseAndOpenStandaloneDocument(): Promise<{ path: string;
   return { path, document: await openStandaloneDocument(path) };
 }
 
+export async function chooseExcalidrawFile(): Promise<{ path: string; text: string }> {
+  const path = await open({
+    filters: [{ name: "Excalidraw scenes", extensions: ["excalidraw", "json"] }],
+    multiple: false,
+  });
+  if (!path || typeof path !== "string") {
+    throw new DesktopOperationCancelledError("Excalidraw file selection was cancelled.");
+  }
+  return { path, text: await readImportFile(path) };
+}
+
 export async function createWorkspaceFolder(
   root: string,
   parentPath: string,
@@ -298,6 +309,10 @@ export async function inspectFile(path: string): Promise<FileInspection> {
 
 export async function readDocumentImage(documentPath: string, href: string): Promise<string> {
   return invoke<string>("read_document_image", { documentPath, href });
+}
+
+export async function readImportFile(path: string): Promise<string> {
+  return invoke<string>("read_import_file", { path });
 }
 
 export async function writeFileBytes(path: string, data: number[]): Promise<void> {

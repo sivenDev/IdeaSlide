@@ -11,6 +11,8 @@ use serde::Serialize;
 use std::path::{Component, Path, PathBuf};
 use tauri::command;
 
+const MAX_IMPORT_FILE_BYTES: u64 = 25 * 1024 * 1024;
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileInspection {
@@ -231,6 +233,22 @@ pub fn read_workspace_file(root: String, path: String) -> Result<Vec<u8>, String
 }
 
 #[command]
+pub fn read_import_file(path: String) -> Result<String, String> {
+    let path = PathBuf::from(path);
+    let metadata = std::fs::symlink_metadata(&path)
+        .map_err(|error| format!("Failed to inspect import file: {error}"))?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err("Import path must be a regular file".to_string());
+    }
+    if metadata.len() > MAX_IMPORT_FILE_BYTES {
+        return Err("Import file exceeds the 25 MB limit".to_string());
+    }
+    let bytes = std::fs::read(&path)
+        .map_err(|error| format!("Failed to read import file: {error}"))?;
+    String::from_utf8(bytes).map_err(|_| "Import file must be valid UTF-8 JSON".to_string())
+}
+
+#[command]
 pub fn open_workspace_document(root: String, path: String) -> Result<OpenDocumentResult, String> {
     WorkspaceService::open(PathBuf::from(root).as_path())?.open_document(&path)
 }
@@ -332,6 +350,35 @@ mod tests {
         let directory = TempDir::new().unwrap();
         let root = directory.path().to_string_lossy().to_string();
         assert!(read_workspace_file(root, "/tmp/outside".to_string()).is_err());
+    }
+
+    #[test]
+    fn import_file_read_is_bounded_utf8_and_regular_file_only() {
+        let directory = TempDir::new().unwrap();
+        let source = directory.path().join("scene.excalidraw");
+        std::fs::write(&source, br#"{"type":"excalidraw"}"#).unwrap();
+        assert_eq!(
+            read_import_file(source.to_string_lossy().to_string()).unwrap(),
+            r#"{"type":"excalidraw"}"#
+        );
+        assert!(read_import_file(directory.path().to_string_lossy().to_string()).is_err());
+
+        let binary = directory.path().join("binary.excalidraw");
+        std::fs::write(&binary, [0xff, 0xfe]).unwrap();
+        assert!(read_import_file(binary.to_string_lossy().to_string())
+            .unwrap_err()
+            .contains("UTF-8"));
+    }
+
+    #[test]
+    fn import_file_read_rejects_oversized_sources() {
+        let directory = TempDir::new().unwrap();
+        let source = directory.path().join("large.excalidraw");
+        let file = std::fs::File::create(&source).unwrap();
+        file.set_len(MAX_IMPORT_FILE_BYTES + 1).unwrap();
+        assert!(read_import_file(source.to_string_lossy().to_string())
+            .unwrap_err()
+            .contains("25 MB"));
     }
 
     #[test]
