@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Complete |
-| --- | --- | --- |
-| `required` | 6 | 6 |
-| `feature` | 80 | 80 |
-| `bugfix` | 51 | 51 |
+| Type | Plans | Draft | Complete |
+| --- | --- | --- | --- |
+| `required` | 6 | 0 | 6 |
+| `feature` | 81 | 1 | 80 |
+| `bugfix` | 51 | 0 | 51 |
 
 ## Execution Order
 
@@ -112,6 +112,7 @@
 | `F066` | [Add IdeaSketch Excalidraw and IS Page Export Actions](features/F066-add-ideasketch-excalidraw-and-is-page-export-actions.md) | `complete` | 2026-08-19 |
 | `F067` | [Hide Markdown Metadata in Preview](features/F067-hide-markdown-metadata-in-preview.md) | `complete` | 2026-08-27 |
 | `F048` | [Refine Settings Navigation and Apply Changes Automatically](features/F048-refine-settings-navigation-and-auto-apply.md) | `complete` | 2026-08-12 |
+| `F068` | [Support Tab Indentation in the Markdown Editor](features/F068-support-tab-indentation-in-markdown-editor.md) | `draft` | 2026-08-27 |
 | `F049` | [Simplify AI Provider Model and Token Fields](features/F049-simplify-ai-provider-model-and-token-fields.md) | `complete` | 2026-08-12 |
 | `F055` | [Add Workspace from the Sidebar Header](features/F055-add-workspace-from-sidebar-header.md) | `complete` | 2026-08-12 |
 | `F056` | [Add Automatic Desktop Updates from GitHub Releases](features/F056-automatic-desktop-updates-from-github-releases.md) | `complete` | 2026-08-12 |
