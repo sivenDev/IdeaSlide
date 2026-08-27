@@ -493,7 +493,7 @@ When previewing Markdown files, hide YAML frontmatter metadata from the rendered
 
 ## F068: Support Tab indentation in the Markdown editor
 
-- status: accepted
+- status: done
 - created: 2026-08-27
 
 在 Markdown 编辑器中支持 Tab 键操作：在列表项段落上按 Tab 可以将内容缩进为子级，按 Shift+Tab 可以减少缩进；保留只读模式和现有编辑、撤销/重做行为。

@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { defaultKeymap, history, historyKeymap, redo, redoDepth, undo, undoDepth } from "@codemirror/commands";
+import {
+  defaultKeymap,
+  history,
+  historyKeymap,
+  indentWithTab,
+  redo,
+  redoDepth,
+  undo,
+  undoDepth,
+} from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { searchKeymap } from "@codemirror/search";
 import { Compartment, EditorState, Transaction } from "@codemirror/state";
@@ -66,7 +75,7 @@ export function useCodeMirrorEditor({
           dropCursor(),
           highlightActiveLine(),
           markdown(),
-          keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
+          keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
           readOnlyCompartment.current.of(EditorState.readOnly.of(readOnly)),
           EditorView.lineWrapping,
           EditorView.updateListener.of((update) => {

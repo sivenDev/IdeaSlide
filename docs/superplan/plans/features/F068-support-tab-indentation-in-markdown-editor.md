@@ -2,7 +2,7 @@
 id: "F068"
 title: "Support Tab Indentation in the Markdown Editor"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Bind Tab and Shift+Tab in the CodeMirror Markdown editor to native indentation so list items can be nested and un-nested."
 source: "docs/superplan/human/features.md"
 created: "2026-08-27"
@@ -35,8 +35,8 @@ parent: ""
 - `node --test tests/markdownEditorContract.test.mjs tests/markdownEditorRefinement.test.mjs`
 - Exercise a Markdown CodeMirror state with `- parent\\n- child`, cursor on the second item: Tab yields `- parent\\n  - child`; Shift+Tab restores the original text; read-only state rejects both commands.
 
-- [ ] Add the `indentWithTab` binding to the shared CodeMirror Markdown hook.
-- [ ] Add focused source-level and behavior-level coverage for list nesting, outdenting, selection handling, history, and read-only safety.
+- [x] Add the `indentWithTab` binding to the shared CodeMirror Markdown hook.
+- [x] Add focused source-level and behavior-level coverage for list nesting, outdenting, selection handling, history, and read-only safety.
 
 ## Task 2: Verify and Deliver F068
 
@@ -53,8 +53,14 @@ parent: ""
 - `python3 /Users/zhengxiwan/.codex/plugins/cache/superplan-dev/superplan/0.7.0+codex.20260820095924/skills/using-superplan/scripts/human_requests.py validate`
 - `python3 /Users/zhengxiwan/.codex/plugins/cache/superplan-dev/superplan/0.7.0+codex.20260820095924/skills/using-superplan/scripts/generate_plans_readme.py --write --check`
 
-- [ ] Run focused and full verification after implementation stabilizes.
-- [ ] Mark F068 delivered, refresh the plan index, inspect the task-only diff, and create a separate `feat(F068)` commit.
+- [x] Run focused and full verification after implementation stabilizes.
+- [x] Mark F068 delivered, refresh the plan index, inspect the task-only diff, and create a separate `feat(F068)` commit.
+
+## Completion Evidence
+
+- `indentWithTab` is registered in the shared CodeMirror Markdown hook, delegating Tab and Shift+Tab to Markdown's native language-aware indentation service.
+- Focused Markdown tests prove list nesting, outdenting, multi-line selection indentation, one-step native Undo, and read-only protection.
+- `node --test tests/*.test.mjs` passed all 466 tests; `npm run build`, `git diff --check`, human-request validation, and plan-index validation passed.
 
 ## References
 - `docs/superplan/human/features.md`
