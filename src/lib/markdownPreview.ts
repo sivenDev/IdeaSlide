@@ -30,6 +30,52 @@ export interface MarkdownCodeBlockDescriptor {
   message?: string;
 }
 
+interface MarkdownLine {
+  content: string;
+  nextOffset: number;
+  hasLineEnding: boolean;
+}
+
+function readMarkdownLine(text: string, offset: number): MarkdownLine {
+  const newlineOffset = text.indexOf("\n", offset);
+  if (newlineOffset < 0) {
+    return {
+      content: text.slice(offset).replace(/\r$/, ""),
+      nextOffset: text.length,
+      hasLineEnding: false,
+    };
+  }
+  const contentEnd = newlineOffset > offset && text[newlineOffset - 1] === "\r"
+    ? newlineOffset - 1
+    : newlineOffset;
+  return {
+    content: text.slice(offset, contentEnd),
+    nextOffset: newlineOffset + 1,
+    hasLineEnding: true,
+  };
+}
+
+/**
+ * Removes only a complete YAML frontmatter block at the beginning of a Markdown
+ * document. The source text is never changed; this is a Preview-only projection.
+ */
+export function stripMarkdownFrontmatter(text: string): string {
+  const openingOffset = text.startsWith("\uFEFF") ? 1 : 0;
+  const opening = readMarkdownLine(text, openingOffset);
+  if (!opening.hasLineEnding || !/^---[ \t]*$/.test(opening.content)) return text;
+
+  let offset = opening.nextOffset;
+  while (offset < text.length) {
+    const line = readMarkdownLine(text, offset);
+    if (/^(?:---|\.\.\.)[ \t]*$/.test(line.content)) {
+      return text.slice(line.nextOffset);
+    }
+    if (line.nextOffset === offset) break;
+    offset = line.nextOffset;
+  }
+  return text;
+}
+
 export function normalizeCodeLanguage(language = ""): string {
   const normalized = language.trim().toLowerCase().replace(/^language-/, "");
   return (LANGUAGE_ALIASES[normalized] ?? normalized) || "text";

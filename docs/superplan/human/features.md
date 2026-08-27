@@ -486,7 +486,7 @@ Add a copy action to each editable page row in the IdeaSketch Pages list. Copyin
 
 ## F067: Hide Markdown metadata in preview
 
-- status: accepted
+- status: done
 - created: 2026-08-27
 
 When previewing Markdown files, hide YAML frontmatter metadata from the rendered preview while preserving it in the source/editor content.

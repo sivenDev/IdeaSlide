@@ -13,6 +13,7 @@ import {
   indexSpecialCodeBlocks,
   markdownHtmlSchema,
   normalizeCodeLanguage,
+  stripMarkdownFrontmatter,
 } from "../lib/markdownPreview";
 import { HtmlCodePreview } from "./HtmlCodePreview";
 import { MarkdownCodeBlock } from "./MarkdownCodeBlock";
@@ -69,7 +70,8 @@ export function MarkdownPreview({
   onOpenDocumentLink?: (href: string) => void;
   onScrollRatio?: (ratio: number) => void;
 }) {
-  const specialBlockIndexes = useMemo(() => indexSpecialCodeBlocks(text), [text]);
+  const renderedText = useMemo(() => stripMarkdownFrontmatter(text), [text]);
+  const specialBlockIndexes = useMemo(() => indexSpecialCodeBlocks(renderedText), [renderedText]);
   const components = useMemo<Components>(() => {
     const slugger = new GithubSlugger();
     const heading = (level: number) => ({ children }: { children?: React.ReactNode }) => {
@@ -141,7 +143,7 @@ export function MarkdownPreview({
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[rehypeRaw, [rehypeSanitize, markdownHtmlSchema]]}
           components={components}
-        >{text}</ReactMarkdown>
+        >{renderedText}</ReactMarkdown>
       </div>
     </div>
   );

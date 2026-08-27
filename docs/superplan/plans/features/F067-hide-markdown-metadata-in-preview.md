@@ -2,7 +2,7 @@
 id: "F067"
 title: "Hide Markdown Metadata in Preview"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Keep leading YAML frontmatter out of Markdown Preview while preserving source/editor content."
 source: "docs/superplan/human/features.md"
 created: "2026-08-27"
@@ -39,9 +39,16 @@ parent: ""
 - `npm run build`
 - Cases: metadata with headings/links/code after it; empty metadata; BOM and CRLF; `...` close; missing close; non-leading delimiters; ordinary horizontal rules; unchanged editor model/save source; correct Mermaid/HTML/code fence indexing after stripped lines.
 
-- [ ] Add focused pure projection and renderer-wiring regressions for valid and invalid frontmatter.
-- [ ] Integrate the preview-only projection before Markdown parsing and special-block indexing.
-- [ ] Verify source preservation, rich preview behavior, and the production build.
+- [x] Add focused pure projection and renderer-wiring regressions for valid and invalid frontmatter.
+- [x] Integrate the preview-only projection before Markdown parsing and special-block indexing.
+- [x] Verify source preservation, rich preview behavior, and the production build.
+
+## Completion Evidence
+
+- `node --test tests/markdownFrontmatterPreview.test.mjs tests/markdownEditorContract.test.mjs tests/markdownRichPreview.test.mjs` passed 12/12.
+- `node --test --test-concurrency=1 --test-reporter=dot tests/*.test.mjs` passed with exit code 0.
+- `npm run build` completed successfully; Vite emitted only the repository's existing dynamic-import and large-chunk advisories.
+- `stripMarkdownFrontmatter` handles complete leading YAML blocks with BOM, CRLF, and `...`, while leaving incomplete/non-leading delimiters and ordinary horizontal rules unchanged. `MarkdownPreview` applies the projection only to rendered text and rich-fence indexing, leaving the editor model and persistence source untouched.
 
 ## References
 - `docs/superplan/human/features.md`

@@ -23,6 +23,7 @@ test('Markdown uses CodeMirror native history, one source of truth, and safe GFM
   assert.match(preview, /remarkGfm/);
   assert.match(preview, /rehypeRaw/);
   assert.match(preview, /rehypeSanitize/);
+  assert.match(preview, /stripMarkdownFrontmatter/);
   assert.doesNotMatch(editor, /rehypeRaw|dangerouslySetInnerHTML/);
   assert.match(hook, /history\(\)/);
   assert.match(hook, /historyKeymap/);
