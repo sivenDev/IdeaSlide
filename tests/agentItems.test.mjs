@@ -12,6 +12,7 @@ test('normalized items render continuous public activity without a reasoning-sum
   assert.match(source, /\(elapsed \/ 1000\)\.toFixed\(1\)/);
   assert.doesNotMatch(source, /renderChangeReview|AgentChangeReview/);
   assert.match(source, /<AgentMarkdown content=\{item\.content\}/);
+  assert.match(source, /<AgentMarkdown content=\{content\} settled=\{presentationStatus !== "revealing"\}/);
   assert.match(source, /is-presentation-\$\{presentationStatus \?\? "settled"\}/);
   assert.match(source, /aria-busy=\{presentationStatus === "revealing"\}/);
   assert.match(source, /ideanote-agent-response-evidence/);

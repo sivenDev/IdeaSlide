@@ -424,3 +424,10 @@ When the rich Codex runtime is unavailable or incompatible, asking the active Id
 - created: 2026-09-01
 
 Runtime discovery must not reject an installed Codex solely because its version differs from hard-coded 0.147.0. Probe and negotiate the required app-server protocol and capabilities, accept compatible local versions, and show a truthful diagnostic only when required Tool, lifecycle, cancellation, approval, or dynamic-tool contracts are incompatible.
+
+## B054: Fix Agent Markdown rendering
+
+- status: done
+- created: 2026-09-01
+
+Agent assistant responses can show Markdown syntax and collapsed headings or paragraphs instead of correctly separated, formatted content in the transcript.

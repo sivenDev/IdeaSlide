@@ -2,6 +2,7 @@ import { Check, Copy } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { normalizeStreamingAgentMarkdown } from "../../lib/agent/agentMarkdownPresentation";
 
 function plainText(children: ReactNode): string {
   if (typeof children === "string" || typeof children === "number") return String(children);
@@ -31,6 +32,7 @@ function AgentCodeBlock({ children, copyEnabled }: { children: ReactNode; copyEn
 }
 
 export function AgentMarkdown({ content, settled = true }: { content: string; settled?: boolean }) {
+  const renderedContent = settled ? content : normalizeStreamingAgentMarkdown(content);
   return (
     <div className="ideanote-agent-markdown">
       <ReactMarkdown
@@ -42,7 +44,7 @@ export function AgentMarkdown({ content, settled = true }: { content: string; se
           pre: ({ children }) => <AgentCodeBlock copyEnabled={settled}>{children}</AgentCodeBlock>,
         }}
       >
-        {content}
+        {renderedContent}
       </ReactMarkdown>
     </div>
   );
