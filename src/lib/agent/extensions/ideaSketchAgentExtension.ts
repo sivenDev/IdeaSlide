@@ -87,6 +87,7 @@ const DEFAULT_DRAWING_RUNTIME: DrawingPlanRuntime = {
 const DRAWING_KINDS = new Set(["create-shape", "create-arrow", "bind-arrow"]);
 const LAYOUT_KINDS = new Set(["move-element", "resize-element"]);
 const BINDABLE_SHAPE_TYPES = new Set(["rectangle", "ellipse", "diamond"]);
+const MAX_LAYOUT_SCENE_COORDINATE = 1_000_000;
 
 export function isIdeaSketchDrawingOperation(
   operation: IdeaSketchAgentOperation,
@@ -260,9 +261,17 @@ export function buildIdeaSketchDrawingPlanScene(
   return elements;
 }
 
-function moveBoundTextElements(elements: any[], containerId: string, dx: number, dy: number, runtime: DrawingPlanRuntime) {
+function moveBoundTextElements(elements: any[], container: any, dx: number, dy: number, runtime: DrawingPlanRuntime) {
+  const boundTextIds = new Set(
+    Array.isArray(container.boundElements)
+      ? container.boundElements
+        .filter((binding: any) => binding?.type === "text" && typeof binding.id === "string")
+        .map((binding: any) => binding.id)
+      : [],
+  );
   return elements.map((element) => {
-    if (!element || element.isDeleted || element.id === containerId || element.containerId !== containerId) return element;
+    if (!element || element.isDeleted || element.id === container.id
+      || (element.containerId !== container.id && !boundTextIds.has(element.id))) return element;
     if (typeof element.x !== "number" || typeof element.y !== "number") return element;
     return {
       ...element,
@@ -303,16 +312,21 @@ export function buildIdeaSketchLayoutPlanScene(
       throw new Error(`Layout target has invalid geometry: ${operation.elementRef}`);
     }
     if (operation.kind === "move-element") {
+      const nextX = target.x + operation.dx;
+      const nextY = target.y + operation.dy;
+      if (Math.abs(nextX) > MAX_LAYOUT_SCENE_COORDINATE || Math.abs(nextY) > MAX_LAYOUT_SCENE_COORDINATE) {
+        throw new Error(`Layout target would leave the bounded scene: ${operation.elementRef}`);
+      }
       const moved = {
         ...target,
-        x: target.x + operation.dx,
-        y: target.y + operation.dy,
+        x: nextX,
+        y: nextY,
         version: Math.max(1, Number(target.version) || 1) + 1,
         versionNonce: runtime.createNonce(),
         updated: runtime.now(),
       };
       elements[targetIndex] = moved;
-      elements = moveBoundTextElements(elements, target.id, operation.dx, operation.dy, runtime);
+      elements = moveBoundTextElements(elements, moved, operation.dx, operation.dy, runtime);
       for (const element of elements) {
         if (element && typeof element.id === "string" && !element.isDeleted) {
           elementByRef.set(`element:${element.id}`, element);

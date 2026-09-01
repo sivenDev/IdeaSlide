@@ -174,9 +174,10 @@ test('semantic layout plans move bound text, resize nodes, and preserve arrow bi
   document.pages[0].elements = [
     {
       id: 'box', type: 'rectangle', x: 10, y: 20, width: 120, height: 80,
-      boundElements: [{ id: 'label', type: 'text' }, { id: 'arrow', type: 'arrow' }], version: 2,
+      boundElements: [{ id: 'label', type: 'text' }, { id: 'label-2', type: 'text' }, { id: 'arrow', type: 'arrow' }], version: 2,
     },
     { id: 'label', type: 'text', x: 30, y: 40, width: 60, height: 20, containerId: 'box', version: 1 },
+    { id: 'label-2', type: 'text', x: 35, y: 45, width: 60, height: 20, version: 1 },
     {
       id: 'arrow', type: 'arrow', x: 130, y: 50, width: 100, height: 0,
       points: [[0, 0], [100, 0]], startBinding: { elementId: 'box', focus: 0, gap: 6 },
@@ -202,11 +203,13 @@ test('semantic layout plans move bound text, resize nodes, and preserve arrow bi
   });
   const box = scene.find((element) => element.id === 'box');
   const label = scene.find((element) => element.id === 'label');
+  const label2 = scene.find((element) => element.id === 'label-2');
   const arrow = scene.find((element) => element.id === 'arrow');
   assert.deepEqual({ x: box.x, y: box.y, width: box.width, height: box.height }, { x: 90, y: 10, width: 240, height: 120 });
   assert.deepEqual({ x: label.x, y: label.y }, { x: 110, y: 30 });
+  assert.deepEqual({ x: label2.x, y: label2.y }, { x: 115, y: 35 });
   assert.deepEqual(arrow.startBinding, { elementId: 'box', focus: 0, gap: 6 });
-  assert.deepEqual(scene.find((element) => element.id === 'untouched'), document.pages[0].elements[3]);
+  assert.deepEqual(scene.find((element) => element.id === 'untouched'), document.pages[0].elements[4]);
 });
 
 test('semantic layout plans reject unread, malformed, oversized, and cross-Page targets', async () => {
