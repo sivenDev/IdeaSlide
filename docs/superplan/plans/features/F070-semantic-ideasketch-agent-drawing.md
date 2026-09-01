@@ -2,7 +2,7 @@
 id: "F070"
 title: "Add Semantic Incremental IdeaSketch Agent Drawing"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Let the IdeaSketch Agent plan bounded shape and arrow edits with bindings and apply them as one native editor transaction."
 source: "docs/superplan/human/features.md"
 created: "2026-09-01"
@@ -39,9 +39,9 @@ parent: ""
 - `node --test tests/ideaSketchAgentExtension.test.mjs`
 - Assert deterministic schemas, bounded reads, stable references, valid rectangle→arrow binding plans, and rejection of malformed/oversized/cross-Page inputs.
 
-- [ ] Add semantic read and drawing-plan contract tests.
-- [ ] Implement bounded schemas, operation validation, and concise summaries.
-- [ ] Document the plan contract in the bundled IdeaSketch Skill.
+- [x] Add semantic read and drawing-plan contract tests.
+- [x] Implement bounded schemas, operation validation, and concise summaries.
+- [x] Document the plan contract in the bundled IdeaSketch Skill.
 
 ## Task 2: Apply Ordered Plans Through the Native Editor Transaction
 
@@ -65,9 +65,9 @@ parent: ""
 - `npm run build`
 - Cases: rectangle then bound arrow; unrelated elements retained; one native capture; malformed/stale/read-only/switched/cancelled plans leave the scene unchanged; existing Page mutations remain compatible.
 
-- [ ] Add focused direct-apply and native-transaction contract tests.
-- [ ] Implement plan conversion, binding resolution, and atomic application.
-- [ ] Verify build and focused Agent/editor regressions.
+- [x] Add focused direct-apply and native-transaction contract tests.
+- [x] Implement plan conversion, binding resolution, and atomic application.
+- [x] Verify build and focused Agent/editor regressions.
 
 ## Task 3: Complete Regression and Delivery Evidence
 
@@ -86,8 +86,16 @@ parent: ""
 - `git diff --check`
 - Native acceptance with a disposable `.is`: run a rectangle→arrow request, confirm one completed editor mutation, inspect bindings after save/reopen, verify native Undo restores the prior scene, and confirm stale/read-only/external-change paths do not mutate.
 
-- [ ] Run focused and final verification, record current evidence, and mark this plan complete.
-- [ ] Mark F070 done and create a separate task commit containing only F070 changes.
+- [x] Run focused and final verification, record current evidence, and mark this plan complete.
+- [x] Mark F070 done and create a separate task commit containing only F070 changes.
+
+## Verification Evidence
+
+- Focused Agent/editor contract tests: `node --test tests/agentDirectEditorContract.test.mjs tests/ideaSketchAgentExtension.test.mjs tests/agentToolHost.test.mjs` (18 passed).
+- Production build: `npm run build` (passed; existing Vite chunk-size and dynamic-import warnings only).
+- Rust regression: `cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture` (177 passed); `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets` (passed with existing warnings).
+- Full Node regression: 472 passed, with the existing Playwright `virtualized Page cards remain sortable in WebKit thumbnail mode` scenario timing out at `tests/f012DragRuntime.test.mjs:479`; rerun reproduced the same timeout and no F070 test failed.
+- `git diff --check` passed. `cargo fmt --check` remains blocked by pre-existing formatting drift in `src-tauri/src/commands.rs` and `src-tauri/src/recent_files.rs`, outside this feature's write set.
 
 ## References
 - `docs/superplan/human/prd.md`

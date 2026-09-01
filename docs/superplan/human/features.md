@@ -507,7 +507,7 @@ Generate a concise persistent Agent conversation title from the early visible us
 
 ## F070: Add semantic incremental IdeaSketch Agent drawing operations
 
-- status: accepted
+- status: done
 - created: 2026-09-01
 
 Extend the IdeaSketch Agent with bounded semantic scene reads and incremental shape/arrow operations, including arrow bindings and one atomic editor ChangeSet, so the Agent can express a sequence such as drawing a rectangle and then connecting an arrow while preserving native undo, autosave, recovery, and revision safety. Playback of mouse-level gestures is explicitly out of scope.

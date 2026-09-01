@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createEmptyIdeaSketchDocument } from '../src/lib/ideaSketchDocument.ts';
 import { createAgentToolHost } from '../src/lib/agent/agentToolHost.ts';
-import { ideaSketchAgentExtension } from '../src/lib/agent/extensions/ideaSketchAgentExtension.ts';
+import {
+  buildIdeaSketchDrawingPlanScene,
+  ideaSketchAgentExtension,
+} from '../src/lib/agent/extensions/ideaSketchAgentExtension.ts';
 
 function host(document, revision = 3, activeContextId = 'page-1') {
   return createAgentToolHost({
@@ -21,7 +24,16 @@ function host(document, revision = 3, activeContextId = 'page-1') {
 
 test('IdeaSketch context and read Tools are bounded and identify the active Page', async () => {
   const document = createEmptyIdeaSketchDocument({ pageId: 'page-1', now: '2026-08-08T00:00:00Z' });
-  document.pages[0].elements = Array.from({ length: 90 }, (_, index) => ({ id: `e-${index}`, type: 'rectangle' }));
+  document.pages[0].elements = Array.from({ length: 90 }, (_, index) => ({
+    id: `e-${index}`,
+    type: index === 0 ? 'text' : 'rectangle',
+    x: index,
+    y: index * 2,
+    width: 100,
+    height: 60,
+    text: index === 0 ? 'Semantic label' : undefined,
+    groupIds: index === 1 ? ['group-a'] : [],
+  }));
   const context = ideaSketchAgentExtension.buildContext(document, 'page-1', 7);
   assert.equal(context.revision, 7);
   assert.equal(context.activePage.id, 'page-1');
@@ -33,8 +45,127 @@ test('IdeaSketch context and read Tools are bounded and identify the active Page
   const result = await host(document, 7).execute({ callId: 'read-1', name: 'read_active_page', arguments: {} });
   assert.equal(result.kind, 'read');
   assert.equal(result.content.elements.length, 80);
+  assert.deepEqual(result.content.elements[0], {
+    ref: 'element:e-0',
+    id: 'e-0',
+    type: 'text',
+    bounds: { x: 0, y: 0, width: 100, height: 60 },
+    text: 'Semantic label',
+    zIndex: 0,
+  });
+  assert.deepEqual(result.content.elements[1].groupIds, ['group-a']);
+  assert.equal(result.content.elementLimit, 80);
+  assert.equal(result.content.returnedElementCount, 80);
   assert.equal(result.truncated, true);
   assert.equal(result.persistable, false);
+});
+
+test('semantic drawing plans create stable shapes, arrows, and bindings without replacing unrelated elements', async () => {
+  const document = createEmptyIdeaSketchDocument({ pageId: 'page-1', now: '2026-08-08T00:00:00Z' });
+  document.pages[0].elements = [{
+    id: 'existing', type: 'rectangle', x: 0, y: 0, width: 120, height: 80,
+    boundElements: null, version: 1, versionNonce: 10, updated: 100,
+  }];
+  const call = {
+    callId: 'draw-1',
+    name: 'apply_drawing_plan',
+    arguments: {
+      pageId: 'page-1',
+      operations: [
+        {
+          kind: 'create-shape', ref: 'next-box', shape: 'rectangle',
+          x: 260, y: 20, width: 140, height: 90,
+          style: { backgroundColor: '#e5dbff', strokeColor: '#5f3dc4', roundness: 'rounded' },
+        },
+        {
+          kind: 'create-arrow', ref: 'connector',
+          start: { x: 120, y: 40 }, end: { x: 260, y: 65 },
+        },
+        {
+          kind: 'bind-arrow', arrowRef: 'connector',
+          startElementRef: 'element:existing', endElementRef: 'next-box',
+        },
+      ],
+    },
+  };
+
+  const result = await host(document).execute(call);
+  assert.equal(result.kind, 'mutation');
+  assert.equal(result.changeSet.operations.length, 3);
+  assert.deepEqual(result.changeSet.operations.map((operation) => operation.kind), [
+    'create-shape',
+    'create-arrow',
+    'bind-arrow',
+  ]);
+  assert.match(result.summary, /1 shape, 1 arrow, and 2 bindings/);
+  const repeated = await host(document).execute(structuredClone(call));
+  assert.equal(repeated.kind, 'mutation');
+  assert.equal(
+    repeated.changeSet.operations[0].elementId,
+    result.changeSet.operations[0].elementId,
+  );
+
+  let nonce = 100;
+  const scene = buildIdeaSketchDrawingPlanScene(
+    document.pages[0].elements,
+    result.changeSet.operations,
+    { createNonce: () => ++nonce, now: () => 500 },
+  );
+  assert.equal(scene.length, 3);
+  assert.equal(scene[0].id, 'existing');
+  const shape = scene.find((element) => element.type === 'rectangle' && element.id !== 'existing');
+  const arrow = scene.find((element) => element.type === 'arrow');
+  assert.equal(shape.backgroundColor, '#e5dbff');
+  assert.deepEqual(arrow.startBinding, { elementId: 'existing', focus: 0, gap: 6 });
+  assert.deepEqual(arrow.endBinding, { elementId: shape.id, focus: 0, gap: 6 });
+  assert.deepEqual(scene[0].boundElements, [{ id: arrow.id, type: 'arrow' }]);
+  assert.deepEqual(shape.boundElements, [{ id: arrow.id, type: 'arrow' }]);
+
+  const semanticDocument = structuredClone(document);
+  semanticDocument.pages[0].elements = scene;
+  const read = await host(semanticDocument).execute({
+    callId: 'read-bindings', name: 'read_active_page', arguments: {},
+  });
+  assert.equal(read.kind, 'read');
+  assert.deepEqual(read.content.elements[0].boundElementRefs, [`element:${arrow.id}`]);
+});
+
+test('semantic drawing plans reject malformed, oversized, forward, and cross-Page references', async () => {
+  const document = createEmptyIdeaSketchDocument({ pageId: 'page-1', now: '2026-08-08T00:00:00Z' });
+  document.pages.push({ id: 'page-2', title: 'Second', elements: [], appState: {}, files: {} });
+  const executor = host(document);
+  const invalidCalls = [
+    {
+      callId: 'cross-page', name: 'apply_drawing_plan',
+      arguments: {
+        pageId: 'page-2',
+        operations: [{ kind: 'create-shape', ref: 'box', shape: 'rectangle', x: 0, y: 0, width: 100, height: 60 }],
+      },
+    },
+    {
+      callId: 'forward-ref', name: 'apply_drawing_plan',
+      arguments: {
+        pageId: 'page-1',
+        operations: [{ kind: 'bind-arrow', arrowRef: 'later', endElementRef: 'missing' }],
+      },
+    },
+    {
+      callId: 'oversized', name: 'apply_drawing_plan',
+      arguments: {
+        pageId: 'page-1',
+        operations: Array.from({ length: 41 }, (_, index) => ({
+          kind: 'create-shape', ref: `box-${index}`, shape: 'rectangle',
+          x: index * 10, y: 0, width: 100, height: 60,
+        })),
+      },
+    },
+  ];
+
+  for (const call of invalidCalls) {
+    const result = await executor.execute(call);
+    assert.equal(result.kind, 'failure', call.callId);
+    assert.equal(result.error.code, 'toolExecutionFailed', call.callId);
+  }
 });
 
 test('IdeaSketch mutations are direct-action transactions routed through the Tool host', async () => {
@@ -61,6 +192,9 @@ test('Rust rejects malformed and oversized Tool input while the editor extension
 
   const addPage = ideaSketchAgentExtension.tools.find((tool) => tool.name === 'add_page');
   assert.equal(addPage.inputSchema.properties.elements.maxItems, 500);
+  const drawingPlan = ideaSketchAgentExtension.tools.find((tool) => tool.name === 'apply_drawing_plan');
+  assert.equal(drawingPlan.inputSchema.properties.operations.maxItems, 40);
+  assert.equal(drawingPlan.inputSchema.additionalProperties, false);
 
   const missingPage = await executor.execute({
     callId: 'bad-3',
@@ -98,8 +232,12 @@ test('IdeaSketch Tool contract covers outline, Page reads, and direct mutations'
     'delete_page',
     'reorder_page',
     'replace_page_elements',
+    'apply_drawing_plan',
   ]);
   const replace = ideaSketchAgentExtension.tools.find((tool) => tool.name === 'replace_page_elements');
   assert.match(replace.description, /active Page/);
   assert.deepEqual(replace.requires, ['read_active_page']);
+  const drawingPlan = ideaSketchAgentExtension.tools.find((tool) => tool.name === 'apply_drawing_plan');
+  assert.match(drawingPlan.description, /ordered semantic/);
+  assert.deepEqual(drawingPlan.requires, ['read_active_page']);
 });

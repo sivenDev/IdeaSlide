@@ -22,6 +22,17 @@ test('document synchronization stays non-captured while Agent replacement is cap
   assert.doesNotMatch(editor, /UPDATE_PAGE_SCENE[\s\S]*syncMountedCanvasToPage\(nextPage\)/);
 });
 
+test('semantic drawing plans are assembled before one native captured scene update', async () => {
+  const editor = await readFile(new URL('../src/components/IdeaSketchEditor.tsx', import.meta.url), 'utf8');
+  assert.match(editor, /buildIdeaSketchDrawingPlanScene/);
+  assert.match(editor, /operations\.every\(isIdeaSketchDrawingOperation\)/);
+  assert.match(
+    editor,
+    /buildIdeaSketchDrawingPlanScene\([\s\S]*api\.updateScene\(\{[\s\S]*captureUpdate: CaptureUpdateAction\.IMMEDIATELY/,
+  );
+  assert.match(editor, /operation\.pageId !== current\.activePageId/);
+});
+
 test('editor shell leaves Undo and Redo entirely to the active editor', async () => {
   const layout = await readFile(new URL('../src/components/EditorLayout.tsx', import.meta.url), 'utf8');
   const crown = await readFile(new URL('../src/components/WorkbenchCrown.tsx', import.meta.url), 'utf8');
