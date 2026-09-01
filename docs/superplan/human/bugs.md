@@ -413,7 +413,7 @@ Reproduction: right-clicking inside the IdeaNote WebView opens the platform brow
 
 ## B052: Continue Compatibility Turns after editor read Tools
 
-- status: proposed
+- status: accepted
 - created: 2026-09-01
 
 When the rich Codex runtime is unavailable or incompatible, asking the active IdeaSketch editor what is on the current Page successfully executes read_active_page but then ends with the generic “I completed the requested editor Tool activity” response instead of answering from the Tool result. The Compatibility path must return bounded editor Tool results to the model, continue the Turn under existing Tool Broker, prerequisite, cancellation, and safety limits, and produce a substantive final response. Reusing one persistent conversation across Markdown and IdeaSketch is valid; the retained conversation title is not this defect.
