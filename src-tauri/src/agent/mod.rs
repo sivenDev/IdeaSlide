@@ -543,19 +543,36 @@ fn tool_failure(call: &AgentToolCall, message: impl Into<String>) -> Value {
     })
 }
 
-fn compatibility_skill_loop_failure() -> provider::ProviderFailure {
+fn compatibility_tool_loop_failure() -> provider::ProviderFailure {
     provider::ProviderFailure {
         diagnostic: AgentErrorDiagnostic {
             code: AgentErrorCode::ToolExecutionFailed,
-            message: "Managed Skill activation did not settle within the bounded Compatibility Tool loop."
+            message: "Agent Tool activity did not settle within the bounded Compatibility Tool loop."
                 .to_string(),
             recovery: Some(
-                "Start a new Turn and explicitly select the required Skill.".to_string(),
+                "Start a new Turn and narrow the requested Tool activity.".to_string(),
             ),
             diagnostic_id: Uuid::new_v4().to_string(),
             retryable: true,
         },
     }
+}
+
+fn compatibility_tool_round_should_continue(tool_calls: &[AgentToolCall]) -> bool {
+    !tool_calls.is_empty()
+}
+
+fn compatibility_tool_result_prompt(
+    system_prompt: &str,
+    activated_instructions: &str,
+    tool_results: &[Value],
+) -> String {
+    format!(
+        "{}\n\nCURRENT CAPTURED SKILL INSTRUCTIONS:\n{}\n\nEPHEMERAL TOOL RESULTS FOR THIS TURN ONLY:\n{}",
+        system_prompt,
+        activated_instructions,
+        serde_json::to_string(tool_results).unwrap_or_else(|_| "[]".to_string()),
+    )
 }
 
 fn tool_output(result: &Value) -> Value {
@@ -1678,7 +1695,7 @@ pub(crate) async fn run_agent(
         .ok_or_else(|| "AI provider configuration is required".to_string())?;
     let mut compatibility_request = request;
     let mut broker = AgentToolBroker::with_max_steps(&tool_definitions, policy.max_steps)?;
-    let mut compatibility_host_rounds = 0_u8;
+    let mut compatibility_tool_rounds = 0_u8;
     let result = loop {
         let progress_emitter = emitter.clone();
         let round_result = runtime::complete(
@@ -1691,31 +1708,16 @@ pub(crate) async fn run_agent(
         let Ok(completion) = round_result else {
             break round_result;
         };
-        let host_calls = completion
-            .tool_calls
-            .iter()
-            .filter(|tool_call| {
-                workspace_host.is_workspace_tool(&tool_call.name)
-                    || matches!(
-                        tool_call.name.as_str(),
-                        "activate_skill" | "read_skill_reference"
-                    )
-            })
-            .collect::<Vec<_>>();
-        let has_host_calls = !host_calls.is_empty();
-        if has_host_calls {
-            compatibility_host_rounds = compatibility_host_rounds.saturating_add(1);
-            if compatibility_host_rounds > policy.max_steps {
-                break Err(compatibility_skill_loop_failure());
+        let tool_calls = completion.tool_calls.iter().collect::<Vec<_>>();
+        let has_tool_calls = compatibility_tool_round_should_continue(&completion.tool_calls);
+        if has_tool_calls {
+            compatibility_tool_rounds = compatibility_tool_rounds.saturating_add(1);
+            if compatibility_tool_rounds > policy.max_steps {
+                break Err(compatibility_tool_loop_failure());
             }
         }
-        let mut ephemeral_host_results = Vec::new();
-        let calls_to_execute = if has_host_calls {
-            host_calls
-        } else {
-            completion.tool_calls.iter().collect::<Vec<_>>()
-        };
-        for tool_call in calls_to_execute {
+        let mut ephemeral_tool_results = Vec::new();
+        for tool_call in tool_calls {
             let raw_result = match execute_editor_tool(
                 &state,
                 &emitter,
@@ -1750,15 +1752,13 @@ pub(crate) async fn run_agent(
                     return Err(message);
                 }
             };
-            if has_host_calls {
-                ephemeral_host_results.push(raw_result.clone());
-            }
+            ephemeral_tool_results.push(raw_result.clone());
             let mut turn = emitter
                 .lock()
                 .map_err(|_| "Agent Turn event state is unavailable")?;
             emit_tool_result(&mut turn, tool_call, &raw_result)?;
         }
-        if has_host_calls {
+        if has_tool_calls {
             let activated = skill_turn
                 .lock()
                 .map_err(|_| "Skill activation state is unavailable")?
@@ -1772,12 +1772,10 @@ pub(crate) async fn run_agent(
                 .tools
                 .extend(workspace_tools.iter().cloned());
             compatibility_request.tools.extend(host_tools);
-            compatibility_request.system_prompt = format!(
-                "{}\n\nCURRENT CAPTURED SKILL INSTRUCTIONS:\n{}\n\nEPHEMERAL HOST TOOL RESULTS FOR THIS TURN ONLY:\n{}",
-                compatibility_request.system_prompt,
-                activated,
-                serde_json::to_string(&ephemeral_host_results)
-                    .unwrap_or_else(|_| "[]".to_string()),
+            compatibility_request.system_prompt = compatibility_tool_result_prompt(
+                &compatibility_request.system_prompt,
+                &activated,
+                &ephemeral_tool_results,
             );
             continue;
         }
@@ -1969,8 +1967,9 @@ fn codex_conversation_for_tools(
 mod tests {
     use super::{
         agent_tool_availability_item, can_fallback_after_codex_failure,
-        codex_conversation_for_tools, emit_tool_result, emit_tool_started, finalize_turn,
-        stable_tool_signature, validate_agent_selection, NativeTurnEmitter,
+        codex_conversation_for_tools, compatibility_tool_result_prompt,
+        compatibility_tool_round_should_continue, emit_tool_result, emit_tool_started,
+        finalize_turn, stable_tool_signature, validate_agent_selection, NativeTurnEmitter,
     };
     use crate::agent::types::{AgentRunEvent, AgentToolCall, AgentToolDescriptor};
     use serde_json::{json, Value};
@@ -2256,5 +2255,29 @@ mod tests {
             final_text,
             "I completed the requested editor Tool activity."
         );
+    }
+
+    #[test]
+    fn compatibility_editor_tool_results_continue_into_the_next_provider_round() {
+        let call = AgentToolCall {
+            call_id: "read-1".to_string(),
+            name: "read_active_page".to_string(),
+            arguments: json!({}),
+        };
+        assert!(compatibility_tool_round_should_continue(&[call]));
+
+        let prompt = compatibility_tool_result_prompt(
+            "Base instructions",
+            "Activated skill guidance",
+            &[json!({
+                "kind": "read",
+                "callId": "read-1",
+                "name": "read_active_page",
+                "success": true,
+                "content": {"title": "Overview"}
+            })],
+        );
+        assert!(prompt.contains("EPHEMERAL TOOL RESULTS FOR THIS TURN ONLY:"));
+        assert!(prompt.contains("\"title\":\"Overview\""));
     }
 }

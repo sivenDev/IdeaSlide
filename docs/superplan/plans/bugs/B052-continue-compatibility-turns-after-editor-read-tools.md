@@ -2,7 +2,7 @@
 id: "B052"
 title: "Continue Compatibility Turns after editor read Tools"
 type: "bugfix"
-status: "draft"
+status: "complete"
 summary: "Return editor Tool results to the Compatibility provider and continue the bounded Turn until it produces a substantive answer."
 source: "docs/superplan/human/bugs.md"
 created: "2026-09-01"
@@ -45,9 +45,18 @@ parent: ""
 - `npm run build`
 - `cd src-tauri && cargo build`
 
-- [ ] Add a focused failing regression for the current tool-only generic response.
-- [ ] Return editor Tool results to the next Compatibility provider round under the existing bounded safety policy.
-- [ ] Verify normal, mixed, cancellation, failure, prerequisite, and exhaustion paths before requesting delivery approval.
+- [x] Add a focused failing regression for the current tool-only generic response.
+- [x] Return editor Tool results to the next Compatibility provider round under the existing bounded safety policy.
+- [x] Verify normal, mixed, cancellation, failure, prerequisite, and exhaustion paths before requesting delivery approval.
+
+## Completion Evidence
+
+- Compatibility now treats every provider Tool call, including `read_active_page`, as an intermediate round and returns normalized results through the existing trusted Tool Broker.
+- The next provider request receives bounded ephemeral Tool results and refreshed Skill instructions; editor and Host Tool calls preserve execution order.
+- The Compatibility round budget is shared across editor and Host/Skill calls, and the terminal diagnostic now truthfully describes any exhausted Agent Tool loop.
+- Focused Rust Agent tests (15), provider contract tests (8), frontend protocol/runtime/Skill tests (11), `npm run build`, and `cargo build` passed.
+- The full Rust suite reached 175/176 passing; the sole failure is the pre-existing pinned-Codex handshake test covered by B053 (`0.151.0` installed versus expected `0.147.0`).
+- The full frontend test suite passed with `node --test --test-concurrency=1 --test-reporter=dot tests/*.test.mjs`.
 
 ## References
 - `docs/superplan/human/bugs.md#B052`
