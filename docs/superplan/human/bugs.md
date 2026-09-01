@@ -410,3 +410,10 @@ RFC 003 was delivered in English, but the required document language is Chinese.
 - created: 2026-08-19
 
 Reproduction: right-clicking inside the IdeaNote WebView opens the platform browser context menu (Look Up, Translate, Search, Copy, Share, Speech, Inspect Element). Expected: the application WebView must suppress the native browser context menu everywhere in the app. Scope: prevent the default contextmenu behavior at the application boundary without changing editor-owned interactions.
+
+## B052: Continue Compatibility Turns after editor read Tools
+
+- status: proposed
+- created: 2026-09-01
+
+When the rich Codex runtime is unavailable or incompatible, asking the active IdeaSketch editor what is on the current Page successfully executes read_active_page but then ends with the generic “I completed the requested editor Tool activity” response instead of answering from the Tool result. The Compatibility path must return bounded editor Tool results to the model, continue the Turn under existing Tool Broker, prerequisite, cancellation, and safety limits, and produce a substantive final response. Reusing one persistent conversation across Markdown and IdeaSketch is valid; the retained conversation title is not this defect.

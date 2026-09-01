@@ -497,3 +497,10 @@ When previewing Markdown files, hide YAML frontmatter metadata from the rendered
 - created: 2026-08-27
 
 在 Markdown 编辑器中支持 Tab 键操作：在列表项段落上按 Tab 可以将内容缩进为子级，按 Shift+Tab 可以减少缩进；保留只读模式和现有编辑、撤销/重做行为。
+
+## F069: Generate Agent conversation titles from visible content
+
+- status: proposed
+- created: 2026-09-01
+
+Generate a concise persistent Agent conversation title from the early visible user conversation, similar to Codex, instead of relying on the document name captured when the conversation was created. The same title should remain stable when the conversation is reused across Markdown and IdeaSketch editors, while users can still rename the conversation manually.
