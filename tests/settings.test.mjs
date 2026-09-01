@@ -37,7 +37,7 @@ test('settings normalization is versioned and bounds Agent policy and Provider r
       retry: { enabled: false, maxAttempts: 100 },
     },
     agent: {
-      maxSteps: 100,
+      maxSteps: 101,
       contextWarningPercent: 99,
       newThreadPercent: 40,
       diagnosticRetention: 999,
@@ -50,7 +50,8 @@ test('settings normalization is versioned and bounds Agent policy and Provider r
   assert.equal(normalized.ai.baseUrl, 'https://example.test/v1');
   assert.deepEqual(normalized.ai.retry, { enabled: false, maxAttempts: 5 });
   assert.deepEqual(normalized.ai.availableModels, ['model-a', 'model-b']);
-  assert.equal(normalized.agent.maxSteps, 20);
+  assert.equal(normalized.agent.maxSteps, 100);
+  assert.equal(normalizeSettings({ agent: { maxSteps: 100 } }).agent.maxSteps, 100);
   assert.equal(normalized.agent.contextWarningPercent, 90);
   assert.equal(normalized.agent.newThreadPercent, 91);
   assert.equal(normalized.agent.diagnosticRetention, 100);
@@ -134,6 +135,7 @@ test('Agent settings keep automatic runtime selection concise and move the AI ga
     'utf8',
   );
   assert.match(agentSettings, /title="Runtime selection"/);
+  assert.match(agentSettings, /max=\{AGENT_MAX_STEPS\}/);
   assert.doesNotMatch(agentSettings, /Codex when compatible, otherwise the configured provider/);
   assert.match(agentSettings, /title="Enable AI"/);
   assert.match(agentSettings, /title="Open Agent by default"/);

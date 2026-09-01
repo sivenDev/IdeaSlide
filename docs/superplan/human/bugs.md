@@ -431,3 +431,10 @@ Runtime discovery must not reject an installed Codex solely because its version 
 - created: 2026-09-01
 
 Agent assistant responses can show Markdown syntax and collapsed headings or paragraphs instead of correctly separated, formatted content in the transcript.
+
+## B055: Raise Agent maximum steps limit to 100
+
+- status: done
+- created: 2026-09-01
+
+复现：打开 Settings → Agent，将 Maximum steps 设置为大于 20 的值。实际：输入控件和设置归一化将值限制为 20，Rust Agent Tool Broker 也会将运行时上限截断为 20。期望：Maximum steps 支持并持久化 1–100，并让 Codex 与 Compatibility 两种运行时遵守同一有效上限。

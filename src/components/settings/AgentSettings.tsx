@@ -3,7 +3,7 @@ import { useSettingsDraft } from "../../hooks/useSettings";
 import { listAgentRuntimes } from "../../lib/agent/agentClient";
 import { selectAgentRuntime } from "../../lib/agent/runtimeSelection";
 import type { AgentRuntimeDescriptor } from "../../lib/agent/types";
-import { DEFAULT_SETTINGS, type AppSettings } from "../../lib/settings";
+import { AGENT_MAX_STEPS, DEFAULT_SETTINGS, type AppSettings } from "../../lib/settings";
 import { SettingsField } from "./SettingsField";
 import { SettingsSwitch } from "./SettingsSwitch";
 
@@ -110,7 +110,7 @@ export function AgentSettings() {
           label="Maximum Agent steps"
           value={settings.agent.maxSteps}
           min={1}
-          max={20}
+          max={AGENT_MAX_STEPS}
           onChange={(maxSteps) => updateAgent({ maxSteps })}
           onBlur={() => { void flush().catch(() => undefined); }}
         />

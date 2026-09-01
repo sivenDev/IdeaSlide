@@ -546,7 +546,7 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 - Provider 使用 OpenAI-compatible Endpoint、Model 和 Rust 管理的本地加密 API Key；未配置时不请求，旧 Keychain 数据不自动读取或迁移。
 - Settings 只允许查看当前正在输入的 API Key，不返回已保存值；自动重试可关闭，总尝试次数限制为一至五次并在 Turn 开始时捕获。
 - Settings 显示自动 Runtime 选择状态；通过安全门的已安装 Codex `0.147.0` 优先，缺失、不兼容、初始化失败或 pre-progress crash 时回退 Compatibility，并显示有界诊断原因。
-- Agent Settings 提供最大 Tool step（默认 8，范围 1–20）、context warning（默认 75%，范围 50–90%）、New Thread 建议（默认 90%，范围 60–100% 且严格高于 warning）、每 Thread 诊断保留数（默认 20，范围 5–100）、Compatibility replay message 数（默认 60，范围 10–200）和 source-delivery telemetry 可见性。执行相关值在 Turn 开始时捕获，活动 Turn 不受后续 Settings 修改影响。
+- Agent Settings 提供最大 Tool step（默认 8，范围 1–100）、context warning（默认 75%，范围 50–90%）、New Thread 建议（默认 90%，范围 60–100% 且严格高于 warning）、每 Thread 诊断保留数（默认 20，范围 5–100）、Compatibility replay message 数（默认 60，范围 10–200）和 source-delivery telemetry 可见性。执行相关值在 Turn 开始时捕获，活动 Turn 不受后续 Settings 修改影响。
 - Agent crown 只保留一个真实 Conversation selector，以及右对齐的 New、Inspector、Settings 和关闭按钮；Conversation 菜单只提供 Rename/Delete。历史归档数据可以继续兼容持久化，但 Archive 不属于主要导航交互。
 - 本地 Thread 支持创建、恢复、重命名和确认后的永久删除；运行中的 Thread 不允许删除，删除当前 Thread 前必须先建立有效替代 Thread。
 - Codex upstream Thread id 与有效 Runtime/model/fallback metadata 随本地 Thread 持久化，用于后续 Turn 恢复和历史解释。
@@ -729,7 +729,7 @@ AI Agent 是当前产品能力，但必须保持编辑器无关。Rust Agent Cor
 - 未配置 Provider 时只显示配置引导，不发起请求。
 - 已安装且兼容的 Codex `0.147.0` 自动用于支持编辑器 Tool 的 Turn；不可用时回退 Compatibility，并在 Agent/Settings 显示有效 Runtime、Model、能力和诊断。
 - Runtime Inspector 对精确 usage、不可用 usage、Runtime compaction 和本地 Compatibility replay 截断作不同说明；只有精确 context window 达到配置阈值时才提示压力或建议 New Thread。
-- Agent policy 默认值为 8 maximum steps、75% warning、90% New Thread、20 diagnostics、60 Compatibility messages 和显示 source delivery；边界与阈值关系在 TypeScript 和 Rust 两侧归一化，maximum steps 对 Codex 与 Compatibility 的所有编辑器 Tool 生效。
+- Agent policy 默认值为 8 maximum steps、75% warning、90% New Thread、20 diagnostics、60 Compatibility messages 和显示 source delivery；边界与阈值关系在 TypeScript 和 Rust 两侧归一化，maximum steps（范围 1–100）对 Codex 与 Compatibility 的所有编辑器 Tool 生效。
 - Agent 答案在上游提供增量时于完成前持续增长；上游缓冲、突发或原子交付时，Preparing、Working 和 elapsed activity 仍由真实生命周期驱动，assistant answer 可使用有界展示节奏逐步出现，但 UI 与诊断不得声称这是实时 token 生成或模型思考。
 - Conversation selector 支持恢复、重命名和确认永久删除；主界面不显示 Archive/History 导航，运行中的 Thread 不可删除，删除不会触及文档、Workspace、Recovery、凭据或其他 Thread。
 - Tool 请求通过 Rust ledger 与 TypeScript 活动编辑器 executor 往返；所有修改生成目标绑定 ChangeSet，经活动编辑器复核后直接作为一次原生事务应用，并可通过编辑器原生历史一步 Undo/Redo。

@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 
 use super::{
     adapters::stdio_json_rpc::redact_value,
-    types::{AgentToolCall, AgentToolDescriptor},
+    types::{AgentToolCall, AgentToolDescriptor, MAX_AGENT_STEPS},
 };
 
 const MAX_CALL_ID_BYTES: usize = 160;
@@ -31,7 +31,7 @@ pub(crate) struct AgentToolBroker {
 
 impl AgentToolBroker {
     pub(crate) fn new(tools: &[AgentToolDescriptor]) -> Result<Self, String> {
-        Self::with_max_steps(tools, 20)
+        Self::with_max_steps(tools, MAX_AGENT_STEPS)
     }
 
     pub(crate) fn with_max_steps(
@@ -58,7 +58,7 @@ impl AgentToolBroker {
             tools: definitions,
             ledger: HashMap::new(),
             successful_tools: HashSet::new(),
-            max_steps: max_steps.clamp(1, 20),
+            max_steps: max_steps.clamp(1, MAX_AGENT_STEPS),
             executed_steps: 0,
         })
     }
@@ -388,6 +388,42 @@ mod tests {
             Err(error) => error,
         };
         assert!(error.contains("step limit reached (1)"));
+    }
+
+    #[test]
+    fn maximum_steps_accepts_one_hundred_unique_executions() {
+        let mut broker = AgentToolBroker::with_max_steps(&tools(), MAX_AGENT_STEPS).unwrap();
+        for index in 0..MAX_AGENT_STEPS {
+            let call = AgentToolCall {
+                call_id: format!("call-{index}"),
+                name: "read_outline".to_string(),
+                arguments: json!({"pageId": format!("page-{index}")}),
+            };
+            assert!(matches!(
+                broker.begin(&call).unwrap(),
+                BrokerDecision::Execute
+            ));
+            broker
+                .complete(
+                    &call,
+                    json!({
+                        "kind": "read", "callId": call.call_id, "name": "read_outline",
+                        "success": true, "summary": "Read outline"
+                    }),
+                )
+                .unwrap();
+        }
+
+        let next = AgentToolCall {
+            call_id: "call-over-limit".to_string(),
+            name: "read_outline".to_string(),
+            arguments: json!({"pageId": "page-over-limit"}),
+        };
+        let error = match broker.begin(&next) {
+            Ok(_) => panic!("101st unique Tool execution should exceed the step limit"),
+            Err(error) => error,
+        };
+        assert!(error.contains("step limit reached (100)"));
     }
 
     #[test]

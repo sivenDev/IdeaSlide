@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { load, type Store } from "@tauri-apps/plugin-store";
 
 export const SETTINGS_SCHEMA_VERSION = 7;
+export const AGENT_MAX_STEPS = 100;
 const SETTINGS_STORE_PATH = "settings.json";
 const SETTINGS_STORE_KEY = "settings";
 const BROWSER_STORAGE_KEY = "ideanote.settings.v1";
@@ -104,7 +105,12 @@ export function normalizeSettings(value: unknown): AppSettings {
   const agent = isRecord(value.agent) ? value.agent : {};
   const ideaSketch = isRecord(value.ideaSketch) ? value.ideaSketch : {};
   const markdown = isRecord(value.markdown) ? value.markdown : {};
-  const maxSteps = boundedInteger(agent.maxSteps, DEFAULT_SETTINGS.agent.maxSteps, 1, 20);
+  const maxSteps = boundedInteger(
+    agent.maxSteps,
+    DEFAULT_SETTINGS.agent.maxSteps,
+    1,
+    AGENT_MAX_STEPS,
+  );
   const contextWarningPercent = boundedInteger(
     agent.contextWarningPercent,
     DEFAULT_SETTINGS.agent.contextWarningPercent,

@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+pub(crate) const MAX_AGENT_STEPS: u8 = 100;
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AgentRunRequest {
@@ -81,7 +83,7 @@ impl AgentPolicySettings {
         let context_warning_percent = self.context_warning_percent.clamp(50, 90);
         let requested_new_thread = self.new_thread_percent.clamp(60, 100);
         Self {
-            max_steps: self.max_steps.clamp(1, 20),
+            max_steps: self.max_steps.clamp(1, MAX_AGENT_STEPS),
             context_warning_percent,
             new_thread_percent: if requested_new_thread > context_warning_percent {
                 requested_new_thread
@@ -311,4 +313,24 @@ pub(crate) struct AgentSkillProvenance {
     pub digest: String,
     pub activation_mode: AgentSkillActivationMode,
     pub editor_scope: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{AgentPolicySettings, MAX_AGENT_STEPS};
+
+    #[test]
+    fn normalizes_max_steps_to_one_hundred() {
+        let at_limit = AgentPolicySettings {
+            max_steps: MAX_AGENT_STEPS,
+            ..AgentPolicySettings::default()
+        };
+        assert_eq!(at_limit.normalized().max_steps, MAX_AGENT_STEPS);
+
+        let above_limit = AgentPolicySettings {
+            max_steps: u8::MAX,
+            ..AgentPolicySettings::default()
+        };
+        assert_eq!(above_limit.normalized().max_steps, MAX_AGENT_STEPS);
+    }
 }

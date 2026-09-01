@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `required` | 6 | 6 |
 | `feature` | 84 | 84 |
-| `bugfix` | 54 | 54 |
+| `bugfix` | 55 | 55 |
 
 ## Execution Order
 
@@ -179,3 +179,4 @@
 | `B052` | [Continue Compatibility Turns after editor read Tools](bugs/B052-continue-compatibility-turns-after-editor-read-tools.md) | `complete` | 2026-09-01 |
 | `B053` | [Avoid exact local Codex CLI version pinning](bugs/B053-avoid-exact-local-codex-cli-version-pinning.md) | `complete` | 2026-09-01 |
 | `B054` | [Fix Agent Markdown Rendering](bugs/B054-agent-markdown-rendering-defect.md) | `complete` | 2026-09-01 |
+| `B055` | [Raise Agent maximum steps limit to 100](bugs/B055-raise-agent-maximum-steps-limit-to-100.md) | `complete` | 2026-09-01 |

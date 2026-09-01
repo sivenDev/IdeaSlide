@@ -622,7 +622,7 @@ Runtime diagnostics classify discovery, startup, automatic selection, model rero
 
 Versioned Agent policy defaults to:
 
-- 8 maximum Tool steps, range 1–20;
+- 8 maximum Tool steps, range 1–100;
 - 75% context warning, range 50–90%;
 - 90% New Thread recommendation, range 60–100% and strictly above warning;
 - 20 retained diagnostics, range 5–100;
