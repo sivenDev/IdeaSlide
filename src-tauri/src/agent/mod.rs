@@ -547,11 +547,10 @@ fn compatibility_tool_loop_failure() -> provider::ProviderFailure {
     provider::ProviderFailure {
         diagnostic: AgentErrorDiagnostic {
             code: AgentErrorCode::ToolExecutionFailed,
-            message: "Agent Tool activity did not settle within the bounded Compatibility Tool loop."
-                .to_string(),
-            recovery: Some(
-                "Start a new Turn and narrow the requested Tool activity.".to_string(),
-            ),
+            message:
+                "Agent Tool activity did not settle within the bounded Compatibility Tool loop."
+                    .to_string(),
+            recovery: Some("Start a new Turn and narrow the requested Tool activity.".to_string()),
             diagnostic_id: Uuid::new_v4().to_string(),
             retryable: true,
         },
@@ -965,7 +964,7 @@ async fn run_codex_driver(
                 "reasoningEffort": "standard",
                 "upstreamThreadId": upstream_thread_id,
                 "upstreamToolSignature": upstream_tool_signature,
-                "diagnostic": format!("Pinned Codex {} selected automatically.", adapters::PINNED_CODEX_VERSION),
+                "diagnostic": "Codex app-server passed protocol compatibility checks and was selected automatically.",
                 "degraded": false,
                 "health": "healthy",
             }}),
@@ -975,10 +974,7 @@ async fn run_codex_driver(
             "selection",
             "info",
             "runtime.codexSelected",
-            format!(
-                "Pinned Codex {} passed compatibility checks and was selected automatically.",
-                adapters::PINNED_CODEX_VERSION
-            ),
+            "Codex app-server passed protocol compatibility checks and was selected automatically.",
             None,
             false,
         )?;

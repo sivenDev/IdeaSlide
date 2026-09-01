@@ -8,13 +8,10 @@ use serde_json::{json, Value};
 
 use super::{
     codex_schema,
-    process::verify_version,
     stdio_json_rpc::{redact_text, JsonRpcId, JsonRpcMessage, DEFAULT_MAX_FRAME_BYTES},
     AgentRuntimeAdapter, RuntimeAdapterError, RuntimeCapabilities, RuntimeCommandSpec,
     RuntimeEvent, RuntimeKind, RuntimeTurnInput,
 };
-
-pub(crate) const PINNED_CODEX_VERSION: &str = "0.147.0";
 
 pub(crate) struct CodexAppServerAdapter {
     executable: PathBuf,
@@ -31,10 +28,6 @@ impl CodexAppServerAdapter {
 
     fn request(&self, method: &str, params: Value) -> JsonRpcMessage {
         JsonRpcMessage::request(self.next_id.fetch_add(1, Ordering::Relaxed), method, params)
-    }
-
-    pub(crate) fn verify_version(output: &str) -> Result<(), RuntimeAdapterError> {
-        verify_version(output, PINNED_CODEX_VERSION)
     }
 }
 
@@ -55,7 +48,7 @@ impl AgentRuntimeAdapter for CodexAppServerAdapter {
                 "--listen".to_string(),
                 "stdio://".to_string(),
             ],
-            expected_version: Some(PINNED_CODEX_VERSION.to_string()),
+            expected_version: None,
             version_args: vec!["--version".to_string()],
             request_timeout: Duration::from_secs(30),
             turn_event_timeout: Duration::from_secs(300),
@@ -314,9 +307,9 @@ mod tests {
     }
 
     #[test]
-    fn version_is_exactly_pinned() {
-        assert!(CodexAppServerAdapter::verify_version("codex-cli 0.147.0").is_ok());
-        assert!(CodexAppServerAdapter::verify_version("codex-cli 0.148.0").is_err());
+    fn command_does_not_pin_a_cli_version() {
+        let adapter = CodexAppServerAdapter::new(std::path::PathBuf::from("/usr/bin/codex"));
+        assert!(adapter.command().expected_version.is_none());
     }
 
     #[test]

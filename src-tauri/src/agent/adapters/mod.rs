@@ -6,9 +6,12 @@ mod grok_acp;
 mod process;
 pub(crate) mod stdio_json_rpc;
 
-pub(crate) use codex_app_server::PINNED_CODEX_VERSION;
-
-use std::{collections::VecDeque, fmt, path::PathBuf, time::Duration};
+use std::{
+    collections::VecDeque,
+    fmt,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -326,6 +329,28 @@ pub(crate) struct RuntimeDescriptor {
     pub diagnostic: Option<String>,
 }
 
+async fn probe_codex_app_server(path: &Path) -> Result<(), RuntimeAdapterError> {
+    tokio::time::timeout(Duration::from_secs(10), async {
+        let adapter = codex_app_server::CodexAppServerAdapter::new(path.to_path_buf());
+        let mut process = process::LocalRuntimeProcess::spawn(adapter.command()).await?;
+        let initialized = process.request(&adapter.initialize()).await?;
+        if let Some(error) = process::response_error(&initialized) {
+            let _ = process.shutdown().await;
+            return Err(RuntimeAdapterError::unavailable(format!(
+                "Codex app-server initialize failed: {error}"
+            )));
+        }
+        if let Some(notification) = adapter.initialized() {
+            process.send(&notification).await?;
+        }
+        process.shutdown().await.map(|_| ())
+    })
+    .await
+    .map_err(|_| {
+        RuntimeAdapterError::unavailable("Codex app-server compatibility probe timed out.")
+    })?
+}
+
 pub(crate) async fn discover_runtime_catalog() -> Vec<RuntimeDescriptor> {
     let compatibility_capabilities = RuntimeCapabilities {
         text_streaming: true,
@@ -356,26 +381,9 @@ pub(crate) async fn discover_runtime_catalog() -> Vec<RuntimeDescriptor> {
             .unwrap_or_else(|| PathBuf::from("/nonexistent/codex")),
     );
     let codex_probe = if let Some(path) = codex_path.as_ref() {
-        match tokio::process::Command::new(path)
-            .arg("--version")
-            .output()
-            .await
-        {
-            Ok(output) => {
-                let text = format!(
-                    "{}{}",
-                    String::from_utf8_lossy(&output.stdout),
-                    String::from_utf8_lossy(&output.stderr)
-                );
-                match codex_app_server::CodexAppServerAdapter::verify_version(&text) {
-                    Ok(()) => (true, None),
-                    Err(error) => (false, Some(error.message)),
-                }
-            }
-            Err(_) => (
-                false,
-                Some("Codex version could not be inspected.".to_string()),
-            ),
+        match probe_codex_app_server(path).await {
+            Ok(()) => (true, None),
+            Err(error) => (false, Some(error.message)),
         }
     } else {
         (
@@ -486,14 +494,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn installed_codex_app_server_completes_the_pinned_handshake() {
+    async fn installed_codex_app_server_completes_a_compatible_handshake() {
         let Some(path) = resolve_executable("codex") else {
             return;
         };
         let adapter = codex_app_server::CodexAppServerAdapter::new(path);
         let mut process = process::LocalRuntimeProcess::spawn(adapter.command())
             .await
-            .expect("installed Codex should match the pinned version");
+            .expect("installed Codex should pass the app-server compatibility gate");
         let response = process
             .request(&adapter.initialize())
             .await
@@ -505,6 +513,16 @@ mod tests {
             .expect("initialized notification should send");
         let stderr = process.shutdown().await.expect("Codex should shut down");
         assert!(!stderr.to_ascii_lowercase().contains("bearer "));
+    }
+
+    #[tokio::test]
+    async fn installed_codex_app_server_discovery_uses_the_handshake_contract() {
+        let Some(path) = resolve_executable("codex") else {
+            return;
+        };
+        probe_codex_app_server(&path)
+            .await
+            .expect("discovery should accept a compatible current Codex app-server");
     }
 
     #[tokio::test]
