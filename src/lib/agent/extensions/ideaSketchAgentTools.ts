@@ -7,11 +7,18 @@ import type {
   AgentToolExecutionContext,
   AgentToolResult,
 } from "../types.ts";
-import type { IdeaSketchAgentOperation, IdeaSketchDrawingOperation, IdeaSketchDrawingStyle } from "./ideaSketchAgentExtension.ts";
+import type {
+  IdeaSketchAgentOperation,
+  IdeaSketchDrawingOperation,
+  IdeaSketchDrawingStyle,
+  IdeaSketchLayoutOperation,
+} from "./ideaSketchAgentExtension.ts";
 
 const MAX_SCENE_ELEMENT_SUMMARIES = 80;
 const MAX_DRAWING_PLAN_OPERATIONS = 40;
 const MAX_DRAWING_PLAN_BYTES = 32 * 1024;
+const MAX_LAYOUT_PLAN_OPERATIONS = 40;
+const MAX_LAYOUT_PLAN_BYTES = 16 * 1024;
 const MAX_SCENE_COORDINATE = 1_000_000;
 const MAX_ELEMENT_DIMENSION = 10_000;
 const TEMP_REF_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
@@ -85,6 +92,33 @@ const DRAWING_OPERATION_SCHEMA = {
         { required: ["startElementRef"] },
         { required: ["endElementRef"] },
       ],
+      additionalProperties: false,
+    },
+  ],
+};
+
+const LAYOUT_OPERATION_SCHEMA = {
+  oneOf: [
+    {
+      type: "object",
+      properties: {
+        kind: { const: "move-element" },
+        elementRef: { type: "string", pattern: "^element:[A-Za-z0-9_-]{1,128}$" },
+        dx: { type: "number", minimum: -MAX_SCENE_COORDINATE, maximum: MAX_SCENE_COORDINATE },
+        dy: { type: "number", minimum: -MAX_SCENE_COORDINATE, maximum: MAX_SCENE_COORDINATE },
+      },
+      required: ["kind", "elementRef", "dx", "dy"],
+      additionalProperties: false,
+    },
+    {
+      type: "object",
+      properties: {
+        kind: { const: "resize-element" },
+        elementRef: { type: "string", pattern: "^element:[A-Za-z0-9_-]{1,128}$" },
+        width: { type: "number", minimum: 4, maximum: MAX_ELEMENT_DIMENSION },
+        height: { type: "number", minimum: 4, maximum: MAX_ELEMENT_DIMENSION },
+      },
+      required: ["kind", "elementRef", "width", "height"],
       additionalProperties: false,
     },
   ],
@@ -168,6 +202,26 @@ export const IDEA_SKETCH_AGENT_TOOLS: AgentToolDescriptor[] = [
           minItems: 1,
           maxItems: MAX_DRAWING_PLAN_OPERATIONS,
           items: DRAWING_OPERATION_SCHEMA,
+        },
+      },
+      required: ["pageId", "operations"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "apply_layout_plan",
+    description: "After read_active_page succeeds, move or resize already-read IdeaSketch elements by stable element references on the active Page while preserving bindings and bound text.",
+    effect: "write",
+    requires: ["read_active_page"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        pageId: { type: "string", minLength: 1 },
+        operations: {
+          type: "array",
+          minItems: 1,
+          maxItems: MAX_LAYOUT_PLAN_OPERATIONS,
+          items: LAYOUT_OPERATION_SCHEMA,
         },
       },
       required: ["pageId", "operations"],
@@ -360,6 +414,59 @@ function normalizeDrawingPlan(
   return operations;
 }
 
+function normalizeLayoutPlan(
+  args: Record<string, unknown>,
+  activePage: IdeaSketchDocument["pages"][number] | undefined,
+): IdeaSketchLayoutOperation[] {
+  if (typeof args.pageId !== "string" || args.pageId !== activePage?.id) {
+    throw new Error("Layout plans must target the captured active Page.");
+  }
+  const rawOperations = args.operations;
+  if (!Array.isArray(rawOperations) || rawOperations.length === 0 || rawOperations.length > MAX_LAYOUT_PLAN_OPERATIONS) {
+    throw new Error(`Layout plans must contain between 1 and ${MAX_LAYOUT_PLAN_OPERATIONS} operations.`);
+  }
+  if (JSON.stringify(args).length > MAX_LAYOUT_PLAN_BYTES) {
+    throw new Error("Layout plan payload exceeds the bounded size limit.");
+  }
+  const existingElementRefs = new Set(
+    summarizeIdeaSketchElements(activePage?.elements ?? [], MAX_SCENE_ELEMENT_SUMMARIES)
+      .map((element) => element.ref),
+  );
+  return rawOperations.map((rawOperation) => {
+    if (!rawOperation || typeof rawOperation !== "object") throw new Error("Every layout operation must be an object.");
+    const input = rawOperation as Record<string, unknown>;
+    const elementRef = input.elementRef;
+    if (typeof elementRef !== "string" || !/^element:[A-Za-z0-9_-]{1,128}$/.test(elementRef) || !existingElementRefs.has(elementRef)) {
+      throw new Error(`Layout target must identify an element returned by read_active_page: ${String(elementRef)}`);
+    }
+    if (input.kind === "move-element") {
+      const dx = input.dx;
+      const dy = input.dy;
+      if (typeof dx !== "number" || !Number.isFinite(dx) || Math.abs(dx) > MAX_SCENE_COORDINATE
+        || typeof dy !== "number" || !Number.isFinite(dy) || Math.abs(dy) > MAX_SCENE_COORDINATE) {
+        throw new Error("Move deltas are outside the bounded layout limits.");
+      }
+      return { kind: "move-element", pageId: args.pageId as string, elementRef, dx, dy };
+    }
+    if (input.kind === "resize-element") {
+      const width = input.width;
+      const height = input.height;
+      if (typeof width !== "number" || !Number.isFinite(width) || width < 4 || width > MAX_ELEMENT_DIMENSION
+        || typeof height !== "number" || !Number.isFinite(height) || height < 4 || height > MAX_ELEMENT_DIMENSION) {
+        throw new Error("Element dimensions are outside the bounded layout limits.");
+      }
+      return { kind: "resize-element", pageId: args.pageId as string, elementRef, width, height };
+    }
+    throw new Error(`Unsupported layout operation: ${String(input.kind)}`);
+  });
+}
+
+function layoutSummary(operations: readonly IdeaSketchLayoutOperation[]) {
+  const moves = operations.filter((operation) => operation.kind === "move-element").length;
+  const resizes = operations.length - moves;
+  return `Apply ${moves} move${moves === 1 ? "" : "s"} and ${resizes} resize${resizes === 1 ? "" : "s"}`;
+}
+
 function drawingSummary(operations: readonly IdeaSketchDrawingOperation[]) {
   const shapes = operations.filter((operation) => operation.kind === "create-shape").length;
   const arrows = operations.filter((operation) => operation.kind === "create-arrow").length;
@@ -544,6 +651,10 @@ export function executeIdeaSketchAgentTool(
     case "apply_drawing_plan": {
       const operations = normalizeDrawingPlan(args, activePage, call.callId);
       return mutationResult(call, context, operations, drawingSummary(operations));
+    }
+    case "apply_layout_plan": {
+      const operations = normalizeLayoutPlan(args, activePage);
+      return mutationResult(call, context, operations, layoutSummary(operations));
     }
     default:
       throw new Error(`Unsupported IdeaSketch Tool: ${call.name}`);

@@ -50,12 +50,29 @@ export type IdeaSketchDrawingOperation =
       endElementRef?: string;
     };
 
+export type IdeaSketchLayoutOperation =
+  | {
+      kind: "move-element";
+      pageId: string;
+      elementRef: string;
+      dx: number;
+      dy: number;
+    }
+  | {
+      kind: "resize-element";
+      pageId: string;
+      elementRef: string;
+      width: number;
+      height: number;
+    };
+
 export type IdeaSketchAgentOperation =
   | { kind: "add-page"; title: string; elements: unknown[] }
   | { kind: "delete-page"; pageId: string }
   | { kind: "reorder-page"; pageId: string; toIndex: number }
   | { kind: "replace-page-elements"; pageId: string; elements: unknown[] }
-  | IdeaSketchDrawingOperation;
+  | IdeaSketchDrawingOperation
+  | IdeaSketchLayoutOperation;
 
 interface DrawingPlanRuntime {
   createNonce: () => number;
@@ -68,6 +85,7 @@ const DEFAULT_DRAWING_RUNTIME: DrawingPlanRuntime = {
 };
 
 const DRAWING_KINDS = new Set(["create-shape", "create-arrow", "bind-arrow"]);
+const LAYOUT_KINDS = new Set(["move-element", "resize-element"]);
 const BINDABLE_SHAPE_TYPES = new Set(["rectangle", "ellipse", "diamond"]);
 
 export function isIdeaSketchDrawingOperation(
@@ -77,6 +95,16 @@ export function isIdeaSketchDrawingOperation(
     operation
     && typeof operation === "object"
     && DRAWING_KINDS.has((operation as { kind?: unknown }).kind as string),
+  );
+}
+
+export function isIdeaSketchLayoutOperation(
+  operation: IdeaSketchAgentOperation,
+): operation is IdeaSketchLayoutOperation {
+  return Boolean(
+    operation
+    && typeof operation === "object"
+    && LAYOUT_KINDS.has((operation as { kind?: unknown }).kind as string),
   );
 }
 
@@ -232,6 +260,80 @@ export function buildIdeaSketchDrawingPlanScene(
   return elements;
 }
 
+function moveBoundTextElements(elements: any[], containerId: string, dx: number, dy: number, runtime: DrawingPlanRuntime) {
+  return elements.map((element) => {
+    if (!element || element.isDeleted || element.id === containerId || element.containerId !== containerId) return element;
+    if (typeof element.x !== "number" || typeof element.y !== "number") return element;
+    return {
+      ...element,
+      x: element.x + dx,
+      y: element.y + dy,
+      version: Math.max(1, Number(element.version) || 1) + 1,
+      versionNonce: runtime.createNonce(),
+      updated: runtime.now(),
+    };
+  });
+}
+
+export function buildIdeaSketchLayoutPlanScene(
+  existingElements: readonly any[],
+  operations: readonly IdeaSketchLayoutOperation[],
+  runtimeOverrides: Partial<DrawingPlanRuntime> = {},
+) {
+  if (operations.length === 0 || operations.length > 40) {
+    throw new Error("Layout plans must contain between 1 and 40 operations.");
+  }
+  const runtime = { ...DEFAULT_DRAWING_RUNTIME, ...runtimeOverrides };
+  let elements = existingElements.map((element) => structuredClone(element));
+  const elementByRef = new Map<string, any>();
+  for (const element of elements) {
+    if (!element || typeof element.id !== "string" || element.isDeleted) continue;
+    elementByRef.set(`element:${element.id}`, element);
+  }
+
+  for (const operation of operations) {
+    const target = elementByRef.get(operation.elementRef);
+    if (!target) throw new Error(`Layout target is unavailable: ${operation.elementRef}`);
+    const targetIndex = elements.findIndex((element) => element.id === target.id);
+    if (targetIndex < 0) throw new Error(`Layout target is missing: ${operation.elementRef}`);
+    if (typeof target.x !== "number" || !Number.isFinite(target.x)
+      || typeof target.y !== "number" || !Number.isFinite(target.y)
+      || typeof target.width !== "number" || !Number.isFinite(target.width)
+      || typeof target.height !== "number" || !Number.isFinite(target.height)) {
+      throw new Error(`Layout target has invalid geometry: ${operation.elementRef}`);
+    }
+    if (operation.kind === "move-element") {
+      const moved = {
+        ...target,
+        x: target.x + operation.dx,
+        y: target.y + operation.dy,
+        version: Math.max(1, Number(target.version) || 1) + 1,
+        versionNonce: runtime.createNonce(),
+        updated: runtime.now(),
+      };
+      elements[targetIndex] = moved;
+      elements = moveBoundTextElements(elements, target.id, operation.dx, operation.dy, runtime);
+      for (const element of elements) {
+        if (element && typeof element.id === "string" && !element.isDeleted) {
+          elementByRef.set(`element:${element.id}`, element);
+        }
+      }
+      continue;
+    }
+    const resized = {
+      ...target,
+      width: operation.width,
+      height: operation.height,
+      version: Math.max(1, Number(target.version) || 1) + 1,
+      versionNonce: runtime.createNonce(),
+      updated: runtime.now(),
+    };
+    elements[targetIndex] = resized;
+    elementByRef.set(operation.elementRef, resized);
+  }
+  return elements;
+}
+
 export const ideaSketchAgentExtension: AgentExtension<IdeaSketchDocument, IdeaSketchAgentOperation> = {
   id: "ideasketch-agent",
   fileType: "ideasketch",
@@ -280,6 +382,10 @@ export const ideaSketchAgentExtension: AgentExtension<IdeaSketchDocument, IdeaSk
           const targets = [operation.startElementRef, operation.endElementRef].filter(Boolean).join(" → ");
           return `Bind arrow · ${operation.arrowRef} · ${targets}`;
         }
+        case "move-element":
+          return `Move element · ${operation.elementRef} · ${operation.dx}, ${operation.dy}`;
+        case "resize-element":
+          return `Resize element · ${operation.elementRef} · ${operation.width} × ${operation.height}`;
       }
     });
   },

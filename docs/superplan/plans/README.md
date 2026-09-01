@@ -7,8 +7,8 @@
 | Type | Plans | Complete |
 | --- | --- | --- |
 | `required` | 6 | 6 |
-| `feature` | 83 | 83 |
-| `bugfix` | 53 | 53 |
+| `feature` | 84 | 84 |
+| `bugfix` | 54 | 54 |
 
 ## Execution Order
 
@@ -118,6 +118,7 @@
 | `F055` | [Add Workspace from the Sidebar Header](features/F055-add-workspace-from-sidebar-header.md) | `complete` | 2026-08-12 |
 | `F070` | [Add Semantic Incremental IdeaSketch Agent Drawing](features/F070-semantic-ideasketch-agent-drawing.md) | `complete` | 2026-09-01 |
 | `F056` | [Add Automatic Desktop Updates from GitHub Releases](features/F056-automatic-desktop-updates-from-github-releases.md) | `complete` | 2026-08-12 |
+| `F071` | [Add Semantic Layout Mutation for Existing IdeaSketch Elements](features/F071-semantic-layout-mutation-for-existing-ideasketch-elements.md) | `complete` | 2026-09-01 |
 | `F057` | [Add an About Page to Settings](features/F057-add-an-about-page-to-settings.md) | `complete` | 2026-08-12 |
 
 ### Bugfix Plans
@@ -177,3 +178,4 @@
 | `B051` | [Disable WebView context menu](bugs/B051-disable-webview-context-menu.md) | `complete` | 2026-08-19 |
 | `B052` | [Continue Compatibility Turns after editor read Tools](bugs/B052-continue-compatibility-turns-after-editor-read-tools.md) | `complete` | 2026-09-01 |
 | `B053` | [Avoid exact local Codex CLI version pinning](bugs/B053-avoid-exact-local-codex-cli-version-pinning.md) | `complete` | 2026-09-01 |
+| `B054` | [Fix Agent Markdown Rendering](bugs/B054-agent-markdown-rendering-defect.md) | `complete` | 2026-09-01 |

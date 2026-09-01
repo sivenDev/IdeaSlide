@@ -5,6 +5,7 @@ import { createEmptyIdeaSketchDocument } from '../src/lib/ideaSketchDocument.ts'
 import { createAgentToolHost } from '../src/lib/agent/agentToolHost.ts';
 import {
   buildIdeaSketchDrawingPlanScene,
+  buildIdeaSketchLayoutPlanScene,
   ideaSketchAgentExtension,
 } from '../src/lib/agent/extensions/ideaSketchAgentExtension.ts';
 
@@ -168,6 +169,64 @@ test('semantic drawing plans reject malformed, oversized, forward, and cross-Pag
   }
 });
 
+test('semantic layout plans move bound text, resize nodes, and preserve arrow bindings', async () => {
+  const document = createEmptyIdeaSketchDocument({ pageId: 'page-1', now: '2026-08-08T00:00:00Z' });
+  document.pages[0].elements = [
+    {
+      id: 'box', type: 'rectangle', x: 10, y: 20, width: 120, height: 80,
+      boundElements: [{ id: 'label', type: 'text' }, { id: 'arrow', type: 'arrow' }], version: 2,
+    },
+    { id: 'label', type: 'text', x: 30, y: 40, width: 60, height: 20, containerId: 'box', version: 1 },
+    {
+      id: 'arrow', type: 'arrow', x: 130, y: 50, width: 100, height: 0,
+      points: [[0, 0], [100, 0]], startBinding: { elementId: 'box', focus: 0, gap: 6 },
+      endBinding: null, version: 1,
+    },
+    { id: 'untouched', type: 'ellipse', x: 500, y: 500, width: 40, height: 40, version: 1 },
+  ];
+  const call = {
+    callId: 'layout-1', name: 'apply_layout_plan', arguments: {
+      pageId: 'page-1', operations: [
+        { kind: 'move-element', elementRef: 'element:box', dx: 80, dy: -10 },
+        { kind: 'resize-element', elementRef: 'element:box', width: 240, height: 120 },
+      ],
+    },
+  };
+  const result = await host(document).execute(call);
+  assert.equal(result.kind, 'mutation');
+  assert.deepEqual(result.changeSet.operations.map((operation) => operation.kind), ['move-element', 'resize-element']);
+  assert.match(result.summary, /1 move and 1 resize/);
+
+  const scene = buildIdeaSketchLayoutPlanScene(document.pages[0].elements, result.changeSet.operations, {
+    createNonce: () => 99, now: () => 500,
+  });
+  const box = scene.find((element) => element.id === 'box');
+  const label = scene.find((element) => element.id === 'label');
+  const arrow = scene.find((element) => element.id === 'arrow');
+  assert.deepEqual({ x: box.x, y: box.y, width: box.width, height: box.height }, { x: 90, y: 10, width: 240, height: 120 });
+  assert.deepEqual({ x: label.x, y: label.y }, { x: 110, y: 30 });
+  assert.deepEqual(arrow.startBinding, { elementId: 'box', focus: 0, gap: 6 });
+  assert.deepEqual(scene.find((element) => element.id === 'untouched'), document.pages[0].elements[3]);
+});
+
+test('semantic layout plans reject unread, malformed, oversized, and cross-Page targets', async () => {
+  const document = createEmptyIdeaSketchDocument({ pageId: 'page-1', now: '2026-08-08T00:00:00Z' });
+  document.pages[0].elements = [{ id: 'box', type: 'rectangle', x: 0, y: 0, width: 100, height: 60 }];
+  document.pages.push({ id: 'page-2', title: 'Second', elements: [], appState: {}, files: {} });
+  const executor = host(document);
+  const invalidCalls = [
+    { callId: 'cross-page-layout', name: 'apply_layout_plan', arguments: { pageId: 'page-2', operations: [{ kind: 'move-element', elementRef: 'element:box', dx: 1, dy: 1 }] } },
+    { callId: 'unread-layout', name: 'apply_layout_plan', arguments: { pageId: 'page-1', operations: [{ kind: 'move-element', elementRef: 'element:missing', dx: 1, dy: 1 }] } },
+    { callId: 'bad-layout', name: 'apply_layout_plan', arguments: { pageId: 'page-1', operations: [{ kind: 'resize-element', elementRef: 'element:box', width: 1, height: 1 }] } },
+    { callId: 'oversized-layout', name: 'apply_layout_plan', arguments: { pageId: 'page-1', operations: Array.from({ length: 41 }, () => ({ kind: 'move-element', elementRef: 'element:box', dx: 1, dy: 1 })) } },
+  ];
+  for (const call of invalidCalls) {
+    const result = await executor.execute(call);
+    assert.equal(result.kind, 'failure', call.callId);
+    assert.equal(result.error.code, 'toolExecutionFailed', call.callId);
+  }
+});
+
 test('IdeaSketch mutations are direct-action transactions routed through the Tool host', async () => {
   const document = createEmptyIdeaSketchDocument({ pageId: 'page-1', now: '2026-08-08T00:00:00Z' });
   const result = await host(document).execute({
@@ -233,6 +292,7 @@ test('IdeaSketch Tool contract covers outline, Page reads, and direct mutations'
     'reorder_page',
     'replace_page_elements',
     'apply_drawing_plan',
+    'apply_layout_plan',
   ]);
   const replace = ideaSketchAgentExtension.tools.find((tool) => tool.name === 'replace_page_elements');
   assert.match(replace.description, /active Page/);
@@ -240,4 +300,7 @@ test('IdeaSketch Tool contract covers outline, Page reads, and direct mutations'
   const drawingPlan = ideaSketchAgentExtension.tools.find((tool) => tool.name === 'apply_drawing_plan');
   assert.match(drawingPlan.description, /ordered semantic/);
   assert.deepEqual(drawingPlan.requires, ['read_active_page']);
+  const layoutPlan = ideaSketchAgentExtension.tools.find((tool) => tool.name === 'apply_layout_plan');
+  assert.match(layoutPlan.description, /stable element references/);
+  assert.deepEqual(layoutPlan.requires, ['read_active_page']);
 });

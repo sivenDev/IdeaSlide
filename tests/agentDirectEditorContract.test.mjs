@@ -33,6 +33,17 @@ test('semantic drawing plans are assembled before one native captured scene upda
   assert.match(editor, /operation\.pageId !== current\.activePageId/);
 });
 
+test('semantic layout plans use one native captured scene update and remain Page-scoped', async () => {
+  const editor = await readFile(new URL('../src/components/IdeaSketchEditor.tsx', import.meta.url), 'utf8');
+  assert.match(editor, /buildIdeaSketchLayoutPlanScene/);
+  assert.match(editor, /operations\.every\(isIdeaSketchLayoutOperation\)/);
+  assert.match(
+    editor,
+    /buildIdeaSketchLayoutPlanScene\([\s\S]*api\.updateScene\(\{[\s\S]*captureUpdate: CaptureUpdateAction\.IMMEDIATELY/,
+  );
+  assert.match(editor, /layoutPlan\.some\(\(operation\) => operation\.pageId !== current\.activePageId\)/);
+});
+
 test('editor shell leaves Undo and Redo entirely to the active editor', async () => {
   const layout = await readFile(new URL('../src/components/EditorLayout.tsx', import.meta.url), 'utf8');
   const crown = await readFile(new URL('../src/components/WorkbenchCrown.tsx', import.meta.url), 'utf8');

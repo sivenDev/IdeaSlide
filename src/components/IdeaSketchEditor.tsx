@@ -34,9 +34,11 @@ import type { ActiveAgentEditorBinding, AgentChangeSet } from "../lib/agent/type
 import { createAgentToolHost } from "../lib/agent/agentToolHost";
 import {
   buildIdeaSketchDrawingPlanScene,
+  buildIdeaSketchLayoutPlanScene,
   ideaSketchAgentExtension,
   getIdeaSketchSourceFingerprint,
   isIdeaSketchDrawingOperation,
+  isIdeaSketchLayoutOperation,
   type IdeaSketchAgentOperation,
 } from "../lib/agent/extensions/ideaSketchAgentExtension";
 import {
@@ -515,6 +517,9 @@ export function IdeaSketchEditor({
     const drawingPlan = operations.length > 0 && operations.every(isIdeaSketchDrawingOperation)
       ? operations
       : undefined;
+    const layoutPlan = operations.length > 0 && operations.every(isIdeaSketchLayoutOperation)
+      ? operations
+      : undefined;
     if (drawingPlan) {
       const api = excalidrawApiRef.current;
       if (
@@ -529,6 +534,34 @@ export function IdeaSketchEditor({
         const plannedElements = buildIdeaSketchDrawingPlanScene(
           api.getSceneElements(),
           drawingPlan,
+        );
+        const restored = restoreElements(plannedElements as any[], null, {
+          refreshDimensions: true,
+          repairBindings: true,
+        });
+        api.updateScene({
+          elements: restored as any[],
+          captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    if (layoutPlan) {
+      const api = excalidrawApiRef.current;
+      if (
+        layoutPlan.length > 40
+        || !api
+        || excalidrawSlideIdRef.current !== current.activePageId
+        || layoutPlan.some((operation) => operation.pageId !== current.activePageId)
+      ) return false;
+      const page = current.document.pages.find((candidate) => candidate.id === current.activePageId);
+      if (!page) return false;
+      try {
+        const plannedElements = buildIdeaSketchLayoutPlanScene(
+          api.getSceneElements(),
+          layoutPlan,
         );
         const restored = restoreElements(plannedElements as any[], null, {
           refreshDimensions: true,
