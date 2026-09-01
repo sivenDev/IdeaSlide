@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Complete |
-| --- | --- | --- |
-| `required` | 6 | 6 |
-| `feature` | 82 | 82 |
-| `bugfix` | 53 | 53 |
+| Type | Plans | Draft | Complete |
+| --- | --- | --- | --- |
+| `required` | 6 | 0 | 6 |
+| `feature` | 83 | 1 | 82 |
+| `bugfix` | 53 | 0 | 53 |
 
 ## Execution Order
 
@@ -116,6 +116,7 @@
 | `F049` | [Simplify AI Provider Model and Token Fields](features/F049-simplify-ai-provider-model-and-token-fields.md) | `complete` | 2026-08-12 |
 | `F069` | [Generate Agent Conversation Titles from Visible Content](features/F069-generate-agent-conversation-titles-from-visible-content.md) | `complete` | 2026-09-01 |
 | `F055` | [Add Workspace from the Sidebar Header](features/F055-add-workspace-from-sidebar-header.md) | `complete` | 2026-08-12 |
+| `F070` | [Add Semantic Incremental IdeaSketch Agent Drawing](features/F070-semantic-ideasketch-agent-drawing.md) | `draft` | 2026-09-01 |
 | `F056` | [Add Automatic Desktop Updates from GitHub Releases](features/F056-automatic-desktop-updates-from-github-releases.md) | `complete` | 2026-08-12 |
 | `F057` | [Add an About Page to Settings](features/F057-add-an-about-page-to-settings.md) | `complete` | 2026-08-12 |
 

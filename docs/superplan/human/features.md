@@ -504,3 +504,10 @@ When previewing Markdown files, hide YAML frontmatter metadata from the rendered
 - created: 2026-09-01
 
 Generate a concise persistent Agent conversation title from the early visible user conversation, similar to Codex, instead of relying on the document name captured when the conversation was created. The same title should remain stable when the conversation is reused across Markdown and IdeaSketch editors, while users can still rename the conversation manually.
+
+## F070: Add semantic incremental IdeaSketch Agent drawing operations
+
+- status: accepted
+- created: 2026-09-01
+
+Extend the IdeaSketch Agent with bounded semantic scene reads and incremental shape/arrow operations, including arrow bindings and one atomic editor ChangeSet, so the Agent can express a sequence such as drawing a rectangle and then connecting an arrow while preserving native undo, autosave, recovery, and revision safety. Playback of mouse-level gestures is explicitly out of scope.
