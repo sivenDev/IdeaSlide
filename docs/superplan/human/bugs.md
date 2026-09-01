@@ -420,7 +420,7 @@ When the rich Codex runtime is unavailable or incompatible, asking the active Id
 
 ## B053: Avoid exact local Codex CLI version pinning
 
-- status: proposed
+- status: accepted
 - created: 2026-09-01
 
 Runtime discovery must not reject an installed Codex solely because its version differs from hard-coded 0.147.0. Probe and negotiate the required app-server protocol and capabilities, accept compatible local versions, and show a truthful diagnostic only when required Tool, lifecycle, cancellation, approval, or dynamic-tool contracts are incompatible.

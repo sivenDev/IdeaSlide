@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Complete |
-| --- | --- | --- |
-| `required` | 6 | 6 |
-| `feature` | 81 | 81 |
-| `bugfix` | 52 | 52 |
+| Type | Plans | Draft | Complete |
+| --- | --- | --- | --- |
+| `required` | 6 | 0 | 6 |
+| `feature` | 81 | 0 | 81 |
+| `bugfix` | 53 | 1 | 52 |
 
 ## Execution Order
 
@@ -174,3 +174,4 @@
 | `B050` | [Translate the Enacta Agent Kernel RFC into Chinese](bugs/B050-translate-enacta-agent-kernel-rfc-into-chinese.md) | `complete` | 2026-08-14 |
 | `B051` | [Disable WebView context menu](bugs/B051-disable-webview-context-menu.md) | `complete` | 2026-08-19 |
 | `B052` | [Continue Compatibility Turns after editor read Tools](bugs/B052-continue-compatibility-turns-after-editor-read-tools.md) | `complete` | 2026-09-01 |
+| `B053` | [Avoid exact local Codex CLI version pinning](bugs/B053-avoid-exact-local-codex-cli-version-pinning.md) | `draft` | 2026-09-01 |
