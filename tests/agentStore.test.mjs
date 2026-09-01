@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {
   createAgentThreadState,
   hydrateAgentThreadState,
+  prepareAgentThreadTitleState,
+  renameAgentThreadState,
   reconcileSettledAgentTurn,
   reduceAgentEvent,
   retryPromptFromState,
@@ -66,6 +68,35 @@ const assistantAdded = (sequence = 1) => event('itemAdded', sequence, {
   item: {
     id: 'turn-1:assistant', kind: 'message', role: 'assistant', content: '', status: 'running', createdAt: 11,
   },
+});
+
+test('new, generated, manual, and legacy Thread titles retain explicit provenance', () => {
+  const created = initial();
+  assert.equal(created.thread.titleSource, 'initial');
+
+  const generated = renameAgentThreadState(created, 'Conversation titles', 'generated', 2);
+  assert.equal(generated.thread.title, 'Conversation titles');
+  assert.equal(generated.thread.titleSource, 'generated');
+  assert.equal(generated.thread.updatedAt, 2);
+
+  const manual = renameAgentThreadState(generated, 'My saved name', 'manual', 3);
+  assert.equal(manual.thread.titleSource, 'manual');
+  assert.equal(prepareAgentThreadTitleState(manual, 'A different first prompt', 4), manual);
+  assert.equal(prepareAgentThreadTitleState(generated, 'A later prompt', 4), generated);
+
+  const prepared = prepareAgentThreadTitleState(created, '## Generate stable conversation titles', 4);
+  assert.equal(prepared.thread.title, 'Generate stable conversation titles');
+  assert.equal(prepared.thread.titleSource, 'generated');
+  assert.equal(prepareAgentThreadTitleState(created, '```\n```', 4), created);
+
+  const legacyRecord = {
+    schemaVersion: 1,
+    thread: { ...created.thread },
+    capabilities: created.capabilities,
+    runtime: created.runtime,
+  };
+  delete legacyRecord.thread.titleSource;
+  assert.equal(hydrateAgentThreadState(legacyRecord).thread.titleSource, 'manual');
 });
 
 test('ordered reducer buffers gaps and flushes incremental text without duplication', () => {

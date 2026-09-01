@@ -8,6 +8,8 @@ test('Agent panel uses the real runtime with reviewed navigation, model evidence
   assert.match(source, /discoverAgentSkills\(\)/);
   assert.match(source, /createNativeAgentRuntime\(\)/);
   assert.match(source, /useAgentThread\(\{/);
+  assert.match(source, /title: NEW_AGENT_THREAD_TITLE/);
+  assert.match(source, /await prepareThreadTitle\(prompt\);[\s\S]*runtime\.startTurn\(\{/);
   assert.match(source, /runtime\.startTurn\(\{/);
   assert.match(source, /retryOfTurnId/);
   assert.match(source, /upstreamThreadId: state\.runtime\.upstreamThreadId/);
@@ -37,5 +39,6 @@ test('Agent panel uses the real runtime with reviewed navigation, model evidence
   assert.match(source, /getActiveBinding/);
   assert.doesNotMatch(source, /ThreadPrimitive\.Messages/);
   assert.doesNotMatch(source, /save_file|saveWorkspaceDocument|saveStandaloneDocument/);
+  assert.doesNotMatch(source, /binding\?\.document\.displayName \?\? workspace\?\.name \?\? "Agent"/);
   assert.doesNotMatch(source, /remain available through Undo/);
 });

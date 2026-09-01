@@ -2,7 +2,7 @@
 id: "F069"
 title: "Generate Agent Conversation Titles from Visible Content"
 type: "feature"
-status: "draft"
+status: "complete"
 summary: "Generate one stable persistent conversation title from the first visible user prompt while preserving explicit user renames."
 source: "docs/superplan/human/features.md"
 created: "2026-09-01"
@@ -43,9 +43,9 @@ parent: ""
 - `cd src-tauri && cargo test agent::repository`
 - Cases: short English and Chinese prompts; headings/lists/quotes; multiline and repeated whitespace; emoji/grapheme-safe truncation; empty fallback; generated-once; manual-before-first-Turn; manual-after-generation; legacy hydration; restart persistence.
 
-- [ ] Generate one bounded title from visible user content without runtime/editor coupling.
-- [ ] Persist and normalize title provenance without breaking legacy Thread records.
-- [ ] Make explicit Rename permanently override automatic naming.
+- [x] Generate one bounded title from visible user content without runtime/editor coupling.
+- [x] Persist and normalize title provenance without breaking legacy Thread records.
+- [x] Make explicit Rename permanently override automatic naming.
 
 ## Task 2: Bind First Submission to the Persistent Conversation Title
 
@@ -66,9 +66,9 @@ parent: ""
 - `node --test tests/agentPanel.test.mjs tests/agentThreadHistory.test.mjs tests/agentThreadTitle.test.mjs tests/agentStore.test.mjs`
 - Cases: new Thread, first submission success/failure, retry, later prompt, Markdown-to-IdeaSketch switch, Workspace-only Turn, manual Rename before/after first prompt, resume after restart, browser fallback without native persistence.
 
-- [ ] Replace document-derived initial titles with the neutral conversation state.
-- [ ] Generate and persist the first-prompt title before Turn execution without changing its editor binding.
-- [ ] Prove cross-editor reuse and manual Rename remain stable.
+- [x] Replace document-derived initial titles with the neutral conversation state.
+- [x] Generate and persist the first-prompt title before Turn execution without changing its editor binding.
+- [x] Prove cross-editor reuse and manual Rename remain stable.
 
 ## Task 3: Verify and Deliver F069
 
@@ -86,8 +86,16 @@ parent: ""
 - Superplan registry and plan-index validation.
 - `git diff --check`
 
-- [ ] Run focused and full verification after implementation stabilizes.
-- [ ] Mark F069 delivered, refresh the plan index, inspect the task-only diff, and create a separate `feat(F069)` commit.
+- [x] Run focused and full verification after implementation stabilizes.
+- [x] Mark F069 delivered, refresh the plan index, inspect the task-only diff, and create a separate `feat(F069)` commit.
+
+## Completion Evidence
+
+- New Threads use `New conversation`; the first meaningful visible user prompt is normalized locally into a bounded Unicode-safe title before Turn execution, with no Provider, Codex, Tool, document, or Workspace content request.
+- Persisted `initial`, `generated`, and `manual` provenance makes automatic naming one-shot. Explicit Rename marks the native record and frontend state manual, while legacy records without provenance hydrate as manual and retain their existing names.
+- The generated title is saved through the existing atomic Thread record path and immediately refreshed in conversation history; editor bindings and document-specific welcome/context copy remain separate, so Markdown, IdeaSketch, and Workspace reuse cannot retitle the Thread.
+- Focused Agent title/store/history/panel/repository tests passed 27/27, and focused Rust repository tests passed 4/4.
+- Full frontend regression passed 470/470; full Rust regression passed 177/177; `npm run build`, `cargo build`, relevant Rust formatting, and `git diff --check` passed. Existing dependency/chunk and unused future-adapter warnings remain informational.
 
 ## References
 - `docs/superplan/human/features.md#F069`

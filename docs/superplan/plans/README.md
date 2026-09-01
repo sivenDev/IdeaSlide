@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Draft | Complete |
-| --- | --- | --- | --- |
-| `required` | 6 | 0 | 6 |
-| `feature` | 82 | 1 | 81 |
-| `bugfix` | 53 | 0 | 53 |
+| Type | Plans | Complete |
+| --- | --- | --- |
+| `required` | 6 | 6 |
+| `feature` | 82 | 82 |
+| `bugfix` | 53 | 53 |
 
 ## Execution Order
 
@@ -114,7 +114,7 @@
 | `F048` | [Refine Settings Navigation and Apply Changes Automatically](features/F048-refine-settings-navigation-and-auto-apply.md) | `complete` | 2026-08-12 |
 | `F068` | [Support Tab Indentation in the Markdown Editor](features/F068-support-tab-indentation-in-markdown-editor.md) | `complete` | 2026-08-27 |
 | `F049` | [Simplify AI Provider Model and Token Fields](features/F049-simplify-ai-provider-model-and-token-fields.md) | `complete` | 2026-08-12 |
-| `F069` | [Generate Agent Conversation Titles from Visible Content](features/F069-generate-agent-conversation-titles-from-visible-content.md) | `draft` | 2026-09-01 |
+| `F069` | [Generate Agent Conversation Titles from Visible Content](features/F069-generate-agent-conversation-titles-from-visible-content.md) | `complete` | 2026-09-01 |
 | `F055` | [Add Workspace from the Sidebar Header](features/F055-add-workspace-from-sidebar-header.md) | `complete` | 2026-08-12 |
 | `F056` | [Add Automatic Desktop Updates from GitHub Releases](features/F056-automatic-desktop-updates-from-github-releases.md) | `complete` | 2026-08-12 |
 | `F057` | [Add an About Page to Settings](features/F057-add-an-about-page-to-settings.md) | `complete` | 2026-08-12 |

@@ -7,10 +7,16 @@ import type {
   AgentItem,
   AgentMessageItem,
   AgentThreadState,
+  AgentThreadTitleSource,
   AgentThreadRecord,
   AgentThreadRuntimeMetadata,
   AgentTurn,
 } from "./protocol";
+import {
+  generateAgentThreadTitle,
+  NEW_AGENT_THREAD_TITLE,
+  normalizeAgentThreadTitleSource,
+} from "./agentThreadTitle.ts";
 
 export function createAgentThreadState({
   threadId,
@@ -24,6 +30,7 @@ export function createAgentThreadState({
     degraded: true,
     health: "unknown",
   },
+  titleSource = "initial",
   now = Date.now(),
 }: {
   threadId: string;
@@ -31,6 +38,7 @@ export function createAgentThreadState({
   welcome: string;
   capabilities: AgentCapabilities;
   runtime?: AgentThreadRuntimeMetadata;
+  titleSource?: AgentThreadTitleSource;
   now?: number;
 }): AgentThreadState {
   const welcomeTurn: AgentTurn = {
@@ -58,7 +66,7 @@ export function createAgentThreadState({
     }],
   };
   return {
-    thread: { id: threadId, title, createdAt: now, updatedAt: now, turns: [welcomeTurn] },
+    thread: { id: threadId, title, titleSource, createdAt: now, updatedAt: now, turns: [welcomeTurn] },
     capabilities,
     runtime: normalizeRuntimeMetadata(runtime),
     context: unavailableContext(runtime.localReplayTruncatedBeforeTurnId ?? runtime.compactedBeforeTurnId),
@@ -74,6 +82,7 @@ export function createAgentThreadState({
 export function hydrateAgentThreadState(record: AgentThreadRecord): AgentThreadState {
   const thread = {
     ...record.thread,
+    titleSource: normalizeAgentThreadTitleSource(record.thread.titleSource),
     turns: record.thread.turns.map((turn) => ({
       ...turn,
       skillProvenance: turn.skillProvenance ?? [],
@@ -152,11 +161,27 @@ function normalizeStreamingTelemetry(telemetry: AgentStreamingTelemetry): AgentS
   };
 }
 
-export function renameAgentThreadState(state: AgentThreadState, title: string, now = Date.now()): AgentThreadState {
+export function renameAgentThreadState(
+  state: AgentThreadState,
+  title: string,
+  titleSource: AgentThreadTitleSource = "manual",
+  now = Date.now(),
+): AgentThreadState {
   return {
     ...state,
-    thread: { ...state.thread, title, updatedAt: now },
+    thread: { ...state.thread, title, titleSource, updatedAt: now },
   };
+}
+
+export function prepareAgentThreadTitleState(
+  state: AgentThreadState,
+  prompt: string,
+  now = Date.now(),
+): AgentThreadState {
+  if (state.thread.titleSource !== "initial") return state;
+  const title = generateAgentThreadTitle(prompt);
+  if (title === NEW_AGENT_THREAD_TITLE) return state;
+  return renameAgentThreadState(state, title, "generated", now);
 }
 
 function withDiagnostic(

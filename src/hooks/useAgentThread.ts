@@ -12,6 +12,7 @@ import {
   agentRuntimeMessagesFromState,
   createAgentThreadState,
   hydrateAgentThreadState,
+  prepareAgentThreadTitleState,
   reconcileSettledAgentTurn,
   reduceAgentEvent,
   removeAgentNotice,
@@ -247,6 +248,22 @@ export function useAgentThread({
     await refreshHistory();
   }, [refreshHistory]);
 
+  const prepareThreadTitle = useCallback(async (prompt: string) => {
+    const next = prepareAgentThreadTitleState(state, prompt);
+    if (next === state) return;
+    setState(next);
+    if (!isDesktopRuntime()) return;
+    try {
+      await saveAgentThread(persistenceRecord(
+        next,
+        defaultsRef.current.policy.compatibilityReplayMessageLimit,
+      ));
+      await refreshHistory();
+    } catch (cause) {
+      setPersistenceError(cause instanceof Error ? cause.message : String(cause));
+    }
+  }, [refreshHistory, state]);
+
   const archiveThread = useCallback(async (threadId: string) => {
     if (isDesktopRuntime()) await archiveAgentThread(threadId);
     if (state.thread.id === threadId) await createThread();
@@ -352,6 +369,7 @@ export function useAgentThread({
     showArchivedHistory,
     persistenceError,
     createThread,
+    prepareThreadTitle,
     resumeThread,
     renameThread,
     archiveThread,

@@ -243,6 +243,10 @@ impl AgentThreadRepository {
             .as_object_mut()
             .ok_or_else(|| "Agent Thread payload is invalid".to_string())?;
         thread.insert("title".to_string(), Value::String(title.to_string()));
+        thread.insert(
+            "titleSource".to_string(),
+            Value::String("manual".to_string()),
+        );
         thread.insert("updatedAt".to_string(), Value::from(now_millis()));
         self.save(record)
     }
@@ -663,6 +667,7 @@ mod tests {
 
         let renamed = repository.rename("thread-1", "Renamed").unwrap();
         assert_eq!(renamed.thread["title"], "Renamed");
+        assert_eq!(renamed.thread["titleSource"], "manual");
         repository.archive("thread-1").unwrap();
         assert_eq!(repository.list(None, None, false).unwrap().threads.len(), 1);
         assert_eq!(repository.list(None, None, true).unwrap().threads.len(), 2);

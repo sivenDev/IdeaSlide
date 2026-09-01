@@ -23,6 +23,7 @@ test('persisted records hydrate only durable Thread state and reset transport bo
     },
   });
   assert.deepEqual(hydrated.thread, initial.thread);
+  assert.equal(hydrated.thread.titleSource, 'initial');
   assert.equal(hydrated.activeTurnId, undefined);
   assert.deepEqual(hydrated.processedEventIds, {});
   assert.deepEqual(hydrated.pendingEventsByTurn, {});
@@ -62,6 +63,8 @@ test('native repository commands use application data and never Workspace metada
   assert.match(nativeSource, /quarantine/);
   assert.doesNotMatch(nativeSource, /\.ideanote|Workspace/);
   assert.match(nativeSource, /pub\(crate\) fn delete\(&self, thread_id: &str\)/);
+  assert.match(nativeSource, /"titleSource"/);
+  assert.match(nativeSource, /Value::String\("manual"\.to_string\(\)\)/);
   assert.match(nativeSource, /ErrorKind::NotFound/);
   for (const command of ['save_agent_thread', 'get_agent_thread', 'list_agent_threads', 'rename_agent_thread', 'archive_agent_thread', 'delete_agent_thread']) {
     assert.match(clientSource, new RegExp(command));

@@ -13,6 +13,7 @@ import { discoverAgentSkills } from "../lib/agent/agentClient";
 import { promptFromAssistantUiMessage, toAssistantUiMessage } from "../lib/agent/assistantUiAdapter";
 import type { ActiveAgentEditorBinding, AgentToolExecutor } from "../lib/agent/types";
 import { createAgentEventId } from "../lib/agent/protocol";
+import { NEW_AGENT_THREAD_TITLE } from "../lib/agent/agentThreadTitle.ts";
 import { AgentComposer } from "./agent/AgentComposer";
 import { AgentConversationSelector } from "./agent/AgentConversationSelector";
 import { AgentRuntimeInspector } from "./agent/AgentRuntimeInspector";
@@ -50,7 +51,6 @@ export function AgentPanel({
   const cancelledTurnIdsRef = useRef(new Set<string>());
   const bindingRef = useRef(binding);
   bindingRef.current = binding;
-  const title = binding?.document.displayName ?? workspace?.name ?? "Agent";
   const bindingSkillId = binding?.skillId;
   const welcome = binding
     ? `I can inspect and edit **${binding.document.displayName}**. Editor changes use native Undo and Redo when the active editor supports them.`
@@ -71,12 +71,13 @@ export function AgentPanel({
     historyLoading,
     persistenceError,
     createThread,
+    prepareThreadTitle,
     resumeThread,
     renameThread,
     deleteThread,
     loadMoreHistory,
   } = useAgentThread({
-    title,
+    title: NEW_AGENT_THREAD_TITLE,
     welcome,
     capabilities: runtime.capabilities,
     runtime: {
@@ -156,6 +157,7 @@ export function AgentPanel({
   const submit = async (prompt: string, retryOfTurnId?: string) => {
     const capturedBinding = binding?.document.model ? binding : undefined;
     if ((!capturedBinding && !workspace) || activationState !== "ready" || running) return;
+    await prepareThreadTitle(prompt);
     const capturedDocument = capturedBinding?.document;
     const turnId = crypto.randomUUID();
     let turnOpen = true;

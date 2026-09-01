@@ -29,6 +29,9 @@ test('Thread hook resumes the latest local Thread and keeps AI-disabled history 
   assert.match(source, /createThread/);
   assert.match(source, /resumeThread/);
   assert.match(source, /renameThread/);
+  assert.match(source, /prepareThreadTitle/);
+  assert.match(source, /prepareAgentThreadTitleState\(state, prompt\)/);
+  assert.match(source, /saveAgentThread\(persistenceRecord\(\s*next,/);
   assert.match(source, /archiveThread/);
   assert.match(source, /deleteThread/);
   assert.match(source, /deletedThreadIdsRef\.current\.has\(state\.thread\.id\)/);

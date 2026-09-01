@@ -165,9 +165,12 @@ export interface AgentTurnEvidence {
   capturedAt: number;
 }
 
+export type AgentThreadTitleSource = "initial" | "generated" | "manual";
+
 export interface AgentThread {
   id: string;
   title: string;
+  titleSource?: AgentThreadTitleSource;
   createdAt: number;
   updatedAt: number;
   turns: AgentTurn[];

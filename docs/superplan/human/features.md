@@ -500,7 +500,7 @@ When previewing Markdown files, hide YAML frontmatter metadata from the rendered
 
 ## F069: Generate Agent conversation titles from visible content
 
-- status: accepted
+- status: done
 - created: 2026-09-01
 
 Generate a concise persistent Agent conversation title from the early visible user conversation, similar to Codex, instead of relying on the document name captured when the conversation was created. The same title should remain stable when the conversation is reused across Markdown and IdeaSketch editors, while users can still rename the conversation manually.
