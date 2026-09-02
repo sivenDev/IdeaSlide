@@ -2,7 +2,7 @@
 id: "F073"
 title: "Add IdeaSketch Text Editing Interfaces"
 type: "feature"
-status: "draft"
+status: "superseded"
 summary: "Let the IdeaSketch JSSDK and Agent create standalone text, attach text to shapes, and adjust existing text size through bounded native editor transactions."
 source: "docs/superplan/human/features.md"
 created: "2026-09-02"
@@ -10,6 +10,11 @@ order: 73
 depends_on: ["F071"]
 parent: ""
 ---
+
+> Superseded before approval by the broader RFC `docs/superplan/rfcs/F073.md`, which
+> redesigns the complete IdeaSketch JSSDK boundary and incorporates text as one
+> semantic scene capability. A replacement implementation plan will be created
+> only after that RFC is approved.
 
 # Add IdeaSketch Text Editing Interfaces Plan
 
