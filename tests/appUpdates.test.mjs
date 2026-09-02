@@ -91,7 +91,22 @@ test('proxy and official package failures retain the update and remain retryable
   assert.equal(controller.getState().availableVersion, '0.3.0');
   assert.match(controller.getState().error, /official GitHub fallback also failed/);
   assert.deepEqual(proxy.calls, ['download', 'close']);
-  assert.deepEqual(official.calls, ['download']);
+  assert.deepEqual(official.calls, ['download', 'close']);
+});
+
+test('an official fallback download failure closes the fallback resource', async () => {
+  const proxy = new FakeUpdate('0.3.0', 'proxy');
+  proxy.downloadError = new Error('proxy unavailable');
+  const official = new FakeUpdate('0.3.0', 'official');
+  official.downloadError = new Error('github unavailable');
+  const client = createClient([proxy]);
+  client.checkOfficial = async () => official;
+  const controller = new AppUpdateController(client);
+
+  await controller.check({ force: true });
+  await controller.download();
+
+  assert.deepEqual(official.calls, ['download', 'close']);
 });
 
 test('updates run only in the native main window', () => {

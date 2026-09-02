@@ -203,8 +203,9 @@ export class AppUpdateController {
         if (generation !== this.generation) return;
         const proxyUpdate = this.update;
         if (proxyUpdate?.source === "proxy" && this.client.checkOfficial && this.state.availableVersion) {
+          let officialUpdate: AppUpdateResource | null = null;
           try {
-            const officialUpdate = await this.client.checkOfficial(this.state.availableVersion);
+            officialUpdate = await this.client.checkOfficial(this.state.availableVersion);
             if (!officialUpdate) throw new Error("The official GitHub release is unavailable.");
             if (generation !== this.generation) {
               await officialUpdate.close().catch(() => undefined);
@@ -233,6 +234,7 @@ export class AppUpdateController {
             return;
           } catch (fallbackCause) {
             if (generation !== this.generation) return;
+            await officialUpdate?.close().catch(() => undefined);
             this.publish({
               ...this.state,
               phase: "error",
