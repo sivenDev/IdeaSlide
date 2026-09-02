@@ -10,6 +10,13 @@ const PERSISTENT_APP_STATE_KEYS = Object.freeze([
   "gridSize",
 ] as const);
 
+export interface IdeaSketchInternalSceneCommitRecord {
+  requestId?: string;
+  pageRef?: string;
+  operationKinds: readonly string[];
+  affectedRefs: readonly string[];
+}
+
 interface IdeaSketchSceneApi {
   getSceneElementsIncludingDeleted(): readonly unknown[];
   getAppState(): Partial<Record<string, unknown>>;
@@ -126,6 +133,61 @@ export function excludeCameraPreview(
   ));
 }
 
+function record(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
+}
+
+/**
+ * Reconcile the SDK adapter's canonical scene with Excalidraw's native
+ * normalization without allowing native restore to rewrite unrelated
+ * elements or discard persistent tombstones. `restoreElements()` is allowed
+ * to repair the changed closure, while unchanged entries remain byte-for-byte
+ * identical to the canonical scene supplied by the SDK transaction.
+ */
+export function mergeIdeaSketchNativeNormalizedElements(input: {
+  currentElements: readonly unknown[];
+  nextElements: readonly unknown[];
+  normalizedElements: readonly unknown[];
+}): readonly unknown[] {
+  const currentById = new Map<string, unknown>();
+  for (const element of input.currentElements) {
+    const id = record(element)?.id;
+    if (typeof id === "string") currentById.set(id, element);
+  }
+
+  const normalizedById = new Map<string, unknown>();
+  for (const element of input.normalizedElements) {
+    const id = record(element)?.id;
+    if (typeof id !== "string") continue;
+    if (normalizedById.has(id)) throw new Error(`Native Excalidraw normalization produced duplicate id: ${id}.`);
+    normalizedById.set(id, element);
+  }
+
+  return input.nextElements.map((element) => {
+    const item = record(element);
+    const id = item?.id;
+    if (typeof id !== "string") return element;
+    const current = currentById.get(id);
+    const changed = current === undefined || canonicalStringify(current) !== canonicalStringify(element);
+    if (!changed) return element;
+
+    const normalized = normalizedById.get(id);
+    if (normalized !== undefined) {
+      const normalizedId = record(normalized)?.id;
+      if (normalizedId !== id) throw new Error(`Native Excalidraw normalization changed element id ${id}.`);
+      return normalized;
+    }
+
+    // Excalidraw intentionally filters invisible elements. A canonical SDK
+    // tombstone is still part of the persistent .is scene and must survive
+    // that filter; a live element being silently omitted is unsafe.
+    if (item?.isDeleted === true) return element;
+    throw new Error(`Native Excalidraw normalization omitted live element ${id}.`);
+  });
+}
+
 export function captureIdeaSketchHostScene(input: {
   api?: IdeaSketchSceneApi;
   page: IdeaSketchPage;
@@ -191,6 +253,13 @@ function persistentAppStatePatch(
     if (canonicalStringify(current[key] ?? null) === canonicalStringify(next[key] ?? null)) continue;
     patch[key] = next[key];
   }
+  // Scene operations normally preserve selection. Deletion/clear is the
+  // intentional exception: forward only the cleaned selection delta so the
+  // mounted Excalidraw appState cannot retain tombstoned ids.
+  if (Object.prototype.hasOwnProperty.call(next, "selectedElementIds")
+    && canonicalStringify(current.selectedElementIds ?? null) !== canonicalStringify(next.selectedElementIds ?? null)) {
+    patch.selectedElementIds = next.selectedElementIds;
+  }
   return patch;
 }
 
@@ -201,6 +270,8 @@ export function commitIdeaSketchHostScene(input: {
   captureUpdate: unknown;
   activeCameraPreviewId?: string;
   onCommit?: () => void;
+  onSceneCommitRecord?: (record: IdeaSketchInternalSceneCommitRecord) => void;
+  sceneCommitRecord?: IdeaSketchInternalSceneCommitRecord;
 }) {
   if (canonicalStringify(input.currentScene.files) !== canonicalStringify(input.nextScene.files)) {
     throw new Error("IdeaSketch scene transactions cannot modify files.");
@@ -215,4 +286,5 @@ export function commitIdeaSketchHostScene(input: {
     captureUpdate: input.captureUpdate,
     ...(input.onCommit ? { onCommit: input.onCommit } : {}),
   });
+  if (input.sceneCommitRecord) input.onSceneCommitRecord?.(input.sceneCommitRecord);
 }

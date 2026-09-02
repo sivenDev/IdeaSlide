@@ -56,7 +56,10 @@ import {
   deriveLiveNativeInteractionReasons,
   createIdeaSketchSceneCommitSettlements,
   mergeActiveSceneIntoDocument,
+  mergeIdeaSketchNativeNormalizedElements,
+  type IdeaSketchInternalSceneCommitRecord,
 } from "../lib/ideasketch-sdk/editorHostAdapter.ts";
+import { validateIdeaSketchScenePostconditions } from "../lib/ideasketch-sdk/scenePostconditions.ts";
 
 const IDEASKETCH_DRAWER_STORAGE_KEY = "ideanote:ideasketch-drawer:v2";
 const DEFAULT_DRAWER_WIDTH = 244;
@@ -168,6 +171,7 @@ export function IdeaSketchEditor({
     [],
   );
   const sdkSceneCommitSettlementsRef = useRef(createIdeaSketchSceneCommitSettlements());
+  const sdkSceneCommitRecordsRef = useRef<IdeaSketchInternalSceneCommitRecord[]>([]);
   const canvasCommandApiRef = useRef<SlideCanvasCommandApi | undefined>(undefined);
   const canvasCommandSlideIdRef = useRef<string | undefined>(undefined);
   const sdkNativeInteractionRef = useRef<{
@@ -333,6 +337,16 @@ export function IdeaSketchEditor({
         mountedCanvas: mounted,
         desktop: Boolean((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__),
         documentUndo: false,
+        scene: mounted,
+        operations: mounted,
+        cameras: mounted,
+        assets: mounted,
+        methods: {
+          // F073-02 owns Camera listing and asset metadata; selection and pointer
+          // creation remain explicitly owned by the later UI rollout plan.
+          cameras: ["list"],
+          assets: ["listMetadata"],
+        },
       },
       flushDraft,
       commitScene: (nextScene) => {
@@ -341,10 +355,28 @@ export function IdeaSketchEditor({
         }
         const settlement = sdkSceneCommitSettlementsRef.current.begin();
         try {
+          const currentScene = captureIdeaSketchHostScene({ api, page, activeCameraPreviewId });
+          const normalizedElements = restoreElements(nextScene.elements as any[], currentScene.elements as any[], {
+            refreshDimensions: true,
+            repairBindings: true,
+          });
+          const nativeElements = mergeIdeaSketchNativeNormalizedElements({
+            currentElements: currentScene.elements,
+            nextElements: nextScene.elements,
+            normalizedElements,
+          });
+          const nativeValidation = validateIdeaSketchScenePostconditions({
+            elements: nativeElements,
+            appState: nextScene.appState,
+            files: nextScene.files,
+          }, { maxCameraCount: 200, cameraMinWidth: 16, cameraMinHeight: 16 });
+          if (nativeValidation.status === "rejected") {
+            throw new Error(`Native Excalidraw normalization failed: ${nativeValidation.error.message}`);
+          }
           commitIdeaSketchHostScene({
             api,
-            currentScene: captureIdeaSketchHostScene({ api, page, activeCameraPreviewId }),
-            nextScene,
+            currentScene,
+            nextScene: { ...nextScene, elements: nativeElements },
             captureUpdate: CaptureUpdateAction.IMMEDIATELY,
             activeCameraPreviewId,
             onCommit: settlement.acknowledge,
@@ -354,6 +386,13 @@ export function IdeaSketchEditor({
           throw error;
         }
         return { settlement: settlement.promise };
+      },
+      recordSceneCommit: (record) => {
+        sdkSceneCommitRecordsRef.current.push(Object.freeze({
+          ...record,
+          operationKinds: Object.freeze([...record.operationKinds]),
+          affectedRefs: Object.freeze([...record.affectedRefs]),
+        }));
       },
       commitDocument: (nextDocument) => {
         if (readOnly) throw new Error("The IdeaSketch document is read-only.");

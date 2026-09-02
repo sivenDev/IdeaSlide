@@ -4,9 +4,11 @@ import {
   type IdeaSketchSdkCallerProfile,
   type IdeaSketchSdkCapabilities,
   type IdeaSketchSdkScope,
+  type IdeaSketchSceneModel,
   type SdkProtocolVersion,
   type SdkSyncResult,
 } from "./types.ts";
+import { IDEA_SKETCH_OPERATION_SCHEMAS } from "./operationSchemas.ts";
 
 export const IDEA_SKETCH_SDK_PROTOCOL_VERSION = Object.freeze({ major: 1, minor: 0 });
 
@@ -126,6 +128,8 @@ const AGENT_METHOD_ALLOWLIST = Object.freeze({
 } satisfies Partial<Record<keyof typeof IDEA_SKETCH_SDK_METHOD_CATALOG, readonly string[]>>);
 
 export type IdeaSketchSdkServiceAvailability = Partial<Record<keyof typeof IDEA_SKETCH_SDK_METHOD_CATALOG, boolean>> & {
+  /** Optional per-method availability for partially rolled-out namespaces. */
+  methods?: Partial<Record<keyof typeof IDEA_SKETCH_SDK_METHOD_CATALOG, readonly string[]>>;
   mountedCanvas?: boolean;
   desktop?: boolean;
   documentUndo?: boolean;
@@ -160,6 +164,84 @@ const PROFILE_SCOPES = Object.freeze({
 const AGENT_TOOL_SCHEMA_DIGESTS = Object.freeze({
   1: "agent-tool-v1:eight-tools",
   2: "agent-tool-v2:semantic",
+});
+
+const SDK_LIMITS = Object.freeze({
+  mutationRequestsPerSession: 512,
+  sceneOperationsPerPlan: 40,
+  pageOperationsPerPlan: 20,
+  sceneReadPageSize: 100,
+  cameraReadPageSize: 100,
+  assetReadPageSize: 100,
+  maxPlanBytes: 256 * 1024,
+  maxCoordinate: 1_000_000,
+  maxTextLength: 10_000,
+  minFontSize: 6,
+  maxFontSize: 256,
+  maxDimension: 100_000,
+  minLineHeight: 0.5,
+  maxLineHeight: 4,
+  maxCameraCount: 200,
+  minCameraWidth: 16,
+  minCameraHeight: 16,
+});
+
+function deepFreeze<T>(value: T): T {
+  if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
+  Object.freeze(value);
+  for (const child of Object.values(value as Record<string, unknown>)) deepFreeze(child);
+  return value;
+}
+
+const SCENE_MODEL: IdeaSketchSceneModel = deepFreeze({
+  elementTypes: {
+    rectangle: { read: true, create: true, operations: ["create-shape", "move-element", "resize-element", "set-shape-style", "bind-text", "upsert-bound-text", "delete-element", "arrow-target"] },
+    ellipse: { read: true, create: true, operations: ["create-shape", "move-element", "resize-element", "set-shape-style", "bind-text", "upsert-bound-text", "delete-element", "arrow-target"] },
+    diamond: { read: true, create: true, operations: ["create-shape", "move-element", "resize-element", "set-shape-style", "bind-text", "upsert-bound-text", "delete-element", "arrow-target"] },
+    text: { read: true, create: true, operations: ["create-text", "set-text", "set-text-style", "set-text-layout", "bind-text", "unbind-text", "move-element", "delete-element"] },
+    "shape-bound-text": { read: true, create: true, operations: ["upsert-bound-text", "set-text", "set-text-style", "unbind-text", "delete-element"] },
+    arrow: { read: true, create: true, operations: ["create-arrow", "bind-arrow", "unbind-arrow", "set-connector-style", "set-arrowheads", "set-connector-points", "delete-element"] },
+    camera: { read: true, create: true, operations: ["create-camera", "update-camera-bounds", "set-camera-order", "delete-camera"], preserveOnly: false },
+    "imported-arrow-label": { read: true, create: false, operations: ["read", "preserve", "reflow-on-connector", "delete-with-arrow"], preserveOnly: true },
+    line: { read: true, create: false, operations: ["read", "preserve"], preserveOnly: true },
+    freedraw: { read: true, create: false, operations: ["read", "preserve"], preserveOnly: true },
+    image: { read: true, create: false, operations: ["read", "preserve"], preserveOnly: true },
+    frame: { read: true, create: false, operations: ["read", "preserve"], preserveOnly: true },
+    embeddable: { read: true, create: false, operations: ["read", "preserve"], preserveOnly: true },
+  },
+  containers: {
+    boundText: ["rectangle", "ellipse", "diamond"],
+    arrowTargets: ["rectangle", "ellipse", "diamond"],
+    maxLiveBoundTextPerContainer: 1,
+    boundTextLayout: "container-owned",
+  },
+  stateMatrix: {
+    locked: { read: true, ordinaryMutation: false, destructiveClear: "trusted-ui-with-confirmation" },
+    grouped: { read: true, ordinaryMutation: false, stylePreset: true, selectionClosure: true },
+    framed: { read: true, ordinaryMutation: false, stylePreset: true, selectionClosure: true },
+    importedArrowLabel: { read: true, contentStyleLayoutMutation: false, connectorReflow: true, deleteWithArrow: true },
+    camera: { dedicatedOperationsOnly: true, genericElementOperations: false, bindable: false },
+  },
+  styleFields: {
+    shape: ["backgroundColor", "strokeColor", "strokeWidth", "strokeStyle", "fillStyle", "roundness", "opacity", "roughness"],
+    connector: ["strokeColor", "strokeWidth", "strokeStyle", "opacity", "roughness"],
+    text: ["fontFamily", "fontSize", "color", "textAlign", "verticalAlign", "opacity", "lineHeight"],
+  },
+  enums: {
+    shapes: ["rectangle", "ellipse", "diamond"],
+    fonts: ["hand-drawn", "normal", "code"],
+    textAlign: ["left", "center", "right"],
+    verticalAlign: ["top", "middle", "bottom"],
+    strokeStyle: ["solid", "dashed", "dotted"],
+    fillStyle: ["solid", "hachure", "cross-hatch"],
+    arrowheads: ["arrow", "bar", "dot", "triangle", "circle", "none"],
+  },
+  defaults: {
+    text: { fontFamily: "hand-drawn", fontSize: 20, textAlign: "left", verticalAlign: "top", lineHeight: 1.25, overflowPolicy: "grow-container" },
+    shape: { strokeWidth: 1, strokeStyle: "solid", fillStyle: "solid", roughness: 1, opacity: 100 },
+    connector: { strokeWidth: 1, strokeStyle: "solid", roughness: 1, opacity: 100, startArrowhead: "none", endArrowhead: "arrow" },
+    camera: { angle: 0, strokeColor: "#1e90ff", strokeWidth: 2, strokeStyle: "dashed", opacity: 60, roughness: 0 },
+  },
 });
 
 function fnv1a(value: string) {
@@ -257,6 +339,13 @@ const OPERATION_NAMESPACE_KINDS = Object.freeze({
   scene: Object.freeze(["clear-scene"]),
 } satisfies Record<string, readonly string[]>);
 
+function operationNamespaceForKind(kind: string) {
+  for (const [namespace, kinds] of Object.entries(OPERATION_NAMESPACE_KINDS)) {
+    if (kinds.includes(kind)) return namespace;
+  }
+  return undefined;
+}
+
 function restrictOperationMethods(
   methods: Record<string, readonly string[]>,
   operationKinds: readonly string[],
@@ -318,34 +407,59 @@ export function createCapabilityProjection(
     restrictMethodsToAllowlist(supportedMethods, AGENT_METHOD_ALLOWLIST);
   }
   restrictOperationMethods(supportedMethods, supportedOperationKinds);
-  const availableMethods: Record<string, readonly string[]> = {};
-  for (const [namespace, methods] of Object.entries(supportedMethods)) {
-    availableMethods[namespace] = availability[namespace as keyof typeof IDEA_SKETCH_SDK_METHOD_CATALOG]
-      ? [...methods]
-      : namespace === "session" || namespace === "context" || namespace === "requests"
-        ? [...methods]
-        : [];
-  }
+  const operationNamespaces = availability.methods?.operations;
+  const operationServiceAvailable = availability.operations === true || operationNamespaces !== undefined;
+  const pageMethods = availability.methods?.pages;
+  const pageApplyAvailable = Boolean(availability.pages && (!pageMethods || pageMethods.includes("applyPlan")));
+  const sceneServiceAvailable = Boolean(availability.scene);
+  const clearOperationAvailable = !operationNamespaces || operationNamespaces.includes("scene");
   const availableOperationKinds = availability.writable ? [
-    ...(availability.pages ? supportedOperationKinds.filter((kind) => IDEA_SKETCH_PAGE_OPERATION_KINDS.includes(kind)) : []),
-    ...(availability.operations || availability.scene
-      ? supportedOperationKinds.filter((kind) => IDEA_SKETCH_SCENE_OPERATION_KINDS.includes(kind))
+    ...(availability.pages && pageApplyAvailable
+      ? supportedOperationKinds.filter((kind) => IDEA_SKETCH_PAGE_OPERATION_KINDS.includes(kind))
+      : []),
+    ...(sceneServiceAvailable && operationServiceAvailable
+      ? supportedOperationKinds.filter((kind) => {
+          if (!IDEA_SKETCH_SCENE_OPERATION_KINDS.includes(kind)) return false;
+          const namespace = operationNamespaceForKind(kind);
+          if (operationNamespaces && (!namespace || !operationNamespaces.includes(namespace))) return false;
+          return kind !== "clear-scene" || clearOperationAvailable;
+        })
       : []),
   ] : [];
+  const availableMethods: Record<string, readonly string[]> = {};
+  const availableOperationMethods = new Set(availableOperationKinds);
+  for (const [namespace, methods] of Object.entries(supportedMethods)) {
+    const explicitlyAvailable = availability.methods?.[namespace as keyof typeof IDEA_SKETCH_SDK_METHOD_CATALOG];
+    const namespaceAvailable = availability[namespace as keyof typeof IDEA_SKETCH_SDK_METHOD_CATALOG]
+      || namespace === "session" || namespace === "context" || namespace === "requests";
+    let available = namespaceAvailable ? [...methods] : [];
+    if (explicitlyAvailable) {
+      available = available.filter((method) => explicitlyAvailable.includes(method));
+    }
+    if (namespace === "operations") {
+      available = available.filter((method) => (
+        OPERATION_NAMESPACE_KINDS[method as keyof typeof OPERATION_NAMESPACE_KINDS]
+          ?.some((kind) => availableOperationMethods.has(kind)) ?? false
+      ));
+    }
+    if (availability.writable === false) {
+      const readOnlyMethods: Record<string, readonly string[]> = {
+        scene: ["read", "getElements"],
+        pages: ["list", "select", "parseExcalidraw"],
+        cameras: ["list", "select"],
+        transforms: [],
+      };
+      if (Object.prototype.hasOwnProperty.call(readOnlyMethods, namespace)) {
+        available = available.filter((method) => readOnlyMethods[namespace].includes(method));
+      }
+    }
+    availableMethods[namespace] = available;
+  }
   const documentFormatVersion = options.documentFormatVersion ?? "1.0";
   const toolSchemaDigest = options.toolSchemaDigest
     ?? (agentToolProtocolVersion
       ? AGENT_TOOL_SCHEMA_DIGESTS[agentToolProtocolVersion.major as 1 | 2]
       : undefined);
-  const schemaDigest = `sdk-v1:${fnv1a(JSON.stringify({
-    callerProfile,
-    scopes,
-    supportedMethods,
-    supportedOperationKinds,
-    agentToolProtocolVersion,
-    toolSchemaDigest,
-    documentFormatVersion,
-  }))}`;
   const capabilities: IdeaSketchSdkCapabilities = {
     sdkProtocolVersion: IDEA_SKETCH_SDK_PROTOCOL_VERSION,
     ...(agentToolProtocolVersion ? { agentToolProtocolVersion: Object.freeze({ ...agentToolProtocolVersion }) } : {}),
@@ -357,8 +471,22 @@ export function createCapabilityProjection(
     availableMethods: freezeMethodMap(availableMethods),
     supportedOperationKinds: Object.freeze(supportedOperationKinds),
     availableOperationKinds: Object.freeze(availableOperationKinds),
-    limits: Object.freeze({ mutationRequestsPerSession: 512, sceneOperationsPerPlan: 40, pageOperationsPerPlan: 20 }),
-    schemaDigest,
+    limits: SDK_LIMITS,
+    sceneModel: SCENE_MODEL,
+    schemaDigest: `sdk-v1:${fnv1a(JSON.stringify({
+      callerProfile,
+      scopes,
+      supportedMethods,
+      availableMethods,
+      supportedOperationKinds,
+      availableOperationKinds,
+      agentToolProtocolVersion,
+      toolSchemaDigest,
+      documentFormatVersion,
+      operationSchemas: IDEA_SKETCH_OPERATION_SCHEMAS,
+      limits: SDK_LIMITS,
+      sceneModel: SCENE_MODEL,
+    }))}`,
     available: Object.freeze({
       documentUndo: Boolean(availability.documentUndo),
       mountedCanvas: Boolean(availability.mountedCanvas),

@@ -97,6 +97,41 @@ test('caller profiles receive different immutable capability projections', () =>
   assert.notEqual(trusted.schemaDigest, agent.schemaDigest);
   assert.ok(Object.isFrozen(trusted));
   assert.ok(Object.isFrozen(trusted.scopes));
+  assert.deepEqual(trusted.sceneModel.containers.boundText, ['rectangle', 'ellipse', 'diamond']);
+  assert.deepEqual(trusted.sceneModel.enums.fonts, ['hand-drawn', 'normal', 'code']);
+  assert.equal(trusted.sceneModel.defaults.text.fontFamily, 'hand-drawn');
+  assert.equal('nativeFontId' in trusted.sceneModel.defaults.text, false);
+  assert.equal(trusted.sceneModel.stateMatrix.camera.genericElementOperations, false);
+  assert.ok(Object.isFrozen(trusted.sceneModel));
+  assert.ok(Object.isFrozen(trusted.sceneModel.elementTypes.rectangle.operations));
+  assert.ok(Object.isFrozen(trusted.sceneModel.defaults.text));
+  assert.equal(trusted.schemaDigest, createCapabilityProjection('trusted-ui', {}).schemaDigest);
+});
+
+test('available methods reflect partial rollout and writable service availability', () => {
+  const capabilities = createCapabilityProjection('trusted-ui', {
+    scene: true,
+    operations: true,
+    cameras: true,
+    assets: true,
+    writable: true,
+    methods: { cameras: ['list'], assets: ['listMetadata'] },
+  });
+  assert.deepEqual(capabilities.availableMethods.cameras, ['list']);
+  assert.deepEqual(capabilities.availableMethods.assets, ['listMetadata']);
+  assert.ok(!capabilities.availableMethods.operations.includes('page'));
+  assert.ok(capabilities.availableOperationKinds.includes('create-text'));
+
+  const textOnly = createCapabilityProjection('trusted-ui', {
+    scene: true,
+    operations: true,
+    writable: true,
+    methods: { operations: ['text'] },
+  });
+  assert.ok(textOnly.availableOperationKinds.includes('create-text'));
+  assert.ok(!textOnly.availableOperationKinds.includes('create-shape'));
+  assert.ok(!textOnly.availableOperationKinds.includes('create-camera'));
+  assert.deepEqual(textOnly.availableMethods.operations, ['text']);
 });
 
 test('protocol negotiation rejects unsupported majors and schema mismatches without downgrade', () => {

@@ -11,6 +11,7 @@ import {
   createIdeaSketchSceneCommitSettlements,
   deriveLiveNativeInteractionReasons,
   mergeActiveSceneIntoDocument,
+  mergeIdeaSketchNativeNormalizedElements,
 } from '../src/lib/ideasketch-sdk/editorHostAdapter.ts';
 import { createIdeaSketchSdkHostRegistrationLifecycle } from '../src/lib/ideasketch-sdk/host.ts';
 
@@ -411,12 +412,16 @@ test('the editor host adapter commits one files-preserving write and preserves e
   assert.equal(updates.length, 1);
   assert.deepEqual(updates[0], {
     elements: [{ id: 'shape-1', x: 20 }, { id: 'camera-preview' }],
-    appState: { viewBackgroundColor: '#000000', gridSize: 20 },
+    appState: {
+      viewBackgroundColor: '#000000',
+      gridSize: 20,
+      selectedElementIds: {},
+    },
     captureUpdate: 'IMMEDIATELY',
     onCommit,
   });
   assert.equal('zoom' in updates[0].appState, false);
-  assert.equal('selectedElementIds' in updates[0].appState, false);
+  assert.deepEqual(updates[0].appState.selectedElementIds, {});
   assert.equal('activeTool' in updates[0].appState, false);
   assert.equal('openDialog' in updates[0].appState, false);
 
@@ -427,6 +432,46 @@ test('the editor host adapter commits one files-preserving write and preserves e
     captureUpdate: 'IMMEDIATELY',
   }), /cannot modify files/);
   assert.equal(updates.length, 1);
+});
+
+test('native scene normalization preserves unrelated elements and persistent tombstones', () => {
+  const unrelated = {
+    id: 'unrelated-empty-text',
+    type: 'text',
+    text: '',
+    originalText: '',
+    x: 10,
+    y: 10,
+    width: 0,
+    height: 0,
+  };
+  const tombstone = {
+    id: 'deleted-zero-size',
+    type: 'rectangle',
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    isDeleted: true,
+  };
+  const changed = { id: 'changed', type: 'rectangle', x: 20, y: 0, width: 40, height: 30 };
+  const normalizedChanged = { ...changed, version: 2, versionNonce: 9, updated: 10 };
+  const merged = mergeIdeaSketchNativeNormalizedElements({
+    currentElements: [unrelated, tombstone, { ...changed, version: 1, versionNonce: 1, updated: 1 }],
+    nextElements: [unrelated, tombstone, changed],
+    normalizedElements: [normalizedChanged],
+  });
+  assert.deepEqual(merged[0], unrelated);
+  assert.deepEqual(merged[1], tombstone);
+  assert.deepEqual(merged[2], normalizedChanged);
+});
+
+test('native scene normalization fails closed when a changed live element is omitted', () => {
+  assert.throws(() => mergeIdeaSketchNativeNormalizedElements({
+    currentElements: [{ id: 'shape', type: 'rectangle', x: 0, y: 0, width: 10, height: 10 }],
+    nextElements: [{ id: 'shape', type: 'rectangle', x: 1, y: 0, width: 10, height: 10 }],
+    normalizedElements: [],
+  }), /omitted live element/);
 });
 
 test('live Excalidraw edit fields contribute to host busy state', () => {

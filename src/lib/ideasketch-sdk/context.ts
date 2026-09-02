@@ -35,11 +35,12 @@ export function createContextNamespace(input: {
       }
       const source = input.getSource();
       if (!source) return sdkRejected("editor_unavailable", "The active IdeaSketch editor is unavailable.", true);
+      const capabilities = input.getCapabilities();
       return sdkSucceeded({
         documentRef: `document:${source.documentId}`,
         activePageRef: `page:${source.activePageId}`,
         documentStatus: source.documentStatus,
-        writable: !source.readOnly && source.documentStatus === "editable",
+        writable: capabilities.available.writable && !source.readOnly && source.documentStatus === "editable",
         mounted: source.mountedPageId === source.activePageId,
         busy: source.nativeInteraction.busy,
         revision: source.revision,

@@ -211,6 +211,16 @@ export function createRequestLedger({
 
   return {
     sessionId,
+    lookup(input: { requestId: string; payloadDigest: string }): SdkSyncResult<RequestReservation | undefined> {
+      if (disposed || closing) return closedResult();
+      const existing = records.get(input.requestId);
+      if (!existing) return sdkSucceeded(undefined);
+      if (existing.payloadDigest !== input.payloadDigest) {
+        return sdkRejected("idempotency_conflict", "The request id was already used for a different payload.");
+      }
+      if (existing.state === "in-flight") return sdkSucceeded({ kind: "joined", result: existing.promise });
+      return sdkSucceeded({ kind: "replay", result: existing.result! });
+    },
     reserve(input: { requestId: string; payloadDigest: string }) {
       return reserveInternal(input, false);
     },

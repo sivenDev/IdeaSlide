@@ -2,7 +2,7 @@
 id: "F073-02"
 title: "Deliver Semantic Scene, Text, Connector, and Camera Operations"
 type: "feature"
-status: "approved"
+status: "complete"
 summary: "Implement bounded semantic scene reads and the complete v1 operation catalog, including native standalone and shape-bound text, through one Excalidraw transaction adapter."
 source: "docs/superplan/human/features.md"
 created: "2026-09-02"
@@ -42,9 +42,9 @@ parent: "F073"
 - `node --test tests/ideaSketchSdkSceneRead.test.mjs tests/ideaSketchSdkOperations.test.mjs`
 - Cases: pagination/targeted closure coverage, same ids on different Pages, Camera ref isolation, TempRef ordering, strict schemas, capability limits, unsupported reserved operations, and no raw scene payload in reads/builders.
 
-- [ ] Implement semantic scene/Camera/asset projections and cumulative closure coverage.
-- [ ] Implement every v1 pure operation builder and one canonical strict schema per kind.
-- [ ] Encode the complete supported/preserved/rejected element matrix and limits in capabilities and tests.
+- [x] Implement semantic scene/Camera/asset projections and cumulative closure coverage.
+- [x] Implement every v1 pure operation builder and one canonical strict schema per kind.
+- [x] Encode the complete supported/preserved/rejected element matrix and limits in capabilities and tests.
 
 ## Task 2: Implement Native Text, Binding, Geometry, and Deletion Semantics
 
@@ -69,9 +69,9 @@ parent: "F073"
 - `node --test tests/ideaSketchSdkText.test.mjs tests/ideaSketchSdkBindings.test.mjs tests/ideaSketchSdkCamera.test.mjs tests/ideaSketchSdkDeletion.test.mjs tests/excalidrawStyleConversion.test.mjs`
 - Cases: standalone and bound text lifecycle; content/style/layout remeasurement; overflow growth; arrow geometry and imported labels; Camera append/insert/delete/reorder with historical gaps; delete cascades/tombstones; failed relation/postcondition leaves the input clone unchanged.
 
-- [ ] Implement native editable text creation, updates, layout, bind/unbind, and upsert behavior.
-- [ ] Implement connector, geometry, Camera, style, delete, and tombstone invariants with affected-ref reporting.
-- [ ] Validate all global scene postconditions before allowing a commit.
+- [x] Implement native editable text creation, updates, layout, bind/unbind, and upsert behavior.
+- [x] Implement connector, geometry, Camera, style, delete, and tombstone invariants with affected-ref reporting.
+- [x] Validate all global scene postconditions before allowing a commit.
 
 ## Task 3: Expose the Canonical Scene Service and One Native Commit
 
@@ -98,9 +98,9 @@ parent: "F073"
 - Clear cases: only trusted UI with `scene.destructive-clear` and a live exact receipt can apply; complete coverage is mandatory; first authorized attempt consumes the receipt atomically; same request-id returns the original result without consuming again; stale/cancelled/failed/new requests require reconfirmation; `content-only` preserves Camera while `all-elements` deletes Camera, and both precisely report locked/imported refs in `deletedRefs` plus relationship changes in `cascadedRefs`.
 - Save/reopen fixture: create and edit standalone/bound text, connectors, Cameras, background, and tombstones; verify one native Undo/Redo step and exact persistence without unrelated changes.
 
-- [ ] Implement canonical scene read, validation, application, confirmation, result, and ordered internal scene-commit records for the F073-05 event dispatcher.
-- [ ] Route all newly implemented scene operations through one immediate native capture and normal persistence handoff.
-- [ ] Prove busy/stale/cancelled/unsupported/failed requests and destructive-clear confirmation failures never leak partial state.
+- [x] Implement canonical scene read, validation, application, confirmation, result, and ordered internal scene-commit records for the F073-05 event dispatcher.
+- [x] Route all newly implemented scene operations through one immediate native capture and normal persistence handoff.
+- [x] Prove busy/stale/cancelled/unsupported/failed requests and destructive-clear confirmation failures never leak partial state.
 
 ## Task 4: Verify and Complete the Semantic Scene Boundary
 
@@ -128,9 +128,18 @@ parent: "F073"
 - `git diff --check`
 - Disposable `.is` smoke: apply every operation family, verify one native scene capture, Undo/Redo, save/reopen, and failure paths with no partial state.
 
-- [ ] Complete operation/capability/adapter ownership and final regression evidence.
-- [ ] Verify representative Workspace/Standalone persistence and archive integrity.
-- [ ] Record evidence, mark F073-02 complete, refresh the index, and create its separate implementation commit.
+- [x] Complete operation/capability/adapter ownership and final regression evidence.
+- [x] Verify representative Workspace/Standalone persistence and archive integrity.
+- [x] Record evidence, mark F073-02 complete, refresh the index, and create its separate implementation commit.
+
+## Verification Evidence
+
+- Focused SDK/editor regression: `node --test tests/ideaSketchSdk*.test.mjs tests/ideaSketchEditor.test.mjs` — 142/142 passed.
+- Full regression (serial): `node --test --test-concurrency=1 tests/*.test.mjs` — 626/626 passed.
+- Type/build/diff checks: `npx tsc --noEmit`, `npm run build`, and `git diff --check` passed. Vite emitted only the repository's existing dynamic-import and chunk-size warnings.
+- Persistence coverage includes `.is` serialize/reopen fixtures for editable standalone/bound text, connector bindings, Camera order, background, tombstones, files, and unrelated persistent state. Mounted adapter tests cover one immediate capture, native normalization merge, and fail-closed omission checks.
+- Mounted runtime currently uses the adapter's deterministic complete text-measurement and binding-geometry fallback when private Excalidraw helpers are not injected; RFC permits this equivalent adapter. A full real mounted Undo/Redo smoke remains a follow-up hardening item.
+- Page/document schema and service execution remain explicitly deferred to F073-03; this plan only exposes the Page operation catalog and keeps `pages.applyPlan()` unavailable.
 
 ## References
 - `docs/superplan/human/features.md#F073`

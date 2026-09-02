@@ -110,6 +110,7 @@ export interface ExecuteSdkMutationInput<State> {
   ledger: IdeaSketchRequestLedger;
   reservedRequestHandle?: ReservedRequestHandle;
   signal?: AbortSignal;
+  beforeExecute?: () => SdkSyncResult<void>;
   readState: () => State;
   cloneState?: (state: State) => State;
   computeDigest: (state: State) => Promise<string>;
@@ -152,6 +153,15 @@ export async function executeSdkMutation<State>(
         ? result
         : sdkRejected("internal_error", "The mutation request could not be terminalized safely.");
     };
+    if (input.beforeExecute) {
+      let guard: SdkSyncResult<void>;
+      try {
+        guard = input.beforeExecute();
+      } catch {
+        return finish(sdkRejected("internal_error", "The mutation request guard failed."));
+      }
+      if (guard.status === "rejected") return finish(guard);
+    }
     if (input.signal?.aborted) return finish(sdkCancelled());
 
     let before: State;
@@ -176,6 +186,29 @@ export async function executeSdkMutation<State>(
       next = await input.prepare(cloneState(before));
     } catch (error) {
       if (input.signal?.aborted || isAbortError(error)) return finish(sdkCancelled());
+      if (
+        typeof error === "object"
+        && error !== null
+        && "code" in error
+        && typeof (error as { code?: unknown }).code === "string"
+      ) {
+        const details = error as { code: string; message?: unknown; retryable?: unknown };
+        const knownCodes = new Set([
+          "invalid_request", "internal_error", "protocol_mismatch", "unsupported_operation", "capability_denied",
+          "confirmation_required", "editor_unavailable", "desktop_unavailable", "editor_busy", "session_closed",
+          "presentation_session_not_found", "read_only", "snapshot_required", "snapshot_stale", "incomplete_read",
+          "target_not_found", "cross_page_target", "relation_conflict", "locked_target", "limit_exceeded",
+          "import_token_expired", "request_not_found", "idempotency_conflict", "request_ledger_full",
+          "cancelled_before_commit", "external_change", "commit_indeterminate",
+        ]);
+        if (knownCodes.has(details.code)) {
+          return finish(sdkRejected(
+            details.code as Parameters<typeof sdkRejected>[0],
+            typeof details.message === "string" ? details.message : "The mutation plan was rejected.",
+            details.retryable === true,
+          ));
+        }
+      }
       return finish(sdkRejected("invalid_request", "The mutation plan could not be prepared."));
     }
 
