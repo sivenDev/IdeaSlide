@@ -518,3 +518,10 @@ Extend the IdeaSketch Agent with bounded semantic scene reads and incremental sh
 - created: 2026-09-01
 
 Extend the IdeaSketch Agent workflow so it can move and resize already-read shapes by stable element references on the active Page, preserving bound text, arrow bindings, native Undo, and fail-closed page and revision safety.
+
+## F072: Prefer gh-proxy for automatic update downloads with official fallback
+
+- status: accepted
+- created: 2026-09-02
+
+Change the desktop updater so it first fetches the update manifest and signed installer through https://gh-proxy.com/ using the GitHub URL-prefix format, then retries the same operation through the official GitHub Release URL when the proxy request fails. Preserve Tauri updater signature verification, supported Windows and macOS targets, safe install/relaunch behavior, and direct official access as a fallback.

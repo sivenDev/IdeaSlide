@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Complete |
-| --- | --- | --- |
-| `required` | 6 | 6 |
-| `feature` | 84 | 84 |
-| `bugfix` | 55 | 55 |
+| Type | Plans | Draft | Complete |
+| --- | --- | --- | --- |
+| `required` | 6 | 0 | 6 |
+| `feature` | 85 | 1 | 84 |
+| `bugfix` | 55 | 0 | 55 |
 
 ## Execution Order
 
@@ -120,6 +120,7 @@
 | `F056` | [Add Automatic Desktop Updates from GitHub Releases](features/F056-automatic-desktop-updates-from-github-releases.md) | `complete` | 2026-08-12 |
 | `F071` | [Add Semantic Layout Mutation for Existing IdeaSketch Elements](features/F071-semantic-layout-mutation-for-existing-ideasketch-elements.md) | `complete` | 2026-09-01 |
 | `F057` | [Add an About Page to Settings](features/F057-add-an-about-page-to-settings.md) | `complete` | 2026-08-12 |
+| `F072` | [Prefer gh-proxy for Automatic Update Downloads with Official Fallback](features/F072-prefer-gh-proxy-update-downloads-with-official-fallback.md) | `draft` | 2026-09-02 |
 
 ### Bugfix Plans
 
