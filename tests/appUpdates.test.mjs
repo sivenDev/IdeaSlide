@@ -36,6 +36,22 @@ class FakeUpdate {
   }
 }
 
+class PendingDownloadUpdate extends FakeUpdate {
+  constructor(version = '0.3.0', source) {
+    super(version, source);
+    this.resolveDownload = undefined;
+  }
+
+  async download(onEvent) {
+    this.calls.push('download');
+    onEvent?.({ event: 'Started', data: { contentLength: 100 } });
+    await new Promise((resolve) => {
+      this.resolveDownload = resolve;
+    });
+    onEvent?.({ event: 'Finished' });
+  }
+}
+
 function createClient(updates) {
   const queue = [...updates];
   return {
@@ -287,4 +303,34 @@ test('known update failures remain retryable and retain their version', async ()
   update.downloadError = undefined;
   await controller.retry();
   assert.equal(controller.getState().phase, 'ready');
+});
+
+test('dismissing during an active download does not persist the update as ignored', async () => {
+  let dismissedVersion = null;
+  const update = new PendingDownloadUpdate('0.3.8');
+  const controller = new AppUpdateController(createClient([update]), {
+    getDismissedVersion: () => dismissedVersion,
+    setDismissedVersion: (version) => { dismissedVersion = version; },
+  });
+
+  await controller.check({ force: true });
+  const download = controller.download();
+  assert.equal(controller.getState().phase, 'downloading');
+
+  controller.dismiss();
+  assert.equal(dismissedVersion, null);
+  assert.equal(controller.getState().dismissed, false);
+
+  update.resolveDownload();
+  await download;
+  assert.equal(controller.getState().phase, 'ready');
+
+  const nextUpdate = new FakeUpdate('0.3.8');
+  const nextController = new AppUpdateController(createClient([nextUpdate]), {
+    getDismissedVersion: () => dismissedVersion,
+    setDismissedVersion: (version) => { dismissedVersion = version; },
+  });
+  await nextController.check({ force: true });
+  assert.equal(nextController.getState().availableVersion, '0.3.8');
+  assert.equal(nextController.getState().dismissed, false);
 });

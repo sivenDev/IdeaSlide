@@ -4283,7 +4283,8 @@ button.ideanote-ideasketch-drawer-commands__row {
     border-radius: 7px;
     color: var(--text-tertiary);
 }
-.ideanote-app-update-notice__heading > button:hover { color: var(--text-primary); background: var(--interaction-hover); }
+.ideanote-app-update-notice__heading > button:not(:disabled):hover { color: var(--text-primary); background: var(--interaction-hover); }
+.ideanote-app-update-notice__heading > button:disabled { color: var(--text-tertiary); cursor: default; }
 .ideanote-app-update-notice__notes {
     display: -webkit-box;
     overflow: hidden;

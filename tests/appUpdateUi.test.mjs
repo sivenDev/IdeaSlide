@@ -14,7 +14,9 @@ test('the lower-left update card exposes version, progress, restart, retry, and 
   assert.match(notice, /Download update/);
   assert.match(notice, /Restart to update/);
   assert.match(notice, /Retry/);
-  assert.match(notice, /aria-label="Dismiss update notice"/);
+  assert.match(notice, /"Dismiss update notice"/);
+  assert.match(notice, /aria-label=\{busy \? "Download in progress" : "Dismiss update notice"\}/);
+  assert.match(notice, /disabled=\{busy\}/);
   assert.match(notice, /role="status"/);
   assert.match(notice, /downloadedBytes/);
   assert.match(notice, /totalBytes/);

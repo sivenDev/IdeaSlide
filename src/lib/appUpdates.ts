@@ -164,7 +164,7 @@ export class AppUpdateController {
   };
 
   dismiss = () => {
-    if (!this.state.availableVersion) return;
+    if (!this.state.availableVersion || ["downloading", "installing"].includes(this.state.phase)) return;
     this.setDismissedVersion(this.state.availableVersion);
     this.publish({ ...this.state, dismissed: true });
   };

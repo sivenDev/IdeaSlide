@@ -47,7 +47,14 @@ export function AppUpdateNotice({
           <strong>Update available</strong>
           <span>{update.availableVersion ? `IdeaNote ${update.availableVersion}` : "A newer IdeaNote version"}</span>
         </div>
-        <button type="button" aria-label="Dismiss update notice" onClick={onDismiss}><X {...iconProps} /></button>
+        <button
+          type="button"
+          aria-label={busy ? "Download in progress" : "Dismiss update notice"}
+          disabled={busy}
+          onClick={onDismiss}
+        >
+          <X {...iconProps} />
+        </button>
       </div>
       {update.notes && <p className="ideanote-app-update-notice__notes">{update.notes}</p>}
       <div className="ideanote-app-update-notice__status" role="status" aria-live="polite">
