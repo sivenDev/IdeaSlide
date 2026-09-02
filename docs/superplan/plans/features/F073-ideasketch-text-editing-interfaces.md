@@ -3,7 +3,7 @@ id: "F073"
 title: "Add IdeaSketch Text Editing Interfaces"
 type: "feature"
 status: "draft"
-summary: "Let the IdeaSketch Agent create standalone text, attach text to shapes, and adjust existing text size through bounded native editor transactions."
+summary: "Let the IdeaSketch JSSDK and Agent create standalone text, attach text to shapes, and adjust existing text size through bounded native editor transactions."
 source: "docs/superplan/human/features.md"
 created: "2026-09-02"
 order: 73
@@ -13,12 +13,12 @@ parent: ""
 
 # Add IdeaSketch Text Editing Interfaces Plan
 
-**Goal:** Make text a first-class, safe capability of the IdeaSketch Agent so diagram instructions can produce and refine readable canvas labels.
-**Scope:** Add a read-first `apply_text_plan` Agent Tool with bounded operations for standalone text creation, text attached to supported shapes, replacing text content, and changing text size. Reuse stable `element:<id>` references, the existing IdeaSketch change-set contract, native Excalidraw `updateScene` capture, persistence, Undo/Redo, and all revision/source/read-only/cancellation guards. Extend incremental shape creation so a new shape may optionally include its bound text in the same drawing transaction.
+**Goal:** Make text a first-class, safe capability of the existing IdeaSketch JSSDK and Agent interfaces so diagram instructions can produce and refine readable canvas labels.
+**Scope:** Extend the existing `apply_drawing_plan` JSSDK/Agent contract with text-capable operations and add a read-first `apply_text_plan` convenience Tool with bounded operations for standalone text creation, text attached to supported shapes, replacing text content, and changing text size. Reuse stable `element:<id>` references, the existing IdeaSketch change-set contract, native Excalidraw `updateScene` capture, persistence, Undo/Redo, and all revision/source/read-only/cancellation guards. Extend incremental shape creation so a new shape may optionally include its bound text in the same drawing transaction.
 **Non-Goals:** Do not add a separate text editor UI, expose arbitrary Excalidraw JSON, support rich text spans, images, markdown, unsupported containers, cross-Page targets, direct file writes, or bypass existing Agent review and editor safety gates.
-**Architecture:** `ideaSketchAgentTools.ts` owns the public text-plan schema, bounded normalization, stable-reference rules, and concise summaries. `ideaSketchAgentExtension.ts` owns the typed text operations and pure scene builder: it creates native Excalidraw text elements, maintains shape/text `containerId` and `boundElements` relationships, updates text/font size without disturbing unrelated elements, and lets `restoreElements` recompute dimensions/bindings. `IdeaSketchEditor.tsx` remains the only mutation boundary and applies one text plan with `CaptureUpdateAction.IMMEDIATELY`, preserving the existing dirty/autosave/recovery and native Undo path.
-**Baseline:** F070 exposes bounded semantic shapes/arrows/bindings through `apply_drawing_plan`, and F071 exposes stable-reference movement/resizing through `apply_layout_plan`; neither can create standalone text, attach text to a shape, or change `fontSize`. `read_active_page` already returns bounded text summaries and stable element references.
-**Exit Criteria:** The Agent Tool catalog advertises `apply_text_plan` and the IdeaSketch Skill explains its read-first contract. A valid plan can create standalone text, create or update bound text on rectangles/ellipses/diamonds, replace text, and adjust font size; the result remains editable Excalidraw data, preserves existing arrows/groups/unrelated elements, and is captured as one native Undo step. Malformed, stale, unread, read-only, switched, cancelled, cross-Page, unsupported-target, oversized, and out-of-bounds requests fail closed without scene changes. Focused Agent-extension/editor contract tests, production TypeScript build, and diff hygiene pass.
+**Architecture:** `ideaSketchAgentTools.ts` owns the public JSSDK/Agent text-plan schemas, bounded normalization, stable-reference rules, and concise summaries. The existing `apply_drawing_plan` remains backward compatible while accepting text operations; `apply_text_plan` shares the same normalized operation model for text-only calls. `ideaSketchAgentExtension.ts` owns the typed text operations and pure scene builder: it creates native Excalidraw text elements, maintains shape/text `containerId` and `boundElements` relationships, updates text/font size without disturbing unrelated elements, and lets `restoreElements` recompute dimensions/bindings. `IdeaSketchEditor.tsx` remains the only mutation boundary and applies one text plan with `CaptureUpdateAction.IMMEDIATELY`, preserving the existing dirty/autosave/recovery and native Undo path.
+**Baseline:** F070 exposes bounded semantic shapes/arrows/bindings through the existing `apply_drawing_plan` JSSDK/Agent interface, and F071 exposes stable-reference movement/resizing through `apply_layout_plan`; neither can create standalone text, attach text to a shape, or change `fontSize`. `read_active_page` already returns bounded text summaries and stable element references.
+**Exit Criteria:** The existing `apply_drawing_plan` interface accepts text operations, the Agent Tool catalog also advertises `apply_text_plan`, and the IdeaSketch Skill explains both read-first contracts. A valid plan can create standalone text, create or update bound text on rectangles/ellipses/diamonds, replace text, and adjust font size; the result remains editable Excalidraw data, preserves existing arrows/groups/unrelated elements, and is captured as one native Undo step. Malformed, stale, unread, read-only, switched, cancelled, cross-Page, unsupported-target, oversized, and out-of-bounds requests fail closed without scene changes. Focused Agent-extension/editor contract tests, production TypeScript build, and diff hygiene pass.
 
 ## Task 1: Define the Text Tool Contract and Skill Guidance
 
@@ -31,21 +31,21 @@ parent: ""
 
 **Change Map:**
 - text operation types: add `create-text`, `set-text`, and `set-text-size` operations plus typed `IdeaSketchAgentOperation` coverage
-- text schema: add `apply_text_plan` with bounded coordinates, text length, font-size, operation count, target refs, and supported shape constraints
+- text schemas: extend `apply_drawing_plan` with the shared text operations and add `apply_text_plan` with bounded coordinates, text length, font-size, operation count, target refs, and supported shape constraints
 - normalization: require `read_active_page`, reject truncated/unavailable/unsupported targets, duplicate refs, malformed payloads, and mixed Pages before producing a Change Set
-- skill contract: document standalone text, shape-bound text, text replacement, and font-size updates with one mutation Tool after a successful read
+- skill contract: document both JSSDK/Agent entry points for standalone text, shape-bound text, text replacement, and font-size updates with one mutation Tool after a successful read
 
 **Verification:**
 - `node --test tests/ideaSketchAgentExtension.test.mjs`
 - Assert the Tool descriptor/schema, operation normalization, stable refs, text/font-size bounds, shape-target rules, summaries, and failure-closed malformed/stale/unread cases.
 
 - [ ] Add the text operation types, schema, and bounded normalizer.
-- [ ] Register `apply_text_plan` and document read-first usage.
+- [ ] Extend `apply_drawing_plan`, register `apply_text_plan`, and document read-first usage.
 - [ ] Add focused contract fixtures for valid and rejected text plans.
 
 ## Task 2: Build and Apply Native Text Scenes
 
-**Outcome:** Valid text plans create or update native Excalidraw text while preserving shape bindings, unrelated elements, and one-step Undo semantics.
+**Outcome:** Valid JSSDK/Agent text plans create or update native Excalidraw text while preserving shape bindings, unrelated elements, and one-step Undo semantics.
 **Files:**
 - Modify: `src/lib/agent/extensions/ideaSketchAgentExtension.ts`
 - Modify: `src/components/IdeaSketchEditor.tsx`
@@ -53,13 +53,13 @@ parent: ""
 - Test: `tests/ideaSketchAgentExtension.test.mjs`
 
 **Change Map:**
-- scene builder: create standalone text with deterministic ids/default typography, attach text to supported shapes, update existing text/container text, and adjust `fontSize` with refreshed version metadata
+- scene builder: create standalone text with deterministic ids/default typography, attach text to supported shapes, update existing text/container text, and adjust `fontSize` with refreshed version metadata; accept the same operations from both drawing and text plans
 - relationship repair: keep shape `boundElements` and text `containerId` coherent, preserve arrow bindings/groups/files, and leave unsupported targets unchanged by rejecting the transaction
-- editor boundary: detect text-only Change Sets, validate active Page/document identity and source fingerprint, call the pure builder once, restore dimensions/bindings, and capture through native Excalidraw history
+- editor boundary: detect text-capable Change Sets from either JSSDK/Agent Tool, validate active Page/document identity and source fingerprint, call the pure builder once, restore dimensions/bindings, and capture through native Excalidraw history
 
 **Verification:**
 - `node --test tests/agentDirectEditorContract.test.mjs tests/ideaSketchAgentExtension.test.mjs`
-- Cover standalone creation, new and existing shape text, text replacement, font-size changes, dimension refresh, arrow/bound-text preservation, one native capture, and stale/read-only/switched/cancelled/unsupported-target no-op behavior.
+- Cover standalone creation, new and existing shape text, text replacement, font-size changes, dimension refresh, arrow/bound-text preservation, both JSSDK/Agent entry points, one native capture, and stale/read-only/switched/cancelled/unsupported-target no-op behavior.
 
 - [ ] Implement the pure text scene builder and bound-text helpers.
 - [ ] Wire text Change Sets into the mounted editor transaction path.

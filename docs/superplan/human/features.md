@@ -531,4 +531,4 @@ Change the desktop updater so it first fetches the update manifest and signed in
 - status: accepted
 - created: 2026-09-02
 
-Extend the IdeaSketch Agent editing interface so users can create standalone text, set text inside supported shapes, and adjust text size on existing or newly created text while preserving editable Excalidraw elements and review-before-write behavior.
+Extend the existing IdeaSketch JSSDK/Agent editing interfaces so callers can create standalone text, set text inside supported shapes, and adjust text size on existing or newly created text while preserving editable Excalidraw elements and review-before-write behavior.
