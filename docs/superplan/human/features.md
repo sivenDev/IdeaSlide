@@ -526,10 +526,10 @@ Extend the IdeaSketch Agent workflow so it can move and resize already-read shap
 
 Change the desktop updater so it first fetches the update manifest and signed installer through https://gh-proxy.com/ using the GitHub URL-prefix format, then retries the same operation through the official GitHub Release URL when the proxy request fails. Preserve Tauri updater signature verification, supported Windows and macOS targets, safe install/relaunch behavior, and direct official access as a fallback.
 
-## F073: Add IdeaSketch text editing interfaces
+## F073: Define a unified IdeaSketch JSSDK with text editing
 
 - status: accepted
 - created: 2026-09-02
 - requires_rfc: true
 
-Extend the existing IdeaSketch JSSDK/Agent editing interfaces so callers can create standalone text, set text inside supported shapes, and adjust text size on existing or newly created text while preserving editable Excalidraw elements and review-before-write behavior.
+Define and deliver one typed IdeaSketch JSSDK boundary for the current `.is` editor instead of extending isolated React closures, raw Excalidraw APIs, and Agent Tools independently. Inventory and classify the current Page, scene, shape, connector, text, Camera, selection, transform, view, event, asset, presentation, and import/export surfaces; route persisted programmatic scene writes through one semantic, read-first transaction model; and preserve caller-specific capability restrictions, direct validated Agent application, native editor Undo where applicable, safe persistence, recovery, and external-change protection. The first delivery must add standalone text, shape-bound text, text replacement, font-size and supported text-style changes while keeping existing documented Agent and UI behavior compatible through explicit versioned adapters. Raw Excalidraw JSON must not become a scene read, mutation, or replace contract; explicit bounded parse/serialize/import/export bytes are the only format-boundary exception. Unrestricted filesystem writes and equal privileges for UI, Agent, and future external callers remain out of scope.
