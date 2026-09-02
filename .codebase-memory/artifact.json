@@ -1,11 +1,11 @@
 {
     "schema_version": 2,
-    "commit": "85a483adb06bd0e8a26256b38359e329b4cef200",
-    "indexed_at": "2026-09-02T04:08:07Z",
+    "commit": "6558b37e4a27bd36936e48914cc7389b3c1f1f67",
+    "indexed_at": "2026-09-02T04:29:36Z",
     "project": "Users-zhengxiwan-ide-workspace-idea-slide",
     "nodes": 7062,
     "edges": 17958,
     "original_size": 20971520,
-    "compressed_size": 3585039,
+    "compressed_size": 3585896,
     "compression_level": 3
 }

@@ -521,7 +521,7 @@ Extend the IdeaSketch Agent workflow so it can move and resize already-read shap
 
 ## F072: Prefer gh-proxy for automatic update downloads with official fallback
 
-- status: accepted
+- status: done
 - created: 2026-09-02
 
 Change the desktop updater so it first fetches the update manifest and signed installer through https://gh-proxy.com/ using the GitHub URL-prefix format, then retries the same operation through the official GitHub Release URL when the proxy request fails. Preserve Tauri updater signature verification, supported Windows and macOS targets, safe install/relaunch behavior, and direct official access as a fallback.

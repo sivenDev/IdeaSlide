@@ -2,7 +2,7 @@
 id: "F072"
 title: "Prefer gh-proxy for Automatic Update Downloads with Official Fallback"
 type: "feature"
-status: "in_progress"
+status: "complete"
 summary: "Route automatic update checks and signed package downloads through gh-proxy first, then fall back to official GitHub URLs without weakening signature or install safety."
 source: "docs/superplan/human/features.md"
 created: "2026-09-02"
@@ -109,7 +109,9 @@ parent: ""
 
 - [x] Run focused and full verification after implementation stabilizes.
 - [x] Record the proxy/direct manifest and signed fallback evidence.
-- [ ] Mark the plan and F072 complete/done only after an authorized `v0.3.8` or later release proves the new path.
+- [x] Mark the plan and F072 complete/done only after an authorized `v0.3.8` or later release proves the new path.
+
+Release evidence: `v0.3.8` was published at https://github.com/sivenDev/IdeaSlide/releases/tag/v0.3.8 with complete Windows/macOS assets, `latest.json`, and `latest-cn.json`. The two manifests were downloaded and compared: version and all signatures match, and every proxy URL is exactly `https://gh-proxy.com/` followed by the direct GitHub URL. The later `v0.3.9` tag contains the fallback-resource cleanup patch and is queued behind the completed `v0.3.8` workflow.
 
 ## References
 - `docs/superplan/human/features.md`
