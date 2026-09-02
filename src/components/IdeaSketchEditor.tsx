@@ -1,6 +1,6 @@
 import { CaptureUpdateAction, restoreElements } from "@excalidraw/excalidraw";
 import { message } from "@tauri-apps/plugin-dialog";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { PanelLeft, PanelLeftClose } from "lucide-react";
 import type { DocumentModel, DocumentSession, IdeaSketchDocument, IdeaSketchPage } from "../types";
 import { useEditorSession } from "../hooks/useEditorSession";
@@ -45,6 +45,18 @@ import {
   IdeaSketchNavigator,
   type IdeaSketchNavigatorTab,
 } from "./IdeaSketchNavigator";
+import {
+  createIdeaSketchSdkHostRegistrationLifecycle,
+  type IdeaSketchNativeInteractionReason,
+  type IdeaSketchSdkHostTarget,
+} from "../lib/ideasketch-sdk/host.ts";
+import {
+  captureIdeaSketchHostScene,
+  commitIdeaSketchHostScene,
+  deriveLiveNativeInteractionReasons,
+  createIdeaSketchSceneCommitSettlements,
+  mergeActiveSceneIntoDocument,
+} from "../lib/ideasketch-sdk/editorHostAdapter.ts";
 
 const IDEASKETCH_DRAWER_STORAGE_KEY = "ideanote:ideasketch-drawer:v2";
 const DEFAULT_DRAWER_WIDTH = 244;
@@ -150,8 +162,18 @@ export function IdeaSketchEditor({
   const [selectionControlsActive, setSelectionControlsActive] = useState(false);
   const excalidrawApiRef = useRef<any>(null);
   const excalidrawSlideIdRef = useRef<string | undefined>(undefined);
+  const activeCameraPreviewIdRef = useRef<string | undefined>(undefined);
+  const sdkHostRegistration = useMemo(
+    () => createIdeaSketchSdkHostRegistrationLifecycle(),
+    [],
+  );
+  const sdkSceneCommitSettlementsRef = useRef(createIdeaSketchSceneCommitSettlements());
   const canvasCommandApiRef = useRef<SlideCanvasCommandApi | undefined>(undefined);
   const canvasCommandSlideIdRef = useRef<string | undefined>(undefined);
+  const sdkNativeInteractionRef = useRef<{
+    epoch: number;
+    reasons: readonly IdeaSketchNativeInteractionReason[];
+  }>({ epoch: 0, reasons: [] });
   const syncMountedCanvasToPage = useCallback((page: IdeaSketchPage) => {
     const api = excalidrawApiRef.current;
     if (!api || excalidrawSlideIdRef.current !== page.id) return;
@@ -169,7 +191,7 @@ export function IdeaSketchEditor({
     selectedElementIds: Record<string, boolean>;
   } | undefined>(undefined);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!document.model || document.model === emittedModelRef.current) return;
     const next = createIdeaSketchEditorState(document.model, document.editorState?.activePageId);
     editorStateRef.current = next;
@@ -246,11 +268,122 @@ export function IdeaSketchEditor({
     onCommit: handleCommit,
     onDirty: handleDirty,
   });
+  const handleCanvasDraftChange = useCallback((
+    elements: readonly any[],
+    appState: Partial<any>,
+    files: Record<string, any>,
+  ) => {
+    const previousEditVersion = getEditVersion();
+    updateDraft(elements, appState, files);
+    if (getEditVersion() === previousEditVersion) return false;
+    const current = sdkNativeInteractionRef.current;
+    sdkNativeInteractionRef.current = {
+      epoch: current.epoch + 1,
+      reasons: current.reasons,
+    };
+    return true;
+  }, [getEditVersion, updateDraft]);
 
   const flushAndGetDocument = useCallback(() => {
     flushDraft();
     return editorStateRef.current.document;
   }, [flushDraft]);
+
+  const createSdkHostTarget = useCallback((): IdeaSketchSdkHostTarget | undefined => {
+    const current = editorStateRef.current;
+    const page = current.document.pages.find((candidate) => candidate.id === current.activePageId);
+    if (!page) return undefined;
+    const api = excalidrawApiRef.current;
+    const mounted = Boolean(api && excalidrawSlideIdRef.current === current.activePageId);
+    const activeCameraPreviewId = activeCameraPreviewIdRef.current;
+    const scene = captureIdeaSketchHostScene({
+      api: mounted ? api : undefined,
+      page,
+      activeCameraPreviewId,
+    });
+    const liveDocument = mergeActiveSceneIntoDocument({
+      document: current.document,
+      activePageId: current.activePageId,
+      scene,
+      mounted,
+    });
+    const nativeInteraction = sdkNativeInteractionRef.current;
+    const nativeInteractionReasons = deriveLiveNativeInteractionReasons(
+      nativeInteraction.reasons,
+      scene.appState,
+    );
+    return {
+      documentSessionId: document.id,
+      documentId: document.id,
+      activePageId: current.activePageId,
+      documentStatus: document.status,
+      revision: document.revision,
+      sourceModified: document.sourceModified,
+      readOnly,
+      mountedPageId: mounted ? current.activePageId : undefined,
+      pageEditVersion: getEditVersion(),
+      nativeInteraction: {
+        epoch: nativeInteraction.epoch,
+        busy: nativeInteractionReasons.length > 0,
+        reasons: nativeInteractionReasons,
+      },
+      document: liveDocument,
+      scene,
+      services: {
+        mountedCanvas: mounted,
+        desktop: Boolean((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__),
+        documentUndo: false,
+      },
+      flushDraft,
+      commitScene: (nextScene) => {
+        if (readOnly || !mounted || excalidrawApiRef.current !== api) {
+          throw new Error("The mounted IdeaSketch scene is unavailable.");
+        }
+        const settlement = sdkSceneCommitSettlementsRef.current.begin();
+        try {
+          commitIdeaSketchHostScene({
+            api,
+            currentScene: captureIdeaSketchHostScene({ api, page, activeCameraPreviewId }),
+            nextScene,
+            captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+            activeCameraPreviewId,
+            onCommit: settlement.acknowledge,
+          });
+        } catch (error) {
+          settlement.cancel();
+          throw error;
+        }
+        return { settlement: settlement.promise };
+      },
+      commitDocument: (nextDocument) => {
+        if (readOnly) throw new Error("The IdeaSketch document is read-only.");
+        const previous = editorStateRef.current;
+        const next = createIdeaSketchEditorState(nextDocument, previous.activePageId);
+        editorStateRef.current = next;
+        setEditorState(next);
+        emittedModelRef.current = next.document;
+        onModelChange(document.id, next.document);
+        if (next.activePageId !== previous.activePageId) {
+          onEditorStateChange(document.id, next.activePageId);
+        }
+      },
+    };
+  }, [
+    document.id,
+    document.revision,
+    document.sourceModified,
+    document.status,
+    flushDraft,
+    getEditVersion,
+    onEditorStateChange,
+    onModelChange,
+    readOnly,
+  ]);
+
+  useLayoutEffect(
+    () => sdkHostRegistration.mount(createSdkHostTarget),
+    [createSdkHostTarget, sdkHostRegistration],
+  );
 
   useEffect(() => {
     onRegisterSnapshot(document.id, flushAndGetDocument);
@@ -394,7 +527,20 @@ export function IdeaSketchEditor({
       await reportExportError(error);
     }
   }, [reportExportError, resolveActivePageForExport]);
-  const handleApiReady = useCallback((api: any, slideId: string) => {
+  const handleApiReady = useCallback((api: any | undefined, slideId: string) => {
+    if (!api) {
+      if (excalidrawSlideIdRef.current !== slideId) return;
+      sdkSceneCommitSettlementsRef.current.clear();
+      excalidrawApiRef.current = null;
+      excalidrawSlideIdRef.current = undefined;
+      return;
+    }
+    if (
+      excalidrawApiRef.current
+      && (excalidrawApiRef.current !== api || excalidrawSlideIdRef.current !== slideId)
+    ) {
+      sdkSceneCommitSettlementsRef.current.clear();
+    }
     excalidrawApiRef.current = api;
     excalidrawSlideIdRef.current = slideId;
     const pendingFeedback = pendingConversionFeedbackRef.current;
@@ -412,6 +558,9 @@ export function IdeaSketchEditor({
       }
       api.setToast({ message: pendingFeedback.message, duration: 4200 });
     });
+  }, []);
+  useEffect(() => () => {
+    sdkSceneCommitSettlementsRef.current.clear();
   }, []);
   const handleConvertSelection = useCallback((target: StyleConversionTarget) => {
     const api = excalidrawApiRef.current;
@@ -499,6 +648,30 @@ export function IdeaSketchEditor({
   }, []);
   const handleCanvasInteractionChange = useCallback((active: boolean) => {
     setCanvasInteractionActive((current) => current === active ? current : active);
+  }, []);
+  const handleNativeInteractionChange = useCallback((change: {
+    active: boolean;
+    reason: IdeaSketchNativeInteractionReason;
+  }) => {
+    const current = sdkNativeInteractionRef.current;
+    const reasons = new Set(current.reasons);
+    if (change.active) {
+      if (reasons.has(change.reason)) return;
+      reasons.add(change.reason);
+      sdkNativeInteractionRef.current = {
+        epoch: current.epoch + 1,
+        reasons: [...reasons].sort(),
+      };
+      return;
+    }
+    if (!reasons.delete(change.reason)) return;
+    sdkNativeInteractionRef.current = {
+      epoch: current.epoch,
+      reasons: [...reasons].sort(),
+    };
+  }, []);
+  const handleCameraPreviewChange = useCallback((previewId?: string) => {
+    activeCameraPreviewIdRef.current = previewId;
   }, []);
   const handleApplyAgentChangeSet = useCallback((changeSet: AgentChangeSet): boolean => {
     if (
@@ -781,12 +954,14 @@ export function IdeaSketchEditor({
             elements={draft.elements}
             appState={draft.appState}
             files={draft.files}
-            onChange={updateDraft}
+            onChange={handleCanvasDraftChange}
             onApiReady={handleApiReady}
             onCommandApiReady={handleCommandApiReady}
             onConvertSelection={handleConvertSelection}
             onSelectionPresenceChange={setSelectionControlsActive}
             onInteractionChange={handleCanvasInteractionChange}
+            onNativeInteractionChange={handleNativeInteractionChange}
+            onCameraPreviewChange={handleCameraPreviewChange}
             viewMode={readOnly}
             editorRefreshToken={editorRefreshToken}
             layoutRefreshToken={canvasLayoutRefreshToken}

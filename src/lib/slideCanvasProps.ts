@@ -11,6 +11,8 @@ interface SlideCanvasComparableProps {
   onConvertSelection?: unknown;
   onSelectionPresenceChange?: unknown;
   onInteractionChange?: unknown;
+  onNativeInteractionChange?: unknown;
+  onCameraPreviewChange?: unknown;
   editorRefreshToken?: number;
   layoutRefreshToken?: number;
   cameraDrawingRequestToken?: number;
@@ -33,6 +35,8 @@ export function areSlideCanvasPropsEqual(
     previousProps.onConvertSelection === nextProps.onConvertSelection &&
     previousProps.onSelectionPresenceChange === nextProps.onSelectionPresenceChange &&
     previousProps.onInteractionChange === nextProps.onInteractionChange &&
+    previousProps.onNativeInteractionChange === nextProps.onNativeInteractionChange &&
+    previousProps.onCameraPreviewChange === nextProps.onCameraPreviewChange &&
     previousProps.editorRefreshToken === nextProps.editorRefreshToken &&
     previousProps.layoutRefreshToken === nextProps.layoutRefreshToken &&
     previousProps.cameraDrawingRequestToken === nextProps.cameraDrawingRequestToken

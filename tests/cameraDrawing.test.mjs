@@ -27,19 +27,21 @@ test('enterCameraDrawingMode activates the custom camera tool', async () => {
 });
 
 test('exitCameraDrawingMode clears the preview rectangle and restores selection mode', async () => {
-  const { CAMERA_PREVIEW_ID, exitCameraDrawingMode } = await loadModule();
+  const { createCameraPreviewId, exitCameraDrawingMode } = await loadModule();
 
   assert.equal(typeof exitCameraDrawingMode, 'function');
-  assert.equal(typeof CAMERA_PREVIEW_ID, 'string');
+  assert.equal(typeof createCameraPreviewId, 'function');
 
   const updates = [];
   const activeTools = [];
   const persistedElement = { id: 'shape-1', type: 'rectangle' };
-  const previewElement = { id: CAMERA_PREVIEW_ID, type: 'rectangle' };
+  const legitimateElement = { id: 'camera-preview', type: 'rectangle' };
+  const previewId = createCameraPreviewId();
+  const previewElement = { id: previewId, type: 'rectangle' };
 
   const api = {
     getSceneElements() {
-      return [persistedElement, previewElement];
+      return [persistedElement, legitimateElement, previewElement];
     },
     updateScene(payload) {
       updates.push(payload);
@@ -49,12 +51,22 @@ test('exitCameraDrawingMode clears the preview rectangle and restores selection 
     },
   };
 
-  exitCameraDrawingMode(api);
+  exitCameraDrawingMode(api, previewId);
 
   assert.deepEqual(updates, [
     {
-      elements: [persistedElement],
+      elements: [persistedElement, legitimateElement],
     },
   ]);
   assert.deepEqual(activeTools, [{ type: 'selection' }]);
+});
+
+test('Camera preview ids are opaque per interaction', async () => {
+  const { createCameraPreviewId } = await loadModule();
+  const first = createCameraPreviewId();
+  const second = createCameraPreviewId();
+
+  assert.match(first, /^camera-preview:/);
+  assert.notEqual(first, second);
+  assert.notEqual(first, 'camera-preview');
 });

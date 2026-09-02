@@ -66,7 +66,7 @@ test('convertExcalidrawToDrawio maps shapes, bound text, connectors, and filteri
     files: {},
   }, metadata);
 
-  assert.equal(result.summary.exported, 6);
+  assert.equal(result.summary.exported, 7);
   assert.equal(result.summary.skipped, 1);
   assert.deepEqual(result.summary.skippedTypes, ['frame']);
   assert.match(result.xml, /<mxfile[^>]+modified="2026-08-06T00:00:00\.000Z"/);
@@ -89,7 +89,6 @@ test('convertExcalidrawToDrawio maps shapes, bound text, connectors, and filteri
   assert.match(result.xml, /source="2" target="3"/);
   assert.match(result.xml, /endArrow=block/);
   assert.match(result.xml, /A &amp;lt; B &amp;amp; C/);
-  assert.doesNotMatch(result.xml, /camera-preview/);
   assert.deepEqual(elements, originalElements);
 });
 

@@ -467,7 +467,7 @@ export function PresentationMode({ slide, mode, transitionSpeed, onExit, preview
   }, []);
 
   const noopOnChange = useCallback(
-    (_elements: readonly any[], _appState: Partial<any>, _files: Record<string, any>) => {},
+    (_elements: readonly any[], _appState: Partial<any>, _files: Record<string, any>) => false,
     []
   );
 

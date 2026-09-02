@@ -263,6 +263,64 @@ test('areSlideCanvasPropsEqual tracks the Canvas interaction callback', async ()
   );
 });
 
+test('areSlideCanvasPropsEqual tracks the native SDK interaction observer', async () => {
+  const { areSlideCanvasPropsEqual } = await loadModule();
+  const base = {
+    slideId: 'slide-1',
+    elements: [],
+    appState: {},
+    files: {},
+    onChange: () => {},
+    onNativeInteractionChange: () => {},
+  };
+
+  assert.equal(areSlideCanvasPropsEqual(base, { ...base }), true);
+  assert.equal(
+    areSlideCanvasPropsEqual(base, { ...base, onNativeInteractionChange: () => {} }),
+    false,
+  );
+});
+
+test('areSlideCanvasPropsEqual tracks the active Camera preview identity observer', async () => {
+  const { areSlideCanvasPropsEqual } = await loadModule();
+  const base = {
+    slideId: 'slide-1',
+    elements: [],
+    appState: {},
+    files: {},
+    onChange: () => false,
+    onCameraPreviewChange: () => {},
+  };
+
+  assert.equal(areSlideCanvasPropsEqual(base, { ...base }), true);
+  assert.equal(
+    areSlideCanvasPropsEqual(base, { ...base, onCameraPreviewChange: () => {} }),
+    false,
+  );
+});
+
+test('SlideCanvas reports pointer, text, IME, history, owned action, and Camera preview epochs', async () => {
+  const source = await import('node:fs/promises').then(({ readFile }) =>
+    readFile(new URL('../src/components/SlideCanvas.tsx', import.meta.url), 'utf8'),
+  );
+  for (const reason of ['pointer', 'text', 'ime', 'history', 'native-action', 'camera-preview']) {
+    assert.match(source, new RegExp(`"${reason}"`));
+  }
+  assert.match(source, /onCompositionStartCapture/);
+  assert.match(source, /onBeforeInputCapture/);
+  assert.match(source, /onCutCapture/);
+  assert.match(source, /editingTextElement/);
+  assert.match(source, /selectedElementsAreBeingDragged/);
+  assert.match(source, /isResizing/);
+  assert.match(source, /isRotating/);
+  assert.match(source, /onPasteLifecycle=\{viewMode \? undefined : handlePasteLifecycle\}/);
+  assert.match(source, /createIdeaSketchNativeActionOwnership/);
+  assert.match(source, /settleNativeActionAfterSynchronousEvent\(beginNativeAction\(\)\)/);
+  assert.doesNotMatch(source, /onPasteCapture=/);
+  assert.doesNotMatch(source, /if \(persisted\) finishNativeAction\(\)/);
+  assert.doesNotMatch(source, /pulseNativeInteraction\("native-action"\)/);
+});
+
 test('areSlideCanvasPropsEqual tracks the drawer command bridge and layout refresh token', async () => {
   const { areSlideCanvasPropsEqual } = await loadModule();
   const base = {

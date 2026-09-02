@@ -1,5 +1,3 @@
-import { CAMERA_PREVIEW_ID } from "./cameraDrawing.ts";
-
 export interface ExcalidrawDrawioScene {
   elements: readonly any[];
   files?: Record<string, any>;
@@ -266,7 +264,6 @@ function getElementBounds(element: any) {
 function isIgnored(element: any) {
   return Boolean(
     element?.isDeleted
-    || element?.id === CAMERA_PREVIEW_ID
     || element?.customData?.type === "camera",
   );
 }

@@ -37,6 +37,7 @@ function IdeaSketchContribution(props: DocumentEditorContributionProps) {
   const document = props.document as DocumentSession<IdeaSketchDocument>;
   return (
     <IdeaSketchEditor
+      key={document.id}
       document={document}
       readOnly={props.readOnly}
       editorRefreshToken={props.editorRefreshToken}

@@ -178,12 +178,13 @@ export function useEditorSession({
   useEffect(() => () => {
     flushDraftRef.current();
   }, []);
+  const getEditVersion = useCallback(() => editVersionRef.current, []);
 
   return {
     autoSaveVersion,
     draft,
     flushDraft,
-    getEditVersion: () => editVersionRef.current,
+    getEditVersion,
     hasPendingCommit,
     updateDraft,
   };

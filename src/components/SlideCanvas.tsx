@@ -3,10 +3,19 @@ import {
   Excalidraw,
   newElementWith,
 } from "@excalidraw/excalidraw";
-import { memo, useRef, useEffect, useState, useCallback } from "react";
+import {
+  memo,
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+  type ClipboardEvent as ReactClipboardEvent,
+  type FormEvent as ReactFormEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { getNextCameraOrder } from "../lib/cameraUtils";
 import {
-  CAMERA_PREVIEW_ID,
+  createCameraPreviewId,
   enterCameraDrawingMode,
 } from "../lib/cameraDrawing";
 import { areSlideCanvasPropsEqual } from "../lib/slideCanvasProps";
@@ -19,6 +28,11 @@ import { exportExcalidrawToDrawio } from "../lib/drawioExport";
 import { useSettings } from "../hooks/useSettings";
 import { CanvasSelectionActions } from "./CanvasSelectionActions";
 import { CameraBadgeOverlay } from "./CameraBadgeOverlay";
+import {
+  createIdeaSketchNativeActionOwnership,
+  type IdeaSketchNativeActionToken,
+} from "../lib/ideasketch-sdk/editorHostAdapter.ts";
+import type { IdeaSketchNativeInteractionReason } from "../lib/ideasketch-sdk/host.ts";
 
 function getScenePointerFromEvent(api: any, event: PointerEvent) {
   const appState = api.getAppState();
@@ -36,6 +50,21 @@ function getScenePointerFromEvent(api: any, event: PointerEvent) {
   };
 }
 
+function isNativeMutationKeyboardEvent(event: ReactKeyboardEvent<HTMLDivElement>) {
+  const key = event.key.toLowerCase();
+  if (key === "delete" || key === "backspace" || key.startsWith("arrow")) return true;
+  return (event.metaKey || event.ctrlKey) && key === "d";
+}
+
+function isWritableEventTarget(target: EventTarget | null) {
+  return target instanceof HTMLElement && (
+    target.isContentEditable
+    || target.tagName === "INPUT"
+    || target.tagName === "TEXTAREA"
+    || target.tagName === "SELECT"
+  );
+}
+
 export interface SlideCanvasCommandApi {
   exportDrawio: () => void;
   openImageExport: () => void;
@@ -49,13 +78,18 @@ interface SlideCanvasProps {
   elements: readonly any[];
   appState: Partial<any>;
   files: Record<string, any>;
-  onChange: (elements: readonly any[], appState: Partial<any>, files: Record<string, any>) => void;
+  onChange: (elements: readonly any[], appState: Partial<any>, files: Record<string, any>) => boolean;
   viewMode?: boolean;
-  onApiReady?: (api: any, slideId: string) => void;
+  onApiReady?: (api: any | undefined, slideId: string) => void;
   onCommandApiReady?: (api: SlideCanvasCommandApi | undefined, slideId: string) => void;
   onConvertSelection?: (target: StyleConversionTarget) => void;
   onSelectionPresenceChange?: (selected: boolean) => void;
   onInteractionChange?: (active: boolean) => void;
+  onNativeInteractionChange?: (change: {
+    active: boolean;
+    reason: IdeaSketchNativeInteractionReason;
+  }) => void;
+  onCameraPreviewChange?: (previewId?: string) => void;
   editorRefreshToken: number;
   layoutRefreshToken?: number;
   cameraDrawingRequestToken?: number;
@@ -84,6 +118,8 @@ function SlideCanvasInner({
   onConvertSelection,
   onSelectionPresenceChange,
   onInteractionChange,
+  onNativeInteractionChange,
+  onCameraPreviewChange,
   editorRefreshToken,
   layoutRefreshToken = 0,
   cameraDrawingRequestToken = 0,
@@ -94,9 +130,14 @@ function SlideCanvasInner({
   const onChangeRef = useRef(onChange);
   const onSelectionPresenceChangeRef = useRef(onSelectionPresenceChange);
   const onInteractionChangeRef = useRef(onInteractionChange);
+  const onNativeInteractionChangeRef = useRef(onNativeInteractionChange);
+  const onCameraPreviewChangeRef = useRef(onCameraPreviewChange);
+  const excalidrawApiRef = useRef<any>(null);
   const isMountedRef = useRef(true);
   const interactionActiveRef = useRef(false);
   const interactionIdleTimeoutRef = useRef<number | null>(null);
+  const nativeInteractionReasonsRef = useRef(new Set<IdeaSketchNativeInteractionReason>());
+  const nativeInteractionTimeoutsRef = useRef(new Map<IdeaSketchNativeInteractionReason, number>());
   const selectionPresentRef = useRef<boolean | undefined>(undefined);
   const [canConvertSelection, setCanConvertSelection] = useState(() =>
     getStyleConversionAvailability(elements, appState.selectedElementIds, Boolean(viewMode)),
@@ -116,11 +157,19 @@ function SlideCanvasInner({
     onInteractionChangeRef.current = onInteractionChange;
   }, [onInteractionChange]);
   useEffect(() => {
+    onNativeInteractionChangeRef.current = onNativeInteractionChange;
+  }, [onNativeInteractionChange]);
+  useEffect(() => {
+    onCameraPreviewChangeRef.current = onCameraPreviewChange;
+  }, [onCameraPreviewChange]);
+  useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      excalidrawApiRef.current = null;
+      onApiReady?.(undefined, slideId);
     };
-  }, []);
+  }, [onApiReady, slideId]);
 
   const clearInteractionIdleTimeout = useCallback(() => {
     if (interactionIdleTimeoutRef.current === null) return;
@@ -147,8 +196,82 @@ function SlideCanvasInner({
     finishCanvasInteractionSoon();
   }, [beginCanvasInteraction, finishCanvasInteractionSoon]);
 
+  const clearNativeInteractionTimeout = useCallback((reason: IdeaSketchNativeInteractionReason) => {
+    const timeout = nativeInteractionTimeoutsRef.current.get(reason);
+    if (timeout === undefined) return;
+    window.clearTimeout(timeout);
+    nativeInteractionTimeoutsRef.current.delete(reason);
+  }, []);
+  const beginNativeInteraction = useCallback((reason: IdeaSketchNativeInteractionReason) => {
+    clearNativeInteractionTimeout(reason);
+    if (nativeInteractionReasonsRef.current.has(reason)) return;
+    nativeInteractionReasonsRef.current.add(reason);
+    onNativeInteractionChangeRef.current?.({ active: true, reason });
+  }, [clearNativeInteractionTimeout]);
+  const finishNativeInteraction = useCallback((reason: IdeaSketchNativeInteractionReason) => {
+    clearNativeInteractionTimeout(reason);
+    if (!nativeInteractionReasonsRef.current.delete(reason)) return;
+    onNativeInteractionChangeRef.current?.({ active: false, reason });
+  }, [clearNativeInteractionTimeout]);
+  const finishNativeInteractionSoon = useCallback((reason: IdeaSketchNativeInteractionReason) => {
+    clearNativeInteractionTimeout(reason);
+    if (!nativeInteractionReasonsRef.current.has(reason)) return;
+    const timeout = window.setTimeout(() => {
+      nativeInteractionTimeoutsRef.current.delete(reason);
+      finishNativeInteraction(reason);
+    }, 180);
+    nativeInteractionTimeoutsRef.current.set(reason, timeout);
+  }, [clearNativeInteractionTimeout, finishNativeInteraction]);
+  const pulseNativeInteraction = useCallback((reason: IdeaSketchNativeInteractionReason) => {
+    beginNativeInteraction(reason);
+    finishNativeInteractionSoon(reason);
+  }, [beginNativeInteraction, finishNativeInteractionSoon]);
+  const nativeActionOwnershipRef = useRef<ReturnType<
+    typeof createIdeaSketchNativeActionOwnership
+  > | null>(null);
+  if (!nativeActionOwnershipRef.current) {
+    nativeActionOwnershipRef.current = createIdeaSketchNativeActionOwnership();
+  }
+  const beginNativeAction = useCallback(() => {
+    const token = nativeActionOwnershipRef.current!.begin();
+    beginNativeInteraction("native-action");
+    return token;
+  }, [beginNativeInteraction]);
+  const finishNativeAction = useCallback((token: IdeaSketchNativeActionToken) => {
+    if (nativeActionOwnershipRef.current!.settle(token)) {
+      finishNativeInteraction("native-action");
+    }
+  }, [finishNativeInteraction]);
+  const settleNativeActionAfterSynchronousEvent = useCallback((token: IdeaSketchNativeActionToken) => {
+    window.requestAnimationFrame(() => {
+      finishNativeAction(token);
+    });
+  }, [finishNativeAction]);
+
+  useEffect(() => () => {
+    if (nativeActionOwnershipRef.current?.clear()) {
+      finishNativeInteraction("native-action");
+    }
+    for (const timeout of nativeInteractionTimeoutsRef.current.values()) {
+      window.clearTimeout(timeout);
+    }
+    nativeInteractionTimeoutsRef.current.clear();
+    for (const reason of nativeInteractionReasonsRef.current) {
+      onNativeInteractionChangeRef.current?.({ active: false, reason });
+    }
+    nativeInteractionReasonsRef.current.clear();
+  }, [finishNativeInteraction]);
+
   useEffect(() => {
-    const finishPointerInteraction = () => finishCanvasInteractionSoon();
+    if (!viewMode || !nativeActionOwnershipRef.current?.clear()) return;
+    finishNativeInteraction("native-action");
+  }, [finishNativeInteraction, viewMode]);
+
+  useEffect(() => {
+    const finishPointerInteraction = () => {
+      finishCanvasInteractionSoon();
+      finishNativeInteractionSoon("pointer");
+    };
     window.addEventListener("pointerup", finishPointerInteraction);
     window.addEventListener("pointercancel", finishPointerInteraction);
     return () => {
@@ -160,7 +283,7 @@ function SlideCanvasInner({
         onInteractionChangeRef.current?.(false);
       }
     };
-  }, [clearInteractionIdleTimeout, finishCanvasInteractionSoon]);
+  }, [clearInteractionIdleTimeout, finishCanvasInteractionSoon, finishNativeInteractionSoon]);
 
   const syncStyleConversionAvailability = useCallback((
     nextElements: readonly any[],
@@ -233,18 +356,25 @@ function SlideCanvasInner({
   const [isDrawingCamera, setIsDrawingCamera] = useState(false);
   const drawStartRef = useRef<{ x: number; y: number } | null>(null);
   const cameraPreviewActiveRef = useRef(false);
-  const excalidrawApiRef = useRef<any>(null);
+  const cameraPreviewIdRef = useRef<string | undefined>(undefined);
   const drawioExportInFlightRef = useRef(false);
   const [apiReadyVersion, setApiReadyVersion] = useState(0);
 
   // Handle API ready
   const handleApiReady = useCallback((api: any) => {
     if (!isMountedRef.current) return;
+    if (
+      excalidrawApiRef.current
+      && excalidrawApiRef.current !== api
+      && nativeActionOwnershipRef.current?.clear()
+    ) {
+      finishNativeInteraction("native-action");
+    }
     excalidrawApiRef.current = api;
     syncStyleConversionAvailabilityRef.current(api.getSceneElements(), api.getAppState());
     setApiReadyVersion((value) => value + 1);
     onApiReady?.(api, slideId);
-  }, [onApiReady, slideId]);
+  }, [finishNativeInteraction, onApiReady, slideId]);
 
   useEffect(() => {
     const api = excalidrawApiRef.current;
@@ -255,6 +385,19 @@ function SlideCanvasInner({
     const unsubscribeChange = api.onChange(
       (nextElements: readonly any[], nextAppState: Partial<any>) => {
         syncStyleConversionAvailabilityRef.current(nextElements, nextAppState);
+        if (nextAppState.editingTextElement) beginNativeInteraction("text");
+        else finishNativeInteractionSoon("text");
+        if (
+          nextAppState.selectedElementsAreBeingDragged
+          || nextAppState.isResizing
+          || nextAppState.isRotating
+          || nextAppState.multiElement
+          || nextAppState.selectionElement
+        ) {
+          beginNativeInteraction("pointer");
+        } else if (!interactionActiveRef.current) {
+          finishNativeInteractionSoon("pointer");
+        }
       },
     );
     const unsubscribeScrollInteraction = api.onScrollChange(() => {
@@ -265,7 +408,13 @@ function SlideCanvasInner({
       unsubscribeChange();
       unsubscribeScrollInteraction();
     };
-  }, [apiReadyVersion, pulseCanvasInteraction, slideId]);
+  }, [
+    apiReadyVersion,
+    beginNativeInteraction,
+    finishNativeInteractionSoon,
+    pulseCanvasInteraction,
+    slideId,
+  ]);
 
   useEffect(() => {
     const api = excalidrawApiRef.current;
@@ -296,6 +445,9 @@ function SlideCanvasInner({
     const api = excalidrawApiRef.current;
     if (!api) return;
 
+    const previewId = createCameraPreviewId();
+    cameraPreviewIdRef.current = previewId;
+    onCameraPreviewChangeRef.current?.(previewId);
     setIsDrawingCamera(true);
     enterCameraDrawingMode(api);
   }, []);
@@ -333,6 +485,8 @@ function SlideCanvasInner({
       if (!drawStartRef.current) return;
       const pointer = getScenePointerFromEvent(api, event);
       if (!pointer) return;
+      const previewId = cameraPreviewIdRef.current;
+      if (!previewId) return;
 
       const startX = drawStartRef.current.x;
       const startY = drawStartRef.current.y;
@@ -346,11 +500,11 @@ function SlideCanvasInner({
       // Get current elements and filter out any existing preview
       const currentElements = api
         .getSceneElements()
-        .filter((el: any) => el.id !== CAMERA_PREVIEW_ID);
+        .filter((el: any) => el.id !== previewId);
 
       // Create preview rectangle
       const previewElement = {
-        id: CAMERA_PREVIEW_ID,
+        id: previewId,
         type: "rectangle",
         x,
         y,
@@ -378,6 +532,7 @@ function SlideCanvasInner({
       };
 
       // Update scene with preview
+      beginNativeInteraction("camera-preview");
       cameraPreviewActiveRef.current = true;
       api.updateScene({
         elements: [...currentElements, previewElement],
@@ -385,8 +540,11 @@ function SlideCanvasInner({
     };
 
     window.addEventListener("pointermove", handlePointerMove);
-    return () => window.removeEventListener("pointermove", handlePointerMove);
-  }, [isDrawingCamera]);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      finishNativeInteractionSoon("camera-preview");
+    };
+  }, [beginNativeInteraction, finishNativeInteractionSoon, isDrawingCamera]);
 
   // Handle pointer up - finish drawing camera rectangle
   useEffect(() => {
@@ -397,6 +555,8 @@ function SlideCanvasInner({
       if (activeTool.type === "custom" && activeTool.customType === "camera" && drawStartRef.current) {
         const pointer = getScenePointerFromEvent(api, event);
         if (!pointer) return;
+        const previewId = cameraPreviewIdRef.current;
+        if (!previewId) return;
 
         const startX = drawStartRef.current.x;
         const startY = drawStartRef.current.y;
@@ -410,7 +570,7 @@ function SlideCanvasInner({
         // Remove preview and get clean elements
         const currentElements = api
           .getSceneElements()
-          .filter((el: any) => el.id !== CAMERA_PREVIEW_ID);
+          .filter((el: any) => el.id !== previewId);
 
         // Only create camera if drag was significant (> 10px)
         if (width > 10 && height > 10) {
@@ -460,6 +620,9 @@ function SlideCanvasInner({
         }
 
         // Reset drawing state
+        finishNativeInteractionSoon("camera-preview");
+        cameraPreviewIdRef.current = undefined;
+        onCameraPreviewChangeRef.current?.(undefined);
         drawStartRef.current = null;
         setIsDrawingCamera(false);
         api.setActiveTool({ type: "selection" });
@@ -467,7 +630,7 @@ function SlideCanvasInner({
     });
 
     return unsubscribe;
-  }, [isDrawingCamera]);
+  }, [finishNativeInteractionSoon, isDrawingCamera]);
 
   useEffect(() => {
     if (isDrawingCamera) {
@@ -481,15 +644,24 @@ function SlideCanvasInner({
 
     drawStartRef.current = null;
     cameraPreviewActiveRef.current = false;
+    finishNativeInteractionSoon("camera-preview");
+    const previewId = cameraPreviewIdRef.current;
+    cameraPreviewIdRef.current = undefined;
+    onCameraPreviewChangeRef.current?.(undefined);
     const sceneElements = api.getSceneElements();
-    if (!sceneElements.some((el: any) => el.id === CAMERA_PREVIEW_ID)) {
+    if (!previewId || !sceneElements.some((el: any) => el.id === previewId)) {
       return;
     }
 
     api.updateScene({
-      elements: sceneElements.filter((el: any) => el.id !== CAMERA_PREVIEW_ID),
+      elements: sceneElements.filter((el: any) => el.id !== previewId),
     });
-  }, [isDrawingCamera]);
+  }, [finishNativeInteractionSoon, isDrawingCamera]);
+
+  useEffect(() => () => {
+    cameraPreviewIdRef.current = undefined;
+    onCameraPreviewChangeRef.current?.(undefined);
+  }, []);
 
   const handleExportDrawio = useCallback(() => {
     const api = excalidrawApiRef.current;
@@ -498,7 +670,9 @@ function SlideCanvasInner({
 
     void exportExcalidrawToDrawio({
       pageTitle,
-      elements: api.getSceneElements(),
+      elements: api.getSceneElements().filter(
+        (element: any) => element.id !== cameraPreviewIdRef.current,
+      ),
       files: api.getFiles(),
     })
       .then((result) => {
@@ -570,13 +744,55 @@ function SlideCanvasInner({
       : null,
     [onConvertSelection],
   );
+  const handlePointerDownCapture = useCallback(() => {
+    beginCanvasInteraction();
+    beginNativeInteraction("pointer");
+  }, [beginCanvasInteraction, beginNativeInteraction]);
+  const handleKeyDownCapture = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
+    pulseCanvasInteraction();
+    if ((event.metaKey || event.ctrlKey) && (event.key.toLowerCase() === "z" || event.key.toLowerCase() === "y")) {
+      pulseNativeInteraction("history");
+    } else if (isNativeMutationKeyboardEvent(event)) {
+      settleNativeActionAfterSynchronousEvent(beginNativeAction());
+    }
+  }, [beginNativeAction, pulseCanvasInteraction, pulseNativeInteraction, settleNativeActionAfterSynchronousEvent]);
+  const handleBeforeInputCapture = useCallback((event: ReactFormEvent<HTMLDivElement>) => {
+    if ((event.nativeEvent as InputEvent).inputType === "insertFromPaste") return;
+    settleNativeActionAfterSynchronousEvent(beginNativeAction());
+  }, [beginNativeAction, settleNativeActionAfterSynchronousEvent]);
+  const handleCutCapture = useCallback((event: ReactClipboardEvent<HTMLDivElement>) => {
+    if (isWritableEventTarget(event.target)) return;
+    settleNativeActionAfterSynchronousEvent(beginNativeAction());
+  }, [beginNativeAction, settleNativeActionAfterSynchronousEvent]);
+  const handlePasteLifecycle = useCallback((payload: {
+    phase: "start";
+    event: ClipboardEvent | null;
+  } | {
+    phase: "end";
+    event: ClipboardEvent | null;
+    token: unknown;
+  }) => {
+    if (payload.phase === "start") return beginNativeAction();
+    finishNativeAction(payload.token as IdeaSketchNativeActionToken);
+    return undefined;
+  }, [beginNativeAction, finishNativeAction]);
+  const handleCompositionStartCapture = useCallback(() => {
+    beginNativeInteraction("ime");
+  }, [beginNativeInteraction]);
+  const handleCompositionEndCapture = useCallback(() => {
+    finishNativeInteractionSoon("ime");
+  }, [finishNativeInteractionSoon]);
 
   return (
     <div
       ref={containerRef}
       style={{ width: "100%", height: "100%", position: "relative" }}
-      onPointerDownCapture={beginCanvasInteraction}
-      onKeyDownCapture={pulseCanvasInteraction}
+      onPointerDownCapture={handlePointerDownCapture}
+      onKeyDownCapture={handleKeyDownCapture}
+      onBeforeInputCapture={handleBeforeInputCapture}
+      onCutCapture={handleCutCapture}
+      onCompositionStartCapture={handleCompositionStartCapture}
+      onCompositionEndCapture={handleCompositionEndCapture}
       onWheelCapture={pulseCanvasInteraction}
     >
       <Excalidraw
@@ -598,6 +814,7 @@ function SlideCanvasInner({
           files,
         }}
         onChange={viewMode ? undefined : stableOnChange}
+        onPasteLifecycle={viewMode ? undefined : handlePasteLifecycle}
         UIOptions={{
           canvasActions: excalidrawCanvasActions,
         }}

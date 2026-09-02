@@ -52,10 +52,13 @@ test('Camera drawing preview uses explicit activity instead of scanning every sc
   const stableOnChange = source.match(/const stableOnChange = useRef\([\s\S]*?\n\s*\}\)\.current;/)?.[0] ?? '';
 
   assert.match(source, /const cameraPreviewActiveRef = useRef\(false\);/);
+  assert.match(source, /const cameraPreviewIdRef = useRef<string \| undefined>\(undefined\);/);
+  assert.match(source, /createCameraPreviewId\(\)/);
   assert.match(stableOnChange, /if \(cameraPreviewActiveRef\.current\) \{/);
   assert.doesNotMatch(stableOnChange, /\.some\(/);
   assert.match(source, /cameraPreviewActiveRef\.current = true;\s*api\.updateScene\(\{\s*elements: \[\.\.\.currentElements, previewElement\]/s);
   assert.match(source, /cameraPreviewActiveRef\.current = false;\s*api\.updateScene\(/s);
+  assert.doesNotMatch(source, /CAMERA_PREVIEW_ID/);
 });
 
 test('Unmounted Page canvases reject delayed Excalidraw change emissions', async () => {
@@ -117,6 +120,7 @@ test('Canvas interaction reporting is edge-triggered and idles after scroll or w
   assert.match(source, /onInteractionChangeRef\.current\?\.\(true\)/);
   assert.match(source, /window\.setTimeout\(\(\) => \{[\s\S]*?onInteractionChangeRef\.current\?\.\(false\);[\s\S]*?\}, 180\)/);
   assert.match(source, /api\.onScrollChange\(\(\) => \{\s*pulseCanvasInteraction\(\);/);
-  assert.match(source, /onPointerDownCapture=\{beginCanvasInteraction\}/);
+  assert.match(source, /const handlePointerDownCapture = useCallback\(\(\) => \{\s*beginCanvasInteraction\(\);\s*beginNativeInteraction\("pointer"\);/);
+  assert.match(source, /onPointerDownCapture=\{handlePointerDownCapture\}/);
   assert.match(source, /onWheelCapture=\{pulseCanvasInteraction\}/);
 });
