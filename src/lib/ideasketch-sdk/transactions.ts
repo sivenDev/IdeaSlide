@@ -192,7 +192,7 @@ export async function executeSdkMutation<State>(
         && "code" in error
         && typeof (error as { code?: unknown }).code === "string"
       ) {
-        const details = error as { code: string; message?: unknown; retryable?: unknown };
+        const details = error as { code: string; message?: unknown; retryable?: unknown; operationIndex?: unknown };
         const knownCodes = new Set([
           "invalid_request", "internal_error", "protocol_mismatch", "unsupported_operation", "capability_denied",
           "confirmation_required", "editor_unavailable", "desktop_unavailable", "editor_busy", "session_closed",
@@ -202,11 +202,18 @@ export async function executeSdkMutation<State>(
           "cancelled_before_commit", "external_change", "commit_indeterminate",
         ]);
         if (knownCodes.has(details.code)) {
-          return finish(sdkRejected(
+          const rejectedResult = sdkRejected(
             details.code as Parameters<typeof sdkRejected>[0],
             typeof details.message === "string" ? details.message : "The mutation plan was rejected.",
             details.retryable === true,
-          ));
+          );
+          if (Number.isInteger(details.operationIndex) && (details.operationIndex as number) >= 0) {
+            return finish({
+              ...rejectedResult,
+              error: { ...rejectedResult.error, operationIndex: details.operationIndex as number },
+            });
+          }
+          return finish(rejectedResult);
         }
       }
       return finish(sdkRejected("invalid_request", "The mutation plan could not be prepared."));

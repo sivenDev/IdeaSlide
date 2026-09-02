@@ -81,6 +81,7 @@ export type {
   IdeaSketchSetTextOperation,
   IdeaSketchTextContent,
   IdeaSketchOptionalTextContent,
+  IdeaSketchBoundTextLayout,
   IdeaSketchShapeType,
   IdeaSketchShapeStyle,
   IdeaSketchTextStyle,

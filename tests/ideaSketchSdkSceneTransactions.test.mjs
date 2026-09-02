@@ -31,6 +31,27 @@ test('scene.read/applyPlan use one receipt-bound service and commit once', async
   assert.equal(state.elements.filter((item) => item.type === 'text').length, 1);
 });
 
+test('scene.applyPlan preserves operationIndex for adapter-level semantic rejection', async () => {
+  const state = { elements: [], appState: {}, files: {}, pageEditVersion: 1 };
+  const host = hostWithScene(state);
+  const caller = createIdeaSketchHostCaller({ id: 'indexed-writer', profile: 'future-external', grantedScopes: ['scene.read', 'scene.write'] });
+  const session = await host.createSession({ caller, sdkProtocolVersion: { major: 1, minor: 0 } });
+  const sdk = session.value;
+  const read = await sdk.scene.read({});
+  assert.equal(read.status, 'succeeded');
+  const result = await sdk.scene.applyPlan({
+    requestId: 'indexed-apply',
+    snapshotId: read.value.snapshotId,
+    operations: [
+      op('create-text', { ref: 'temp:t', x: 0, y: 0, text: 'ok' }),
+      op('create-text', { ref: 'temp:t2', x: 10, y: 10, text: 'bad', style: { verticalAlign: 'middle' } }),
+    ],
+  });
+  assert.equal(result.status, 'rejected');
+  assert.equal(result.error.code, 'unsupported_operation');
+  assert.equal(result.error.operationIndex, 1);
+});
+
 test('busy native interaction rejects scene reads and stale cursors', async () => {
   const state = { elements: [], appState: {}, files: {}, pageEditVersion: 1, nativeInteraction: { epoch: 1, busy: true, reasons: ['text'] } };
   const host = hostWithScene(state);

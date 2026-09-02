@@ -40,6 +40,17 @@ test('projection helpers reject malformed option payloads without throwing', () 
   assert.equal(projection.assets.list(null).error.code, 'invalid_request');
 });
 
+test('projection read helpers reject malformed booleans, sparse refs, and inherited options', () => {
+  const projection = createSemanticSceneProjection({ pageRef: 'page:one', elements: [], files: {} });
+  assert.equal(projection.read({ includeDeleted: 'yes' }).error.code, 'invalid_request');
+  const refs = [];
+  refs.length = 1;
+  assert.equal(projection.getElements({ snapshotId: 'scene-snapshot:missing', refs }).error.code, 'invalid_request');
+  const inherited = Object.create({ limit: 1 });
+  assert.equal(projection.read(inherited).error.code, 'invalid_request');
+  assert.equal(projection.assets.list(Object.create({ limit: 1 })).error.code, 'invalid_request');
+});
+
 test('scene projection excludes deleted closure members from default mutation coverage', () => {
   const projection = createSemanticSceneProjection({
     pageRef: 'page:one',
@@ -132,6 +143,22 @@ test('malformed relation field shapes remain identity-only during reads', () => 
     assert.equal('malformed' in read.value.elements[0].relations, false);
     assert.equal(read.value.elements[0].relationsComplete, false);
   }
+});
+
+test('standalone text with vertical-only alignment remains identity-only', () => {
+  const projection = createSemanticSceneProjection({
+    pageRef: 'page:one',
+    elements: [element('text', 'text', {
+      type: 'text',
+      originalText: 'standalone',
+      text: 'standalone',
+      verticalAlign: 'middle',
+    })],
+  });
+  const read = projection.read({ limit: 10 });
+  assert.equal(read.status, 'succeeded');
+  assert.equal(read.value.elements[0].relationsMalformed, true);
+  assert.deepEqual(read.value.coverage.mutationReadyRefs, []);
 });
 
 test('unsafe native ids are omitted from public refs and malformed relations stay fail-closed', () => {

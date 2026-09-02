@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildIdeaSketchOperation, IDEA_SKETCH_OPERATION_SCHEMAS, validateOperationPlan } from '../src/lib/ideasketch-sdk/operationSchemas.ts';
+import { buildIdeaSketchOperation, IDEA_SKETCH_OPERATION_SCHEMAS, getOperationSchema, normalizeBounds, validateOperationPlan } from '../src/lib/ideasketch-sdk/operationSchemas.ts';
 
 test('operation builders are versioned, frozen, and reject ambiguous or unknown fields', () => {
   const result = buildIdeaSketchOperation('create-text', { ref: 'temp:t', x: 0, y: 0, text: 'hello' });
@@ -106,11 +106,35 @@ test('operation plans enforce TempRef ordering and initialScene restrictions', (
   assert.equal(seedRefLeak.error.code, 'invalid_request');
 });
 
+test('operation plan validation reports the failing operation index', () => {
+  const result = validateOperationPlan([
+    { kind: 'create-text', version: 1, ref: 'temp:t', x: 0, y: 0, originalText: 'ok' },
+    { kind: 'set-text-style', version: 1, textRef: 'temp:t', style: { fontSize: 0 } },
+  ]);
+  assert.equal(result.status, 'rejected');
+  assert.equal(result.error.operationIndex, 1);
+  assert.match(result.error.message, /^Operation 1:/);
+});
+
 test('builder getters and malformed clones fail through SdkResult', () => {
   const input = { ref: 'temp:s', shape: 'rectangle', bounds: { x: 0, y: 0, width: 10, height: 10 } };
   Object.defineProperty(input, 'style', { get() { throw new Error('getter'); } });
   assert.doesNotThrow(() => buildIdeaSketchOperation('create-shape', input));
   assert.equal(buildIdeaSketchOperation('create-shape', input).status, 'rejected');
+});
+
+test('schema and bounds helpers fail closed for revoked Proxies', () => {
+  const schemaProxy = Proxy.revocable({}, {});
+  schemaProxy.revoke();
+  assert.doesNotThrow(() => getOperationSchema(schemaProxy.proxy));
+  assert.equal(getOperationSchema(schemaProxy.proxy), undefined);
+
+  const boundsProxy = Proxy.revocable({}, {});
+  boundsProxy.revoke();
+  let normalized;
+  assert.doesNotThrow(() => { normalized = normalizeBounds(boundsProxy.proxy); });
+  assert.equal(normalized.status, 'rejected');
+  assert.equal(normalized.error.code, 'invalid_request');
 });
 
 test('plan byte limits cover the serialized operation array envelope', () => {

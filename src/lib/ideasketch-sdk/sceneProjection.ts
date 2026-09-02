@@ -40,6 +40,13 @@ function textFieldsMalformed(element: Record<string, unknown>) {
   if (element.fontFamily !== undefined && !TEXT_FONTS.has(element.fontFamily as never)) return true;
   if (element.textAlign !== undefined && !TEXT_ALIGNS.has(element.textAlign as never)) return true;
   if (element.verticalAlign !== undefined && !VERTICAL_ALIGNS.has(element.verticalAlign as never)) return true;
+  // Excalidraw only supports vertical alignment for shape-bound text in this
+  // semantic contract. A standalone text carrying middle/bottom is damaged
+  // source data and must remain identity-only rather than being advertised as
+  // mutation-ready with an impossible layout.
+  if ((element.containerId === undefined || element.containerId === null)
+    && element.verticalAlign !== undefined
+    && element.verticalAlign !== "top") return true;
   if (element.autoResize !== undefined && typeof element.autoResize !== "boolean") return true;
   if (element.width !== undefined && (!finite(element.width) || (element.width as number) <= 0)) return true;
   return false;
@@ -161,6 +168,33 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? value as Record<string, unknown>
     : undefined;
+}
+
+function strictOptions(value: unknown): Record<string, unknown> | undefined {
+  const record = asRecord(value);
+  if (!record) return undefined;
+  try {
+    const prototype = Object.getPrototypeOf(record);
+    if (prototype !== Object.prototype && prototype !== null) return undefined;
+    const result: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
+    for (const key of Reflect.ownKeys(record)) {
+      if (typeof key !== "string") return undefined;
+      const descriptor = Object.getOwnPropertyDescriptor(record, key);
+      if (!descriptor?.enumerable || !("value" in descriptor)) return undefined;
+      result[key] = descriptor.value;
+    }
+    return result;
+  } catch {
+    return undefined;
+  }
+}
+
+function denseArray(value: unknown): value is readonly unknown[] {
+  if (!Array.isArray(value)) return false;
+  for (let index = 0; index < value.length; index += 1) {
+    if (!Object.prototype.hasOwnProperty.call(value, index)) return false;
+  }
+  return true;
 }
 
 function safeNativeId(value: unknown): value is string {
@@ -616,9 +650,12 @@ export function createSemanticSceneProjection(input: SemanticSceneProjectionInpu
   }
 
   function read(options: { snapshotId?: SceneSnapshotId; cursor?: SnapshotCursor; limit?: number; includeDeleted?: boolean } = {}): SdkSyncResult<IdeaSketchSceneRead> {
-    if (!asRecord(options)) return sdkRejected("invalid_request", "Scene read options must be an object.");
+    const strict = strictOptions(options);
+    if (!strict) return sdkRejected("invalid_request", "Scene read options must be an object.");
+    options = strict as typeof options;
     const limit = options.limit ?? 50;
     if (!Number.isInteger(limit) || limit <= 0 || limit > maxLimit) return sdkRejected("limit_exceeded", "Scene read limit is invalid.");
+    if (options.includeDeleted !== undefined && typeof options.includeDeleted !== "boolean") return sdkRejected("invalid_request", "includeDeleted must be boolean.");
     let snapshot: InternalSnapshot | undefined;
     let offset = 0;
     if (options.cursor !== undefined) {
@@ -684,10 +721,13 @@ export function createSemanticSceneProjection(input: SemanticSceneProjectionInpu
   }
 
   function getElements(options: { snapshotId: SceneSnapshotId; refs: readonly (ElementRef | CameraRef)[]; includeDeleted?: boolean }): SdkSyncResult<IdeaSketchSceneRead> {
-    if (!asRecord(options)) return sdkRejected("invalid_request", "Scene getElements options must be an object.");
+    const strict = strictOptions(options);
+    if (!strict) return sdkRejected("invalid_request", "Scene getElements options must be an object.");
+    options = strict as typeof options;
+    if (!denseArray(options.refs) || options.refs.length === 0) return sdkRejected("invalid_request", "refs must not be empty.");
+    if (options.includeDeleted !== undefined && typeof options.includeDeleted !== "boolean") return sdkRejected("invalid_request", "includeDeleted must be boolean.");
     const snapshot = resolveSnapshot(options.snapshotId);
     if (!snapshot) return sdkRejected("snapshot_required", "The scene snapshot does not exist.");
-    if (!Array.isArray(options.refs) || options.refs.length === 0) return sdkRejected("invalid_request", "refs must not be empty.");
     if (options.includeDeleted !== undefined && options.includeDeleted !== snapshot.includeDeleted) return sdkRejected("invalid_request", "includeDeleted is fixed for the lifetime of a scene snapshot.");
     const selected = new Set<string>();
     const completedClosures: string[][] = [];

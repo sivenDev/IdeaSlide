@@ -71,6 +71,36 @@ const KNOWN_CALLER_PROFILES = new Set<IdeaSketchSdkCallerProfile>([
   "legacy",
 ]);
 
+function publicEnvelope(value: unknown): Record<string, unknown> | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  try {
+    if (Array.isArray(value)) return undefined;
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) return undefined;
+    const result: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
+    for (const key of Reflect.ownKeys(value)) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (typeof key !== "string" || descriptor?.enumerable !== true || !("value" in (descriptor ?? {}))) return undefined;
+      result[key] = descriptor.value;
+    }
+    return result;
+  } catch {
+    return undefined;
+  }
+}
+
+function unknownEnvelopeFields(value: Record<string, unknown>, allowed: readonly string[]) {
+  return Object.keys(value).filter((key) => !allowed.includes(key));
+}
+
+function denseArray(value: unknown): value is readonly unknown[] {
+  if (!Array.isArray(value)) return false;
+  for (let index = 0; index < value.length; index += 1) {
+    if (!Object.prototype.hasOwnProperty.call(value, index)) return false;
+  }
+  return true;
+}
+
 function operationLimitsFromCapabilities(limits: IdeaSketchSdkCapabilities["limits"]): Partial<IdeaSketchOperationLimits> {
   return {
     maxOperations: limits.sceneOperationsPerPlan,
@@ -227,37 +257,44 @@ function operationBuilder<K extends IdeaSketchOperationKind>(input: {
   kind: K;
 }): IdeaSketchOperationBuilder<K> {
   return ((value: IdeaSketchOperationInput<K>): SdkSyncResult<IdeaSketchOperationOf<K>> => {
-    if (!input.isActive()) return sdkRejected("session_closed", "The IdeaSketch SDK session is closed.");
-    if (!input.getScopes().includes(input.requiredScope)) {
-      return sdkRejected("capability_denied", "The caller is not authorized for this operation.");
+    try {
+      if (!input.isActive()) return sdkRejected("session_closed", "The IdeaSketch SDK session is closed.");
+      if (!input.getScopes().includes(input.requiredScope)) {
+        return sdkRejected("capability_denied", "The caller is not authorized for this operation.");
+      }
+      if (typeof value !== "object" || value === null || Array.isArray(value)) {
+        return sdkRejected("invalid_request", "The operation input must be an object.");
+      }
+      if (!input.getAvailableOperationKinds().includes(input.kind)) {
+        return sdkRejected("unsupported_operation", `The ${input.kind} operation is not available yet.`);
+      }
+      const operationNamespace = input.kind === "clear-scene"
+        ? "scene"
+        : ["add-page", "import-page", "duplicate-page", "rename-page", "reorder-page", "delete-page", "create-page-from-selection"].includes(input.kind)
+          ? "page"
+          : ["move-element", "resize-element", "delete-element"].includes(input.kind)
+            ? "element"
+            : ["create-shape", "set-shape-style", "upsert-bound-text"].includes(input.kind)
+              ? "shape"
+              : ["create-arrow", "bind-arrow", "unbind-arrow", "set-connector-style", "set-arrowheads", "set-connector-points"].includes(input.kind)
+                ? "connector"
+                : ["create-text", "bind-text", "unbind-text", "set-text", "set-text-style", "set-text-layout"].includes(input.kind)
+                  ? "text"
+                  : ["create-camera", "update-camera-bounds", "set-camera-order", "delete-camera"].includes(input.kind)
+                    ? "camera"
+                    : ["set-background"].includes(input.kind)
+                      ? "appearance"
+                      : "transform";
+      if (!input.isMethodAvailable("operations", operationNamespace)) {
+        return sdkRejected("unsupported_operation", `The ${operationNamespace} operation namespace is not available.`);
+      }
+      return buildIdeaSketchOperation(input.kind, value, input.getLimits()) as SdkSyncResult<IdeaSketchOperationOf<K>>;
+    } catch {
+      // Operation builders are synchronous public helpers. A revoked Proxy
+      // can throw from Array.isArray or another reflective operation before
+      // the schema validator gets control; classify it as malformed input.
+      return sdkRejected("invalid_request", "The operation input is malformed.");
     }
-    if (typeof value !== "object" || value === null || Array.isArray(value)) {
-      return sdkRejected("invalid_request", "The operation input must be an object.");
-    }
-    if (!input.getAvailableOperationKinds().includes(input.kind)) {
-      return sdkRejected("unsupported_operation", `The ${input.kind} operation is not available yet.`);
-    }
-    const operationNamespace = input.kind === "clear-scene"
-      ? "scene"
-      : ["add-page", "import-page", "duplicate-page", "rename-page", "reorder-page", "delete-page", "create-page-from-selection"].includes(input.kind)
-        ? "page"
-        : ["move-element", "resize-element", "delete-element"].includes(input.kind)
-          ? "element"
-          : ["create-shape", "set-shape-style", "upsert-bound-text"].includes(input.kind)
-            ? "shape"
-            : ["create-arrow", "bind-arrow", "unbind-arrow", "set-connector-style", "set-arrowheads", "set-connector-points"].includes(input.kind)
-              ? "connector"
-              : ["create-text", "bind-text", "unbind-text", "set-text", "set-text-style", "set-text-layout"].includes(input.kind)
-                ? "text"
-                : ["create-camera", "update-camera-bounds", "set-camera-order", "delete-camera"].includes(input.kind)
-                  ? "camera"
-                  : ["set-background"].includes(input.kind)
-                    ? "appearance"
-                    : "transform";
-    if (!input.isMethodAvailable("operations", operationNamespace)) {
-      return sdkRejected("unsupported_operation", `The ${operationNamespace} operation namespace is not available.`);
-    }
-    return buildIdeaSketchOperation(input.kind, value, input.getLimits()) as SdkSyncResult<IdeaSketchOperationOf<K>>;
   }) as IdeaSketchOperationBuilder<K>;
 }
 
@@ -335,16 +372,68 @@ export function createIdeaSketchSdkHost(
     mutationScheduler,
     createSessionFactory(caller) {
       return {
-        createSession: (input) => host.createSession({ ...input, caller }),
+        // Keep the convenience factory on the same never-throw public
+        // boundary as host.createSession. Object spread can invoke hostile
+        // getters before the host validator gets a chance to classify them.
+        createSession: async (input) => {
+          try {
+            const envelope = publicEnvelope(input);
+            if (!envelope) return sdkRejected("invalid_request", "The IdeaSketch SDK session input must be an object.");
+            // The host boundary performs the runtime shape/version checks;
+            // this cast only bridges the unknown envelope produced by the
+            // hostile-input-safe validator.
+            return await host.createSession({ ...envelope, caller } as unknown as CreateIdeaSketchSdkSessionInput);
+          } catch {
+            return sdkRejected("invalid_request", "The IdeaSketch SDK session input is malformed.");
+          }
+        },
       };
     },
-    async createSession(input) {
-      if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    async createSession(rawInput) {
+      try {
+      const envelope = publicEnvelope(rawInput);
+      if (!envelope) {
         return sdkRejected("invalid_request", "The IdeaSketch SDK session input must be an object.");
       }
       const allowedInputFields = ["caller", "sdkProtocolVersion", "agentToolProtocolVersion", "expectedAgentSchemaDigest", "requiredCapabilities"];
-      const unknownInput = Reflect.ownKeys(input).filter((key) => typeof key !== "string" || !allowedInputFields.includes(key) || Object.getOwnPropertyDescriptor(input, key)?.enumerable !== true);
+      const unknownInput = unknownEnvelopeFields(envelope, allowedInputFields);
       if (unknownInput.length > 0) return sdkRejected("invalid_request", `The session input contains unknown field(s): ${unknownInput.map(String).join(", ")}.`);
+      const sdkProtocolVersion = publicEnvelope(envelope.sdkProtocolVersion);
+      if (!sdkProtocolVersion || unknownEnvelopeFields(sdkProtocolVersion, ["major", "minor"]).length > 0) {
+        return sdkRejected("invalid_request", "The SDK protocol version is required.");
+      }
+      const agentToolProtocolVersion = envelope.agentToolProtocolVersion === undefined
+        ? undefined
+        : publicEnvelope(envelope.agentToolProtocolVersion);
+      if (envelope.agentToolProtocolVersion !== undefined && (!agentToolProtocolVersion || unknownEnvelopeFields(agentToolProtocolVersion, ["major", "minor"]).length > 0)) {
+        return sdkRejected("invalid_request", "The Agent Tool protocol version is malformed.");
+      }
+      if (
+        envelope.expectedAgentSchemaDigest !== undefined
+        && (
+          typeof envelope.expectedAgentSchemaDigest !== "string"
+          || envelope.expectedAgentSchemaDigest.length === 0
+          || /[\u0000-\u0020\u007f]/.test(envelope.expectedAgentSchemaDigest)
+        )
+      ) {
+        return sdkRejected("invalid_request", "expectedAgentSchemaDigest must be a non-empty opaque string.");
+      }
+      let requiredCapabilitiesInput: readonly IdeaSketchSdkScope[] | undefined;
+      try {
+        if (envelope.requiredCapabilities !== undefined) {
+          if (!denseArray(envelope.requiredCapabilities)) throw new TypeError("not a dense array");
+          requiredCapabilitiesInput = [...envelope.requiredCapabilities] as IdeaSketchSdkScope[];
+        }
+      } catch {
+        return sdkRejected("invalid_request", "requiredCapabilities must contain only known capability names.");
+      }
+      const input: CreateIdeaSketchSdkSessionInput = {
+        caller: envelope.caller as IdeaSketchHostCaller,
+        sdkProtocolVersion: sdkProtocolVersion as unknown as SdkProtocolVersion,
+        ...(agentToolProtocolVersion ? { agentToolProtocolVersion: agentToolProtocolVersion as unknown as SdkProtocolVersion } : {}),
+        ...(envelope.expectedAgentSchemaDigest !== undefined ? { expectedAgentSchemaDigest: envelope.expectedAgentSchemaDigest as string } : {}),
+        ...(requiredCapabilitiesInput ? { requiredCapabilities: requiredCapabilitiesInput } : {}),
+      };
       const caller = input.caller;
       if (typeof caller !== "object" || caller === null || !issuedHostCallers.has(caller) || caller[hostCallerBrand] !== true) {
         return sdkRejected("invalid_request", "The IdeaSketch SDK caller descriptor is invalid.");
@@ -357,13 +446,6 @@ export function createIdeaSketchSdkHost(
         return sdkRejected("invalid_request", "The IdeaSketch SDK caller descriptor is malformed.");
       }
       if (
-        typeof input.sdkProtocolVersion !== "object"
-        || input.sdkProtocolVersion === null
-        || Array.isArray(input.sdkProtocolVersion)
-      ) {
-        return sdkRejected("invalid_request", "The SDK protocol version is required.");
-      }
-      if (
         input.requiredCapabilities !== undefined
         && (
           !Array.isArray(input.requiredCapabilities)
@@ -374,7 +456,12 @@ export function createIdeaSketchSdkHost(
       ) {
         return sdkRejected("invalid_request", "requiredCapabilities must contain only known capability names.");
       }
-      const target = getTarget();
+      let target: IdeaSketchSdkHostTarget | undefined;
+      try {
+        target = getTarget();
+      } catch {
+        return sdkRejected("internal_error", "The active IdeaSketch editor could not be inspected safely.", true);
+      }
       if (!target) return sdkRejected("editor_unavailable", "The active IdeaSketch editor is unavailable.", true);
       const boundDocumentSessionId = target.documentSessionId;
       const callerSessions = sessionsByCaller.get(input.caller as object) ?? new Map();
@@ -394,8 +481,12 @@ export function createIdeaSketchSdkHost(
             );
       }
       const getSessionTarget = () => {
-        const candidate = getTarget();
-        return candidate?.documentSessionId === boundDocumentSessionId ? candidate : undefined;
+        try {
+          const candidate = getTarget();
+          return candidate?.documentSessionId === boundDocumentSessionId ? candidate : undefined;
+        } catch {
+          return undefined;
+        }
       };
       const negotiated = negotiateSdkProtocols({
         sdk: input.sdkProtocolVersion,
@@ -487,6 +578,7 @@ export function createIdeaSketchSdkHost(
 
       const sceneService = createIdeaSketchSceneService({
         sessionId: id,
+        sdkProtocolVersion: negotiated.value.sdk,
         callerProfile: input.caller.profile,
         getTarget: getSessionTarget,
         getScopes: () => getCapabilities().scopes,
@@ -528,16 +620,16 @@ export function createIdeaSketchSdkHost(
 
       const requests: IdeaSketchRequestsNamespace = {
         async getMutationResult(requestId) {
-          if (typeof requestId !== "string" || requestId.trim().length === 0) return sdkRejected("invalid_request", "requestId must be a non-empty string.");
           if (!controller.isActive()) return sdkRejected("session_closed", "The IdeaSketch SDK session is closed.");
+          if (typeof requestId !== "string" || requestId.trim().length === 0) return sdkRejected("invalid_request", "requestId must be a non-empty string.");
           if (!getCapabilities().scopes.includes("requests.read")) {
             return sdkRejected("capability_denied", "The caller cannot inspect mutation requests.");
           }
           return ledger.getMutationResult(requestId);
         },
         async reconcile(reconciliationToken: ReconciliationToken) {
-          if (typeof reconciliationToken !== "string" || !/^reconciliation-token:[^\u0000-\u0020\u007f]+$/.test(reconciliationToken)) return sdkRejected("invalid_request", "The reconciliation token is malformed.");
           if (!controller.isActive()) return sdkRejected("session_closed", "The IdeaSketch SDK session is closed.");
+          if (typeof reconciliationToken !== "string" || !/^reconciliation-token:[^\u0000-\u0020\u007f]+$/.test(reconciliationToken)) return sdkRejected("invalid_request", "The reconciliation token is malformed.");
           if (!getCapabilities().scopes.includes("requests.read")) {
             return sdkRejected("capability_denied", "The caller cannot reconcile mutation requests.");
           }
@@ -604,18 +696,22 @@ export function createIdeaSketchSdkHost(
         type: Event["type"],
         handler: IdeaSketchSdkEventHandler<Event>,
       ) => {
-        if (!controller.isActive()) return sdkRejected("session_closed", "The IdeaSketch SDK session is closed.");
-        const capabilities = getCapabilities();
-        if (!capabilities.supportedMethods.events?.includes(method)) {
-          return sdkRejected("capability_denied", "The caller cannot subscribe to this event.");
+        try {
+          if (!controller.isActive()) return sdkRejected("session_closed", "The IdeaSketch SDK session is closed.");
+          const capabilities = getCapabilities();
+          if (!capabilities.supportedMethods.events?.includes(method)) {
+            return sdkRejected("capability_denied", "The caller cannot subscribe to this event.");
+          }
+          if (!capabilities.availableMethods.events?.includes(method)) {
+            return sdkRejected("unsupported_operation", "The event service is unavailable.");
+          }
+          return controller.subscribe(
+            type,
+            handler as IdeaSketchSdkEventHandler<IdeaSketchSdkEvent>,
+          );
+        } catch {
+          return sdkRejected("internal_error", "The IdeaSketch event service could not be accessed safely.", true);
         }
-        if (!capabilities.availableMethods.events?.includes(method)) {
-          return sdkRejected("unsupported_operation", "The event service is unavailable.");
-        }
-        return controller.subscribe(
-          type,
-          handler as IdeaSketchSdkEventHandler<IdeaSketchSdkEvent>,
-        );
       };
       const events: IdeaSketchEventsNamespace = {
         onContextChange: (handler) => subscribe("onContextChange", "context-change", handler),
@@ -674,6 +770,11 @@ export function createIdeaSketchSdkHost(
         events,
       };
       return sdkSucceeded(sdk);
+      } catch {
+        // Host target/service state is internal, but a malformed adapter must
+        // still never escape as a rejected Promise from this public boundary.
+        return sdkRejected("internal_error", "The IdeaSketch SDK session could not be created safely.", true);
+      }
     },
   };
   return host;

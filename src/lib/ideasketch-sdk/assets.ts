@@ -43,6 +43,25 @@ function object(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
+function strictOptions(value: unknown): Record<string, unknown> | undefined {
+  const record = object(value);
+  if (!record) return undefined;
+  try {
+    const prototype = Object.getPrototypeOf(record);
+    if (prototype !== Object.prototype && prototype !== null) return undefined;
+    const result: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
+    for (const key of Reflect.ownKeys(record)) {
+      if (typeof key !== "string") return undefined;
+      const descriptor = Object.getOwnPropertyDescriptor(record, key);
+      if (!descriptor?.enumerable || !("value" in descriptor)) return undefined;
+      result[key] = descriptor.value;
+    }
+    return result;
+  } catch {
+    return undefined;
+  }
+}
+
 function byteLength(value: unknown) {
   const record = object(value);
   if (!record) return undefined;
@@ -98,7 +117,9 @@ export function createAssetMetadataProjection(input: AssetProjectionInput) {
       nextCursor?: string;
       complete: boolean;
     }> {
-      if (typeof options !== "object" || options === null || Array.isArray(options)) return sdkRejected("invalid_request", "Asset metadata list options must be an object.");
+      const strict = strictOptions(options);
+      if (!strict) return sdkRejected("invalid_request", "Asset metadata list options must be an object.");
+      options = strict as typeof options;
       const limit = options.limit ?? 50;
       if (!Number.isInteger(limit) || limit <= 0 || limit > 500) return sdkRejected("limit_exceeded", "Asset metadata limit is invalid.");
       let offset = 0;

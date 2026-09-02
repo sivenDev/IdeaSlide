@@ -34,6 +34,7 @@ import type { IdeaSketchSdkHostTarget } from "./host.ts";
 
 interface SceneServiceInput {
   sessionId: string;
+  sdkProtocolVersion: Readonly<{ major: number; minor: number }>;
   callerProfile: string;
   getTarget: () => IdeaSketchSdkHostTarget | undefined;
   getScopes: () => readonly IdeaSketchSdkScope[];
@@ -72,7 +73,75 @@ function rejected<T>(code: Parameters<typeof sdkRejected>[0], message: string, r
 }
 
 function object(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
+  if (typeof value !== "object" || value === null) return undefined;
+  try {
+    if (Array.isArray(value)) return undefined;
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) return undefined;
+    // Snapshot only own enumerable fields. Besides preventing inherited
+    // option values from crossing the public boundary, this makes accessor
+    // failures deterministic invalid_request results instead of late
+    // internal errors from a partially-read payload.
+    const result: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
+    for (const key of Reflect.ownKeys(value)) {
+      if (typeof key !== "string") return undefined;
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      // Public envelopes are strict: a hidden field must not silently vanish
+      // and change the requested operation. Native host records are ordinary
+      // enumerable objects, so rejecting hidden fields is safe here too.
+      if (!descriptor?.enumerable || !("value" in descriptor)) return undefined;
+      // The descriptor has already established that this is an own data
+      // property. Read its value directly so a hostile Proxy/getter cannot
+      // re-enter the public boundary or produce a different payload between
+      // validation and use.
+      result[key] = descriptor.value;
+    }
+    return result;
+  } catch {
+    return undefined;
+  }
+}
+
+function denseArray(value: unknown): value is readonly unknown[] {
+  try {
+    if (!Array.isArray(value)) return false;
+    for (let index = 0; index < value.length; index += 1) {
+      if (!Object.prototype.hasOwnProperty.call(value, index)) return false;
+    }
+    return true;
+  } catch {
+    // Revoked or otherwise hostile Proxies must be classified as malformed
+    // caller input instead of escaping as an internal host failure.
+    return false;
+  }
+}
+
+function materializeDenseArray(value: unknown): readonly unknown[] | undefined {
+  if (!denseArray(value)) return undefined;
+  try {
+    return Object.freeze(Array.from(value));
+  } catch {
+    return undefined;
+  }
+}
+
+function isAbortSignal(value: unknown): value is AbortSignal {
+  if (value === undefined) return true;
+  try {
+    const constructor = globalThis.AbortSignal;
+    if (typeof constructor !== "function" || !(value instanceof constructor)) return false;
+    const ownDescriptor = Object.getOwnPropertyDescriptor(value, "aborted");
+    if (ownDescriptor && ("get" in ownDescriptor || typeof ownDescriptor.value !== "boolean")) return false;
+    const abortedGetter = Object.getOwnPropertyDescriptor(constructor.prototype, "aborted")?.get;
+    if (typeof abortedGetter !== "function") return false;
+    // Calling the native WebIDL getter is a brand check. It rejects objects
+    // that merely inherit AbortSignal.prototype (and proxies around signals)
+    // before they can reach the transaction kernel.
+    abortedGetter.call(value);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function opaqueToken(value: unknown, prefix: string): value is string {
@@ -232,6 +301,8 @@ export function createIdeaSketchSceneService(input: SceneServiceInput) {
     if (options.pageRef !== undefined && !opaqueToken(options.pageRef, "page:")) return rejected("invalid_request", "pageRef is malformed.");
     if (options.snapshotId !== undefined && !opaqueToken(options.snapshotId, "scene-snapshot:")) return rejected("invalid_request", "snapshotId is malformed.");
     if (options.cursor !== undefined && !opaqueToken(options.cursor, "snapshot-cursor:")) return rejected("invalid_request", "cursor is malformed.");
+    if (options.limit !== undefined && (!Number.isInteger(options.limit) || options.limit <= 0)) return rejected("limit_exceeded", "Scene read limit is invalid.");
+    if (options.includeDeleted !== undefined && typeof options.includeDeleted !== "boolean") return rejected("invalid_request", "includeDeleted must be boolean.");
     if (!input.isActive()) return rejected("session_closed", "The IdeaSketch SDK session is closed.");
     if (!input.getScopes().includes("scene.read")) return rejected("capability_denied", "The caller cannot read the scene.");
     if (!input.isMethodAvailable("scene", "read")) return rejected("unsupported_operation", "The scene.read method is not available.");
@@ -311,10 +382,12 @@ export function createIdeaSketchSceneService(input: SceneServiceInput) {
 
   async function getElementsUnsafe(rawOptions: IdeaSketchSceneElementReadOptions | unknown): Promise<SdkResult<IdeaSketchSceneReadResult>> {
     const options = object(rawOptions) as IdeaSketchSceneElementReadOptions | undefined;
-    if (!options || typeof options.snapshotId !== "string" || !Array.isArray(options.refs) || options.refs.length === 0) return rejected("invalid_request", "getElements requires snapshotId and refs.");
+    const refs = materializeDenseArray(options?.refs);
+    if (!options || typeof options.snapshotId !== "string" || !refs || refs.length === 0) return rejected("invalid_request", "getElements requires snapshotId and refs.");
     const unknown = unknownOptionFields(options, ["snapshotId", "refs", "includeDeleted"], "getElements options");
     if (unknown) return unknown;
-    if (!opaqueToken(options.snapshotId, "scene-snapshot:") || options.refs.some((ref) => !opaqueToken(ref, "element:") && !opaqueToken(ref, "camera:"))) return rejected("invalid_request", "getElements references are malformed.");
+    if (!opaqueToken(options.snapshotId, "scene-snapshot:") || refs.some((ref) => !opaqueToken(ref, "element:") && !opaqueToken(ref, "camera:"))) return rejected("invalid_request", "getElements references are malformed.");
+    if (options.includeDeleted !== undefined && typeof options.includeDeleted !== "boolean") return rejected("invalid_request", "includeDeleted must be boolean.");
     if (!input.isActive()) return rejected("session_closed", "The IdeaSketch SDK session is closed.");
     if (!input.getScopes().includes("scene.read")) return rejected("capability_denied", "The caller cannot read the scene.");
     if (!input.isMethodAvailable("scene", "getElements")) return rejected("unsupported_operation", "The scene.getElements method is not available.");
@@ -325,7 +398,7 @@ export function createIdeaSketchSceneService(input: SceneServiceInput) {
     if (target.nativeInteraction.busy) return rejected("editor_busy", "A native editor interaction is in progress.", true);
     const verified = await verifyReadSession(options.snapshotId, target);
     if (verified.status !== "succeeded") return verified;
-    const projected = readSession.projection.getElements({ snapshotId: readSession.projectionSnapshotId, refs: options.refs as never[], includeDeleted: options.includeDeleted });
+    const projected = readSession.projection.getElements({ snapshotId: readSession.projectionSnapshotId, refs: refs as never[], includeDeleted: options.includeDeleted });
     if (projected.status === "rejected") return projected;
     const extended = input.snapshots.extendSceneCoverage({ snapshotId: options.snapshotId, identityRefs: projected.value.elements.map((element) => element.ref), mutationReadyRefs: projected.value.coverage.mutationReadyRefs });
     if (extended.status === "rejected") return extended;
@@ -430,7 +503,8 @@ export function createIdeaSketchSceneService(input: SceneServiceInput) {
 
   async function validatePlanUnsafe(rawOptions: { snapshotId?: SceneSnapshotId; operations?: readonly IdeaSketchOperation[] } | unknown): Promise<SdkResult<IdeaSketchScenePlanValidationResult>> {
     const options = object(rawOptions) as { snapshotId?: SceneSnapshotId; operations?: readonly IdeaSketchOperation[] } | undefined;
-    if (!options || typeof options.snapshotId !== "string" || !Array.isArray(options.operations)) return rejected("invalid_request", "validatePlan requires snapshotId and operations.");
+    const operations = materializeDenseArray(options?.operations);
+    if (!options || typeof options.snapshotId !== "string" || !operations) return rejected("invalid_request", "validatePlan requires snapshotId and operations.");
     const unknown = unknownOptionFields(options, ["snapshotId", "operations"], "validatePlan options");
     if (unknown) return unknown;
     if (!opaqueToken(options.snapshotId, "scene-snapshot:")) return rejected("invalid_request", "snapshotId is malformed.");
@@ -440,7 +514,7 @@ export function createIdeaSketchSceneService(input: SceneServiceInput) {
     const target = input.getTarget();
     if (!target) return rejected("editor_unavailable", "The active IdeaSketch editor is unavailable.", true);
     if (target.nativeInteraction.busy) return rejected("editor_busy", "A native editor interaction is in progress.", true);
-    const validated = validateOperationPlan(options.operations, input.getLimits());
+    const validated = validateOperationPlan(operations, input.getLimits());
     if (validated.status === "rejected") return validated;
     if (validated.value.some((operation) => !IDEA_SKETCH_SCENE_OPERATION_KINDS.includes(operation.kind as never))) return rejected("unsupported_operation", "Scene plans may contain only scene operation kinds.");
     const available = validateAvailableOperationKinds(
@@ -465,23 +539,34 @@ export function createIdeaSketchSceneService(input: SceneServiceInput) {
 
   async function applyPlanUnsafe(rawOptions: unknown): Promise<SdkResult<IdeaSketchSdkMutationResult>> {
     const options = object(rawOptions) as { requestId?: string; snapshotId?: SceneSnapshotId; operations?: readonly IdeaSketchOperation[]; requiredCapabilities?: readonly IdeaSketchSdkScope[]; signal?: AbortSignal } | undefined;
-    if (!options || typeof options.requestId !== "string" || options.requestId.trim().length === 0 || typeof options.snapshotId !== "string" || !Array.isArray(options.operations)) return rejected("invalid_request", "applyPlan requires requestId, snapshotId, and operations.");
+    const operations = materializeDenseArray(options?.operations);
+    if (!options || typeof options.requestId !== "string" || options.requestId.trim().length === 0 || typeof options.snapshotId !== "string" || !operations) return rejected("invalid_request", "applyPlan requires requestId, snapshotId, and operations.");
     const unknown = unknownOptionFields(options, ["requestId", "snapshotId", "operations", "requiredCapabilities", "signal"], "applyPlan options");
     if (unknown) return unknown;
     if (!opaqueToken(options.snapshotId, "scene-snapshot:")) return rejected("invalid_request", "snapshotId is malformed.");
-    if (options.requiredCapabilities !== undefined && (!Array.isArray(options.requiredCapabilities) || options.requiredCapabilities.some((scope) => typeof scope !== "string" || !KNOWN_SCOPES.has(scope as IdeaSketchSdkScope)))) {
+    const requiredCapabilitiesInput = options.requiredCapabilities === undefined
+      ? undefined
+      : materializeDenseArray(options.requiredCapabilities);
+    if (options.requiredCapabilities !== undefined && (!requiredCapabilitiesInput || requiredCapabilitiesInput.some((scope) => typeof scope !== "string" || !KNOWN_SCOPES.has(scope as IdeaSketchSdkScope)))) {
       return rejected("invalid_request", "applyPlan.requiredCapabilities must be an array of capability names.");
     }
-    const requiredCapabilities = options.requiredCapabilities ? [...new Set(options.requiredCapabilities)].sort() : undefined;
+    if (!isAbortSignal(options.signal)) return rejected("invalid_request", "applyPlan.signal must be an AbortSignal.");
+    const requiredCapabilities = requiredCapabilitiesInput ? [...new Set(requiredCapabilitiesInput as readonly IdeaSketchSdkScope[])].sort() : undefined;
     if (!input.isActive()) return rejected("session_closed", "The IdeaSketch SDK session is closed.");
     if (requiredCapabilities && requiredCapabilities.some((scope) => !input.getScopes().includes(scope))) return rejected("capability_denied", "The caller does not hold all required capabilities.");
     if (!input.getScopes().includes("scene.write")) return rejected("capability_denied", "The caller cannot mutate the scene.");
-    const validated = validateOperationPlan(options.operations, input.getLimits());
+    const validated = validateOperationPlan(operations, input.getLimits());
     if (validated.status === "rejected") return validated;
     if (validated.value.some((operation) => !IDEA_SKETCH_SCENE_OPERATION_KINDS.includes(operation.kind as never))) return rejected("unsupported_operation", "Scene plans may contain only scene operation kinds.");
     let payloadDigest: string;
     try {
-      payloadDigest = await canonicalPayloadDigest({ requestId: options.requestId, snapshotId: options.snapshotId, operations: validated.value, ...(requiredCapabilities ? { requiredCapabilities } : {}) });
+      payloadDigest = await canonicalPayloadDigest({
+        sdkProtocolVersion: input.sdkProtocolVersion,
+        requestId: options.requestId,
+        snapshotId: options.snapshotId,
+        operations: validated.value,
+        ...(requiredCapabilities ? { requiredCapabilities } : {}),
+      });
     } catch {
       return rejected("invalid_request", "The mutation payload must be strict JSON data.");
     }
@@ -519,7 +604,13 @@ export function createIdeaSketchSceneService(input: SceneServiceInput) {
       kind: "scene",
       documentSessionId: target.documentSessionId,
       requestId,
-      payload: { requestId, snapshotId, operations: validated.value, ...(requiredCapabilities ? { requiredCapabilities } : {}) },
+      payload: {
+        sdkProtocolVersion: input.sdkProtocolVersion,
+        requestId,
+        snapshotId,
+        operations: validated.value,
+        ...(requiredCapabilities ? { requiredCapabilities } : {}),
+      },
       scheduler: input.scheduler,
       ledger: input.ledger,
       signal: options.signal,
@@ -532,7 +623,12 @@ export function createIdeaSketchSceneService(input: SceneServiceInput) {
       computeDigest: (scene) => computeSceneDigest(scene as IdeaSketchSdkHostTarget["scene"], { ephemeralElementIds: new Set() }),
       prepare: (scene) => {
         const adapter = applyIdeaSketchScenePlan({ scene: scene as IdeaSketchSdkHostTarget["scene"], operations: validated.value, pageRef: `page:${target.activePageId}`, limits: input.getLimits(), ...CAMERA_LIMITS });
-        if (adapter.status === "rejected") throw { code: adapter.error.code, message: adapter.error.message, retryable: adapter.error.retryable };
+        if (adapter.status === "rejected") throw {
+          code: adapter.error.code,
+          message: adapter.error.message,
+          retryable: adapter.error.retryable,
+          ...(adapter.error.operationIndex !== undefined ? { operationIndex: adapter.error.operationIndex } : {}),
+        };
         prepared = adapter.value;
         return adapter.value.scene;
       },

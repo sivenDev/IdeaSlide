@@ -68,6 +68,14 @@ export interface IdeaSketchTextLayout {
 }
 
 /**
+ * Layout fields that are valid for shape-owned text.  Container geometry owns
+ * wrapping and width, so callers may only select the overflow policy here.
+ */
+export interface IdeaSketchBoundTextLayout {
+  overflowPolicy?: "grow-container";
+}
+
+/**
  * Text content accepted by the semantic operation contract. `text` is kept as
  * a compatibility alias for callers of the early draft API, but a payload
  * must carry exactly one canonical content field at the type level.
@@ -95,7 +103,7 @@ export interface IdeaSketchCreateShapeOperation {
   boundText?: {
     ref: TempRef;
     style?: IdeaSketchTextStyle;
-    layout?: IdeaSketchTextLayout;
+    layout?: IdeaSketchBoundTextLayout;
   } & IdeaSketchOptionalTextContent;
 }
 
@@ -161,7 +169,7 @@ export type IdeaSketchUpsertBoundTextOperation = {
   shapeRef: ElementRef | TempRef;
   createRef?: TempRef;
   style?: IdeaSketchTextStyle;
-  layout?: IdeaSketchTextLayout;
+  layout?: IdeaSketchBoundTextLayout;
 } & IdeaSketchTextContent;
 
 export type IdeaSketchSetTextOperation = {
@@ -170,11 +178,7 @@ export type IdeaSketchSetTextOperation = {
   textRef: ElementRef | TempRef;
 } & IdeaSketchTextContent;
 
-export interface IdeaSketchSetTextStyleOperation {
-  kind: "set-text-style";
-  version: 1;
-  textRef: ElementRef | TempRef;
-  style?: IdeaSketchTextStyle;
+type IdeaSketchTextStyleFields = {
   fontFamily?: IdeaSketchTextFontFamily;
   fontSize?: number;
   color?: string;
@@ -182,29 +186,42 @@ export interface IdeaSketchSetTextStyleOperation {
   verticalAlign?: IdeaSketchVerticalAlign;
   opacity?: number;
   lineHeight?: number;
-}
+};
 
-export interface IdeaSketchSetTextLayoutOperation {
+type IdeaSketchAtLeastOne<T extends Record<string, unknown>> = {
+  [K in keyof T]-?: Required<Pick<T, K>> & Partial<Omit<T, K>>
+}[keyof T];
+
+export type IdeaSketchSetTextStyleOperation = {
+  kind: "set-text-style";
+  version: 1;
+  textRef: ElementRef | TempRef;
+} & (
+  | { style: IdeaSketchTextStyle; } & { [K in keyof IdeaSketchTextStyleFields]?: never }
+  | { style?: never; } & IdeaSketchAtLeastOne<IdeaSketchTextStyleFields>
+);
+
+export type IdeaSketchSetTextLayoutOperation = {
   kind: "set-text-layout";
   version: 1;
   textRef: ElementRef | TempRef;
-  layout?: IdeaSketchTextLayout;
-  autoResize?: boolean;
-  width?: number;
-}
+} & (
+  | { layout: IdeaSketchTextLayout; autoResize?: never; width?: never }
+  | { layout?: never; } & IdeaSketchAtLeastOne<{ autoResize?: boolean; width?: number }>
+);
 
 export interface IdeaSketchSetShapeStyleOperation {
   kind: "set-shape-style";
   version: 1;
   shapeRef: ElementRef | TempRef;
-  style?: IdeaSketchShapeStyle;
+  style: IdeaSketchShapeStyle;
 }
 
 export interface IdeaSketchSetConnectorStyleOperation {
   kind: "set-connector-style";
   version: 1;
   arrowRef: ElementRef | TempRef;
-  style?: IdeaSketchConnectorStyle;
+  style: IdeaSketchConnectorStyle;
 }
 
 export interface IdeaSketchSetArrowheadsOperation {

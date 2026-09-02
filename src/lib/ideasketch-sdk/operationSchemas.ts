@@ -748,10 +748,15 @@ function deepFreeze<T>(value: T): T {
 }
 
 export function getOperationSchema(kind: string) {
-  const fields = Object.prototype.hasOwnProperty.call(SCHEMA_FIELDS, kind)
-    ? SCHEMA_FIELDS[kind as IdeaSketchOperationKind]
-    : undefined;
-  return fields ? Object.freeze({ kind, version: 1 as const, fields: Object.freeze([...fields]) }) : undefined;
+  if (typeof kind !== "string") return undefined;
+  try {
+    const fields = Object.prototype.hasOwnProperty.call(SCHEMA_FIELDS, kind)
+      ? SCHEMA_FIELDS[kind as IdeaSketchOperationKind]
+      : undefined;
+    return fields ? Object.freeze({ kind, version: 1 as const, fields: Object.freeze([...fields]) }) : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function buildIdeaSketchOperation<K extends IdeaSketchOperationKind>(
@@ -910,7 +915,16 @@ export function validateOperationPlan(
     let bytes = 0;
     for (const [index, raw] of operations.entries()) {
       const result = validateIdeaSketchOperation(raw, merged);
-      if (result.status === "rejected") return sdkRejected(result.error.code, `Operation ${index}: ${result.error.message}`);
+      if (result.status === "rejected") {
+        return {
+          ...result,
+          error: {
+            ...result.error,
+            message: `Operation ${index}: ${result.error.message}`,
+            operationIndex: result.error.operationIndex ?? index,
+          },
+        };
+      }
       const operation = result.value;
       const operationCreatedRefs = createdTempRefs(operation);
       const operationAllCreatedRefs = allCreatedTempRefs(operation);
@@ -944,12 +958,16 @@ export function isTempRef(value: unknown): value is TempRef {
 }
 
 export function normalizeBounds(value: unknown, limits: Partial<IdeaSketchOperationLimits> = {}): SdkSyncResult<IdeaSketchBounds> {
-  const merged = { ...DEFAULT_OPERATION_LIMITS, ...limits };
-  if (isPlainRecord(value) && value.bounds !== undefined) value = value.bounds;
-  if (!isPlainRecord(value)) return fail("Bounds must be an object.");
-  const result = validateBounds(value, "bounds", merged);
-  if (result) return result;
-  return sdkSucceeded({ x: value.x as number, y: value.y as number, width: value.width as number, height: value.height as number });
+  try {
+    const merged = { ...DEFAULT_OPERATION_LIMITS, ...limits };
+    if (isPlainRecord(value) && value.bounds !== undefined) value = value.bounds;
+    if (!isPlainRecord(value)) return fail("Bounds must be an object.");
+    const result = validateBounds(value, "bounds", merged);
+    if (result) return result;
+    return sdkSucceeded({ x: value.x as number, y: value.y as number, width: value.width as number, height: value.height as number });
+  } catch {
+    return fail("Bounds must be strict JSON data.");
+  }
 }
 
 export function isArrowhead(value: unknown): value is IdeaSketchArrowhead {

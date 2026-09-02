@@ -1313,8 +1313,8 @@ function applyIdeaSketchScenePlanUnsafe(input: ExcalidrawSceneAdapterInput): Sdk
       recordOperation({ index, kind: op.kind, outcome: "deleted" }); continue;
     }
     if (op.kind === "set-background") {
-      if (appState.viewBackgroundColor === (op.color ?? op.backgroundColor)) { recordOperation({ index, kind: op.kind, outcome: "noop" }); continue; }
-      appState.viewBackgroundColor = op.color ?? op.backgroundColor;
+      if (appState.viewBackgroundColor === op.color) { recordOperation({ index, kind: op.kind, outcome: "noop" }); continue; }
+      appState.viewBackgroundColor = op.color;
       recordOperation({ index, kind: op.kind, outcome: "updated" }); continue;
     }
     if (op.kind === "apply-style-preset") {
