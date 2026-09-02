@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Complete |
-| --- | --- | --- |
-| `required` | 6 | 6 |
-| `feature` | 85 | 85 |
-| `bugfix` | 56 | 56 |
+| Type | Plans | Draft | Complete |
+| --- | --- | --- | --- |
+| `required` | 6 | 0 | 6 |
+| `feature` | 86 | 1 | 85 |
+| `bugfix` | 56 | 0 | 56 |
 
 ## Execution Order
 
@@ -121,6 +121,7 @@
 | `F071` | [Add Semantic Layout Mutation for Existing IdeaSketch Elements](features/F071-semantic-layout-mutation-for-existing-ideasketch-elements.md) | `complete` | 2026-09-01 |
 | `F057` | [Add an About Page to Settings](features/F057-add-an-about-page-to-settings.md) | `complete` | 2026-08-12 |
 | `F072` | [Prefer gh-proxy for Automatic Update Downloads with Official Fallback](features/F072-prefer-gh-proxy-update-downloads-with-official-fallback.md) | `complete` | 2026-09-02 |
+| `F073` | [Add IdeaSketch Text Editing Interfaces](features/F073-ideasketch-text-editing-interfaces.md) | `draft` | 2026-09-02 |
 
 ### Bugfix Plans
 
