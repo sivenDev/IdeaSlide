@@ -7,6 +7,7 @@ mod recovery;
 pub(crate) mod safe_write;
 mod settings;
 mod update_relaunch;
+mod update_fallback;
 pub(crate) mod workspace;
 mod workspace_agent;
 mod workspace_watcher;
@@ -123,6 +124,10 @@ pub fn run() {
             is_preview_renderer_ready,
             exit_application,
             update_relaunch::relaunch_after_update,
+            update_fallback::check_official_update,
+            update_fallback::download_official_update,
+            update_fallback::install_official_update,
+            update_fallback::close_official_update,
         ]);
 
     builder = builder.setup(move |app| {

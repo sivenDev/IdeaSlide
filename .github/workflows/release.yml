@@ -249,6 +249,7 @@ jobs:
               return;
             }
             const requiredPlatforms = ['windows-x86_64', 'darwin-aarch64', 'darwin-x86_64'];
+            const assetNames = new Set(assets.map((asset) => asset.name));
             for (const platform of requiredPlatforms) {
               const entry = manifest.platforms?.[platform];
               if (typeof entry?.url !== 'string' || typeof entry?.signature !== 'string' || !entry.signature.trim()) {
@@ -263,12 +264,41 @@ jobs:
                 return;
               }
               const updaterAssetName = decodedPath.slice(expectedPathPrefix.length);
-              const assetNames = new Set(assets.map((asset) => asset.name));
               if (!updaterAssetName || !assetNames.has(updaterAssetName) || !assetNames.has(`${updaterAssetName}.sig`)) {
                 core.setFailed(`Updater assets for ${platform} are missing their bundle or signature.`);
                 return;
               }
             }
+            const proxyManifest = {
+              ...manifest,
+              platforms: Object.fromEntries(Object.entries(manifest.platforms).map(([platform, entry]) => {
+                const directUrl = entry.url;
+                if (typeof directUrl !== 'string' || !directUrl.startsWith('https://github.com/')) {
+                  throw new Error(`Updater URL for ${platform} cannot be proxied safely.`);
+                }
+                return [platform, { ...entry, url: `https://gh-proxy.com/${directUrl}` }];
+              })),
+            };
+            const proxyManifestBytes = Buffer.from(JSON.stringify(proxyManifest, null, 2) + '\n', 'utf8');
+            const existingProxyManifest = assets.find((asset) => asset.name === 'latest-cn.json');
+            if (existingProxyManifest) {
+              await github.rest.repos.deleteReleaseAsset({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                asset_id: existingProxyManifest.id,
+              });
+            }
+            await github.rest.repos.uploadReleaseAsset({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: releaseId,
+              name: 'latest-cn.json',
+              data: proxyManifestBytes,
+              headers: {
+                'content-type': 'application/json',
+                'content-length': proxyManifestBytes.length,
+              },
+            });
             await github.rest.repos.updateRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,

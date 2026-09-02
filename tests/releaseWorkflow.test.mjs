@@ -54,6 +54,7 @@ test('stable tag releases publish only after every signed updater target is comp
   assert.equal(parsedConfig.bundle.createUpdaterArtifacts, true);
   assert.match(parsedConfig.plugins.updater.pubkey, /^[A-Za-z0-9+/=]+$/);
   assert.deepEqual(parsedConfig.plugins.updater.endpoints, [
+    'https://gh-proxy.com/https://github.com/sivenDev/IdeaSlide/releases/latest/download/latest-cn.json',
     'https://github.com/sivenDev/IdeaSlide/releases/latest/download/latest.json',
   ]);
   assert.deepEqual(parsedCapability.windows, ['main']);
@@ -70,6 +71,9 @@ test('stable tag releases publish only after every signed updater target is comp
   assert.match(workflow, /darwin-x86_64/);
   assert.match(workflow, /windows-x86_64/);
   assert.match(workflow, /latest\.json/);
+  assert.match(workflow, /latest-cn\.json/);
+  assert.match(workflow, /https:\/\/gh-proxy\.com\/\$\{directUrl\}/);
+  assert.match(workflow, /uploadReleaseAsset/);
   assert.match(workflow, /draft:\s*false/);
   assert.match(workflow, /needs:\s*\[create-release, build\]/);
   assert.match(workflow, /assetNames\.has\(updaterAssetName\)/);

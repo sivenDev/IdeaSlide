@@ -2,7 +2,7 @@
 id: "F072"
 title: "Prefer gh-proxy for Automatic Update Downloads with Official Fallback"
 type: "feature"
-status: "draft"
+status: "in_progress"
 summary: "Route automatic update checks and signed package downloads through gh-proxy first, then fall back to official GitHub URLs without weakening signature or install safety."
 source: "docs/superplan/human/features.md"
 created: "2026-09-02"
@@ -38,9 +38,9 @@ parent: ""
 - Validate a generated fixture or captured manifest has matching version/signatures, six supported updater target aliases, exact `https://gh-proxy.com/https://github.com/` URL prefixes, and no private signing material.
 - `go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/release.yml`
 
-- [ ] Add the proxy-first endpoint and release-manifest derivation contract.
-- [ ] Implement safe proxy-manifest upload after the existing official asset gate.
-- [ ] Verify direct and proxy manifest schemas and asset pair completeness.
+  - [x] Add the proxy-first endpoint and release-manifest derivation contract.
+  - [x] Implement safe proxy-manifest upload after the existing official asset gate.
+  - [x] Verify direct and proxy manifest schemas and asset pair completeness.
 
 ## Task 2: Add a Native Official-Download Fallback Resource
 
@@ -63,9 +63,9 @@ parent: ""
 - `node --test tests/appUpdateNativeFallback.test.mjs`
 - Assert stale request ids, mismatched versions/targets, duplicate operations, close paths, proxy failure, official success, official failure, and signature/install ordering fail closed.
 
-- [ ] Add the managed official fallback resource and least-privilege commands.
-- [ ] Add native unit coverage for lifecycle, correlation, and failure cleanup.
-- [ ] Add frontend/native contract coverage for the command payloads and events.
+  - [x] Add the managed official fallback resource and least-privilege commands.
+  - [x] Add native unit coverage for lifecycle, correlation, and failure cleanup.
+  - [x] Add frontend/native contract coverage for the command payloads and events.
 
 ## Task 3: Compose Proxy-First and Official Fallback in the App Lifecycle
 
@@ -85,9 +85,9 @@ parent: ""
 - `node --test tests/appUpdates.test.mjs tests/appUpdateUi.test.mjs tests/appUpdateNativeFallback.test.mjs`
 - Cover proxy-first check/download, proxy manifest failure with official check fallback, proxy package failure with official package success, both failures, progress reset/continuation, retry, deferred install, Save / Discard / Cancel, and resource cleanup.
 
-- [ ] Extend the injectable update client and fake resources for source switching.
-- [ ] Implement proxy-first download with official fallback and bounded retry semantics.
-- [ ] Preserve UI, dismissal, install gating, and relaunch behavior across the source switch.
+  - [x] Extend the injectable update client and fake resources for source switching.
+  - [x] Implement proxy-first download with official fallback and bounded retry semantics.
+  - [x] Preserve UI, dismissal, install gating, and relaunch behavior across the source switch.
 
 ## Task 4: Verify and Deliver F072
 
@@ -107,8 +107,8 @@ parent: ""
 - `git diff --check`
 - `git status --short`
 
-- [ ] Run focused and full verification after implementation stabilizes.
-- [ ] Record the proxy/direct manifest and signed fallback evidence.
+- [x] Run focused and full verification after implementation stabilizes.
+- [x] Record the proxy/direct manifest and signed fallback evidence.
 - [ ] Mark the plan and F072 complete/done only after an authorized `v0.3.8` or later release proves the new path.
 
 ## References

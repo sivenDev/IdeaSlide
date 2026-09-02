@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, type Channel } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import type {
@@ -409,4 +409,39 @@ export async function exitApplication(): Promise<void> {
 export async function relaunchAfterUpdate(): Promise<void> {
   if (!("__TAURI_INTERNALS__" in window)) return;
   await invoke("relaunch_after_update");
+}
+
+export interface OfficialUpdateMetadata {
+  rid: number;
+  currentVersion: string;
+  version: string;
+  date?: string;
+  body?: string;
+}
+
+export interface OfficialUpdateDownloadEvent {
+  event: "Started" | "Progress" | "Finished";
+  data?: {
+    contentLength?: number;
+    chunkLength?: number;
+  };
+}
+
+export async function checkOfficialUpdate(expectedVersion: string): Promise<OfficialUpdateMetadata | null> {
+  return invoke<OfficialUpdateMetadata | null>("check_official_update", { expectedVersion });
+}
+
+export async function downloadOfficialUpdate(
+  rid: number,
+  onEvent: Channel<OfficialUpdateDownloadEvent>,
+): Promise<number> {
+  return invoke<number>("download_official_update", { rid, onEvent });
+}
+
+export async function installOfficialUpdate(updateRid: number, bytesRid: number): Promise<void> {
+  await invoke("install_official_update", { updateRid, bytesRid });
+}
+
+export async function closeOfficialUpdate(updateRid: number, bytesRid?: number): Promise<void> {
+  await invoke("close_official_update", { updateRid, bytesRid });
 }

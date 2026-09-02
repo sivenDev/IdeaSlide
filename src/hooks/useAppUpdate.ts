@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { Channel } from "@tauri-apps/api/core";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import {
   AppUpdateController,
@@ -8,7 +9,14 @@ import {
   type AppUpdateDownloadEvent,
   type AppUpdateResource,
 } from "../lib/appUpdates";
-import { relaunchAfterUpdate } from "../lib/tauriCommands.ts";
+import {
+  checkOfficialUpdate,
+  closeOfficialUpdate,
+  downloadOfficialUpdate,
+  installOfficialUpdate,
+  relaunchAfterUpdate,
+  type OfficialUpdateMetadata,
+} from "../lib/tauriCommands.ts";
 
 const DISMISSED_UPDATE_KEY = "ideanote.dismissed-update-version";
 
@@ -21,6 +29,32 @@ function wrapUpdate(update: Update): AppUpdateResource {
     download: (onEvent) => update.download((event) => onEvent?.(event as AppUpdateDownloadEvent)),
     install: () => update.install(),
     close: () => update.close(),
+    source: "proxy",
+  };
+}
+
+function wrapOfficialUpdate(metadata: OfficialUpdateMetadata): AppUpdateResource {
+  let bytesRid: number | undefined;
+  return {
+    currentVersion: metadata.currentVersion,
+    version: metadata.version,
+    date: metadata.date,
+    body: metadata.body,
+    source: "official",
+    download: async (onEvent) => {
+      const channel = new Channel<AppUpdateDownloadEvent>();
+      channel.onmessage = onEvent ?? (() => undefined);
+      bytesRid = await downloadOfficialUpdate(metadata.rid, channel);
+    },
+    install: async () => {
+      if (bytesRid === undefined) throw new Error("Official update download has not completed.");
+      await installOfficialUpdate(metadata.rid, bytesRid);
+      bytesRid = undefined;
+    },
+    close: async () => {
+      await closeOfficialUpdate(metadata.rid, bytesRid);
+      bytesRid = undefined;
+    },
   };
 }
 
@@ -28,6 +62,10 @@ const nativeClient: AppUpdateClient = {
   check: async () => {
     const update = await check({ timeout: 30_000 });
     return update ? wrapUpdate(update) : null;
+  },
+  checkOfficial: async (expectedVersion) => {
+    const metadata = await checkOfficialUpdate(expectedVersion);
+    return metadata ? wrapOfficialUpdate(metadata) : null;
   },
   relaunch: relaunchAfterUpdate,
 };

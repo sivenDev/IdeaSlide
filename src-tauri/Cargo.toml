@@ -1,6 +1,6 @@
 [package]
 name = "idea-slide"
-version = "0.3.7"
+version = "0.3.8"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -43,6 +43,8 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "rus
 globset = "0.4"
 regex = "1"
 similar = "2"
+time = "0.3"
+url = "2"
 
 [dev-dependencies]
 tempfile = "3"

@@ -6,11 +6,12 @@ import {
 } from '../src/lib/appUpdates.ts';
 
 class FakeUpdate {
-  constructor(version = '0.3.0') {
+  constructor(version = '0.3.0', source) {
     this.currentVersion = '0.2.6';
     this.version = version;
     this.date = '2026-08-12T00:00:00Z';
     this.body = 'A safer updater.';
+    this.source = source;
     this.calls = [];
     this.downloadError = undefined;
     this.installError = undefined;
@@ -51,6 +52,47 @@ function createClient(updates) {
     },
   };
 }
+
+test('a failed proxy package download switches to the matching official resource', async () => {
+  const proxy = new FakeUpdate('0.3.0', 'proxy');
+  proxy.downloadError = new Error('proxy unavailable');
+  const official = new FakeUpdate('0.3.0', 'official');
+  const client = createClient([proxy]);
+  client.checkOfficial = async (version) => {
+    assert.equal(version, '0.3.0');
+    return official;
+  };
+  const controller = new AppUpdateController(client);
+
+  await controller.check({ force: true });
+  await controller.download();
+
+  assert.equal(controller.getState().phase, 'ready');
+  assert.deepEqual(proxy.calls, ['download', 'close']);
+  assert.deepEqual(official.calls, ['download']);
+  assert.equal(await controller.install(async () => true), true);
+  assert.deepEqual(official.calls, ['download', 'install']);
+});
+
+test('proxy and official package failures retain the update and remain retryable', async () => {
+  const proxy = new FakeUpdate('0.3.0', 'proxy');
+  proxy.downloadError = new Error('proxy unavailable');
+  const official = new FakeUpdate('0.3.0', 'official');
+  official.downloadError = new Error('github unavailable');
+  const client = createClient([proxy]);
+  client.checkOfficial = async () => official;
+  const controller = new AppUpdateController(client);
+
+  await controller.check({ force: true });
+  await controller.download();
+
+  assert.equal(controller.getState().phase, 'error');
+  assert.equal(controller.getState().retryAction, 'download');
+  assert.equal(controller.getState().availableVersion, '0.3.0');
+  assert.match(controller.getState().error, /official GitHub fallback also failed/);
+  assert.deepEqual(proxy.calls, ['download', 'close']);
+  assert.deepEqual(official.calls, ['download']);
+});
 
 test('updates run only in the native main window', () => {
   assert.equal(shouldEnableAppUpdates({ isTauri: true, windowLabel: 'main' }), true);

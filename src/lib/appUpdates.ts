@@ -17,10 +17,12 @@ export interface AppUpdateResource {
   download: (onEvent?: (event: AppUpdateDownloadEvent) => void) => Promise<void>;
   install: () => Promise<void>;
   close: () => Promise<void>;
+  source?: "proxy" | "official";
 }
 
 export interface AppUpdateClient {
   check: () => Promise<AppUpdateResource | null>;
+  checkOfficial?: (expectedVersion: string) => Promise<AppUpdateResource | null>;
   relaunch: () => Promise<void>;
 }
 
@@ -185,9 +187,11 @@ export class AppUpdateController {
     });
     this.operationPromise = (async () => {
       try {
+        const update = this.update;
+        if (!update) return;
         let downloadedBytes = 0;
         let totalBytes: number | undefined;
-        await this.update?.download((event) => {
+        await update.download((event) => {
           if (generation !== this.generation) return;
           if (event.event === "Started") totalBytes = event.data?.contentLength;
           if (event.event === "Progress") downloadedBytes += event.data?.chunkLength ?? 0;
@@ -197,6 +201,47 @@ export class AppUpdateController {
         this.publish({ ...this.state, phase: "ready", downloadedBytes, totalBytes });
       } catch (cause) {
         if (generation !== this.generation) return;
+        const proxyUpdate = this.update;
+        if (proxyUpdate?.source === "proxy" && this.client.checkOfficial && this.state.availableVersion) {
+          try {
+            const officialUpdate = await this.client.checkOfficial(this.state.availableVersion);
+            if (!officialUpdate) throw new Error("The official GitHub release is unavailable.");
+            if (generation !== this.generation) {
+              await officialUpdate.close().catch(() => undefined);
+              return;
+            }
+            this.update = officialUpdate;
+            await proxyUpdate.close().catch(() => undefined);
+            this.publish({
+              ...this.state,
+              phase: "downloading",
+              downloadedBytes: 0,
+              totalBytes: undefined,
+              error: undefined,
+              retryAction: undefined,
+            });
+            let downloadedBytes = 0;
+            let totalBytes: number | undefined;
+            await officialUpdate.download((event) => {
+              if (generation !== this.generation) return;
+              if (event.event === "Started") totalBytes = event.data?.contentLength;
+              if (event.event === "Progress") downloadedBytes += event.data?.chunkLength ?? 0;
+              this.publish({ ...this.state, downloadedBytes, totalBytes });
+            });
+            if (generation !== this.generation) return;
+            this.publish({ ...this.state, phase: "ready", downloadedBytes, totalBytes });
+            return;
+          } catch (fallbackCause) {
+            if (generation !== this.generation) return;
+            this.publish({
+              ...this.state,
+              phase: "error",
+              error: `Proxy download failed; official GitHub fallback also failed: ${errorMessage(fallbackCause)}`,
+              retryAction: "download",
+            });
+            return;
+          }
+        }
         this.publish({
           ...this.state,
           phase: "error",
