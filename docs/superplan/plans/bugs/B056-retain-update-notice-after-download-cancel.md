@@ -2,7 +2,7 @@
 id: "B056"
 title: "Retain the Update Notice after Download Cancellation"
 type: "bugfix"
-status: "in_progress"
+status: "complete"
 summary: "Keep a cancelled or interrupted update actionable instead of persisting it as dismissed."
 source: "docs/superplan/human/bugs.md"
 created: "2026-09-02"
@@ -41,9 +41,9 @@ parent: ""
 - `node --test tests/appUpdates.test.mjs tests/appUpdateUi.test.mjs tests/workspaceSidebar.test.mjs`
 - `npm run build`
 
-- [ ] Prevent dismissal persistence during an active download.
-- [ ] Preserve retryable update state after an interrupted download.
-- [ ] Keep explicit non-downloading dismissal and restore behavior unchanged.
+- [x] Prevent dismissal persistence during an active download.
+- [x] Preserve retryable update state after an interrupted download.
+- [x] Keep explicit non-downloading dismissal and restore behavior unchanged.
 
 ## Task 2: Add Regression Coverage for Restart-Visible Updates
 
@@ -57,9 +57,9 @@ parent: ""
 - `node --test tests/appUpdates.test.mjs tests/appUpdateUi.test.mjs tests/workspaceSidebar.test.mjs`
 - `node --test --test-concurrency=1 --test-reporter=dot tests/*.test.mjs`
 
-- [ ] Reproduce download-start plus close/cancel and assert no dismissed version is stored.
-- [ ] Assert the same available version is shown again after a fresh controller check.
-- [ ] Assert explicit dismissal still renders the compact `Update` restore action.
+- [x] Reproduce download-start plus close/cancel and assert no dismissed version is stored.
+- [x] Assert the same available version is shown again after a fresh controller check.
+- [x] Assert explicit dismissal still renders the compact `Update` restore action.
 
 ## Task 3: Publish and Verify `v0.9.10`
 
@@ -83,9 +83,19 @@ parent: ""
 - Push `v0.9.10`, monitor GitHub Actions, and verify the public release contains Windows x86_64, macOS Apple Silicon, macOS Intel, `latest.json`, and `latest-cn.json` with matching versions/signatures and exact proxy URL prefixes.
 - `git diff --check`
 
-- [ ] Set all application/package versions to `0.9.10` without changing updater keys.
-- [ ] Publish and verify the signed release assets and both manifests.
-- [ ] Record final evidence, mark B056 and this plan complete, and create the task delivery commit.
+- [x] Set all application/package versions to `0.9.10` without changing updater keys.
+- [x] Publish and verify the signed release assets and both manifests.
+- [x] Record final evidence, mark B056 and this plan complete, and create the task delivery commit.
+
+## Delivery Evidence
+
+- Focused update regressions: `node --test tests/appUpdates.test.mjs tests/appUpdateUi.test.mjs tests/workspaceSidebar.test.mjs` passed 22 tests, including active-download dismissal prevention, retry after interruption, restart-visible update detection, and explicit compact restore behavior.
+- Frontend verification: `node --test --test-concurrency=1 --test-reporter=dot tests/*.test.mjs` and `npm run build` passed.
+- Tauri verification: `cargo test` passed 180 tests and `cargo build` completed successfully under `src-tauri`.
+- Release workflow validation: `actionlint` and `git diff --check` passed before tagging; GitHub Actions run `33592735530` completed successfully for Windows x86_64, macOS Apple Silicon, macOS Intel, and the publish job.
+- Public release: `https://github.com/sivenDev/IdeaSlide/releases/tag/v0.9.10` is non-draft and non-prerelease and contains the three supported updater bundles, their `.sig` files, platform installers, `latest.json`, and `latest-cn.json`.
+- Manifest verification: both manifests report `0.9.10`, expose identical platform keys and signatures, and every `latest-cn.json` URL is exactly `https://gh-proxy.com/` plus the matching official GitHub Release URL.
+- Existing warnings were non-blocking: Rust dead-code, Vite chunk-size, and GitHub Actions Node.js 20 deprecation notices.
 
 ## References
 - `docs/superplan/human/bugs.md#B056`

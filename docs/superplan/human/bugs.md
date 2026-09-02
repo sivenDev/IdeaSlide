@@ -441,7 +441,7 @@ Agent assistant responses can show Markdown syntax and collapsed headings or par
 
 ## B056: 让取消更新下载后仍保留升级提示
 
-- status: accepted
+- status: done
 - created: 2026-09-02
 
 在 0.3.6 中已检测到 0.3.8 后开始下载，点击取消/关闭下载提示并重启，后续不再显示升级提示。取消下载不应持久化为忽略该版本；只有明确忽略时才应隐藏同版本提示。修复后随 0.9.10 发布。
