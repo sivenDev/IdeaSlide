@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Complete | Superseded |
-| --- | --- | --- | --- |
-| `required` | 6 | 6 | 0 |
-| `feature` | 86 | 85 | 1 |
-| `bugfix` | 56 | 56 | 0 |
+| Type | Plans | Approved | In Progress | Complete | Superseded |
+| --- | --- | --- | --- | --- | --- |
+| `required` | 6 | 0 | 0 | 6 | 0 |
+| `feature` | 91 | 4 | 1 | 85 | 1 |
+| `bugfix` | 56 | 0 | 0 | 56 | 0 |
 
 ## Execution Order
 
@@ -122,6 +122,11 @@
 | `F057` | [Add an About Page to Settings](features/F057-add-an-about-page-to-settings.md) | `complete` | 2026-08-12 |
 | `F072` | [Prefer gh-proxy for Automatic Update Downloads with Official Fallback](features/F072-prefer-gh-proxy-update-downloads-with-official-fallback.md) | `complete` | 2026-09-02 |
 | `F073` | [Add IdeaSketch Text Editing Interfaces](features/F073-ideasketch-text-editing-interfaces.md) | `superseded` | 2026-09-02 |
+| `F073-01` | [Establish the IdeaSketch SDK Protocol and Transaction Kernel](features/F073-unified-ideasketch-jssdk/F073-01-sdk-protocol-and-transaction-kernel.md) | `in_progress` | 2026-09-02 |
+| `F073-02` | [Deliver Semantic Scene, Text, Connector, and Camera Operations](features/F073-unified-ideasketch-jssdk/F073-02-semantic-scene-text-and-camera-operations.md) | `approved` | 2026-09-02 |
+| `F073-03` | [Deliver Canonical IdeaSketch Page and Document Transactions](features/F073-unified-ideasketch-jssdk/F073-03-page-and-document-transactions.md) | `approved` | 2026-09-02 |
+| `F073-04` | [Migrate Agent Protocols to the Canonical IdeaSketch SDK](features/F073-unified-ideasketch-jssdk/F073-04-agent-protocol-compatibility-adapters.md) | `approved` | 2026-09-02 |
+| `F073-05` | [Migrate Pages, UI, IO, Presentation, and Complete the SDK Rollout](features/F073-unified-ideasketch-jssdk/F073-05-pages-ui-io-presentation-and-rollout.md) | `approved` | 2026-09-02 |
 
 ### Bugfix Plans
 

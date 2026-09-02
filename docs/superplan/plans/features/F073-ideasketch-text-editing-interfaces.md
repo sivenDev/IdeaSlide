@@ -13,8 +13,8 @@ parent: ""
 
 > Superseded before approval by the broader RFC `docs/superplan/rfcs/F073.md`, which
 > redesigns the complete IdeaSketch JSSDK boundary and incorporates text as one
-> semantic scene capability. A replacement implementation plan will be created
-> only after that RFC is approved.
+> semantic scene capability. It is replaced by `F073-01` through `F073-05`
+> under `features/F073-unified-ideasketch-jssdk/`.
 
 # Add IdeaSketch Text Editing Interfaces Plan
 
