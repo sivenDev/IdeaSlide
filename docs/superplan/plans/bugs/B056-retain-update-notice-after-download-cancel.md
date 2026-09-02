@@ -2,7 +2,7 @@
 id: "B056"
 title: "Retain the Update Notice after Download Cancellation"
 type: "bugfix"
-status: "draft"
+status: "in_progress"
 summary: "Keep a cancelled or interrupted update actionable instead of persisting it as dismissed."
 source: "docs/superplan/human/bugs.md"
 created: "2026-09-02"
