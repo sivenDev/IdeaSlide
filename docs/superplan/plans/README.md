@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Complete |
-| --- | --- | --- |
-| `required` | 6 | 6 |
-| `feature` | 85 | 85 |
-| `bugfix` | 55 | 55 |
+| Type | Plans | Draft | Complete |
+| --- | --- | --- | --- |
+| `required` | 6 | 0 | 6 |
+| `feature` | 85 | 0 | 85 |
+| `bugfix` | 56 | 1 | 55 |
 
 ## Execution Order
 
@@ -181,3 +181,4 @@
 | `B053` | [Avoid exact local Codex CLI version pinning](bugs/B053-avoid-exact-local-codex-cli-version-pinning.md) | `complete` | 2026-09-01 |
 | `B054` | [Fix Agent Markdown Rendering](bugs/B054-agent-markdown-rendering-defect.md) | `complete` | 2026-09-01 |
 | `B055` | [Raise Agent maximum steps limit to 100](bugs/B055-raise-agent-maximum-steps-limit-to-100.md) | `complete` | 2026-09-01 |
+| `B056` | [Retain the Update Notice after Download Cancellation](bugs/B056-retain-update-notice-after-download-cancel.md) | `draft` | 2026-09-02 |

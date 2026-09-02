@@ -438,3 +438,10 @@ Agent assistant responses can show Markdown syntax and collapsed headings or par
 - created: 2026-09-01
 
 复现：打开 Settings → Agent，将 Maximum steps 设置为大于 20 的值。实际：输入控件和设置归一化将值限制为 20，Rust Agent Tool Broker 也会将运行时上限截断为 20。期望：Maximum steps 支持并持久化 1–100，并让 Codex 与 Compatibility 两种运行时遵守同一有效上限。
+
+## B056: 让取消更新下载后仍保留升级提示
+
+- status: accepted
+- created: 2026-09-02
+
+在 0.3.6 中已检测到 0.3.8 后开始下载，点击取消/关闭下载提示并重启，后续不再显示升级提示。取消下载不应持久化为忽略该版本；只有明确忽略时才应隐藏同版本提示。修复后随 0.9.10 发布。
