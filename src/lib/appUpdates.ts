@@ -233,8 +233,8 @@ export class AppUpdateController {
             this.publish({ ...this.state, phase: "ready", downloadedBytes, totalBytes });
             return;
           } catch (fallbackCause) {
-            if (generation !== this.generation) return;
             await officialUpdate?.close().catch(() => undefined);
+            if (generation !== this.generation) return;
             this.publish({
               ...this.state,
               phase: "error",
