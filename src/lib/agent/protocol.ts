@@ -42,6 +42,9 @@ export interface AgentTurnBindingSnapshot {
   skillId?: string;
   revision: number;
   sourceModified?: string;
+  /** Explicit Agent Tool protocol captured for the lifetime of this Turn. */
+  agentToolProtocolVersion?: { major: number; minor: number };
+  toolSchemaDigest?: string;
 }
 
 interface AgentItemBase {

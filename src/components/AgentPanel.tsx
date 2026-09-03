@@ -161,9 +161,13 @@ export function AgentPanel({
     const capturedDocument = capturedBinding?.document;
     const turnId = crypto.randomUUID();
     let turnOpen = true;
+    const capturedProtocol = capturedBinding?.agentToolProtocol;
+    const capturedTools = capturedBinding
+      ? (capturedBinding.getToolCatalog?.(capturedProtocol?.version) ?? capturedBinding.tools)
+      : [];
     const toolExecutor: AgentToolExecutor = capturedBinding && capturedDocument
       ? createDirectApplyToolExecutor({
-          executor: capturedBinding.createToolExecutor(),
+          executor: capturedBinding.createToolExecutor(capturedProtocol),
           capturedTarget: {
             documentId: capturedDocument.id,
             extensionId: capturedBinding.extensionId,
@@ -204,6 +208,10 @@ export function AgentPanel({
           skillId: capturedBinding.skillId,
           revision: capturedDocument.revision,
           sourceModified: capturedDocument.sourceModified,
+          ...(capturedProtocol ? {
+            agentToolProtocolVersion: capturedProtocol.version,
+            toolSchemaDigest: capturedProtocol.schemaDigest,
+          } : {}),
         }
       : {
           documentId: `workspace:${workspace?.name ?? "active"}`,
@@ -231,7 +239,7 @@ export function AgentPanel({
         policy: agentPolicy,
         selectedSkillIds: [],
         context: capturedBinding?.buildContext() ?? { workspace: { name: workspace?.name } },
-        tools: capturedBinding?.tools ?? [],
+        tools: [...capturedTools],
         messages: runtimeMessages,
         toolExecutor,
       }, emit);
@@ -239,6 +247,12 @@ export function AgentPanel({
       failure = cause;
     } finally {
       turnOpen = false;
+      try {
+        await toolExecutor.dispose?.();
+      } catch {
+        // Session cleanup is best effort after a cancelled/failed turn; the
+        // active editor host remains authoritative for any in-flight commit.
+      }
       if (cancelledTurnIdsRef.current.delete(turnId)) {
         settleTurn(turnId, "cancelled");
       } else {

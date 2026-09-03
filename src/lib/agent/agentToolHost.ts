@@ -78,7 +78,30 @@ export function createAgentToolHost<TModel>({
     cancel(callId) {
       cancelled.add(callId);
     },
+    mutationToolNames: Object.freeze(extension.tools.filter((tool) => tool.effect !== "read").map((tool) => tool.name)),
   };
+}
+
+function capturedBindingMatches(
+  capturedTarget: {
+    documentId: string;
+    extensionId: string;
+    revision: number;
+    documentStatus: ActiveAgentEditorBinding["document"]["status"];
+    sourceModified?: string;
+  },
+  binding: Pick<ActiveAgentEditorBinding, "document" | "extensionId" | "readOnly"> | undefined,
+) {
+  return Boolean(
+    binding
+    && !binding.readOnly
+    && binding.extensionId === capturedTarget.extensionId
+    && binding.document.id === capturedTarget.documentId
+    && binding.document.status === "editable"
+    && binding.document.status === capturedTarget.documentStatus
+    && binding.document.revision === capturedTarget.revision
+    && binding.document.sourceModified === capturedTarget.sourceModified,
+  );
 }
 
 export function createDirectApplyToolExecutor({
@@ -101,25 +124,32 @@ export function createDirectApplyToolExecutor({
   const cancelled = new Set<string>();
   return {
     async execute(call, signal) {
+      if (executor.mutationToolNames?.includes(call.name)) {
+        if (
+          signal?.aborted
+          || cancelled.has(call.callId)
+          || !isActive()
+          || !capturedBindingMatches(capturedTarget, getActiveBinding())
+        ) {
+          return failure(call, "The active editor changed before the mutation could be applied.", "toolExecutionFailed");
+        }
+      }
       const result = await executor.execute(call, signal);
       if (result.kind !== "mutation") return result;
+      if (result.appliedByExecutor) {
+        if (result.changeSet.status !== "applied") {
+          return failure(call, "The canonical editor executor returned an unapplied mutation.", "toolExecutionFailed");
+        }
+        return result;
+      }
       const binding = getActiveBinding();
       const changeSet = result.changeSet;
-      if (
-        signal?.aborted
+      if (!capturedBindingMatches(capturedTarget, binding)
+        || signal?.aborted
         || cancelled.has(call.callId)
         || !isActive()
-        || !binding
-        || binding.readOnly
-        || binding.extensionId !== capturedTarget.extensionId
-        || binding.document.id !== capturedTarget.documentId
-        || binding.document.status !== "editable"
-        || binding.document.status !== capturedTarget.documentStatus
-        || binding.document.revision !== capturedTarget.revision
-        || binding.document.revision !== changeSet.baseRevision
-        || binding.document.sourceModified !== capturedTarget.sourceModified
-        || binding.document.sourceModified !== changeSet.baseSourceModified
-      ) {
+        || binding?.document.revision !== changeSet.baseRevision
+        || binding?.document.sourceModified !== changeSet.baseSourceModified) {
         return failure(call, "The active editor changed before the mutation could be applied.", "toolExecutionFailed");
       }
       if (!binding.applyChangeSet(changeSet)) {
@@ -135,5 +165,9 @@ export function createDirectApplyToolExecutor({
       cancelled.add(callId);
       executor.cancel(callId);
     },
+    async dispose() {
+      await executor.dispose?.();
+    },
+    mutationToolNames: executor.mutationToolNames,
   };
 }

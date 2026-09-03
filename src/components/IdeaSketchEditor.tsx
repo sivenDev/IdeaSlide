@@ -41,6 +41,11 @@ import {
   isIdeaSketchLayoutOperation,
   type IdeaSketchAgentOperation,
 } from "../lib/agent/extensions/ideaSketchAgentExtension";
+import { createIdeaSketchAgentSdkToolExecutor } from "../lib/agent/extensions/ideaSketchAgentSdkAdapter.ts";
+import {
+  getIdeaSketchAgentToolCatalog,
+  getIdeaSketchAgentToolProtocol,
+} from "../lib/agent/agentToolProtocol.ts";
 import {
   IdeaSketchNavigator,
   type IdeaSketchNavigatorTab,
@@ -66,6 +71,7 @@ const IDEASKETCH_DRAWER_STORAGE_KEY = "ideanote:ideasketch-drawer:v2";
 const DEFAULT_DRAWER_WIDTH = 244;
 const MIN_DRAWER_WIDTH = 220;
 const MAX_DRAWER_WIDTH = 420;
+const DEFAULT_IDEASKETCH_AGENT_TOOL_PROTOCOL = getIdeaSketchAgentToolProtocol(2);
 
 interface StoredIdeaSketchDrawerState {
   width?: number;
@@ -872,17 +878,26 @@ export function IdeaSketchEditor({
       editorStateRef.current.activePageId,
       agentBindingStateRef.current.document.revision,
     ),
-    createToolExecutor: () => createAgentToolHost({
-      extension: ideaSketchAgentExtension,
-      context: {
+    agentToolProtocol: DEFAULT_IDEASKETCH_AGENT_TOOL_PROTOCOL,
+    getToolCatalog: (version) => getIdeaSketchAgentToolCatalog(version ?? 2),
+    createToolExecutor: (protocol = DEFAULT_IDEASKETCH_AGENT_TOOL_PROTOCOL) => {
+      const context = {
         documentId: agentBindingStateRef.current.document.id,
         revision: agentBindingStateRef.current.document.revision,
         documentStatus: agentBindingStateRef.current.document.status,
         sourceModified: agentBindingStateRef.current.document.sourceModified,
         activeContextId: agentBindingStateRef.current.activeContextId,
         model: structuredClone(editorStateRef.current.document),
-      },
-    }),
+      };
+      const legacyExecutor = protocol.version.major === 1
+        ? createAgentToolHost({ extension: ideaSketchAgentExtension, context })
+        : undefined;
+      return createIdeaSketchAgentSdkToolExecutor({
+        protocol,
+        documentId: context.documentId,
+        legacyExecutor,
+      });
+    },
     describeChangeSet: (changeSet) => ideaSketchAgentExtension.describeChangeSet(
       changeSet as AgentChangeSet<IdeaSketchAgentOperation>,
     ),

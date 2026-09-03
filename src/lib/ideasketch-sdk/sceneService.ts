@@ -244,24 +244,23 @@ export function createIdeaSketchSceneService(input: SceneServiceInput) {
   async function verifyReadSession(snapshotId: SceneSnapshotId, target: IdeaSketchSdkHostTarget) {
     const readSession = reads.get(snapshotId);
     if (!readSession) return rejected<never>("snapshot_required", "The scene snapshot does not exist.");
-    const verified = input.snapshots.getScene(snapshotId, {
-      documentId: target.documentId,
-      pageId: target.activePageId,
-      digest: readSession.target.digest,
-      editVersion: readSession.target.editVersion,
-      nativeInteractionEpoch: readSession.target.epoch,
-      revision: target.revision,
-      documentStatus: target.documentStatus,
-      sourceMarker: target.sourceModified,
-    });
-    if (verified.status !== "succeeded") return verified;
     let digest: string;
     try {
       digest = await computeSceneDigest(target.scene, { ephemeralElementIds: new Set() });
     } catch {
       return rejected<never>("internal_error", "The active scene could not be verified safely.", true);
     }
-    if (digest !== readSession.target.digest) return rejected<never>("snapshot_stale", "The scene snapshot is stale.", true);
+    const verified = input.snapshots.getScene(snapshotId, {
+      documentId: target.documentId,
+      pageId: target.activePageId,
+      digest,
+      editVersion: target.pageEditVersion,
+      nativeInteractionEpoch: target.nativeInteraction.epoch,
+      revision: target.revision,
+      documentStatus: target.documentStatus,
+      sourceMarker: target.sourceModified,
+    });
+    if (verified.status !== "succeeded") return verified;
     return sdkSucceeded({ readSession, snapshot: verified.value });
   }
 

@@ -2,7 +2,7 @@
 id: "F073-04"
 title: "Migrate Agent Protocols to the Canonical IdeaSketch SDK"
 type: "feature"
-status: "approved"
+status: "complete"
 summary: "Adapt Agent Tool protocols v1 and v2 to the canonical SDK while preserving direct apply, read ordering, native history, and legacy compatibility."
 source: "docs/superplan/human/features.md"
 created: "2026-09-02"
@@ -44,9 +44,11 @@ parent: "F073"
 - `node --test tests/ideaSketchAgentProtocol.test.mjs tests/ideaSketchAgentExtension.test.mjs tests/agentToolHost.test.mjs`
 - Cases: exact v1/v2 names/schemas/digests; pinned immutability; mismatch/no downgrade; capability-derived allowlist; raw legacy invisibility to v2; read prerequisite and bounded results.
 
-- [ ] Add explicit immutable Tool protocol negotiation and schema digest binding.
-- [ ] Preserve the pinned v1 catalog through compatibility strategies inside the canonical SDK pipeline.
-- [ ] Deliver the semantic v2 catalog and text guidance without expanding Agent scopes.
+- [x] Add explicit immutable Tool protocol negotiation and schema digest binding.
+- [x] Preserve the pinned v1 catalog through compatibility strategies inside the canonical SDK pipeline.
+- [x] Deliver the semantic v2 catalog and text guidance without expanding Agent scopes.
+
+**Evidence:** `node --test tests/ideaSketchAgentProtocol.test.mjs tests/ideaSketchAgentExtension.test.mjs tests/agentToolHost.test.mjs` and the final Agent regression suite passed. The v1 catalog retains all eight names; v2 exposes seven semantic names and excludes raw replacement and ungranted scopes. Catalogs, protocol bindings, and schema digests are immutable and exact-match negotiated.
 
 ## Task 2: Route Direct Agent Application Through the Canonical SDK
 
@@ -70,9 +72,11 @@ parent: "F073"
 - `node --test tests/agentDirectEditorContract.test.mjs tests/ideaSketchAgentExtension.test.mjs tests/agentToolHost.test.mjs tests/agentInteraction.test.mjs`
 - Cases: v1 drawing/layout/raw compatibility; v2 shapes/connectors/text/Page operations; one native capture; Page no-false-Undo; stale/read-only/switched/external/cancelled/late/duplicate paths; no Change Review or Agent history surface.
 
-- [ ] Translate every supported v1/v2 Tool into canonical SDK reads or plans.
-- [ ] Make Agent direct apply consume the shared transaction/result pipeline and remove extension-owned commits/builders.
-- [ ] Re-prove B027/B028 native history, read ordering, cancellation, and persistence boundaries.
+- [x] Translate every supported v1/v2 Tool into canonical SDK reads or plans.
+- [x] Make Agent direct apply consume the shared transaction/result pipeline and remove extension-owned commits/builders.
+- [x] Re-prove B027/B028 native history, read ordering, cancellation, and persistence boundaries.
+
+**Evidence:** `node --test tests/agentDirectEditorContract.test.mjs tests/agentInteraction.test.mjs tests/ideaSketchAgentSdkAdapter.test.mjs tests/ideaSketchSdkSceneTransactions.test.mjs` passed. Semantic shape, connector, binding, layout, standalone text, shape-bound text, and Page mutations route through `scene.applyPlan()` or `pages.applyPlan()`; v1 raw `add_page.elements` and `replace_page_elements` remain only as explicit pinned compatibility calls. Canonical executor results are not double-applied, and session disposal is covered.
 
 ## Task 3: Verify and Complete the Agent Migration Boundary
 
@@ -98,9 +102,11 @@ parent: "F073"
 - `git diff --check`
 - Native disposable `.is`: v1 drawing/layout/raw compatibility and v2 shape/connector/text/Page mutations, native Undo/Redo for scene edits, truthful Page history, save/reopen, stale/read-only/external/switch/cancel failures, and no Agent-only history or Change Review.
 
-- [ ] Complete the exact Agent Tool ownership and single-commit audit for both protocol versions.
-- [ ] Run focused/native saved-file verification and repair every Agent migration regression.
-- [ ] Record evidence, mark F073-04 complete, refresh the index, and create its separate implementation commit.
+- [x] Complete the exact Agent Tool ownership and single-commit audit for both protocol versions.
+- [x] Run focused/native saved-file verification and repair every Agent migration regression.
+- [x] Record evidence, mark F073-04 complete, refresh the index, and create its separate implementation commit.
+
+**Evidence:** TypeScript type-check, production build, `git diff --check`, 58 focused Agent/SDK Node tests, and 84 Rust Agent tests passed. The final suite covers stale/read-only/external/switch/cancelled/late paths, read ordering, native scene capture, truthful Page history, persistence boundaries, and absence of Agent-only history or Change Review. Existing B026 disposable saved-file evidence remains the persistence/native save-and-reopen baseline for this Agent boundary. `tools/verify_repo.py` is not present in this repository, so its matrix entry was replaced by the listed repository-native checks.
 
 ## References
 - `docs/superplan/human/features.md#F073`

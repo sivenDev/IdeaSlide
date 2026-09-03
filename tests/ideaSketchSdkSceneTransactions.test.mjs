@@ -73,6 +73,33 @@ test('busy native interaction wins over stale snapshot during scene apply', asyn
   assert.equal(result.error.code, 'editor_busy');
 });
 
+test('scene snapshots become stale when the native edit version or interaction epoch advances without a digest change', async () => {
+  const state = { elements: [], appState: {}, files: {}, pageEditVersion: 1, nativeInteraction: { epoch: 1, busy: false, reasons: [] } };
+  const host = hostWithScene(state);
+  const caller = createIdeaSketchHostCaller({ id: 'epoch-writer', profile: 'future-external', grantedScopes: ['scene.read', 'scene.write'] });
+  const session = await host.createSession({ caller, sdkProtocolVersion: { major: 1, minor: 0 } });
+  const sdk = session.value;
+
+  const editVersionRead = await sdk.scene.read({});
+  state.pageEditVersion += 1;
+  const staleEditVersion = await sdk.scene.applyPlan({
+    requestId: 'stale-edit-version',
+    snapshotId: editVersionRead.value.snapshotId,
+    operations: [op('create-text', { ref: 'temp:t1', x: 0, y: 0, text: 'blocked' })],
+  });
+  assert.equal(staleEditVersion.error.code, 'snapshot_stale');
+
+  const epochRead = await sdk.scene.read({});
+  state.nativeInteraction = { epoch: 2, busy: false, reasons: [] };
+  const staleEpoch = await sdk.scene.applyPlan({
+    requestId: 'stale-native-epoch',
+    snapshotId: epochRead.value.snapshotId,
+    operations: [op('create-text', { ref: 'temp:t2', x: 0, y: 0, text: 'blocked' })],
+  });
+  assert.equal(staleEpoch.error.code, 'snapshot_stale');
+  assert.equal(state.elements.length, 0);
+});
+
 test('scene cursors become stale after a Page edit and malformed public reads never throw', async () => {
   const state = { elements: [
     { id: 'one', type: 'rectangle', x: 0, y: 0, width: 20, height: 20, angle: 0, version: 1, versionNonce: 1, updated: 1, isDeleted: false, locked: false, groupIds: [], frameId: null, boundElements: null },

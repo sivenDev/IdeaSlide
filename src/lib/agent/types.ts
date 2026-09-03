@@ -1,6 +1,8 @@
 import type { DocumentSession } from "../../types";
+import type { SdkProtocolVersion } from "../ideasketch-sdk/types.ts";
 import type { AgentErrorCode } from "./protocol";
 import type { AgentEvent, AgentTurnBindingSnapshot } from "./protocol";
+import type { AgentToolProtocolBinding } from "./agentToolProtocol.ts";
 
 export interface AgentToolDescriptor {
   name: string;
@@ -37,6 +39,8 @@ export interface AgentToolMutationResult<TOperation = unknown> {
   changeSet: AgentChangeSet<TOperation>;
   truncated: false;
   persistable: boolean;
+  /** True when the executor already committed through a canonical editor SDK. */
+  appliedByExecutor?: boolean;
 }
 
 export interface AgentToolFailureResult {
@@ -67,6 +71,10 @@ export interface AgentToolExecutionContext<TModel = unknown> {
 export interface AgentToolExecutor {
   execute(call: AgentToolCall, signal?: AbortSignal): Promise<AgentToolResult>;
   cancel(callId: string): void;
+  /** Optional lifecycle hook for executors that own a caller-bound session. */
+  dispose?: () => Promise<void>;
+  /** Optional preflight hint used by the direct-apply guard. */
+  readonly mutationToolNames?: readonly string[];
 }
 
 export interface AgentSkillMetadata {
@@ -248,11 +256,14 @@ export interface ActiveAgentEditorBinding {
   extensionId: string;
   fileType: string;
   skillId: string;
-  tools: AgentToolDescriptor[];
   activeContextId?: string;
   readOnly: boolean;
   buildContext: () => Record<string, unknown>;
-  createToolExecutor: () => AgentToolExecutor;
+  /** The default catalog for this binding; versioned editors may expose a richer catalog below. */
+  tools: AgentToolDescriptor[];
+  readonly agentToolProtocol?: AgentToolProtocolBinding;
+  getToolCatalog?: (version?: SdkProtocolVersion) => readonly AgentToolDescriptor[];
+  createToolExecutor: (protocol?: AgentToolProtocolBinding) => AgentToolExecutor;
   describeChangeSet: (changeSet: AgentChangeSet) => string[];
   applyChangeSet: (changeSet: AgentChangeSet) => boolean;
 }
