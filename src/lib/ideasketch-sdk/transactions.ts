@@ -115,7 +115,7 @@ export interface ExecuteSdkMutationInput<State> {
   cloneState?: (state: State) => State;
   computeDigest: (state: State) => Promise<string>;
   authorize?: (state: State) => boolean;
-  validateSnapshot?: (state: State) => boolean;
+  validateSnapshot?: (state: State) => boolean | Promise<boolean>;
   prepare: (state: State) => Promise<State> | State;
   validatePostconditions?: (state: State) => boolean;
   finalValidate: (before: State) => SdkSyncResult<void>;
@@ -172,7 +172,7 @@ export async function executeSdkMutation<State>(
       if (input.authorize && !input.authorize(before)) {
         return finish(sdkRejected("capability_denied", "The caller is not authorized for this mutation."));
       }
-      if (input.validateSnapshot && !input.validateSnapshot(before)) {
+      if (input.validateSnapshot && !(await input.validateSnapshot(before))) {
         return finish(sdkRejected("snapshot_stale", "The mutation snapshot is stale.", true));
       }
       beforeDigest = await input.computeDigest(before);

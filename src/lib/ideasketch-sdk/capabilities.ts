@@ -184,6 +184,10 @@ const SDK_LIMITS = Object.freeze({
   maxCameraCount: 200,
   minCameraWidth: 16,
   minCameraHeight: 16,
+  maxImportElements: 10_000,
+  maxImportBytes: 4 * 1024 * 1024,
+  maxImportFileBytes: 8 * 1024 * 1024,
+  maxImportTotalFileBytes: 32 * 1024 * 1024,
 });
 
 function deepFreeze<T>(value: T): T {

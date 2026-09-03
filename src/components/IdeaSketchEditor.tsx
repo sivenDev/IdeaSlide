@@ -57,6 +57,7 @@ import {
   createIdeaSketchSceneCommitSettlements,
   mergeActiveSceneIntoDocument,
   mergeIdeaSketchNativeNormalizedElements,
+  type IdeaSketchInternalDocumentCommitRecord,
   type IdeaSketchInternalSceneCommitRecord,
 } from "../lib/ideasketch-sdk/editorHostAdapter.ts";
 import { validateIdeaSketchScenePostconditions } from "../lib/ideasketch-sdk/scenePostconditions.ts";
@@ -172,6 +173,7 @@ export function IdeaSketchEditor({
   );
   const sdkSceneCommitSettlementsRef = useRef(createIdeaSketchSceneCommitSettlements());
   const sdkSceneCommitRecordsRef = useRef<IdeaSketchInternalSceneCommitRecord[]>([]);
+  const sdkDocumentCommitRecordsRef = useRef<IdeaSketchInternalDocumentCommitRecord[]>([]);
   const canvasCommandApiRef = useRef<SlideCanvasCommandApi | undefined>(undefined);
   const canvasCommandSlideIdRef = useRef<string | undefined>(undefined);
   const sdkNativeInteractionRef = useRef<{
@@ -339,9 +341,11 @@ export function IdeaSketchEditor({
         documentUndo: false,
         scene: mounted,
         operations: mounted,
+        pages: true,
         cameras: mounted,
         assets: mounted,
         methods: {
+          pages: ["list", "select", "parseExcalidraw", "validatePlan", "applyPlan"],
           // F073-02 owns Camera listing and asset metadata; selection and pointer
           // creation remain explicitly owned by the later UI rollout plan.
           cameras: ["list"],
@@ -394,17 +398,30 @@ export function IdeaSketchEditor({
           affectedRefs: Object.freeze([...record.affectedRefs]),
         }));
       },
-      commitDocument: (nextDocument) => {
+      commitDocument: (nextDocument, preferredPageId) => {
         if (readOnly) throw new Error("The IdeaSketch document is read-only.");
         const previous = editorStateRef.current;
-        const next = createIdeaSketchEditorState(nextDocument, previous.activePageId);
+        const next = createIdeaSketchEditorState(nextDocument, preferredPageId ?? previous.activePageId);
         editorStateRef.current = next;
         setEditorState(next);
         emittedModelRef.current = next.document;
         onModelChange(document.id, next.document);
+        onDirty(document.id);
         if (next.activePageId !== previous.activePageId) {
           onEditorStateChange(document.id, next.activePageId);
         }
+      },
+      selectPage: (pageId) => {
+        applyAction({ type: "SELECT_PAGE", pageId }, false);
+      },
+      recordDocumentCommit: (record) => {
+        sdkDocumentCommitRecordsRef.current.push(Object.freeze({
+          ...record,
+          operationKinds: Object.freeze([...record.operationKinds]),
+          createdPageRefs: Object.freeze([...record.createdPageRefs]),
+          updatedPageRefs: Object.freeze([...record.updatedPageRefs]),
+          deletedPageRefs: Object.freeze([...record.deletedPageRefs]),
+        }));
       },
     };
   }, [
@@ -416,6 +433,7 @@ export function IdeaSketchEditor({
     getEditVersion,
     onEditorStateChange,
     onModelChange,
+    onDirty,
     readOnly,
   ]);
 

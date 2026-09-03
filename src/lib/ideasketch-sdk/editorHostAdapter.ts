@@ -17,6 +17,14 @@ export interface IdeaSketchInternalSceneCommitRecord {
   affectedRefs: readonly string[];
 }
 
+export interface IdeaSketchInternalDocumentCommitRecord {
+  requestId?: string;
+  operationKinds: readonly string[];
+  createdPageRefs: readonly string[];
+  updatedPageRefs: readonly string[];
+  deletedPageRefs: readonly string[];
+}
+
 interface IdeaSketchSceneApi {
   getSceneElementsIncludingDeleted(): readonly unknown[];
   getAppState(): Partial<Record<string, unknown>>;

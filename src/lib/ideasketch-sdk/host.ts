@@ -11,6 +11,7 @@ import { createSnapshotStore } from "./snapshots.ts";
 import { buildIdeaSketchOperation, type IdeaSketchOperationLimits } from "./operationSchemas.ts";
 import { createIdeaSketchSceneService } from "./sceneService.ts";
 import { createIdeaSketchCameraService } from "./cameraService.ts";
+import { createIdeaSketchPagesService } from "./pagesService.ts";
 import {
   createDocumentMutationScheduler,
   type DocumentMutationScheduler,
@@ -52,7 +53,10 @@ import {
 } from "./types.ts";
 import type { IdeaSketchOperationKind } from "./operationSchemas.ts";
 import type { IdeaSketchDocument } from "../../types.ts";
-import type { IdeaSketchInternalSceneCommitRecord } from "./editorHostAdapter.ts";
+import type {
+  IdeaSketchInternalDocumentCommitRecord,
+  IdeaSketchInternalSceneCommitRecord,
+} from "./editorHostAdapter.ts";
 
 const hostCallerBrand = Symbol("IdeaSketchSdkHostCaller");
 const issuedHostCallers = new WeakSet<object>();
@@ -152,7 +156,10 @@ export interface IdeaSketchSdkHostTarget {
   flushDraft?: () => void;
   commitScene?: (scene: IdeaSketchSdkHostScene) => void | IdeaSketchMutationCommitReceipt;
   recordSceneCommit?: (record: IdeaSketchInternalSceneCommitRecord) => void;
-  commitDocument?: (document: IdeaSketchDocument) => void | IdeaSketchMutationCommitReceipt;
+  commitDocument?: (document: IdeaSketchDocument, preferredPageId?: string) => void | IdeaSketchMutationCommitReceipt;
+  selectPage?: (pageId: string) => void;
+  stopPresentation?: () => void;
+  recordDocumentCommit?: (record: IdeaSketchInternalDocumentCommitRecord) => void;
   cleanupSession?: (sessionId: CallerSessionId) => Promise<void>;
   confirmClear?: (input: { scope: "content-only" | "all-elements"; pageRef: string; snapshotId: import("./types.ts").SceneSnapshotId }) => Promise<boolean>;
 }
@@ -208,12 +215,12 @@ function targetAvailability(target: IdeaSketchSdkHostTarget): IdeaSketchSdkServi
   // plans provide explicit method entries.
   if (target.services.cameras && !methods.cameras) methods.cameras = ["list"];
   if (target.services.assets && !methods.assets) methods.assets = ["listMetadata"];
-  // These namespaces are declared in the v1 catalog but are intentionally
-  // deferred to later rollout plans.  Keep a namespace-level service flag
-  // from advertising methods that the current facade still implements as
-  // explicit unsupported stubs; a later plan can opt in by supplying its
-  // method list.
-  for (const namespace of ["pages", "selection", "view", "transforms", "presentation", "io"] as const) {
+  // Page transactions are the canonical document structure boundary. Other
+  // deferred namespaces remain unavailable until their rollout plans opt in.
+  if (target.services.pages && !methods.pages) {
+    methods.pages = [...IDEA_SKETCH_SDK_METHOD_CATALOG.pages];
+  }
+  for (const namespace of ["selection", "view", "transforms", "presentation", "io"] as const) {
     if (target.services[namespace] && !methods[namespace]) methods[namespace] = [];
   }
   // Event subscriptions are a host-owned lifecycle surface.  An explicit
@@ -598,6 +605,20 @@ export function createIdeaSketchSdkHost(
         isMethodAvailable: (method) => Boolean(getCapabilities().availableMethods.cameras?.includes(method)),
         listCameras: sceneService.listCameras,
       });
+      const pagesService = createIdeaSketchPagesService({
+        sessionId: id,
+        sdkProtocolVersion: negotiated.value.sdk,
+        callerProfile: input.caller.profile,
+        getTarget: getSessionTarget,
+        getScopes: () => getCapabilities().scopes,
+        getAvailableOperationKinds: () => getCapabilities().availableOperationKinds,
+        isMethodAvailable: (namespace, method) => Boolean(getCapabilities().availableMethods[namespace]?.includes(method)),
+        getLimits: () => getCapabilities().limits,
+        snapshots,
+        ledger,
+        scheduler: mutationScheduler,
+        isActive: controller.isActive,
+      });
 
       const methodAvailabilityError = <Value>(namespace: string, method: string): SdkResult<Value> | undefined => {
         if (!controller.isActive()) return sdkRejected("session_closed", "The IdeaSketch SDK session is closed.");
@@ -638,11 +659,11 @@ export function createIdeaSketchSdkHost(
       };
 
       const pages: IdeaSketchPagesNamespace = {
-        list: () => unsupported("pages", "list"),
-        select: () => unsupported("pages", "select"),
-        parseExcalidraw: () => unsupported("pages", "parseExcalidraw"),
-        validatePlan: () => unsupported("pages", "validatePlan"),
-        applyPlan: () => unsupported("pages", "applyPlan"),
+        list: (value) => pagesService.list(value as never),
+        select: (value) => pagesService.select(value as never),
+        parseExcalidraw: (value) => pagesService.parseExcalidraw(value),
+        validatePlan: (value) => pagesService.validatePlan(value),
+        applyPlan: (value) => pagesService.applyPlan(value as never),
       };
       const scene: IdeaSketchSceneNamespace = {
         read: (value) => sceneService.read(value as never),

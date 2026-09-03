@@ -86,6 +86,13 @@ const factory = <K extends IdeaSketchOperationKind>(kind: K): OperationFactory<K
   limits,
 ) => buildIdeaSketchOperation(kind, input, limits);
 
+export const addPage = factory("add-page");
+export const importPage = factory("import-page");
+export const duplicatePage = factory("duplicate-page");
+export const renamePage = factory("rename-page");
+export const reorderPage = factory("reorder-page");
+export const deletePage = factory("delete-page");
+export const createPageFromSelection = factory("create-page-from-selection");
 export const createShape = factory("create-shape");
 export const createArrow = factory("create-arrow");
 export const createText = factory("create-text");

@@ -145,6 +145,23 @@ export function createSnapshotStore({ sessionId }: { sessionId: string }) {
         complete: record.complete,
       });
     },
+    extendDocumentCoverage(input: {
+      snapshotId: DocumentSnapshotId;
+      identityRefs?: readonly string[];
+      complete?: boolean;
+    }): SdkSyncResult<DocumentSnapshotReceipt> {
+      const active = ensureActive();
+      if (active.status === "rejected") return active;
+      const record = documents.get(input.snapshotId);
+      if (!record) return sdkRejected("snapshot_required", "The document snapshot does not exist.");
+      record.identityRefs = mergeRefs(record.identityRefs, input.identityRefs ?? []);
+      record.complete = record.complete || Boolean(input.complete);
+      return sdkSucceeded({
+        snapshotId: input.snapshotId,
+        identityRefs: Object.freeze([...record.identityRefs]),
+        complete: record.complete,
+      });
+    },
     getDocument(snapshotId: DocumentSnapshotId, target: SnapshotTarget): SdkSyncResult<DocumentSnapshotReceipt> {
       const active = ensureActive();
       if (active.status === "rejected") return active;

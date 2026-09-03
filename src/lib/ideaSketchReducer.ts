@@ -68,7 +68,8 @@ export function ideaSketchReducer(
     case "REORDER_PAGE": {
       const fromIndex = state.document.pages.findIndex((page) => page.id === action.pageId);
       if (fromIndex < 0) return state;
-      const toIndex = Math.max(0, Math.min(action.toIndex, state.document.pages.length - 1));
+      if (action.toIndex < 0 || action.toIndex >= state.document.pages.length) return state;
+      const toIndex = action.toIndex;
       if (fromIndex === toIndex) return state;
       const pages = [...state.document.pages];
       const [page] = pages.splice(fromIndex, 1);
@@ -96,7 +97,7 @@ export function ideaSketchReducer(
   }
 }
 
-export function createEmptyIdeaSketchPage(index: number, id = crypto.randomUUID()): IdeaSketchPage {
+export function createEmptyIdeaSketchPage(index: number, id: string = crypto.randomUUID()): IdeaSketchPage {
   return {
     id,
     title: `Page ${index + 1}`,

@@ -492,6 +492,10 @@ export interface IdeaSketchSdkMutationResult {
   operations: readonly IdeaSketchOperationResult[];
   diagnostics: readonly string[];
   history: IdeaSketchSdkHistoryResult;
+  /** Page refs affected by a document-structure transaction. */
+  createdPageRefs?: readonly PageRef[];
+  updatedPageRefs?: readonly PageRef[];
+  deletedPageRefs?: readonly PageRef[];
 }
 
 /** Public, typed scene-service payloads.  Native Excalidraw element objects
@@ -539,6 +543,37 @@ export interface IdeaSketchPageApplyPlanInput {
   operations: readonly IdeaSketchPageOperation[];
   sceneSnapshotId?: SceneSnapshotId;
   signal?: AbortSignal;
+}
+
+export interface IdeaSketchPageSummary {
+  pageRef: PageRef;
+  index: number;
+  title: string;
+  elementCount: number;
+  cameraCount: number;
+}
+
+export interface IdeaSketchPageListOptions {
+  cursor?: SnapshotCursor;
+  limit?: number;
+}
+
+export interface IdeaSketchPageListResult {
+  documentSnapshotId: DocumentSnapshotId;
+  pages: readonly IdeaSketchPageSummary[];
+  complete: boolean;
+  nextCursor?: SnapshotCursor;
+  coverage: {
+    identityRefs: readonly PageRef[];
+  };
+}
+
+export interface IdeaSketchPagePlanValidationResult {
+  valid: true;
+  documentSnapshotId: DocumentSnapshotId;
+  sceneSnapshotId?: SceneSnapshotId;
+  operationKinds: readonly IdeaSketchPageOperation["kind"][];
+  diagnostics: readonly string[];
 }
 
 export interface IdeaSketchClearConfirmationInput {
@@ -649,6 +684,10 @@ export interface IdeaSketchSdkCapabilities {
     maxCameraCount: number;
     minCameraWidth: number;
     minCameraHeight: number;
+    maxImportElements: number;
+    maxImportBytes: number;
+    maxImportFileBytes: number;
+    maxImportTotalFileBytes: number;
   }>;
   sceneModel: IdeaSketchSceneModel;
   schemaDigest: string;
@@ -662,7 +701,7 @@ export interface IdeaSketchSdkCapabilities {
 
 export interface IdeaSketchEntityRef {
   pageRef: PageRef;
-  ref: ElementRef | CameraRef | AssetRef;
+  ref: PageRef | ElementRef | CameraRef | AssetRef;
 }
 
 export interface IdeaSketchSdkContext {
@@ -780,10 +819,10 @@ export interface IdeaSketchRequestsNamespace {
 }
 
 export interface IdeaSketchPagesNamespace {
-  list(input?: unknown): Promise<SdkResult<unknown>>;
-  select(input: unknown): Promise<SdkResult<unknown>>;
+  list(input?: IdeaSketchPageListOptions): Promise<SdkResult<IdeaSketchPageListResult>>;
+  select(input: unknown): Promise<SdkResult<{ pageRef: PageRef; active: true | false }>>;
   parseExcalidraw(input: unknown): Promise<SdkResult<ParsedPageDraftRef>>;
-  validatePlan(input: unknown): Promise<SdkResult<unknown>>;
+  validatePlan(input: unknown): Promise<SdkResult<IdeaSketchPagePlanValidationResult>>;
   applyPlan(input: IdeaSketchPageApplyPlanInput): Promise<SdkResult<IdeaSketchSdkMutationResult>>;
 }
 

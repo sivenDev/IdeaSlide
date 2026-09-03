@@ -2,7 +2,7 @@
 id: "F073-03"
 title: "Deliver Canonical IdeaSketch Page and Document Transactions"
 type: "feature"
-status: "approved"
+status: "complete"
 summary: "Implement snapshot-bound Page reads, operations, parsing, selection, and atomic document transactions before Agent and UI callers migrate."
 source: "docs/superplan/human/features.md"
 created: "2026-09-02"
@@ -41,9 +41,9 @@ parent: "F073"
 - `node --test tests/ideaSketchSdkPages.test.mjs tests/excalidrawImport.test.mjs tests/ideaSketchSdkProtocol.test.mjs`
 - Cases: pagination, strict fields and unknown rejection, title/index/last-Page constraints, parsed token expiry/reuse/caller binding, F065 duplicate contract, created TempRef mappings, and exact capability projection.
 
-- [ ] Implement every v1 Page builder/schema and its capability/limit entries once.
-- [ ] Implement document snapshots/cursors and caller-bound parsed-draft token lifecycle.
-- [ ] Preserve the established import and duplicate content contracts without exposing raw scene mutation.
+- [x] Implement every v1 Page builder/schema and its capability/limit entries once.
+- [x] Implement document snapshots/cursors and caller-bound parsed-draft token lifecycle.
+- [x] Preserve the established import and duplicate content contracts without exposing raw scene mutation.
 
 ## Task 2: Apply Page Plans Through the Shared Document Scheduler
 
@@ -68,9 +68,9 @@ parent: "F073"
 - `node --test tests/ideaSketchSdkPageTransactions.test.mjs tests/ideaSketchSdkPages.test.mjs tests/ideaSketchReducer.test.mjs tests/editorSession.test.mjs tests/ideaSketchEditor.test.mjs`
 - Cases: Page→scene and scene→Page queue order, stale successor snapshot, pending active draft, failed detached seed rollback, forbidden seed StableRef/update/delete/clear/files/indexed Camera/duplicate or cross-seed TempRef, import token atomic consumption, adjacent independent duplicate, last-Page deletion, exact reorder bounds, dirty once, non-active Page rename/reorder still produce a document-commit record, and select stop→invalidate→context ordering.
 
-- [ ] Implement atomic Page plan execution and active-editor host commit through the shared scheduler.
-- [ ] Lock F064/F065 import/duplicate behavior plus detached seed isolation and rollback.
-- [ ] Prove Page selection/mutation sequencing, scene concurrency, persistence handoff, and truthful history semantics.
+- [x] Implement atomic Page plan execution and active-editor host commit through the shared scheduler.
+- [x] Lock F064/F065 import/duplicate behavior plus detached seed isolation and rollback.
+- [x] Prove Page selection/mutation sequencing, scene concurrency, persistence handoff, and truthful history semantics.
 
 ## Task 3: Verify and Complete the Page Service Boundary
 
@@ -93,9 +93,11 @@ parent: "F073"
 - `git diff --check`
 - Disposable `.is` smoke: execute every Page operation, confirm deterministic active Page/dirty state, save/reopen and inspect the archive, then exercise stale/concurrent/last-Page/invalid-seed/token-failure paths with no mutation.
 
-- [ ] Complete Page method/operation/capability ownership and focused regression evidence.
-- [ ] Verify representative Workspace/Standalone persistence and archive integrity.
-- [ ] Record evidence, mark F073-03 complete, refresh the index, and create its separate implementation commit.
+- [x] Complete Page method/operation/capability ownership and focused regression evidence.
+- [x] Verify representative Workspace/Standalone persistence and archive integrity.
+- [x] Record evidence, mark F073-03 complete, refresh the index, and create its separate implementation commit.
+
+**Evidence:** `node --test tests/ideaSketch*.test.mjs tests/editorSession*.test.mjs tests/excalidrawImport.test.mjs tests/pageOrganizer.test.mjs` (229 passed); `npx tsc --noEmit`; `npm run build`; `git diff --check`. The repository-wide run reached 648 tests with one unrelated browser drag timeout in `tests/f012DragRuntime.test.mjs`; the complete IdeaSketch/editor/import/page-focused set is green.
 
 ## References
 - `docs/superplan/human/features.md#F073`

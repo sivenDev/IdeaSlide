@@ -34,6 +34,10 @@ export type {
   IdeaSketchScenePlanValidationResult,
   IdeaSketchSceneApplyPlanInput,
   IdeaSketchPageApplyPlanInput,
+  IdeaSketchPageListOptions,
+  IdeaSketchPageListResult,
+  IdeaSketchPagePlanValidationResult,
+  IdeaSketchPageSummary,
   IdeaSketchPageOperation,
   IdeaSketchCreateArrowOperation,
   IdeaSketchCreateCameraOperation,
@@ -100,6 +104,7 @@ export type {
   TempRef,
 } from "./types.ts";
 export type { IdeaSketchOperationKind, IdeaSketchOperationLimits } from "./operationSchemas.ts";
+export { buildIdeaSketchPageOperation, validateIdeaSketchPagePlan, isIdeaSketchPageOperation } from "./pageOperations.ts";
 export type { IdeaSketchSemanticElement, IdeaSketchSemanticText, IdeaSketchSemanticRelations } from "./sceneProjection.ts";
 
 export {
