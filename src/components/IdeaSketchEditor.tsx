@@ -350,15 +350,40 @@ export function IdeaSketchEditor({
         pages: true,
         cameras: mounted,
         assets: mounted,
+        selection: mounted,
+        view: mounted,
+        transforms: mounted,
+        events: true,
         methods: {
           pages: ["list", "select", "parseExcalidraw", "validatePlan", "applyPlan"],
-          // F073-02 owns Camera listing and asset metadata; selection and pointer
-          // creation remain explicitly owned by the later UI rollout plan.
-          cameras: ["list"],
+          cameras: ["list", ...(mounted ? ["select"] : [])],
           assets: ["listMetadata"],
         },
       },
       flushDraft,
+      updateSelection: (refs) => {
+        if (!mounted || !api || excalidrawApiRef.current !== api) {
+          throw new Error("The mounted IdeaSketch canvas is unavailable.");
+        }
+        const selectedElementIds = Object.fromEntries(refs.map((ref) => [ref.slice(ref.indexOf(":") + 1), true]));
+        api.updateScene({
+          appState: { selectedElementIds },
+          captureUpdate: CaptureUpdateAction.NEVER,
+        });
+      },
+      updateViewport: (viewport) => {
+        if (!mounted || !api || excalidrawApiRef.current !== api) {
+          throw new Error("The mounted IdeaSketch canvas is unavailable.");
+        }
+        api.updateScene({
+          appState: {
+            scrollX: viewport.scrollX,
+            scrollY: viewport.scrollY,
+            zoom: { value: viewport.zoom },
+          },
+          captureUpdate: CaptureUpdateAction.NEVER,
+        });
+      },
       commitScene: (nextScene) => {
         if (readOnly || !mounted || excalidrawApiRef.current !== api) {
           throw new Error("The mounted IdeaSketch scene is unavailable.");

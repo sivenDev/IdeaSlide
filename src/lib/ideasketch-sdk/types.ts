@@ -887,23 +887,73 @@ export interface IdeaSketchOperationsNamespace {
 
 export interface IdeaSketchCamerasNamespace {
   list(input: IdeaSketchCameraListOptions): Promise<SdkResult<IdeaSketchCameraListResult>>;
-  select(input: unknown): Promise<SdkResult<unknown>>;
+  select(input: IdeaSketchCameraSelectInput): Promise<SdkResult<IdeaSketchCameraSelectResult>>;
   beginCreate(input: unknown): Promise<SdkResult<IdeaSketchSdkMutationResult>>;
 }
 
+export interface IdeaSketchSelectionOptions {
+  snapshotId: SceneSnapshotId;
+}
+
+export interface IdeaSketchSelectionSetOptions extends IdeaSketchSelectionOptions {
+  refs: readonly (ElementRef | CameraRef)[];
+}
+
+export interface IdeaSketchSelectionResult {
+  pageRef: PageRef;
+  selectionVersion: number;
+  refs: readonly (ElementRef | CameraRef)[];
+}
+
 export interface IdeaSketchSelectionNamespace {
-  get(input: unknown): Promise<SdkResult<unknown>>;
-  set(input: unknown): Promise<SdkResult<unknown>>;
-  clear(input: unknown): Promise<SdkResult<unknown>>;
+  get(input: IdeaSketchSelectionOptions): Promise<SdkResult<IdeaSketchSelectionResult>>;
+  set(input: IdeaSketchSelectionSetOptions): Promise<SdkResult<IdeaSketchSelectionResult>>;
+  clear(input: IdeaSketchSelectionOptions): Promise<SdkResult<IdeaSketchSelectionResult>>;
+}
+
+export interface IdeaSketchViewportSummary {
+  pageRef: PageRef;
+  scrollX: number;
+  scrollY: number;
+  zoom: number;
+  bounds?: Readonly<{ x: number; y: number; width: number; height: number }>;
+  visibleRefs: readonly (ElementRef | CameraRef)[];
+}
+
+export interface IdeaSketchFocusElementsOptions extends IdeaSketchSelectionOptions {
+  refs: readonly (ElementRef | CameraRef)[];
+  fit?: boolean;
+  animate?: boolean;
+  durationMs?: number;
 }
 
 export interface IdeaSketchViewNamespace {
-  getViewport(input: unknown): Promise<SdkResult<unknown>>;
-  focusElements(input: unknown): Promise<SdkResult<unknown>>;
+  getViewport(input: IdeaSketchSelectionOptions): Promise<SdkResult<IdeaSketchViewportSummary>>;
+  focusElements(input: IdeaSketchFocusElementsOptions): Promise<SdkResult<{ pageRef: PageRef; refs: readonly (ElementRef | CameraRef)[]; viewport: IdeaSketchViewportSummary }>>;
+}
+
+export interface IdeaSketchConvertSelectionStyleInput {
+  requestId: string;
+  snapshotId: SceneSnapshotId;
+  selectedRefs: readonly ElementRef[];
+  target: "current-page" | "new-page";
+  preset: "formal";
+  documentSnapshotId?: DocumentSnapshotId;
+  signal?: AbortSignal;
 }
 
 export interface IdeaSketchTransformsNamespace {
-  convertSelectionStyle(input: unknown): Promise<SdkResult<IdeaSketchSdkMutationResult>>;
+  convertSelectionStyle(input: IdeaSketchConvertSelectionStyleInput): Promise<SdkResult<IdeaSketchSdkMutationResult>>;
+}
+
+export interface IdeaSketchCameraSelectInput extends IdeaSketchSelectionOptions {
+  cameraRef: CameraRef;
+}
+
+export interface IdeaSketchCameraSelectResult {
+  cameraRef: CameraRef;
+  selected: true;
+  focused: true;
 }
 
 export interface IdeaSketchPresentationNamespace {

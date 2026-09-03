@@ -91,6 +91,14 @@ export type {
   IdeaSketchTextStyle,
   IdeaSketchTextLayout,
   IdeaSketchSelectionChangeEvent,
+  IdeaSketchSelectionOptions,
+  IdeaSketchSelectionSetOptions,
+  IdeaSketchSelectionResult,
+  IdeaSketchViewportSummary,
+  IdeaSketchFocusElementsOptions,
+  IdeaSketchConvertSelectionStyleInput,
+  IdeaSketchCameraSelectInput,
+  IdeaSketchCameraSelectResult,
   PageRef,
   ParsedPageDraftRef,
   PresentationSessionId,
@@ -104,6 +112,26 @@ export type {
   TempRef,
 } from "./types.ts";
 export type { IdeaSketchOperationKind, IdeaSketchOperationLimits } from "./operationSchemas.ts";
+export {
+  createIdeaSketchSelectionViewService,
+} from "./selectionViewService.ts";
+export type {
+  IdeaSketchSelectionSummary,
+  IdeaSketchSelectionViewServiceInput,
+} from "./selectionViewService.ts";
+export { createIdeaSketchTransformsService } from "./transformsService.ts";
+export type {
+  IdeaSketchTransformsServiceInput,
+} from "./transformsService.ts";
+export {
+  createIdeaSketchEventDispatcher,
+  createIdeaSketchEventHub,
+  createIdeaSketchEventsNamespace,
+} from "./events.ts";
+export type {
+  IdeaSketchEventDispatcher,
+  IdeaSketchEventHub,
+} from "./events.ts";
 export { buildIdeaSketchPageOperation, validateIdeaSketchPagePlan, isIdeaSketchPageOperation } from "./pageOperations.ts";
 export type { IdeaSketchSemanticElement, IdeaSketchSemanticText, IdeaSketchSemanticRelations } from "./sceneProjection.ts";
 

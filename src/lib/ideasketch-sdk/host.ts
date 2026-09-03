@@ -11,6 +11,9 @@ import { createSnapshotStore } from "./snapshots.ts";
 import { buildIdeaSketchOperation, type IdeaSketchOperationLimits } from "./operationSchemas.ts";
 import { createIdeaSketchSceneService } from "./sceneService.ts";
 import { createIdeaSketchCameraService } from "./cameraService.ts";
+import { createIdeaSketchSelectionViewService } from "./selectionViewService.ts";
+import { createIdeaSketchTransformsService } from "./transformsService.ts";
+import { createIdeaSketchEventHub } from "./events.ts";
 import { createIdeaSketchPagesService } from "./pagesService.ts";
 import {
   createDocumentMutationScheduler,
@@ -50,6 +53,9 @@ import {
   type SdkProtocolVersion,
   type SdkResult,
   type SdkSyncResult,
+  type DocumentRef,
+  type IdeaSketchDocumentCommittedEvent,
+  type IdeaSketchSceneCommittedEvent,
 } from "./types.ts";
 import type { IdeaSketchOperationKind } from "./operationSchemas.ts";
 import type { IdeaSketchDocument } from "../../types.ts";
@@ -161,6 +167,17 @@ export interface IdeaSketchSdkHostTarget {
   stopPresentation?: () => void;
   recordDocumentCommit?: (record: IdeaSketchInternalDocumentCommitRecord) => void;
   cleanupSession?: (sessionId: CallerSessionId) => Promise<void>;
+  /** Non-persistent selection and viewport adapters.  Hosts must implement
+   * these with a NEVER capture; they are intentionally separate from the
+   * canonical scene/document mutation callbacks. */
+  updateSelection?: (refs: readonly string[]) => void | Promise<void>;
+  updateViewport?: (viewport: { scrollX: number; scrollY: number; zoom: number }) => void | Promise<void>;
+  beginCreateCamera?: (input: {
+    requestId: string;
+    snapshotId: import("./types.ts").SceneSnapshotId;
+    atIndex?: number;
+    signal?: AbortSignal;
+  }) => Promise<SdkResult<import("./types.ts").IdeaSketchSdkMutationResult>>;
   confirmClear?: (input: { scope: "content-only" | "all-elements"; pageRef: string; snapshotId: import("./types.ts").SceneSnapshotId }) => Promise<boolean>;
 }
 
@@ -213,8 +230,29 @@ function targetAvailability(target: IdeaSketchSdkHostTarget): IdeaSketchSdkServi
   // Camera listing and asset metadata.  The remaining Camera interaction and
   // all later UI/IO/presentation methods stay unavailable until their rollout
   // plans provide explicit method entries.
-  if (target.services.cameras && !methods.cameras) methods.cameras = ["list"];
+  if (target.services.cameras && !methods.cameras) {
+    methods.cameras = [
+      "list",
+      ...(target.updateSelection && target.updateViewport ? ["select"] : []),
+      ...(target.beginCreateCamera ? ["beginCreate"] : []),
+    ];
+  }
   if (target.services.assets && !methods.assets) methods.assets = ["listMetadata"];
+  if (target.services.selection && !methods.selection) {
+    methods.selection = target.updateSelection
+      ? [...IDEA_SKETCH_SDK_METHOD_CATALOG.selection]
+      : [];
+  }
+  if (target.services.view && !methods.view) {
+    methods.view = target.updateViewport
+      ? [...IDEA_SKETCH_SDK_METHOD_CATALOG.view]
+      : [];
+  }
+  if (target.services.transforms && !methods.transforms) {
+    methods.transforms = target.services.scene && (target.services.pages || target.commitScene)
+      ? [...IDEA_SKETCH_SDK_METHOD_CATALOG.transforms]
+      : [];
+  }
   // Page transactions are the canonical document structure boundary. Other
   // deferred namespaces remain unavailable until their rollout plans opt in.
   if (target.services.pages && !methods.pages) {
@@ -371,6 +409,7 @@ export function createIdeaSketchSdkHost(
   getTarget: () => IdeaSketchSdkHostTarget | undefined,
 ): IdeaSketchSdkHost {
   const mutationScheduler = createDocumentMutationScheduler();
+  const eventHubsByDocument = new Map<string, ReturnType<typeof createIdeaSketchEventHub>>();
   const sessionsByCaller = new WeakMap<object, Map<string, {
     controller: ReturnType<typeof createSessionController>;
     ledger: ReturnType<typeof createRequestLedger>;
@@ -487,6 +526,13 @@ export function createIdeaSketchSdkHost(
               true,
             );
       }
+      const documentRef = `document:${target.documentId}` as DocumentRef;
+      let eventHub = eventHubsByDocument.get(boundDocumentSessionId);
+      if (!eventHub) {
+        eventHub = createIdeaSketchEventHub({ documentRef });
+        eventHubsByDocument.set(boundDocumentSessionId, eventHub);
+      }
+      const eventDispatcher = eventHub.createDispatcher();
       const getSessionTarget = () => {
         try {
           const candidate = getTarget();
@@ -574,7 +620,10 @@ export function createIdeaSketchSdkHost(
         ...(target.cleanupSession
           ? { cleanupSession: () => target.cleanupSession!(id) }
           : {}),
-        invalidateCallerResources: () => snapshots.dispose(),
+        invalidateCallerResources: () => {
+          snapshots.dispose();
+          eventDispatcher.dispose();
+        },
         onDisposed: () => {
           if (callerSessions.get(boundDocumentSessionId)?.controller === controller) {
             callerSessions.delete(boundDocumentSessionId);
@@ -604,6 +653,7 @@ export function createIdeaSketchSdkHost(
         isActive: controller.isActive,
         isMethodAvailable: (method) => Boolean(getCapabilities().availableMethods.cameras?.includes(method)),
         listCameras: sceneService.listCameras,
+        ...(target.beginCreateCamera ? { beginCreate: async (value) => getSessionTarget()?.beginCreateCamera?.(value) ?? sdkRejected("editor_unavailable", "The active Camera interaction is unavailable.", true) } : {}),
       });
       const pagesService = createIdeaSketchPagesService({
         sessionId: id,
@@ -658,36 +708,130 @@ export function createIdeaSketchSdkHost(
         },
       };
 
-      const pages: IdeaSketchPagesNamespace = {
+      const rawPages: IdeaSketchPagesNamespace = {
         list: (value) => pagesService.list(value as never),
         select: (value) => pagesService.select(value as never),
         parseExcalidraw: (value) => pagesService.parseExcalidraw(value),
         validatePlan: (value) => pagesService.validatePlan(value),
         applyPlan: (value) => pagesService.applyPlan(value as never),
       };
-      const scene: IdeaSketchSceneNamespace = {
+      const rawScene: IdeaSketchSceneNamespace = {
         read: (value) => sceneService.read(value as never),
         getElements: (value) => sceneService.getElements(value as never),
         requestClearConfirmation: (value) => sceneService.requestClearConfirmation(value as never),
         validatePlan: (value) => sceneService.validatePlan(value as never),
         applyPlan: (value) => sceneService.applyPlan(value as never),
       };
+      const scene: IdeaSketchSceneNamespace = {
+        read: rawScene.read,
+        getElements: rawScene.getElements,
+        requestClearConfirmation: rawScene.requestClearConfirmation,
+        validatePlan: rawScene.validatePlan,
+        applyPlan: async (value) => {
+          const result = await rawScene.applyPlan(value);
+          if (result.status === "succeeded" && result.value.outcome === "applied") {
+            const live = getSessionTarget();
+            const affected = [...new Set([
+              ...result.value.updatedRefs.map((entity) => entity.ref),
+              ...result.value.deletedRefs.map((entity) => entity.ref),
+              ...result.value.cascadedRefs.map((entity) => entity.ref),
+              ...Object.values(result.value.createdRefs).map((entity) => typeof entity === "string" ? entity : entity.ref),
+            ])];
+            const boundedAffected = affected.slice(0, 200);
+            const event: Omit<IdeaSketchSceneCommittedEvent, "sequence" | "documentRef"> = {
+              type: "scene-committed",
+              pageRef: `page:${live?.activePageId ?? target.activePageId}` as import("./types.ts").PageRef,
+              sceneEditVersion: result.value.afterEditVersion,
+              origin: "sdk",
+              operationKinds: Object.freeze([...new Set(result.value.operations.map((operation) => operation.kind))]),
+              affectedRefs: Object.freeze(boundedAffected) as import("./types.ts").IdeaSketchSceneCommittedEvent["affectedRefs"],
+              truncated: affected.length > boundedAffected.length,
+            };
+            eventHub.publish(event);
+          }
+          return result;
+        },
+      };
+      const pages: IdeaSketchPagesNamespace = {
+        list: rawPages.list,
+        parseExcalidraw: rawPages.parseExcalidraw,
+        validatePlan: rawPages.validatePlan,
+        select: async (value) => {
+          const beforePage = getSessionTarget()?.activePageId;
+          const result = await rawPages.select(value);
+          const afterPage = getSessionTarget()?.activePageId;
+          if (result.status === "succeeded" && beforePage !== afterPage && afterPage) {
+            eventHub.publish({
+              type: "context-change",
+              activePageRef: `page:${afterPage}` as import("./types.ts").PageRef,
+            });
+          }
+          return result;
+        },
+        applyPlan: async (value) => {
+          const beforePage = getSessionTarget()?.activePageId;
+          const result = await rawPages.applyPlan(value);
+          if (result.status === "succeeded" && result.value.outcome === "applied") {
+            const live = getSessionTarget();
+            const documentEvent: Omit<IdeaSketchDocumentCommittedEvent, "sequence" | "documentRef"> = {
+              type: "document-committed",
+              documentVersion: live?.revision ?? target.revision,
+              operationKinds: result.value.operations.map((operation) => operation.kind),
+              createdPageRefs: (result.value.createdPageRefs ?? []).slice(),
+              updatedPageRefs: (result.value.updatedPageRefs ?? []).slice(),
+              deletedPageRefs: (result.value.deletedPageRefs ?? []).slice(),
+            };
+            const events: Array<Omit<IdeaSketchDocumentCommittedEvent, "sequence" | "documentRef"> | Omit<import("./types.ts").IdeaSketchContextChangeEvent, "sequence" | "documentRef">> = [documentEvent];
+            const afterPage = live?.activePageId;
+            if (beforePage !== afterPage && afterPage) {
+              events.push({ type: "context-change", activePageRef: `page:${afterPage}` as import("./types.ts").PageRef });
+            }
+            eventHub.publishBatch(events);
+          }
+          return result;
+        },
+      };
+      const selectionViewService = createIdeaSketchSelectionViewService({
+        getTarget: getSessionTarget,
+        getScopes: () => getCapabilities().scopes,
+        isActive: controller.isActive,
+        isMethodAvailable: (namespace, method) => Boolean(getCapabilities().availableMethods[namespace]?.includes(method)),
+        readScene: (value) => scene.read(value),
+        getSceneElements: (value) => scene.getElements(value),
+        ...(target.updateSelection ? { updateSelection: (refs) => getSessionTarget()?.updateSelection?.(refs) } : {}),
+        ...(target.updateViewport ? { updateViewport: (viewport) => getSessionTarget()?.updateViewport?.(viewport) } : {}),
+        onSelectionChange: (selection) => {
+          eventHub.publish({
+            type: "selection-change",
+            pageRef: selection.pageRef,
+            selectionVersion: selection.selectionVersion,
+            refs: selection.refs,
+          });
+        },
+      });
+      const transformsService = createIdeaSketchTransformsService({
+        isActive: controller.isActive,
+        getScopes: () => getCapabilities().scopes,
+        isMethodAvailable: (namespace, method) => Boolean(getCapabilities().availableMethods[namespace]?.includes(method)),
+        scene,
+        pages,
+      });
       const cameras: IdeaSketchCamerasNamespace = {
         list: (value) => cameraService.list(value as never),
-        select: (value) => cameraService.select(value as never),
+        select: (value) => selectionViewService.cameras.select(value as never),
         beginCreate: (value) => cameraService.beginCreate(value as never),
       };
       const selection: IdeaSketchSelectionNamespace = {
-        get: () => unsupported("selection", "get"),
-        set: () => unsupported("selection", "set"),
-        clear: () => unsupported("selection", "clear"),
+        get: (value) => selectionViewService.selection.get(value as never),
+        set: (value) => selectionViewService.selection.set(value as never),
+        clear: (value) => selectionViewService.selection.clear(value as never),
       };
       const view: IdeaSketchViewNamespace = {
-        getViewport: () => unsupported("view", "getViewport"),
-        focusElements: () => unsupported("view", "focusElements"),
+        getViewport: (value) => selectionViewService.view.getViewport(value as never),
+        focusElements: (value) => selectionViewService.view.focusElements(value as never),
       };
       const transforms: IdeaSketchTransformsNamespace = {
-        convertSelectionStyle: () => unsupported("transforms", "convertSelectionStyle"),
+        convertSelectionStyle: (value) => transformsService.convertSelectionStyle(value as never),
       };
       const presentation: IdeaSketchPresentationNamespace = {
         getState: () => unsupported("presentation", "getState"),
@@ -726,7 +870,7 @@ export function createIdeaSketchSdkHost(
           if (!capabilities.availableMethods.events?.includes(method)) {
             return sdkRejected("unsupported_operation", "The event service is unavailable.");
           }
-          return controller.subscribe(
+          return eventDispatcher.subscribe(
             type,
             handler as IdeaSketchSdkEventHandler<IdeaSketchSdkEvent>,
           );
