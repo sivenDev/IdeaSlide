@@ -528,7 +528,7 @@ Change the desktop updater so it first fetches the update manifest and signed in
 
 ## F073: Define a unified IdeaSketch JSSDK with text editing
 
-- status: accepted
+- status: done
 - created: 2026-09-02
 - requires_rfc: true
 

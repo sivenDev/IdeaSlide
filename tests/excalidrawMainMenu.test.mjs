@@ -6,18 +6,14 @@ const readSource = (path) => readFile(new URL(`../${path}`, import.meta.url), 'u
 
 test('SlideCanvas moves the former Excalidraw MainMenu actions behind its live command API', async () => {
   const source = await readSource('src/components/SlideCanvas.tsx');
+  const editor = await readSource('src/components/IdeaSketchEditor.tsx');
 
   assert.doesNotMatch(source, /\bMainMenu\b/);
-  assert.match(source, /SlideCanvasCommandApi/);
-  assert.match(source, /exportDrawio/);
-  assert.match(source, /openImageExport/);
-  assert.match(source, /changeCanvasBackground/);
-  assert.match(source, /clearCanvas/);
+  assert.doesNotMatch(source, /SlideCanvasCommandApi|exportDrawio|openImageExport|changeCanvasBackground|clearCanvas/);
   assert.doesNotMatch(source, /openHelp|name: "help"/);
-  assert.match(source, /api\.getSceneElements\(\)/);
-  assert.match(source, /api\.getFiles\(\)/);
-  assert.match(source, /exportExcalidrawToDrawio/);
-  assert.match(source, /openDialog:\s*\{ name: "imageExport" \}/);
+  assert.match(editor, /const exportActivePageAsDrawio = useCallback/);
+  assert.match(editor, /sdk\?\.io\.openImageExportDialog\(\)/);
+  assert.match(editor, /sdk\.scene\.applyPlan\(/);
 });
 
 test('SlideCanvas reserves public top-right UI for contextual selection conversion only', async () => {

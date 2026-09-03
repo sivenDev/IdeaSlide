@@ -64,13 +64,13 @@ export function createSnapshotStore({ sessionId }: { sessionId: string }) {
     ? sdkRejected("session_closed", "The snapshot session is closed.")
     : sdkSucceeded(undefined);
 
-  const validateTarget = (record: SnapshotRecord, target: SnapshotTarget) => (
+  const validateTarget = (record: SnapshotRecord, target: SnapshotTarget, allowDocumentRevisionDrift = false) => (
     record.documentId === target.documentId
     && record.pageId === target.pageId
     && record.digest === target.digest
     && record.editVersion === target.editVersion
     && record.nativeInteractionEpoch === target.nativeInteractionEpoch
-    && record.revision === target.revision
+    && (allowDocumentRevisionDrift || record.revision === target.revision)
     && record.documentStatus === target.documentStatus
     && record.sourceMarker === target.sourceMarker
   );
@@ -167,7 +167,7 @@ export function createSnapshotStore({ sessionId }: { sessionId: string }) {
       if (active.status === "rejected") return active;
       const record = documents.get(snapshotId);
       if (!record) return sdkRejected("snapshot_required", "The document snapshot does not exist.");
-      if (!validateTarget(record, target)) return sdkRejected("snapshot_stale", "The document snapshot is stale.", true);
+      if (!validateTarget(record, target, true)) return sdkRejected("snapshot_stale", "The document snapshot is stale.", true);
       return sdkSucceeded({
         snapshotId,
         identityRefs: Object.freeze([...record.identityRefs]),

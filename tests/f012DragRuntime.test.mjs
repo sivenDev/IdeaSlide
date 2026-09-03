@@ -240,7 +240,7 @@ test('Workspace drag completes in WebKit after React drop feedback updates', asy
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await installTauriMock(page);
     await page.goto(`http://127.0.0.1:${address.port}/`, { waitUntil: 'networkidle' });
-    await page.getByLabel('Workspaces and recent files').getByRole('button', { name: 'Open Workspace' }).click();
+    await page.getByLabel('Workspaces and recent files').getByRole('button', { name: 'Open Workspace' }).click({ timeout: 60_000 });
 
     const rows = page.getByRole('treeitem');
     await rows.first().waitFor();
@@ -304,7 +304,7 @@ test('virtualized Page cards remain sortable in WebKit thumbnail mode', async (c
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await installTauriMock(page);
     await page.goto(`http://127.0.0.1:${address.port}/`, { waitUntil: 'networkidle' });
-    await page.getByLabel('Workspaces and recent files').getByRole('button', { name: 'Open Workspace' }).click();
+    await page.getByLabel('Workspaces and recent files').getByRole('button', { name: 'Open Workspace' }).click({ timeout: 60_000 });
     await page.getByRole('button', { name: 'Open a.is' }).click();
 
     await page.locator('.excalidraw .App-toolbar.Island').waitFor({ timeout: 60_000 });

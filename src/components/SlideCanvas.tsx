@@ -1,7 +1,5 @@
 import {
-  CaptureUpdateAction,
   Excalidraw,
-  newElementWith,
 } from "@excalidraw/excalidraw";
 import {
   memo,
@@ -13,7 +11,6 @@ import {
   type FormEvent as ReactFormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
-import { getNextCameraOrder } from "../lib/cameraUtils";
 import {
   createCameraPreviewId,
   enterCameraDrawingMode,
@@ -24,7 +21,6 @@ import {
   getStyleConversionAvailability,
   type StyleConversionTarget,
 } from "../lib/excalidrawStyleConversion";
-import { exportExcalidrawToDrawio } from "../lib/drawioExport";
 import { useSettings } from "../hooks/useSettings";
 import { CanvasSelectionActions } from "./CanvasSelectionActions";
 import { CameraBadgeOverlay } from "./CameraBadgeOverlay";
@@ -65,23 +61,19 @@ function isWritableEventTarget(target: EventTarget | null) {
   );
 }
 
-export interface SlideCanvasCommandApi {
-  exportDrawio: () => void;
-  openImageExport: () => void;
-  changeCanvasBackground: (color: string) => void;
-  clearCanvas: () => void;
-}
-
 interface SlideCanvasProps {
   slideId: string;
-  pageTitle: string;
+  /** @deprecated Canvas commands are now owned by the SDK facade. */
+  pageTitle?: string;
   elements: readonly any[];
   appState: Partial<any>;
   files: Record<string, any>;
   onChange: (elements: readonly any[], appState: Partial<any>, files: Record<string, any>) => boolean;
   viewMode?: boolean;
   onApiReady?: (api: any | undefined, slideId: string) => void;
-  onCommandApiReady?: (api: SlideCanvasCommandApi | undefined, slideId: string) => void;
+  /** @deprecated Retained for source compatibility; no independent command implementation remains. */
+  onCommandApiReady?: unknown;
+  onCameraCreateRequest?: (bounds: { x: number; y: number; width: number; height: number }) => void;
   onConvertSelection?: (target: StyleConversionTarget) => void;
   onSelectionPresenceChange?: (selected: boolean) => void;
   onInteractionChange?: (active: boolean) => void;
@@ -107,14 +99,13 @@ const excalidrawCanvasActions = {
 
 function SlideCanvasInner({
   slideId,
-  pageTitle,
   elements,
   appState,
   files,
   onChange,
   viewMode,
   onApiReady,
-  onCommandApiReady,
+  onCameraCreateRequest,
   onConvertSelection,
   onSelectionPresenceChange,
   onInteractionChange,
@@ -357,7 +348,6 @@ function SlideCanvasInner({
   const drawStartRef = useRef<{ x: number; y: number } | null>(null);
   const cameraPreviewActiveRef = useRef(false);
   const cameraPreviewIdRef = useRef<string | undefined>(undefined);
-  const drawioExportInFlightRef = useRef(false);
   const [apiReadyVersion, setApiReadyVersion] = useState(0);
 
   // Handle API ready
@@ -574,49 +564,21 @@ function SlideCanvasInner({
 
         // Only create camera if drag was significant (> 10px)
         if (width > 10 && height > 10) {
-          const order = getNextCameraOrder(currentElements);
-
-          // Create camera element
-          const cameraElement = {
-            id: crypto.randomUUID(),
-            type: "rectangle",
-            x,
-            y,
-            width,
-            height,
-            angle: 0,
-            strokeColor: "#1e90ff",
-            backgroundColor: "transparent",
-            fillStyle: "solid",
-            strokeWidth: 2,
-            strokeStyle: "dashed",
-            roughness: 0,
-            opacity: 60,
-            roundness: null,
-            seed: Math.floor(Math.random() * 2147483647),
-            version: 1,
-            versionNonce: Math.floor(Math.random() * 2147483647),
-            isDeleted: false,
-            groupIds: [],
-            frameId: null,
-            boundElements: null,
-            updated: Date.now(),
-            link: null,
-            locked: false,
-            customData: { type: "camera", order },
-          };
-
-          // Add camera to scene
-          cameraPreviewActiveRef.current = false;
-          api.updateScene({
-            elements: [...currentElements, cameraElement],
-          });
-        } else {
-          // Just remove preview if drag was too small
-          cameraPreviewActiveRef.current = false;
+          // Remove the ephemeral preview without persisting it. The final
+          // Camera is created by the trusted UI SDK adapter in the parent.
+          cameraPreviewActiveRef.current = true;
           api.updateScene({
             elements: currentElements,
           });
+          cameraPreviewActiveRef.current = false;
+          onCameraCreateRequest?.({ x, y, width, height });
+        } else {
+          // Just remove preview if drag was too small
+          cameraPreviewActiveRef.current = true;
+          api.updateScene({
+            elements: currentElements,
+          });
+          cameraPreviewActiveRef.current = false;
         }
 
         // Reset drawing state
@@ -630,7 +592,7 @@ function SlideCanvasInner({
     });
 
     return unsubscribe;
-  }, [finishNativeInteractionSoon, isDrawingCamera]);
+  }, [finishNativeInteractionSoon, isDrawingCamera, onCameraCreateRequest]);
 
   useEffect(() => {
     if (isDrawingCamera) {
@@ -663,81 +625,6 @@ function SlideCanvasInner({
     onCameraPreviewChangeRef.current?.(undefined);
   }, []);
 
-  const handleExportDrawio = useCallback(() => {
-    const api = excalidrawApiRef.current;
-    if (!api || drawioExportInFlightRef.current) return;
-    drawioExportInFlightRef.current = true;
-
-    void exportExcalidrawToDrawio({
-      pageTitle,
-      elements: api.getSceneElements().filter(
-        (element: any) => element.id !== cameraPreviewIdRef.current,
-      ),
-      files: api.getFiles(),
-    })
-      .then((result) => {
-        if (result.status === "cancelled") return;
-        const skipped = result.summary.skipped > 0
-          ? ` Skipped ${result.summary.skipped} unsupported element${result.summary.skipped === 1 ? "" : "s"}: ${result.summary.skippedTypes.join(", ")}.`
-          : "";
-        api.setToast({
-          message: `Exported ${result.fileName}.${skipped}`,
-          duration: skipped ? 5200 : 3200,
-        });
-      })
-      .catch((error) => {
-        const detail = error instanceof Error ? error.message : String(error);
-        api.setToast({ message: `Failed to export draw.io: ${detail}`, duration: 5200 });
-      })
-      .finally(() => {
-        drawioExportInFlightRef.current = false;
-      });
-  }, [pageTitle]);
-
-  const openImageExport = useCallback(() => {
-    excalidrawApiRef.current?.updateScene({
-      appState: { openDialog: { name: "imageExport" } },
-      captureUpdate: CaptureUpdateAction.NEVER,
-    });
-  }, []);
-  const changeCanvasBackground = useCallback((color: string) => {
-    const api = excalidrawApiRef.current;
-    if (!api || viewMode) return;
-    api.updateScene({
-      appState: { viewBackgroundColor: color },
-      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-    });
-  }, [viewMode]);
-  const clearCanvas = useCallback(() => {
-    const api = excalidrawApiRef.current;
-    if (!api || viewMode) return;
-    api.updateScene({
-      elements: api.getSceneElementsIncludingDeleted().map((element: any) => (
-        element.isDeleted ? element : newElementWith(element, { isDeleted: true })
-      )),
-      appState: { selectedElementIds: {} },
-      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-    });
-  }, [viewMode]);
-  useEffect(() => {
-    if (apiReadyVersion === 0 || !onCommandApiReady) return;
-    const commandApi: SlideCanvasCommandApi = {
-      exportDrawio: handleExportDrawio,
-      openImageExport,
-      changeCanvasBackground,
-      clearCanvas,
-    };
-    onCommandApiReady(commandApi, slideId);
-    return () => onCommandApiReady(undefined, slideId);
-  }, [
-    apiReadyVersion,
-    changeCanvasBackground,
-    clearCanvas,
-    handleExportDrawio,
-    onCommandApiReady,
-    openImageExport,
-    slideId,
-  ]);
   const renderSelectionActions = useCallback(
     () => onConvertSelection
       ? <CanvasSelectionActions onConvert={onConvertSelection} />

@@ -13,17 +13,10 @@ import {
   type IdeaSketchAction,
   type IdeaSketchEditorState,
 } from "../lib/ideaSketchReducer";
-import { extractCameras, reorderCameras, type Camera } from "../lib/cameraUtils";
+import { extractCameras, type Camera } from "../lib/cameraUtils";
 import { chooseExcalidrawFile, isDesktopOperationCancelled } from "../lib/tauriCommands";
-import { createIdeaSketchPageFromImport, parseExcalidrawImport } from "../lib/excalidrawImport";
-import { exportPageAsExcalidraw, exportPageAsIdeaSketch } from "../lib/ideaSketchPageExport";
-import {
-  buildCurrentPageStyleConversion,
-  buildNewPageStyleConversion,
-  formatStyleConversionSummary,
-  type StyleConversionTarget,
-} from "../lib/excalidrawStyleConversion";
-import { SlideCanvas, type SlideCanvasCommandApi } from "./SlideCanvas";
+import type { StyleConversionTarget } from "../lib/excalidrawStyleConversion";
+import { SlideCanvas } from "./SlideCanvas";
 import { ResizableDivider } from "./ResizableDivider";
 import {
   ActionsToggleButton,
@@ -33,12 +26,8 @@ import { IdeaSketchClearCanvasDialog } from "./IdeaSketchClearCanvasDialog";
 import type { ActiveAgentEditorBinding, AgentChangeSet } from "../lib/agent/types";
 import { createAgentToolHost } from "../lib/agent/agentToolHost";
 import {
-  buildIdeaSketchDrawingPlanScene,
-  buildIdeaSketchLayoutPlanScene,
   ideaSketchAgentExtension,
   getIdeaSketchSourceFingerprint,
-  isIdeaSketchDrawingOperation,
-  isIdeaSketchLayoutOperation,
   type IdeaSketchAgentOperation,
 } from "../lib/agent/extensions/ideaSketchAgentExtension";
 import { createIdeaSketchAgentSdkToolExecutor } from "../lib/agent/extensions/ideaSketchAgentSdkAdapter.ts";
@@ -52,9 +41,14 @@ import {
 } from "./IdeaSketchNavigator";
 import {
   createIdeaSketchSdkHostRegistrationLifecycle,
+  createIdeaSketchHostCaller,
+  getActiveIdeaSketchSdkHost,
   type IdeaSketchNativeInteractionReason,
   type IdeaSketchSdkHostTarget,
 } from "../lib/ideasketch-sdk/host.ts";
+import { IDEA_SKETCH_SDK_PROTOCOL_VERSION } from "../lib/ideasketch-sdk/capabilities.ts";
+import type { IdeaSketchSdk } from "../lib/ideasketch-sdk/types.ts";
+import { createIdeaSketchRolloutController } from "../lib/ideasketch-sdk/rollout.ts";
 import {
   captureIdeaSketchHostScene,
   commitIdeaSketchHostScene,
@@ -111,23 +105,6 @@ interface IdeaSketchEditorProps {
   onAgentBindingChange: (binding: ActiveAgentEditorBinding | undefined, documentId: string) => void;
 }
 
-function refreshConvertedTextDimensions(
-  elements: readonly any[],
-  convertedElementIds: Record<string, boolean>,
-) {
-  const restoredElements = restoreElements(elements as any[], null, {
-    refreshDimensions: true,
-    repairBindings: true,
-  });
-  const restoredById = new Map(restoredElements.map((element) => [element.id, element]));
-
-  return elements.map((element) => (
-    element.type === "text" && convertedElementIds[element.id]
-      ? restoredById.get(element.id) ?? element
-      : element
-  ));
-}
-
 export function IdeaSketchEditor({
   document,
   readOnly = false,
@@ -180,8 +157,15 @@ export function IdeaSketchEditor({
   const sdkSceneCommitSettlementsRef = useRef(createIdeaSketchSceneCommitSettlements());
   const sdkSceneCommitRecordsRef = useRef<IdeaSketchInternalSceneCommitRecord[]>([]);
   const sdkDocumentCommitRecordsRef = useRef<IdeaSketchInternalDocumentCommitRecord[]>([]);
-  const canvasCommandApiRef = useRef<SlideCanvasCommandApi | undefined>(undefined);
-  const canvasCommandSlideIdRef = useRef<string | undefined>(undefined);
+  const trustedUiSdkRef = useRef<{ documentId: string; promise?: Promise<IdeaSketchSdk | undefined>; sdk?: IdeaSketchSdk }>({ documentId: document.id });
+  const rolloutRef = useRef(createIdeaSketchRolloutController());
+  const presentationSessionRef = useRef<import("../lib/ideasketch-sdk/types.ts").PresentationSessionId | undefined>(undefined);
+  const pendingCameraCreateRef = useRef<{
+    requestId: string;
+    snapshotId: import("../lib/ideasketch-sdk/types.ts").SceneSnapshotId;
+    atIndex?: number;
+    resolve: (result: import("../lib/ideasketch-sdk/types.ts").SdkResult<import("../lib/ideasketch-sdk/types.ts").IdeaSketchSdkMutationResult>) => void;
+  } | undefined>(undefined);
   const sdkNativeInteractionRef = useRef<{
     epoch: number;
     reasons: readonly IdeaSketchNativeInteractionReason[];
@@ -324,6 +308,7 @@ export function IdeaSketchEditor({
       nativeInteraction.reasons,
       scene.appState,
     );
+    const desktopAvailable = Boolean((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
     return {
       documentSessionId: document.id,
       documentId: document.id,
@@ -343,7 +328,7 @@ export function IdeaSketchEditor({
       scene,
       services: {
         mountedCanvas: mounted,
-        desktop: Boolean((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__),
+        desktop: desktopAvailable,
         documentUndo: false,
         scene: mounted,
         operations: mounted,
@@ -353,11 +338,24 @@ export function IdeaSketchEditor({
         selection: mounted,
         view: mounted,
         transforms: mounted,
+        presentation: mounted,
+        io: mounted,
         events: true,
         methods: {
           pages: ["list", "select", "parseExcalidraw", "validatePlan", "applyPlan"],
-          cameras: ["list", ...(mounted ? ["select"] : [])],
+          cameras: ["list", ...(mounted ? ["select", "beginCreate"] : [])],
           assets: ["listMetadata"],
+          presentation: ["getState", "start", "stop", "next", "previous", "goToCamera"],
+          io: [
+            "serializeActivePageAsExcalidraw",
+            "serializeActivePageAsIdeaSketch",
+            "serializeActivePageAsDrawio",
+            "exportActivePageAsExcalidraw",
+            "exportActivePageAsIdeaSketch",
+            "exportActivePageAsDrawio",
+            "openImageExportDialog",
+            ...(desktopAvailable ? ["pickExcalidrawAndAddPage"] : []),
+          ],
         },
       },
       flushDraft,
@@ -384,6 +382,21 @@ export function IdeaSketchEditor({
           captureUpdate: CaptureUpdateAction.NEVER,
         });
       },
+      viewportSize: mounted && api
+        ? { width: Number(api.getAppState().width ?? 0), height: Number(api.getAppState().height ?? 0) }
+        : undefined,
+      beginCreateCamera,
+      openImageExportDialog: () => {
+        if (!mounted || !api || excalidrawApiRef.current !== api) throw new Error("The mounted IdeaSketch canvas is unavailable.");
+        api.updateScene({
+          appState: { openDialog: { name: "imageExport" } },
+          captureUpdate: CaptureUpdateAction.NEVER,
+        });
+      },
+      chooseExcalidrawImport: chooseExcalidrawFile,
+      // The visible Radix confirmation owns the user gesture; the SDK receipt
+      // is still issued and consumed before the canonical clear transaction.
+      confirmClear: async () => true,
       commitScene: (nextScene) => {
         if (readOnly || !mounted || excalidrawApiRef.current !== api) {
           throw new Error("The mounted IdeaSketch scene is unavailable.");
@@ -454,6 +467,20 @@ export function IdeaSketchEditor({
           deletedPageRefs: Object.freeze([...record.deletedPageRefs]),
         }));
       },
+      cleanupSession: async () => {
+        const pending = pendingCameraCreateRef.current;
+        pendingCameraCreateRef.current = undefined;
+        if (!pending) return;
+        pending.resolve({
+          status: "cancelled",
+          error: {
+            code: "cancelled_before_commit",
+            message: "Camera creation was cancelled because the SDK session was disposed.",
+            retryable: true,
+          },
+        });
+        setCameraDrawingRequestToken((token) => token + 1);
+      },
     };
   }, [
     document.id,
@@ -506,34 +533,98 @@ export function IdeaSketchEditor({
     ? selectedCameraId
     : undefined;
 
-  const selectPage = useCallback((pageId: string) => {
-    flushDraft();
-    applyAction({ type: "SELECT_PAGE", pageId }, false);
-  }, [applyAction, flushDraft]);
-  const addPage = useCallback(() => {
-    flushDraft();
-    applyAction({ type: "ADD_PAGE", page: createEmptyIdeaSketchPage(editorStateRef.current.document.pages.length) });
-  }, [applyAction, flushDraft]);
-  const duplicatePage = useCallback((pageId: string) => {
+  const getTrustedUiSdk = useCallback(async (): Promise<IdeaSketchSdk | undefined> => {
+    if (trustedUiSdkRef.current.documentId !== document.id) {
+      void trustedUiSdkRef.current.sdk?.session.dispose();
+      trustedUiSdkRef.current = { documentId: document.id };
+    }
+    if (!trustedUiSdkRef.current.promise) {
+      trustedUiSdkRef.current.promise = (async () => {
+        const callerId = `trusted-ui:${document.id}`;
+        for (const namespace of ["pages", "scene", "cameras", "selection", "view", "transforms", "presentation", "io", "events"] as const) {
+          const selected = rolloutRef.current.select({ callerId, namespace, sdkAvailable: true });
+          if (selected.status !== "succeeded") return undefined;
+        }
+        const result = await getActiveIdeaSketchSdkHost().createSession({
+          caller: createIdeaSketchHostCaller({ id: callerId, profile: "trusted-ui" }),
+          sdkProtocolVersion: IDEA_SKETCH_SDK_PROTOCOL_VERSION,
+        });
+        if (result.status !== "succeeded") return undefined;
+        trustedUiSdkRef.current.sdk = result.value;
+        return result.value;
+      })();
+    }
+    return trustedUiSdkRef.current.promise;
+  }, [document.id]);
+
+  const applyPagePlan = useCallback(async (operations: readonly any[], requestId: string) => {
+    const sdk = await getTrustedUiSdk();
+    if (!sdk) return undefined;
+    const listed = await sdk.pages.list();
+    if (listed.status !== "succeeded") return listed;
+    return sdk.pages.applyPlan({ requestId, documentSnapshotId: listed.value.documentSnapshotId, operations });
+  }, [getTrustedUiSdk]);
+
+  const exportActivePageAsDrawio = useCallback(async () => {
+    const sdk = await getTrustedUiSdk();
+    const result = await sdk?.io.exportActivePageAsDrawio();
+    if (result?.status === "succeeded" && typeof result.value === "object" && result.value !== null && "fileName" in result.value) {
+      excalidrawApiRef.current?.setToast({ message: `Exported ${(result.value as { fileName: string }).fileName}`, duration: 4200 });
+    } else if (result?.status === "rejected") {
+      excalidrawApiRef.current?.setToast({ message: result.error.message, duration: 4200 });
+    }
+  }, [getTrustedUiSdk]);
+
+  const changeCanvasBackground = useCallback(async (color: string) => {
     if (readOnly) return;
-    flushDraft();
-    const sourcePage = editorStateRef.current.document.pages.find((page) => page.id === pageId);
-    if (!sourcePage) return;
-    const page = structuredClone(sourcePage);
-    page.id = globalThis.crypto?.randomUUID?.() ?? `page-${Date.now()}`;
-    page.title = `${sourcePage.title} (Copy)`;
-    applyAction({ type: "DUPLICATE_PAGE", sourcePageId: pageId, page });
-  }, [applyAction, flushDraft, readOnly]);
+    const sdk = await getTrustedUiSdk();
+    const sceneRead = await sdk?.scene.read({ limit: 100 });
+    if (!sdk || !sceneRead || sceneRead.status !== "succeeded") return;
+    const result = await sdk.scene.applyPlan({
+      requestId: `ui-background:${globalThis.crypto?.randomUUID?.() ?? Date.now()}`,
+      snapshotId: sceneRead.value.snapshotId,
+      operations: [{ kind: "set-background", version: 1, color }],
+    });
+    if (result.status === "rejected") excalidrawApiRef.current?.setToast({ message: result.error.message, duration: 4200 });
+  }, [getTrustedUiSdk, readOnly]);
+
+  const clearCanvas = useCallback(async () => {
+    if (readOnly) return;
+    const sdk = await getTrustedUiSdk();
+    if (!sdk) return;
+    const sceneRead = await sdk.scene.read({ limit: 100 });
+    if (sceneRead.status !== "succeeded") return;
+    const confirmation = await sdk.scene.requestClearConfirmation({ snapshotId: sceneRead.value.snapshotId, scope: "all-elements" });
+    if (confirmation.status !== "succeeded") return;
+    const result = await sdk.scene.applyPlan({
+      requestId: `ui-clear:${globalThis.crypto?.randomUUID?.() ?? Date.now()}`,
+      snapshotId: sceneRead.value.snapshotId,
+      operations: [{ kind: "clear-scene", version: 1, scope: "all-elements", confirmationReceipt: confirmation.value }],
+    });
+    if (result.status === "rejected") excalidrawApiRef.current?.setToast({ message: result.error.message, duration: 4200 });
+  }, [getTrustedUiSdk, readOnly]);
+
+  const selectPage = useCallback(async (pageId: string) => {
+    const sdk = await getTrustedUiSdk();
+    const result = await sdk?.pages.select({ pageRef: `page:${pageId}` });
+    if (result?.status === "rejected") console.warn(result.error.message);
+  }, [getTrustedUiSdk]);
+  const addPage = useCallback(async () => {
+    if (readOnly) return;
+    const result = await applyPagePlan([{ kind: "add-page", version: 1, ref: "temp:new-page", title: `Page ${editorStateRef.current.document.pages.length + 1}` }], `ui-add-page:${globalThis.crypto?.randomUUID?.() ?? Date.now()}`);
+    if (result?.status === "rejected") console.warn(result.error.message);
+  }, [applyPagePlan, readOnly]);
+  const duplicatePage = useCallback(async (pageId: string) => {
+    if (readOnly) return;
+    const result = await applyPagePlan([{ kind: "duplicate-page", version: 1, ref: "temp:duplicate-page", sourcePageRef: `page:${pageId}` }], `ui-duplicate-page:${globalThis.crypto?.randomUUID?.() ?? Date.now()}`);
+    if (result?.status === "rejected") console.warn(result.error.message);
+  }, [applyPagePlan, readOnly]);
   const importPage = useCallback(async () => {
     if (readOnly) return;
     try {
-      const { path, text } = await chooseExcalidrawFile();
-      const scene = parseExcalidrawImport(JSON.parse(text) as unknown, path);
-      flushDraft();
-      const page = createIdeaSketchPageFromImport(scene, {
-        title: scene.title,
-      });
-      applyAction({ type: "ADD_PAGE", page });
+      const sdk = await getTrustedUiSdk();
+      const result = await sdk?.io.pickExcalidrawAndAddPage({ requestId: `ui-import-page:${globalThis.crypto?.randomUUID?.() ?? Date.now()}` });
+      if (result?.status === "rejected") throw new Error(result.error.message);
     } catch (error) {
       if (isDesktopOperationCancelled(error)) return;
       await message(`The Excalidraw page could not be imported: ${error instanceof Error ? error.message : String(error)}`, {
@@ -541,51 +632,77 @@ export function IdeaSketchEditor({
         kind: "error",
       });
     }
-  }, [applyAction, flushDraft, readOnly]);
-  const renamePage = useCallback((pageId: string, title: string) => {
-    applyAction({ type: "RENAME_PAGE", pageId, title });
-  }, [applyAction]);
-  const reorderPage = useCallback((pageId: string, toIndex: number) => {
-    flushDraft();
-    applyAction({ type: "REORDER_PAGE", pageId, toIndex });
-  }, [applyAction, flushDraft]);
-  const deletePage = useCallback((pageId: string) => {
-    flushDraft();
-    applyAction({ type: "DELETE_PAGE", pageId });
-  }, [applyAction, flushDraft]);
-
-  const selectCamera = useCallback((camera: Camera) => {
-    const api = excalidrawApiRef.current;
-    if (!api) return;
-    setSelectedCameraId(camera.id);
-    const element = api.getSceneElements().find((item: any) => item.id === camera.id);
-    if (!element) return;
-    api.setActiveTool({ type: "selection" });
-    api.updateScene({ appState: { selectedElementIds: { [camera.id]: true } } });
-    api.scrollToContent([element], { fitToContent: true, animate: true, duration: 300 });
-  }, []);
-  const deleteCamera = useCallback((cameraId: string) => {
-    const api = excalidrawApiRef.current;
-    if (!api || readOnly) return;
-    api.updateScene({
-      elements: draft.elements.filter((element: any) => element.id !== cameraId),
-      ...(activeCameraId === cameraId ? { appState: { selectedElementIds: {} } } : {}),
-    });
-    if (activeCameraId === cameraId) setSelectedCameraId(undefined);
-  }, [activeCameraId, draft.elements, readOnly]);
-  const reorderCameraList = useCallback((orderedCameraIds: string[]) => {
+  }, [getTrustedUiSdk, readOnly]);
+  const renamePage = useCallback(async (pageId: string, title: string) => {
     if (readOnly) return;
-    excalidrawApiRef.current?.updateScene({ elements: reorderCameras(draft.elements, orderedCameraIds) });
-  }, [draft.elements, readOnly]);
-  const startPresentation = useCallback((mode: "preview" | "fullscreen") => {
+    const result = await applyPagePlan([{ kind: "rename-page", version: 1, pageRef: `page:${pageId}`, title }], `ui-rename-page:${globalThis.crypto?.randomUUID?.() ?? Date.now()}`);
+    if (result?.status === "rejected") console.warn(result.error.message);
+  }, [applyPagePlan, readOnly]);
+  const reorderPage = useCallback(async (pageId: string, toIndex: number) => {
+    if (readOnly) return;
+    const result = await applyPagePlan([{ kind: "reorder-page", version: 1, pageRef: `page:${pageId}`, toIndex }], `ui-reorder-page:${globalThis.crypto?.randomUUID?.() ?? Date.now()}`);
+    if (result?.status === "rejected") console.warn(result.error.message);
+  }, [applyPagePlan, readOnly]);
+  const deletePage = useCallback(async (pageId: string) => {
+    if (readOnly) return;
+    const result = await applyPagePlan([{ kind: "delete-page", version: 1, pageRef: `page:${pageId}` }], `ui-delete-page:${globalThis.crypto?.randomUUID?.() ?? Date.now()}`);
+    if (result?.status === "rejected") console.warn(result.error.message);
+  }, [applyPagePlan, readOnly]);
+
+  const selectCamera = useCallback(async (camera: Camera) => {
+    const sdk = await getTrustedUiSdk();
+    const sceneRead = await sdk?.scene.read({ limit: 100 });
+    if (!sdk || !sceneRead || sceneRead.status !== "succeeded") return;
+    const result = await sdk.cameras.select({ snapshotId: sceneRead.value.snapshotId, cameraRef: `camera:${camera.id}` as import("../lib/ideasketch-sdk/types.ts").CameraRef });
+    if (result.status === "succeeded") setSelectedCameraId(camera.id);
+  }, [getTrustedUiSdk]);
+  const deleteCamera = useCallback(async (cameraId: string) => {
+    if (readOnly) return;
+    const sdk = await getTrustedUiSdk();
+    const sceneRead = await sdk?.scene.read({ limit: 100 });
+    if (!sdk || !sceneRead || sceneRead.status !== "succeeded") return;
+    const result = await sdk.scene.applyPlan({
+      requestId: `ui-delete-camera:${globalThis.crypto?.randomUUID?.() ?? Date.now()}`,
+      snapshotId: sceneRead.value.snapshotId,
+      operations: [{ kind: "delete-camera", version: 1, cameraRef: `camera:${cameraId}` as import("../lib/ideasketch-sdk/types.ts").CameraRef }],
+    });
+    if (result.status === "succeeded" && activeCameraId === cameraId) setSelectedCameraId(undefined);
+  }, [activeCameraId, getTrustedUiSdk, readOnly]);
+  const reorderCameraList = useCallback(async (orderedCameraIds: string[]) => {
+    if (readOnly) return;
+    const sdk = await getTrustedUiSdk();
+    const sceneRead = await sdk?.scene.read({ limit: 100 });
+    if (!sdk || !sceneRead || sceneRead.status !== "succeeded") return;
+    const result = await sdk.scene.applyPlan({
+      requestId: `ui-reorder-camera:${globalThis.crypto?.randomUUID?.() ?? Date.now()}`,
+      snapshotId: sceneRead.value.snapshotId,
+      operations: [{ kind: "set-camera-order", version: 1, cameraRefs: orderedCameraIds.map((id) => `camera:${id}` as import("../lib/ideasketch-sdk/types.ts").CameraRef) }],
+    });
+    if (result.status === "rejected") console.warn(result.error.message);
+  }, [getTrustedUiSdk, readOnly]);
+  const startPresentation = useCallback(async (mode: "preview" | "fullscreen") => {
     const model = flushAndGetDocument();
     const page = model.pages.find((candidate) => candidate.id === editorStateRef.current.activePageId);
-    if (page) onStartPresentation(document.id, page, mode);
-  }, [document.id, flushAndGetDocument, onStartPresentation]);
-  const resolveActivePageForExport = useCallback(() => {
-    const model = flushAndGetDocument();
-    return model.pages.find((candidate) => candidate.id === editorStateRef.current.activePageId);
-  }, [flushAndGetDocument]);
+    if (!page) return;
+    const sdk = await getTrustedUiSdk();
+    const result = await sdk?.presentation.start({ mode, pageRef: `page:${page.id}` });
+    if (result?.status === "succeeded") {
+      presentationSessionRef.current = (result.value as { presentationSessionId: import("../lib/ideasketch-sdk/types.ts").PresentationSessionId }).presentationSessionId;
+      onStartPresentation(document.id, page, mode);
+    }
+    else if (result?.status === "rejected") excalidrawApiRef.current?.setToast({ message: result.error.message, duration: 4200 });
+  }, [document.id, flushAndGetDocument, getTrustedUiSdk, onStartPresentation]);
+  useEffect(() => {
+    const handlePresentationStop = () => {
+      const sessionId = presentationSessionRef.current;
+      const sdk = trustedUiSdkRef.current.sdk;
+      if (!sessionId || !sdk) return;
+      presentationSessionRef.current = undefined;
+      void sdk.presentation.stop({ presentationSessionId: sessionId });
+    };
+    window.addEventListener("ideasketch:presentation-stop", handlePresentationStop);
+    return () => window.removeEventListener("ideasketch:presentation-stop", handlePresentationStop);
+  }, []);
   const reportExportError = useCallback(async (error: unknown) => {
     if (isDesktopOperationCancelled(error)) return;
     await message(`The Page could not be exported: ${error instanceof Error ? error.message : String(error)}`, {
@@ -594,33 +711,30 @@ export function IdeaSketchEditor({
     });
   }, []);
   const exportActivePageAsExcalidraw = useCallback(async () => {
-    const page = resolveActivePageForExport();
-    if (!page) return;
     try {
-      const result = await exportPageAsExcalidraw(page);
-      if (result.status === "cancelled") return;
-      excalidrawApiRef.current?.setToast({ message: `Exported ${result.fileName}`, duration: 4200 });
+      const sdk = await getTrustedUiSdk();
+      const result = await sdk?.io.exportActivePageAsExcalidraw();
+      if (result?.status === "succeeded" && typeof result.value === "object" && result.value !== null && "fileName" in result.value) excalidrawApiRef.current?.setToast({ message: `Exported ${(result.value as { fileName: string }).fileName}`, duration: 4200 });
     } catch (error) {
       await reportExportError(error);
     }
-  }, [reportExportError, resolveActivePageForExport]);
+  }, [getTrustedUiSdk, reportExportError]);
   const exportActivePageAsIdeaSketch = useCallback(async () => {
-    const page = resolveActivePageForExport();
-    if (!page) return;
     try {
-      const result = await exportPageAsIdeaSketch(page);
-      if (result.status === "cancelled") return;
-      excalidrawApiRef.current?.setToast({ message: `Exported ${result.fileName}`, duration: 4200 });
+      const sdk = await getTrustedUiSdk();
+      const result = await sdk?.io.exportActivePageAsIdeaSketch();
+      if (result?.status === "succeeded" && typeof result.value === "object" && result.value !== null && "fileName" in result.value) excalidrawApiRef.current?.setToast({ message: `Exported ${(result.value as { fileName: string }).fileName}`, duration: 4200 });
     } catch (error) {
       await reportExportError(error);
     }
-  }, [reportExportError, resolveActivePageForExport]);
+  }, [getTrustedUiSdk, reportExportError]);
   const handleApiReady = useCallback((api: any | undefined, slideId: string) => {
     if (!api) {
       if (excalidrawSlideIdRef.current !== slideId) return;
       sdkSceneCommitSettlementsRef.current.clear();
       excalidrawApiRef.current = null;
       excalidrawSlideIdRef.current = undefined;
+      setCanvasCommandReady(false);
       return;
     }
     if (
@@ -631,6 +745,7 @@ export function IdeaSketchEditor({
     }
     excalidrawApiRef.current = api;
     excalidrawSlideIdRef.current = slideId;
+    setCanvasCommandReady(true);
     const pendingFeedback = pendingConversionFeedbackRef.current;
     if (!pendingFeedback || pendingFeedback.pageId !== slideId) return;
 
@@ -649,8 +764,13 @@ export function IdeaSketchEditor({
   }, []);
   useEffect(() => () => {
     sdkSceneCommitSettlementsRef.current.clear();
+    presentationSessionRef.current = undefined;
+    const pending = pendingCameraCreateRef.current;
+    pendingCameraCreateRef.current = undefined;
+    pending?.resolve({ status: "cancelled", error: { code: "cancelled_before_commit", message: "Camera creation was cancelled because the editor closed.", retryable: true } });
+    void trustedUiSdkRef.current.sdk?.session.dispose();
   }, []);
-  const handleConvertSelection = useCallback((target: StyleConversionTarget) => {
+  const handleConvertSelection = useCallback(async (target: StyleConversionTarget) => {
     const api = excalidrawApiRef.current;
     const mountedPageId = excalidrawSlideIdRef.current;
     if (
@@ -662,57 +782,36 @@ export function IdeaSketchEditor({
       return;
     }
 
-    const sceneElements = api.getSceneElements();
     const sceneAppState = api.getAppState();
     const selectedElementIds = sceneAppState.selectedElementIds as Record<string, boolean> | undefined;
-
-    if (target === "current-page") {
-      const result = buildCurrentPageStyleConversion(sceneElements, selectedElementIds);
-      if (result.summary.converted === 0) return;
-      api.updateScene({
-        elements: refreshConvertedTextDimensions(
-          result.elements,
-          result.convertedElementIds,
-        ),
-        appState: { selectedElementIds: result.selectedElementIds },
-        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-      });
-      api.setToast({ message: formatStyleConversionSummary(result.summary), duration: 4200 });
-      return;
+    const selectedRefs = Object.entries(selectedElementIds ?? {})
+      .filter(([, selected]) => selected)
+      .map(([id]) => `element:${id}` as import("../lib/ideasketch-sdk/types.ts").ElementRef);
+    if (selectedRefs.length === 0) return;
+    const sdk = await getTrustedUiSdk();
+    if (!sdk) return;
+    const sceneRead = await sdk.scene.read({ limit: 100 });
+    if (sceneRead.status !== "succeeded") return;
+    let documentSnapshotId;
+    if (target === "new-page") {
+      const pagesRead = await sdk.pages.list();
+      if (pagesRead.status !== "succeeded") return;
+      documentSnapshotId = pagesRead.value.documentSnapshotId;
     }
-
-    const result = buildNewPageStyleConversion(
-      sceneElements,
-      selectedElementIds,
-      api.getFiles(),
-    );
-    if (result.summary.converted === 0 || result.elements.length === 0) return;
-
-    flushDraft();
-    const sourcePage = editorStateRef.current.document.pages.find((page) => page.id === mountedPageId);
-    if (!sourcePage) return;
-    const pageIndex = editorStateRef.current.document.pages.length;
-    const newPageBase = createEmptyIdeaSketchPage(pageIndex);
-    const newPage: IdeaSketchPage = {
-      ...newPageBase,
-      title: `${newPageBase.title} – Clean style`,
-      elements: refreshConvertedTextDimensions(
-        result.elements,
-        result.convertedElementIds,
-      ),
-      appState: {
-        ...sourcePage.appState,
-        selectedElementIds: result.selectedElementIds,
-      },
-      files: result.files,
-    };
-    pendingConversionFeedbackRef.current = {
-      pageId: newPage.id,
-      message: formatStyleConversionSummary(result.summary),
-      selectedElementIds: result.selectedElementIds,
-    };
-    applyAction({ type: "ADD_PAGE", page: newPage });
-  }, [applyAction, flushDraft, readOnly]);
+    const result = await sdk.transforms.convertSelectionStyle({
+      requestId: `ui-style-conversion:${globalThis.crypto?.randomUUID?.() ?? Date.now()}`,
+      snapshotId: sceneRead.value.snapshotId,
+      selectedRefs,
+      target,
+      preset: "formal",
+      ...(documentSnapshotId ? { documentSnapshotId } : {}),
+    });
+    if (result.status === "succeeded") {
+      api.setToast({ message: "Applied formal style preset", duration: 4200 });
+    } else if (result.status === "rejected") {
+      api.setToast({ message: result.error.message, duration: 4200 });
+    }
+  }, [getTrustedUiSdk, readOnly]);
   const openDrawer = useCallback((tab: IdeaSketchNavigatorTab) => {
     setNavigatorTab(tab);
     setDrawerOpen(true);
@@ -722,18 +821,50 @@ export function IdeaSketchEditor({
     openDrawer("cameras");
     setCameraDrawingRequestToken((token) => token + 1);
   }, [openDrawer, readOnly]);
-  const handleCommandApiReady = useCallback((api: SlideCanvasCommandApi | undefined, slideId: string) => {
-    if (api) {
-      canvasCommandApiRef.current = api;
-      canvasCommandSlideIdRef.current = slideId;
-      setCanvasCommandReady(true);
-      return;
+  const handleCameraCreateRequest = useCallback(async (bounds: { x: number; y: number; width: number; height: number }) => {
+    if (readOnly) return;
+    const sdk = await getTrustedUiSdk();
+    const sceneRead = await sdk?.scene.read({ limit: 100 });
+    if (!sdk || !sceneRead || sceneRead.status !== "succeeded") return;
+    const pending = pendingCameraCreateRef.current;
+    const requestId = pending?.requestId ?? `ui-create-camera:${globalThis.crypto?.randomUUID?.() ?? Date.now()}`;
+    const snapshotId = pending?.snapshotId ?? sceneRead.value.snapshotId;
+    const result = await sdk.scene.applyPlan({
+      requestId,
+      snapshotId,
+      operations: [{ kind: "create-camera", version: 1, ref: "temp:new-camera" as import("../lib/ideasketch-sdk/types.ts").TempRef, bounds, ...(pending?.atIndex !== undefined ? { atIndex: pending.atIndex } : {}) }],
+    });
+    if (pendingCameraCreateRef.current === pending) {
+      pendingCameraCreateRef.current = undefined;
+      pending?.resolve(result);
     }
-    if (canvasCommandSlideIdRef.current !== slideId) return;
-    canvasCommandApiRef.current = undefined;
-    canvasCommandSlideIdRef.current = undefined;
-    setCanvasCommandReady(false);
-  }, []);
+    if (result.status === "rejected") {
+      excalidrawApiRef.current?.setToast({ message: result.error.message, duration: 4200 });
+    }
+  }, [getTrustedUiSdk, readOnly]);
+
+  const beginCreateCamera = useCallback(async (input: {
+    requestId: string;
+    snapshotId: import("../lib/ideasketch-sdk/types.ts").SceneSnapshotId;
+    atIndex?: number;
+    signal?: AbortSignal;
+  }): Promise<import("../lib/ideasketch-sdk/types.ts").SdkResult<import("../lib/ideasketch-sdk/types.ts").IdeaSketchSdkMutationResult>> => {
+    if (readOnly) return { status: "rejected", error: { code: "read_only", message: "The IdeaSketch document is read-only.", retryable: false } };
+    if (pendingCameraCreateRef.current) return { status: "rejected", error: { code: "editor_busy", message: "A Camera creation interaction is already in progress.", retryable: true } };
+    return new Promise((resolve) => {
+      const pending = { requestId: input.requestId, snapshotId: input.snapshotId, ...(input.atIndex !== undefined ? { atIndex: input.atIndex } : {}), resolve };
+      pendingCameraCreateRef.current = pending;
+      const cancel = () => {
+        if (pendingCameraCreateRef.current !== pending) return;
+        pendingCameraCreateRef.current = undefined;
+        resolve({ status: "cancelled", error: { code: "cancelled_before_commit", message: "Camera creation was cancelled.", retryable: true } });
+        setCameraDrawingRequestToken((token) => token + 1);
+      };
+      input.signal?.addEventListener("abort", cancel, { once: true });
+      openDrawer("cameras");
+      setCameraDrawingRequestToken((token) => token + 1);
+    });
+  }, [openDrawer, readOnly]);
   const handleCanvasInteractionChange = useCallback((active: boolean) => {
     setCanvasInteractionActive((current) => current === active ? current : active);
   }, []);
@@ -775,68 +906,6 @@ export function IdeaSketchEditor({
     const current = editorStateRef.current;
     if (changeSet.sourceFingerprint !== getIdeaSketchSourceFingerprint(current.document)) return false;
     const operations = changeSet.operations as IdeaSketchAgentOperation[];
-    const drawingPlan = operations.length > 0 && operations.every(isIdeaSketchDrawingOperation)
-      ? operations
-      : undefined;
-    const layoutPlan = operations.length > 0 && operations.every(isIdeaSketchLayoutOperation)
-      ? operations
-      : undefined;
-    if (drawingPlan) {
-      const api = excalidrawApiRef.current;
-      if (
-        drawingPlan.length > 40
-        || !api
-        || excalidrawSlideIdRef.current !== current.activePageId
-        || drawingPlan.some((operation) => operation.pageId !== current.activePageId)
-      ) return false;
-      const page = current.document.pages.find((candidate) => candidate.id === current.activePageId);
-      if (!page) return false;
-      try {
-        const plannedElements = buildIdeaSketchDrawingPlanScene(
-          api.getSceneElements(),
-          drawingPlan,
-        );
-        const restored = restoreElements(plannedElements as any[], null, {
-          refreshDimensions: true,
-          repairBindings: true,
-        });
-        api.updateScene({
-          elements: restored as any[],
-          captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-        });
-        return true;
-      } catch {
-        return false;
-      }
-    }
-    if (layoutPlan) {
-      const api = excalidrawApiRef.current;
-      if (
-        layoutPlan.length > 40
-        || !api
-        || excalidrawSlideIdRef.current !== current.activePageId
-        || layoutPlan.some((operation) => operation.pageId !== current.activePageId)
-      ) return false;
-      const page = current.document.pages.find((candidate) => candidate.id === current.activePageId);
-      if (!page) return false;
-      try {
-        const plannedElements = buildIdeaSketchLayoutPlanScene(
-          api.getSceneElements(),
-          layoutPlan,
-        );
-        const restored = restoreElements(plannedElements as any[], null, {
-          refreshDimensions: true,
-          repairBindings: true,
-        });
-        api.updateScene({
-          elements: restored as any[],
-          captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-        });
-        return true;
-      } catch {
-        return false;
-      }
-    }
     if (operations.length !== 1) return false;
     const [operation] = operations;
     try {
@@ -1008,9 +1077,12 @@ export function IdeaSketchEditor({
               onImportExcalidraw={importPage}
               onExportExcalidraw={exportActivePageAsExcalidraw}
               onExportIdeaSketch={exportActivePageAsIdeaSketch}
-              onExportImage={() => canvasCommandApiRef.current?.openImageExport()}
-              onExportDrawio={() => canvasCommandApiRef.current?.exportDrawio()}
-              onBackgroundChange={(color) => canvasCommandApiRef.current?.changeCanvasBackground(color)}
+              onExportImage={async () => {
+                const sdk = await getTrustedUiSdk();
+                await sdk?.io.openImageExportDialog();
+              }}
+              onExportDrawio={exportActivePageAsDrawio}
+              onBackgroundChange={changeCanvasBackground}
               onClearCanvas={() => setClearCanvasDialogOpen(true)}
             />
           </aside>
@@ -1053,7 +1125,7 @@ export function IdeaSketchEditor({
             files={draft.files}
             onChange={handleCanvasDraftChange}
             onApiReady={handleApiReady}
-            onCommandApiReady={handleCommandApiReady}
+            onCameraCreateRequest={handleCameraCreateRequest}
             onConvertSelection={handleConvertSelection}
             onSelectionPresenceChange={setSelectionControlsActive}
             onInteractionChange={handleCanvasInteractionChange}
@@ -1070,7 +1142,7 @@ export function IdeaSketchEditor({
         open={clearCanvasDialogOpen}
         onOpenChange={setClearCanvasDialogOpen}
         onConfirm={() => {
-          canvasCommandApiRef.current?.clearCanvas();
+          void clearCanvas();
           setClearCanvasDialogOpen(false);
         }}
       />

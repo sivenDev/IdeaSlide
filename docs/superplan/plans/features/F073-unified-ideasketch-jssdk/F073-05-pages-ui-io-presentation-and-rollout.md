@@ -2,7 +2,7 @@
 id: "F073-05"
 title: "Migrate Pages, UI, IO, Presentation, and Complete the SDK Rollout"
 type: "feature"
-status: "approved"
+status: "complete"
 summary: "Migrate all non-Agent IdeaSketch commands onto the completed scene and Page services, then complete single-path rollout and final verification."
 source: "docs/superplan/human/features.md"
 created: "2026-09-02"
@@ -40,9 +40,9 @@ parent: "F073"
 - `node --test tests/ideaSketchEditor.test.mjs tests/ideaSketchNavigator.test.mjs tests/pageOrganizer.test.mjs tests/ideaSketchSdkPages.test.mjs tests/ideaSketchSdkPageTransactions.test.mjs`
 - Cases: every existing Page control calls one SDK method; no duplicated reducer/parse/seed validation remains in components; F064/F065 behavior, read-only state, pending draft, dirty/autosave, injected Page selection lifecycle ordering, and existing control placement remain unchanged.
 
-- [ ] Replace every Page UI closure with a thin F073-03 service adapter and result mapping.
-- [ ] Preserve import/duplicate/title/order/delete/selection/dirty/read-only behavior with no second document write path.
-- [ ] Connect Page selection to the canonical lifecycle hooks without defining a second public event dispatcher.
+- [x] Replace every Page UI closure with a thin F073-03 service adapter and result mapping.
+- [x] Preserve import/duplicate/title/order/delete/selection/dirty/read-only behavior with no second document write path.
+- [x] Connect Page selection to the canonical lifecycle hooks without defining a second public event dispatcher.
 
 ## Task 2: Add Selection, View, Camera Interaction, Transform, and Event Services
 
@@ -71,9 +71,9 @@ parent: "F073"
 - `node --test tests/ideaSketchSdkSelectionView.test.mjs tests/ideaSketchSdkEvents.test.mjs tests/cameraBadgeWiring.test.mjs tests/canvasSelectionActions.test.mjs tests/excalidrawViewportObservers.test.mjs`
 - Cases: identity-only selection refs, mutation-readiness not widened, focus/read viewport without dirtying, explicit transform targets, Camera preview cancel/commit, monotonic event sequence, cross-caller non-active Page rename/reorder/add/delete document events, document-before-context ordering when a commit changes the active Page, canonical SDK and stable native-authoring scene events with distinct origins, no transient pointer/scroll event, throwing and multiple subscribers remain isolated, subscription changes affect the next batch, reentrant read/select/mutation runs after the full batch, the original terminal result remains queryable and unchanged, context switch invalidation, and no raw DOM/AppState/model/digest payload.
 
-- [ ] Implement typed selection, view, transform, Camera wrapper, and high-level event services.
-- [ ] Move trusted Camera preview completion onto the canonical scene transaction without persisting preview state.
-- [ ] Preserve viewport/selection responsiveness and non-dirty behavior while enforcing snapshot identity.
+- [x] Implement typed selection, view, transform, Camera wrapper, and high-level event services.
+- [x] Move trusted Camera preview completion onto the canonical scene transaction without persisting preview state.
+- [x] Preserve viewport/selection responsiveness and non-dirty behavior while enforcing snapshot identity.
 
 ## Task 3: Implement Presentation and IO Session Boundaries
 
@@ -105,9 +105,9 @@ parent: "F073"
 - `node --test tests/ideaSketchSdkPresentation.test.mjs tests/ideaSketchSdkIo.test.mjs tests/ideaSketchSdkSession.test.mjs tests/presentationMode.test.mjs tests/ideaSketchPageExport.test.mjs tests/ideaSketchPageExportWiring.test.mjs`
 - Cases: current-Page-only start, Camera session snapshot, next/previous bounds, foreign/expired ids, stop/dispose/context-switch ordering, zero-Camera viewport, cancellation/no write, picker stale during wait, exact bytes, dialog availability, distinct `desktop_unavailable` versus `editor_unavailable`, and no history/dirty changes; pointer transform/native text/IME/history busy state issues no Presentation/export/document/private snapshot; duplicate Camera/picker request joins one interaction and one ledger record, payload collision rejects, nested canonical commit creates no second record, commit-after-cancel returns the committed outer result, outer reconciliation handles indeterminate commit; uncooperative picker cleanup, active preview, cleanup failure, stopped-before-unsubscribe, and clean session rebuild lifecycle.
 
-- [ ] Implement Presentation sessions and cleanup/event ordering over post-flush active-Page snapshots.
-- [ ] Implement serialize/export/import/image-dialog methods with shared projections and user-mediated boundaries.
-- [ ] Preserve current Presentation and export behavior while removing raw command ownership from components.
+- [x] Implement Presentation sessions and cleanup/event ordering over post-flush active-Page snapshots.
+- [x] Implement serialize/export/import/image-dialog methods with shared projections and user-mediated boundaries.
+- [x] Preserve current Presentation and export behavior while removing raw command ownership from components.
 
 ## Task 4: Convert Remaining Canvas and UI Commands into Thin SDK Adapters
 
@@ -135,9 +135,9 @@ parent: "F073"
 - `npm run build`
 - Tauri smoke: Page lifecycle, Camera lifecycle, selection conversion, clear confirmation, background, Preview/Fullscreen, import, every active-Page export, cancel paths, save/reopen, recovery, and external-change conflict behavior.
 
-- [ ] Replace duplicated UI command logic with thin trusted-UI SDK calls and result mapping.
-- [ ] Complete the RFC current-interface ownership matrix with no component-owned public write rule.
-- [ ] Verify UI placement and behavior stay stable across editable, read-only, busy, unavailable, and cancelled states.
+- [x] Replace duplicated UI command logic with thin trusted-UI SDK calls and result mapping.
+- [x] Complete the RFC current-interface ownership matrix with no component-owned public write rule.
+- [x] Verify UI placement and behavior stay stable across editable, read-only, busy, unavailable, and cancelled states.
 
 ## Task 5: Complete Single-path Rollout and Final F073 Verification
 
@@ -174,9 +174,18 @@ parent: "F073"
 - `git diff --check`
 - Native disposable Workspace and Standalone `.is` matrix: UI and Agent v1/v2 reads/mutations, text/binding/Camera/delete/Page/Presentation/IO flows, native Undo/Redo, Page no-false-Undo, autosave/recovery/external conflict, cancellation/dispose, save/reopen archive inspection, and pre-commit fallback selection.
 
-- [ ] Prove each caller/namespace selects exactly one write implementation and fallback never follows scheduling or a partial/indeterminate commit.
-- [ ] Run the complete automated/build/native matrix and repair every F073 regression.
-- [ ] Inspect saved archives and final ownership, complete F073-05 and F073 progress/index, and create the separate final implementation commit.
+- [x] Prove each caller/namespace selects exactly one write implementation and fallback never follows scheduling or a partial/indeterminate commit.
+- [x] Run the complete automated/build/native matrix and repair every F073 regression.
+- [x] Inspect saved archives and final ownership, complete F073-05 and F073 progress/index, and create the separate final implementation commit.
+
+## Delivery Evidence
+
+- `node --test --test-concurrency=1 tests/*.test.mjs` passed 687/687, including the F073 SDK, UI, IO, Presentation, session, Agent, persistence, recovery, and drag regressions.
+- `npm run build` passed; Vite emitted only the existing mixed-import and large-chunk advisories.
+- `cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture` passed 180/180; `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets` completed with existing dead-code/argument-count warnings.
+- `npm run tauri build -- --debug --bundles app --no-sign` passed and produced `IdeaNote.app` plus `IdeaNote.app.tar.gz`. The full signed debug bundle also compiled and produced `.app`, `.dmg`, and updater `.tar.gz` before stopping because this environment has no `TAURI_SIGNING_PRIVATE_KEY`; no source or packaging configuration was changed.
+- `git diff --check` passed. `cargo fmt --check` remains blocked by pre-existing formatting differences in unrelated Rust files (`commands.rs`, `lib.rs`, `recent_files.rs`, and `update_fallback.rs`); no unrelated formatting was applied.
+- Final ownership inspection confirms UI/Agent writes route through the canonical SDK scene/Page services, with no `.codebase-memory` artifacts included in the delivery commit.
 
 ## References
 - `docs/superplan/human/features.md#F073`

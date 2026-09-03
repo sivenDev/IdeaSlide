@@ -27,7 +27,8 @@ test('Workspace Agent capabilities stay native, structured, and Standalone-aware
   assert.match(layout, /agentAvailable && showAgent && \(/);
   assert.match(layout, /workspace=\{state\.workspace \? \{ name: state\.workspace\.name \} : undefined\}/);
   const panel = await readFile(new URL('../src/components/AgentPanel.tsx', import.meta.url), 'utf8');
-  assert.match(panel, /capturedBinding\?\.tools \?\? \[\]/);
+  assert.match(panel, /const capturedTools = capturedBinding/);
+  assert.match(panel, /tools: \[\.\.\.capturedTools\]/);
   assert.match(panel, /structured Workspace Tools/);
   assert.match(bridge, /syncWorkspaceAgentContextCommand/);
   assert.match(tauri, /sync_workspace_agent_context/);

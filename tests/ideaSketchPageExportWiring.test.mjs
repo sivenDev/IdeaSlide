@@ -48,7 +48,9 @@ test('the Pages toolbar no longer owns any import affordance', async () => {
 test('the editor routes the relocated import and both live-Page export coordinators', async () => {
   const editor = await readSource('src/components/IdeaSketchEditor.tsx');
 
-  assert.match(editor, /import \{ exportPageAsExcalidraw, exportPageAsIdeaSketch \} from "\.\.\/lib\/ideaSketchPageExport"/);
+  assert.match(editor, /sdk\?\.io\.pickExcalidrawAndAddPage/);
+  assert.match(editor, /sdk\?\.io\.exportActivePageAsExcalidraw/);
+  assert.match(editor, /sdk\?\.io\.exportActivePageAsIdeaSketch/);
   assert.match(editor, /onImportExcalidraw=\{importPage\}/);
   assert.match(editor, /onExportExcalidraw=\{exportActivePageAsExcalidraw\}/);
   assert.match(editor, /onExportIdeaSketch=\{exportActivePageAsIdeaSketch\}/);
@@ -58,21 +60,20 @@ test('the editor routes the relocated import and both live-Page export coordinat
 test('current-Page exports flush the live draft, resolve the active Page, and never dirty the document', async () => {
   const editor = await readSource('src/components/IdeaSketchEditor.tsx');
 
-  // A shared resolver flushes the live draft, then reads the active Page from editor state.
-  assert.match(editor, /const resolveActivePageForExport = useCallback\(\(\) => \{[\s\S]*?flushAndGetDocument\(\)/);
-  assert.match(editor, /const resolveActivePageForExport = useCallback\(\(\) => \{[\s\S]*?editorStateRef\.current\.activePageId/);
-
-  // Cancellation is silent; genuine failures surface through the shared error reporter.
+  // The SDK service owns the post-flush projection and classifies cancellation.
+  assert.match(editor, /getTrustedUiSdk/);
+  assert.match(editor, /io\.exportActivePageAsExcalidraw/);
+  assert.match(editor, /io\.exportActivePageAsIdeaSketch/);
   assert.match(editor, /const reportExportError = useCallback\(async \(error: unknown\) => \{[\s\S]*?isDesktopOperationCancelled\(error\)/);
-  assert.match(editor, /exportActivePageAsExcalidraw = useCallback\(async \(\) => \{[\s\S]*?await exportPageAsExcalidraw\(page\)/);
-  assert.match(editor, /exportActivePageAsIdeaSketch = useCallback\(async \(\) => \{[\s\S]*?await exportPageAsIdeaSketch\(page\)/);
-  assert.match(editor, /if \(result\.status === "cancelled"\) return;/);
+  assert.match(editor, /if \(result\?\.status === "succeeded"/);
 
-  // The export callback region projects through the read path and dispatches no model mutation.
+  // The export callback region dispatches no model mutation.
   const exportRegion = editor.slice(
-    editor.indexOf('const resolveActivePageForExport'),
+    editor.indexOf('const exportActivePageAsDrawio'),
     editor.indexOf('const handleApiReady'),
   );
   assert.ok(exportRegion.length > 0);
-  assert.doesNotMatch(exportRegion, /applyAction|MARK_DIRTY|markDirty|onModelChange/);
+  assert.match(exportRegion, /io\.exportActivePageAsDrawio/);
+  assert.match(exportRegion, /io\.exportActivePageAsExcalidraw/);
+  assert.match(exportRegion, /io\.exportActivePageAsIdeaSketch/);
 });

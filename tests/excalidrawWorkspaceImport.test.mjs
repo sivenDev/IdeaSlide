@@ -40,16 +40,15 @@ test('Page import is relocated below navigation and still creates a new reducer-
   // Import now lives in the drawer command surface, routed to the same reducer-backed coordinator.
   assert.match(editor, /onImportExcalidraw=\{importPage\}/);
   assert.match(editor, /const importPage = useCallback\(async \(\) =>/);
-  assert.match(editor, /chooseExcalidrawFile\(\)/);
-  assert.match(editor, /parseExcalidrawImport\(JSON\.parse\(text\)/);
-  assert.match(editor, /flushDraft\(\);[\s\S]*?createIdeaSketchPageFromImport/);
-  assert.match(editor, /applyAction\(\{ type: "ADD_PAGE", page \}\)/);
+  assert.match(editor, /sdk\?\.io\.pickExcalidrawAndAddPage/);
+  assert.doesNotMatch(editor, /parseExcalidrawImport\(JSON\.parse\(text\)/);
+  assert.doesNotMatch(editor, /applyAction\(\{ type: "ADD_PAGE", page \}\)/);
 });
 
 test('Import coordinator handles cancellation and malformed source without mutating the source file', async () => {
   const editor = await readSource('src/components/IdeaSketchEditor.tsx');
   assert.match(editor, /isDesktopOperationCancelled\(error\)/);
   assert.match(editor, /if \(isDesktopOperationCancelled\(error\)\) return;/);
-  assert.match(editor, /JSON\.parse\(text\)/);
+  assert.doesNotMatch(editor, /JSON\.parse\(text\)/);
   assert.doesNotMatch(editor, /writeImportFile|saveStandaloneDocument\(path/);
 });

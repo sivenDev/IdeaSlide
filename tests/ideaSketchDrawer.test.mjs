@@ -89,19 +89,14 @@ test('drawer width tracks rapid pointer resizing without an animated shell gap',
 
 test('SlideCanvas exposes supported live commands without restoring Excalidraw MainMenu', async () => {
   const canvas = await readSource('src/components/SlideCanvas.tsx');
+  const editor = await readSource('src/components/IdeaSketchEditor.tsx');
   const styles = await readSource('src/index.css');
 
   assert.doesNotMatch(canvas, /\bMainMenu\b/);
-  assert.match(canvas, /export interface SlideCanvasCommandApi/);
-  assert.match(canvas, /exportDrawio/);
-  assert.match(canvas, /openImageExport/);
-  assert.match(canvas, /changeCanvasBackground/);
-  assert.match(canvas, /clearCanvas/);
+  assert.doesNotMatch(canvas, /SlideCanvasCommandApi|exportDrawio|openImageExport|changeCanvasBackground|clearCanvas/);
   assert.doesNotMatch(canvas, /openHelp|name: "help"/);
-  assert.match(canvas, /openDialog:\s*\{ name: "imageExport" \}/);
-  assert.match(canvas, /exportExcalidrawToDrawio/);
-  assert.match(canvas, /CaptureUpdateAction\.IMMEDIATELY/);
-  assert.match(canvas, /newElementWith/);
+  assert.match(editor, /sdk\.scene\.applyPlan\(/);
+  assert.match(editor, /sdk\?\.io\.openImageExportDialog\(\)/);
   assert.match(canvas, /layoutRefreshToken/);
   assert.match(styles, /\.ideanote-ideasketch-canvas\s+\.excalidraw\s+\.main-menu-trigger\s*\{[\s\S]*?display:\s*none/);
 });
@@ -121,7 +116,7 @@ test('the command footer keeps mutating actions read-only safe and clear require
   assert.match(dialog, /AlertDialog\.Root/);
   assert.match(dialog, /You can undo this action from the Canvas/);
   assert.match(editor, /onClearCanvas=\{\(\) => setClearCanvasDialogOpen\(true\)\}/);
-  assert.match(editor, /canvasCommandApiRef\.current\?\.clearCanvas\(\)/);
+  assert.match(editor, /void clearCanvas\(\)/);
 });
 
 test('the actions menu is a default-hidden disclosure toggled from the Drag Pages row', async () => {

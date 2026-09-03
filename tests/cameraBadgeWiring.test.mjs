@@ -16,16 +16,15 @@ test('SlideCanvas keeps camera badge sync out of the persisted onChange fast pat
 
 test('SlideCanvas enables image export while native scene saves stay in IdeaSlide', async () => {
   const source = await readSource('src/components/SlideCanvas.tsx');
+  const editor = await readSource('src/components/IdeaSketchEditor.tsx');
 
   assert.match(source, /saveAsImage:\s*true/);
-  assert.match(source, /openImageExport/);
-  assert.match(source, /openDialog:\s*\{ name: "imageExport" \}/);
   assert.match(source, /export:\s*\{\s*saveFileToDisk:\s*false,\s*\}/);
   assert.match(source, /saveToActiveFile:\s*false/);
   assert.match(source, /saveToActiveFile:\s*false,\s*saveFileToDisk:\s*false/s);
-  assert.match(source, /exportDrawio:\s*handleExportDrawio/);
-  assert.match(source, /getSceneElements\(\)/);
-  assert.match(source, /getFiles\(\)/);
+  assert.doesNotMatch(source, /openImageExport|exportDrawio|exportExcalidrawToDrawio/);
+  assert.match(editor, /sdk\?\.io\.openImageExportDialog\(\)/);
+  assert.match(editor, /sdk\?\.io\.exportActivePageAsDrawio/);
 });
 
 test('SlideCanvas refreshes Excalidraw after presentation exit layout changes settle', async () => {

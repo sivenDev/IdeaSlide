@@ -22,26 +22,26 @@ test('document synchronization stays non-captured while Agent replacement is cap
   assert.doesNotMatch(editor, /UPDATE_PAGE_SCENE[\s\S]*syncMountedCanvasToPage\(nextPage\)/);
 });
 
-test('semantic drawing plans are assembled before one native captured scene update', async () => {
+test('semantic drawing plans are validated and committed through the canonical SDK adapter', async () => {
   const editor = await readFile(new URL('../src/components/IdeaSketchEditor.tsx', import.meta.url), 'utf8');
-  assert.match(editor, /buildIdeaSketchDrawingPlanScene/);
-  assert.match(editor, /operations\.every\(isIdeaSketchDrawingOperation\)/);
-  assert.match(
-    editor,
-    /buildIdeaSketchDrawingPlanScene\([\s\S]*api\.updateScene\(\{[\s\S]*captureUpdate: CaptureUpdateAction\.IMMEDIATELY/,
-  );
-  assert.match(editor, /operation\.pageId !== current\.activePageId/);
+  const adapter = await readFile(new URL('../src/lib/agent/extensions/ideaSketchAgentSdkAdapter.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(editor, /buildIdeaSketchDrawingPlanScene/);
+  assert.match(adapter, /call\.name === "apply_drawing_plan"/);
+  assert.match(adapter, /semanticOperations\(/);
+  assert.match(adapter, /sdk\.scene\.applyPlan\(/);
+  assert.match(adapter, /sceneSnapshotId/);
+  assert.match(adapter, /pageRef\(args\.pageId\) !== activePageRef/);
 });
 
-test('semantic layout plans use one native captured scene update and remain Page-scoped', async () => {
+test('semantic layout plans use one canonical SDK scene transaction and remain Page-scoped', async () => {
   const editor = await readFile(new URL('../src/components/IdeaSketchEditor.tsx', import.meta.url), 'utf8');
-  assert.match(editor, /buildIdeaSketchLayoutPlanScene/);
-  assert.match(editor, /operations\.every\(isIdeaSketchLayoutOperation\)/);
-  assert.match(
-    editor,
-    /buildIdeaSketchLayoutPlanScene\([\s\S]*api\.updateScene\(\{[\s\S]*captureUpdate: CaptureUpdateAction\.IMMEDIATELY/,
-  );
-  assert.match(editor, /layoutPlan\.some\(\(operation\) => operation\.pageId !== current\.activePageId\)/);
+  const adapter = await readFile(new URL('../src/lib/agent/extensions/ideaSketchAgentSdkAdapter.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(editor, /buildIdeaSketchLayoutPlanScene/);
+  assert.match(adapter, /call\.name === "apply_layout_plan"/);
+  assert.match(adapter, /semanticOperations\(/);
+  assert.match(adapter, /sdk\.scene\.applyPlan\(/);
+  assert.match(adapter, /sceneSnapshotId/);
+  assert.match(adapter, /pageRef\(args\.pageId\) !== activePageRef/);
 });
 
 test('editor shell leaves Undo and Redo entirely to the active editor', async () => {

@@ -44,6 +44,7 @@ function AppContent() {
   }, []);
 
   const handlePresentationExit = useCallback(() => {
+    window.dispatchEvent(new Event("ideasketch:presentation-stop"));
     dispatch({ type: "EXIT_PRESENTATION" });
   }, [dispatch]);
 

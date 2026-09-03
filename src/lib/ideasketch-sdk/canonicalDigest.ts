@@ -5,6 +5,42 @@ const PERSISTENT_APP_STATE_KEYS = new Set([
   "gridSize",
 ]);
 
+const OMIT_UNDEFINED = Symbol("omit-undefined");
+
+/**
+ * Excalidraw's live element records contain optional fields whose value is
+ * explicitly `undefined`.  They are equivalent to an absent JSON property
+ * for the persisted IdeaSketch scene, so remove them from digest projections
+ * without weakening the strict canonical payload boundary used for SDK input
+ * validation.
+ */
+function stripUndefined(value: unknown, seen: WeakSet<object> = new WeakSet<object>()): unknown {
+  if (value === undefined) return OMIT_UNDEFINED;
+  if (value === null || typeof value !== "object") return value;
+  if (seen.has(value)) throw new TypeError("Canonical JSON values cannot contain cycles.");
+  seen.add(value);
+  if (Array.isArray(value)) {
+    const result = value.map((entry) => {
+      const next = stripUndefined(entry, seen);
+      return next === OMIT_UNDEFINED ? null : next;
+    });
+    seen.delete(value);
+    return result;
+  }
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) {
+    seen.delete(value);
+    return value;
+  }
+  const result: Record<string, unknown> = {};
+  for (const key of Object.keys(value as Record<string, unknown>)) {
+    const next = stripUndefined((value as Record<string, unknown>)[key], seen);
+    if (next !== OMIT_UNDEFINED) result[key] = next;
+  }
+  seen.delete(value);
+  return result;
+}
+
 function canonicalize(value: unknown, seen: WeakSet<object>): unknown {
   if (value === null || typeof value === "string" || typeof value === "boolean") return value;
   if (typeof value === "number") {
@@ -78,7 +114,12 @@ export async function canonicalPayloadDigest(value: unknown) {
 function persistentAppState(appState: Partial<Record<string, unknown>>) {
   const result: Record<string, unknown> = {};
   for (const key of Object.keys(appState).sort()) {
-    if (PERSISTENT_APP_STATE_KEYS.has(key)) result[key] = appState[key];
+    // Excalidraw's live AppState includes optional persisted keys with
+    // `undefined` values.  Those are transiently absent from .is and must not
+    // make the strict canonical JSON digest fail closed.
+    if (PERSISTENT_APP_STATE_KEYS.has(key) && appState[key] !== undefined) {
+      result[key] = appState[key];
+    }
   }
   return result;
 }
@@ -100,15 +141,15 @@ export async function createCanonicalSceneProjection(scene: {
 } = {}) {
   return {
     elements: options.ephemeralElementIds
-      ? scene.elements.filter((element) => !(
+      ? stripUndefined(scene.elements.filter((element) => !(
           typeof element === "object"
           && element !== null
           && typeof (element as { id?: unknown }).id === "string"
           && options.ephemeralElementIds!.has((element as { id: string }).id)
-        ))
-      : scene.elements,
+        )))
+      : stripUndefined(scene.elements),
     appState: persistentAppState(scene.appState),
-    files: await fileDigestEntries(scene.files),
+    files: await fileDigestEntries(stripUndefined(scene.files) as Record<string, unknown>),
   };
 }
 

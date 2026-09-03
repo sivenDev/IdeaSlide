@@ -57,7 +57,7 @@ test('Camera drawing preview uses explicit activity instead of scanning every sc
   assert.match(stableOnChange, /if \(cameraPreviewActiveRef\.current\) \{/);
   assert.doesNotMatch(stableOnChange, /\.some\(/);
   assert.match(source, /cameraPreviewActiveRef\.current = true;\s*api\.updateScene\(\{\s*elements: \[\.\.\.currentElements, previewElement\]/s);
-  assert.match(source, /cameraPreviewActiveRef\.current = false;\s*api\.updateScene\(/s);
+  assert.match(source, /cameraPreviewActiveRef\.current = true;\s*api\.updateScene\([\s\S]*?elements: currentElements[\s\S]*?\);\s*cameraPreviewActiveRef\.current = false/s);
   assert.doesNotMatch(source, /CAMERA_PREVIEW_ID/);
 });
 
@@ -102,11 +102,12 @@ test('Selection availability is keyed by scene identity and selected IDs', async
 
 test('Custom Canvas commands and selection renderer keep stable callback identities', async () => {
   const source = await readSource('src/components/SlideCanvas.tsx');
+  const editor = await readSource('src/components/IdeaSketchEditor.tsx');
 
-  assert.match(source, /const handleExportDrawio = useCallback\(/);
-  assert.match(source, /const openImageExport = useCallback\(/);
-  assert.match(source, /const changeCanvasBackground = useCallback\(/);
-  assert.match(source, /const clearCanvas = useCallback\(/);
+  assert.doesNotMatch(source, /const handleExportDrawio = useCallback\(|const openImageExport = useCallback\(|const changeCanvasBackground = useCallback\(|const clearCanvas = useCallback\(/);
+  assert.match(editor, /const exportActivePageAsDrawio = useCallback\(/);
+  assert.match(editor, /const changeCanvasBackground = useCallback\(/);
+  assert.match(editor, /const clearCanvas = useCallback\(/);
   assert.doesNotMatch(source, /const openHelp = useCallback\(/);
   assert.match(source, /const renderSelectionActions = useCallback\(/);
   assert.match(source, /renderTopRightUI=\{!viewMode && canConvertSelection && onConvertSelection\s*\? renderSelectionActions/s);

@@ -134,6 +134,19 @@ export type {
 } from "./events.ts";
 export { buildIdeaSketchPageOperation, validateIdeaSketchPagePlan, isIdeaSketchPageOperation } from "./pageOperations.ts";
 export type { IdeaSketchSemanticElement, IdeaSketchSemanticText, IdeaSketchSemanticRelations } from "./sceneProjection.ts";
+export { createIdeaSketchPresentationService } from "./presentationService.ts";
+export type { IdeaSketchPresentationState, IdeaSketchPresentationServiceInput } from "./presentationService.ts";
+export { createIdeaSketchIoService } from "./ioService.ts";
+export type { IdeaSketchIoServiceInput, IdeaSketchSerializedPage, IdeaSketchSerializedFormat } from "./ioService.ts";
+export { createIdeaSketchRolloutController } from "./rollout.ts";
+export type {
+  IdeaSketchRolloutController,
+  IdeaSketchRolloutDiagnostic,
+  IdeaSketchRolloutImplementation,
+  IdeaSketchRolloutMutationGate,
+  IdeaSketchRolloutNamespace,
+  IdeaSketchRolloutSelection,
+} from "./rollout.ts";
 
 export {
   DEFAULT_OPERATION_LIMITS,

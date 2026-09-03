@@ -38,6 +38,7 @@ import {
   type SdkSyncResult,
   type SnapshotCursor,
 } from "./types.ts";
+import type { ReservedRequestHandle } from "./requestLedger.ts";
 import type { IdeaSketchDocument, IdeaSketchPage } from "../../types.ts";
 import type { IdeaSketchRequestLedger } from "./requestLedger.ts";
 import type { createSnapshotStore } from "./snapshots.ts";
@@ -670,10 +671,13 @@ export function createIdeaSketchPagesService(input: PagesServiceInput) {
   }
 
   async function applyPlanUnsafe(rawInput: unknown): Promise<SdkResult<IdeaSketchSdkMutationResult>> {
-    const options = object(rawInput) as (IdeaSketchPageApplyPlanInput & { requiredCapabilities?: readonly IdeaSketchSdkScope[] }) | undefined;
+    const options = object(rawInput) as (IdeaSketchPageApplyPlanInput & {
+      requiredCapabilities?: readonly IdeaSketchSdkScope[];
+      reservedRequestHandle?: ReservedRequestHandle;
+    }) | undefined;
     const operations = options?.operations;
     if (!options || typeof options.requestId !== "string" || options.requestId.trim().length === 0 || typeof options.documentSnapshotId !== "string" || !denseArray(operations)) return sdkRejected("invalid_request", "Page applyPlan requires requestId, documentSnapshotId, and operations.");
-    const unknown = unknownFields(options as unknown as Record<string, unknown>, ["requestId", "documentSnapshotId", "operations", "sceneSnapshotId", "signal", "requiredCapabilities"], "Page applyPlan options");
+    const unknown = unknownFields(options as unknown as Record<string, unknown>, ["requestId", "documentSnapshotId", "operations", "sceneSnapshotId", "signal", "requiredCapabilities", "reservedRequestHandle"], "Page applyPlan options");
     if (unknown) return unknown as SdkResult<IdeaSketchSdkMutationResult>;
     if (!opaque(options.documentSnapshotId, "document-snapshot:")) return sdkRejected("invalid_request", "documentSnapshotId is malformed.");
     if (options.sceneSnapshotId !== undefined && !opaque(options.sceneSnapshotId, "scene-snapshot:")) return sdkRejected("invalid_request", "sceneSnapshotId is malformed.");
@@ -694,15 +698,20 @@ export function createIdeaSketchPagesService(input: PagesServiceInput) {
     if (!target.commitDocument) return sdkRejected("editor_unavailable", "The document commit adapter is unavailable.", true);
     let payloadDigest: string;
     try { payloadDigest = await canonicalPayloadDigest({ sdkProtocolVersion: input.sdkProtocolVersion, requestId: options.requestId, documentSnapshotId: options.documentSnapshotId, operations: validated.value, ...(options.sceneSnapshotId ? { sceneSnapshotId: options.sceneSnapshotId } : {}), ...(requiredCapabilities ? { requiredCapabilities } : {}) }); } catch { return sdkRejected("invalid_request", "The Page mutation payload must be strict JSON data."); }
-    const existing = input.ledger.lookup({ requestId: options.requestId, payloadDigest });
-    if (existing.status === "rejected") return existing;
-    if (existing.value?.kind === "replay" || existing.value?.kind === "joined") return existing.value.result;
+    if (!options.reservedRequestHandle) {
+      const existing = input.ledger.lookup({ requestId: options.requestId, payloadDigest });
+      if (existing.status === "rejected") return existing;
+      if (existing.value?.kind === "replay" || existing.value?.kind === "joined") return existing.value.result;
+    }
     const preflight = await validatePlanUnsafe({
       documentSnapshotId: options.documentSnapshotId,
       operations: validated.value,
       ...(options.sceneSnapshotId ? { sceneSnapshotId: options.sceneSnapshotId } : {}),
     }, false);
-    if (preflight.status === "rejected") return preflight;
+    if (preflight.status === "rejected") {
+      if (options.reservedRequestHandle) input.ledger.complete(options.reservedRequestHandle, preflight as SdkResult<IdeaSketchSdkMutationResult>);
+      return preflight;
+    }
     let prepared: PreparedPagePlan | undefined;
     let beforeTarget: IdeaSketchSdkHostTarget | undefined;
     const result = await executeSdkMutation({
@@ -712,6 +721,7 @@ export function createIdeaSketchPagesService(input: PagesServiceInput) {
       payload: { sdkProtocolVersion: input.sdkProtocolVersion, requestId: options.requestId, documentSnapshotId: options.documentSnapshotId, operations: validated.value, ...(options.sceneSnapshotId ? { sceneSnapshotId: options.sceneSnapshotId } : {}), ...(requiredCapabilities ? { requiredCapabilities } : {}) },
       scheduler: input.scheduler,
       ledger: input.ledger,
+      ...(options.reservedRequestHandle ? { reservedRequestHandle: options.reservedRequestHandle } : {}),
       signal: options.signal,
       beforeExecute: () => {
         const live = input.getTarget();

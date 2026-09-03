@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Approved | Complete | Superseded |
-| --- | --- | --- | --- | --- |
-| `required` | 6 | 0 | 6 | 0 |
-| `feature` | 91 | 1 | 89 | 1 |
-| `bugfix` | 56 | 0 | 56 | 0 |
+| Type | Plans | Complete | Superseded |
+| --- | --- | --- | --- |
+| `required` | 6 | 6 | 0 |
+| `feature` | 91 | 90 | 1 |
+| `bugfix` | 56 | 56 | 0 |
 
 ## Execution Order
 
@@ -126,7 +126,7 @@
 | `F073-02` | [Deliver Semantic Scene, Text, Connector, and Camera Operations](features/F073-unified-ideasketch-jssdk/F073-02-semantic-scene-text-and-camera-operations.md) | `complete` | 2026-09-02 |
 | `F073-03` | [Deliver Canonical IdeaSketch Page and Document Transactions](features/F073-unified-ideasketch-jssdk/F073-03-page-and-document-transactions.md) | `complete` | 2026-09-02 |
 | `F073-04` | [Migrate Agent Protocols to the Canonical IdeaSketch SDK](features/F073-unified-ideasketch-jssdk/F073-04-agent-protocol-compatibility-adapters.md) | `complete` | 2026-09-02 |
-| `F073-05` | [Migrate Pages, UI, IO, Presentation, and Complete the SDK Rollout](features/F073-unified-ideasketch-jssdk/F073-05-pages-ui-io-presentation-and-rollout.md) | `approved` | 2026-09-02 |
+| `F073-05` | [Migrate Pages, UI, IO, Presentation, and Complete the SDK Rollout](features/F073-unified-ideasketch-jssdk/F073-05-pages-ui-io-presentation-and-rollout.md) | `complete` | 2026-09-02 |
 
 ### Bugfix Plans
 

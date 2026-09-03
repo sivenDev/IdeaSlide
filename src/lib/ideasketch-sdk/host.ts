@@ -63,6 +63,8 @@ import type {
   IdeaSketchInternalDocumentCommitRecord,
   IdeaSketchInternalSceneCommitRecord,
 } from "./editorHostAdapter.ts";
+import { createIdeaSketchPresentationService } from "./presentationService.ts";
+import { createIdeaSketchIoService } from "./ioService.ts";
 
 const hostCallerBrand = Symbol("IdeaSketchSdkHostCaller");
 const issuedHostCallers = new WeakSet<object>();
@@ -172,12 +174,15 @@ export interface IdeaSketchSdkHostTarget {
    * canonical scene/document mutation callbacks. */
   updateSelection?: (refs: readonly string[]) => void | Promise<void>;
   updateViewport?: (viewport: { scrollX: number; scrollY: number; zoom: number }) => void | Promise<void>;
+  viewportSize?: { width: number; height: number };
   beginCreateCamera?: (input: {
     requestId: string;
     snapshotId: import("./types.ts").SceneSnapshotId;
     atIndex?: number;
     signal?: AbortSignal;
   }) => Promise<SdkResult<import("./types.ts").IdeaSketchSdkMutationResult>>;
+  openImageExportDialog?: () => void | Promise<void>;
+  chooseExcalidrawImport?: () => Promise<{ path: string; text: string }>;
   confirmClear?: (input: { scope: "content-only" | "all-elements"; pageRef: string; snapshotId: import("./types.ts").SceneSnapshotId }) => Promise<boolean>;
 }
 
@@ -252,6 +257,12 @@ function targetAvailability(target: IdeaSketchSdkHostTarget): IdeaSketchSdkServi
     methods.transforms = target.services.scene && (target.services.pages || target.commitScene)
       ? [...IDEA_SKETCH_SDK_METHOD_CATALOG.transforms]
       : [];
+  }
+  if (target.services.presentation && !methods.presentation) {
+    methods.presentation = [...IDEA_SKETCH_SDK_METHOD_CATALOG.presentation];
+  }
+  if (target.services.io && !methods.io) {
+    methods.io = [...IDEA_SKETCH_SDK_METHOD_CATALOG.io];
   }
   // Page transactions are the canonical document structure boundary. Other
   // deferred namespaces remain unavailable until their rollout plans opt in.
@@ -604,6 +615,8 @@ export function createIdeaSketchSdkHost(
         sessionId: id,
         capacity: initialCapabilities.limits.mutationRequestsPerSession,
       });
+      let presentationCleanup: () => void = () => undefined;
+      let ioCleanup: () => void = () => undefined;
       let controller!: ReturnType<typeof createSessionController>;
       controller = createSessionController({
         sessionId: id,
@@ -617,9 +630,11 @@ export function createIdeaSketchSdkHost(
           : {}),
         documentFormatVersion: target.document.formatVersion,
         ledger,
-        ...(target.cleanupSession
-          ? { cleanupSession: () => target.cleanupSession!(id) }
-          : {}),
+        cleanupSession: async () => {
+          presentationCleanup();
+          ioCleanup();
+          await target.cleanupSession?.(id);
+        },
         invalidateCallerResources: () => {
           snapshots.dispose();
           eventDispatcher.dispose();
@@ -669,25 +684,6 @@ export function createIdeaSketchSdkHost(
         scheduler: mutationScheduler,
         isActive: controller.isActive,
       });
-
-      const methodAvailabilityError = <Value>(namespace: string, method: string): SdkResult<Value> | undefined => {
-        if (!controller.isActive()) return sdkRejected("session_closed", "The IdeaSketch SDK session is closed.");
-        const capabilities = getCapabilities();
-        if (!capabilities.supportedMethods[namespace]?.includes(method)) {
-          return sdkRejected("capability_denied", "The caller is not authorized for this method.");
-        }
-        if (!getSessionTarget()) return sdkRejected("editor_unavailable", "The active IdeaSketch editor is unavailable.", true);
-        if (!capabilities.availableMethods[namespace]?.includes(method)) {
-          return sdkRejected("unsupported_operation", `The ${namespace}.${method} method is not currently available.`);
-        }
-        return undefined;
-      };
-
-      const unsupported = async <Value>(namespace: string, method: string): Promise<SdkResult<Value>> => {
-        const unavailable = methodAvailabilityError<Value>(namespace, method);
-        if (unavailable) return unavailable;
-        return sdkRejected("unsupported_operation", `The ${namespace}.${method} method is not available yet.`);
-      };
 
       const requests: IdeaSketchRequestsNamespace = {
         async getMutationResult(requestId) {
@@ -758,6 +754,10 @@ export function createIdeaSketchSdkHost(
         validatePlan: rawPages.validatePlan,
         select: async (value) => {
           const beforePage = getSessionTarget()?.activePageId;
+          if (beforePage && typeof value === "object" && value !== null) {
+            const requested = (value as { pageRef?: unknown }).pageRef;
+            if (typeof requested === "string" && requested !== `page:${beforePage}`) presentationService.stopForContextChange();
+          }
           const result = await rawPages.select(value);
           const afterPage = getSessionTarget()?.activePageId;
           if (result.status === "succeeded" && beforePage !== afterPage && afterPage) {
@@ -816,6 +816,51 @@ export function createIdeaSketchSdkHost(
         scene,
         pages,
       });
+      const presentationService = createIdeaSketchPresentationService({
+        getTarget: getSessionTarget,
+        getScopes: () => getCapabilities().scopes,
+        isActive: controller.isActive,
+        isMethodAvailable: (method) => Boolean(getCapabilities().availableMethods.presentation?.includes(method)),
+        onStateChange: (state) => {
+          const live = getSessionTarget();
+          eventHub.publish({
+            type: "presentation-state-change",
+            state: state.running ? "running" : "stopped",
+            ...(state.mode ? { mode: state.mode } : {}),
+            ...(state.pageRef ? { pageRef: state.pageRef } : {}),
+            ...(state.presentationSessionId ? { presentationSessionId: state.presentationSessionId } : {}),
+            ...(state.activeCameraRef ? { activeCameraRef: state.activeCameraRef } : {}),
+            ...(state.cameraIndex !== undefined ? { cameraIndex: state.cameraIndex } : {}),
+            ...(state.cameraCount !== undefined ? { cameraCount: state.cameraCount } : {}),
+            ...(live ? {} : {}),
+          });
+        },
+      });
+      presentationCleanup = presentationService.stopForContextChange;
+      const ioService = createIdeaSketchIoService({
+        getTarget: getSessionTarget,
+        getScopes: () => getCapabilities().scopes,
+        isActive: controller.isActive,
+        isMethodAvailable: (method) => Boolean(getCapabilities().availableMethods.io?.includes(method)),
+        ledger,
+        ...(target.openImageExportDialog ? { openImageExportDialog: () => getSessionTarget()?.openImageExportDialog?.() } : {}),
+        ...(target.chooseExcalidrawImport ? { chooseImport: () => getSessionTarget()?.chooseExcalidrawImport?.() ?? Promise.reject(new Error("The Excalidraw picker is unavailable.")) } : {}),
+        parseExcalidraw: (value) => pagesService.parseExcalidraw(value),
+        applyImport: async ({ requestId, draftRef, title, reservedRequestHandle }) => {
+          const live = getSessionTarget();
+          if (!live) return sdkRejected("editor_unavailable", "The active IdeaSketch editor is unavailable.", true);
+          const listed = await pagesService.list();
+          if (listed.status !== "succeeded") return listed;
+          const pageRef = `temp:imported-page:${requestId}`;
+          return pagesService.applyPlan({
+            requestId,
+            documentSnapshotId: listed.value.documentSnapshotId,
+            operations: [{ kind: "import-page", version: 1, ref: pageRef as import("./types.ts").TempRef, ...(title ? { title } : {}), parsedPageDraftRef: draftRef as import("./types.ts").ParsedPageDraftRef }],
+            ...(reservedRequestHandle ? { reservedRequestHandle } : {}),
+          } as never);
+        },
+      });
+      ioCleanup = ioService.dispose;
       const cameras: IdeaSketchCamerasNamespace = {
         list: (value) => cameraService.list(value as never),
         select: (value) => selectionViewService.cameras.select(value as never),
@@ -834,26 +879,26 @@ export function createIdeaSketchSdkHost(
         convertSelectionStyle: (value) => transformsService.convertSelectionStyle(value as never),
       };
       const presentation: IdeaSketchPresentationNamespace = {
-        getState: () => unsupported("presentation", "getState"),
-        start: () => unsupported("presentation", "start"),
-        stop: () => unsupported("presentation", "stop"),
-        next: () => unsupported("presentation", "next"),
-        previous: () => unsupported("presentation", "previous"),
-        goToCamera: () => unsupported("presentation", "goToCamera"),
+        getState: (value) => presentationService.getState(value),
+        start: (value) => presentationService.start(value),
+        stop: (value) => presentationService.stop(value),
+        next: (value) => presentationService.next(value),
+        previous: (value) => presentationService.previous(value),
+        goToCamera: (value) => presentationService.goToCamera(value),
       };
       const assets: IdeaSketchAssetsNamespace = {
         listMetadata: (value: IdeaSketchAssetMetadataListOptions) =>
           sceneService.listAssetMetadata(value) as Promise<SdkResult<IdeaSketchAssetMetadataListResult>>,
       };
       const io: IdeaSketchIoNamespace = {
-        serializeActivePageAsExcalidraw: () => unsupported("io", "serializeActivePageAsExcalidraw"),
-        serializeActivePageAsIdeaSketch: () => unsupported("io", "serializeActivePageAsIdeaSketch"),
-        serializeActivePageAsDrawio: () => unsupported("io", "serializeActivePageAsDrawio"),
-        exportActivePageAsExcalidraw: () => unsupported("io", "exportActivePageAsExcalidraw"),
-        exportActivePageAsIdeaSketch: () => unsupported("io", "exportActivePageAsIdeaSketch"),
-        exportActivePageAsDrawio: () => unsupported("io", "exportActivePageAsDrawio"),
-        openImageExportDialog: () => unsupported("io", "openImageExportDialog"),
-        pickExcalidrawAndAddPage: () => unsupported("io", "pickExcalidrawAndAddPage"),
+        serializeActivePageAsExcalidraw: () => ioService.serializeActivePageAsExcalidraw(),
+        serializeActivePageAsIdeaSketch: () => ioService.serializeActivePageAsIdeaSketch(),
+        serializeActivePageAsDrawio: () => ioService.serializeActivePageAsDrawio(),
+        exportActivePageAsExcalidraw: () => ioService.exportActivePageAsExcalidraw(),
+        exportActivePageAsIdeaSketch: () => ioService.exportActivePageAsIdeaSketch(),
+        exportActivePageAsDrawio: () => ioService.exportActivePageAsDrawio(),
+        openImageExportDialog: () => ioService.openImageExportDialog(),
+        pickExcalidrawAndAddPage: (value) => ioService.pickExcalidrawAndAddPage(value),
       };
 
       const subscribe = <Event extends IdeaSketchSdkEvent>(

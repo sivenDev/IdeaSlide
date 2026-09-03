@@ -550,22 +550,19 @@ test('saved editable documents autosave in both modes while Page-scoped Cameras 
 
 test('Page selection records editor state without persisting a model mutation', () => {
   assert.match(source, /if \(next\.activePageId !== previous\.activePageId\) \{[\s\S]*?onEditorStateChange\(document\.id, next\.activePageId\);/);
-  assert.match(source, /const selectPage = useCallback\(\(pageId: string\) => \{[\s\S]*?flushDraft\(\);[\s\S]*?applyAction\(\{ type: "SELECT_PAGE", pageId \}, false\);/);
+  assert.match(source, /const selectPage = useCallback\(async \(pageId: string\) => \{/);
+  assert.match(source, /sdk\?\.pages\.select\(\{ pageRef: `page:\$\{pageId\}` \}\)/);
+  assert.doesNotMatch(source, /const selectPage = useCallback\(\(pageId: string\) => \{[\s\S]*?applyAction\(\{ type: "SELECT_PAGE", pageId \}, false\);/);
 });
 
 test('selection conversion stays inside the active Page draft boundary', () => {
   const canvas = source.match(/<SlideCanvas\n[\s\S]*?\/>/)?.[0] ?? '';
 
   assert.match(source, /handleConvertSelection/);
-  assert.match(source, /CaptureUpdateAction\.IMMEDIATELY/);
-  assert.match(source, /restoreElements/);
-  assert.match(source, /refreshDimensions: true/);
-  assert.match(source, /repairBindings: true/);
+  assert.match(source, /sdk\.transforms\.convertSelectionStyle\(/);
+  assert.match(source, /selectedRefs/);
+  assert.match(source, /snapshotId: sceneRead\.value\.snapshotId/);
   assert.match(source, /requestAnimationFrame/);
-  assert.match(source, /buildCurrentPageStyleConversion/);
-  assert.match(source, /buildNewPageStyleConversion/);
-  assert.match(source, /flushDraft\(\)/);
-  assert.match(source, /type: "ADD_PAGE"/);
-  assert.match(source, /Clean style/);
+  assert.doesNotMatch(source, /buildCurrentPageStyleConversion|buildNewPageStyleConversion/);
   assert.match(canvas, /onConvertSelection=\{handleConvertSelection\}/);
 });
