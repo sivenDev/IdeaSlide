@@ -4,17 +4,17 @@ import assert from 'node:assert/strict';
 import { createIdeaSketchHostCaller, createIdeaSketchSdkHost } from '../src/lib/ideasketch-sdk/host.ts';
 import { buildIdeaSketchOperation } from '../src/lib/ideasketch-sdk/operationSchemas.ts';
 
-function harness() {
+function harness({ documentStatus = 'editable', readOnly = false, servicesWritable = true } = {}) {
   const target = {
-    documentSessionId: 'd', documentId: 'd', activePageId: 'a', documentStatus: 'editable', revision: 1,
-    readOnly: false, mountedPageId: 'a', pageEditVersion: 1,
+    documentSessionId: 'd', documentId: 'd', activePageId: 'a', documentStatus, revision: 1,
+    readOnly, mountedPageId: 'a', pageEditVersion: 1,
     nativeInteraction: { epoch: 0, busy: false, reasons: [] },
     document: { type: 'ideasketch', formatVersion: '1.0', created: '2026', modified: '2026', pages: [
-      { id: 'a', title: 'A', elements: [], appState: {}, files: {} },
+      { id: 'a', title: 'A', elements: [{ id: 'shape-a', type: 'rectangle', x: 0, y: 0, width: 40, height: 30, angle: 0, version: 1, versionNonce: 1, updated: 1, isDeleted: false, locked: false, groupIds: [], frameId: null, boundElements: null }], appState: { viewBackgroundColor: '#fff' }, files: { 'asset-a': { id: 'asset-a', mimeType: 'image/png' } } },
       { id: 'b', title: 'B', elements: [], appState: {}, files: {} },
     ] },
     scene: { elements: [], appState: {}, files: {} },
-    services: { pages: true, scene: true, operations: true, writable: true },
+    services: { pages: true, scene: true, operations: true, writable: servicesWritable },
     commits: [],
     commitDocument(next, preferredPageId) { this.document = next; this.activePageId = preferredPageId ?? this.activePageId; this.revision += 1; this.pageEditVersion += 1; },
     selectPage(pageId) { this.activePageId = pageId; },
@@ -26,10 +26,20 @@ function harness() {
 }
 
 async function open() {
-  const state = harness();
+  const state = harness(...arguments);
   const result = await state.host.createSession({ caller: state.caller, sdkProtocolVersion: { major: 1, minor: 0 } });
   assert.equal(result.status, 'succeeded');
   return { ...state, sdk: result.value };
+}
+
+async function applyPageOperation(sdk, requestId, operation) {
+  const listed = await sdk.pages.list();
+  assert.equal(listed.status, 'succeeded');
+  return sdk.pages.applyPlan({
+    requestId,
+    documentSnapshotId: listed.value.documentSnapshotId,
+    operations: [operation],
+  });
 }
 
 function op(kind, input) {
@@ -55,6 +65,79 @@ test('Page structure plans commit atomically and preserve duplicate payloads', a
   assert.equal(applied.value.createdPageRefs.length, 1);
   assert.ok(target.commits[0].operationKinds.includes('duplicate-page'));
   assert.equal(applied.value.history.document, 'unavailable');
+});
+
+for (const documentStatus of ['external-change', 'conflict']) {
+  test(`trusted Page rename, duplicate, and delete remain in-memory writable during ${documentStatus}`, async () => {
+    const { sdk, target } = await open({ documentStatus });
+    const capabilities = await sdk.context.getCapabilities();
+    const context = await sdk.context.get();
+    assert.equal(capabilities.status, 'succeeded');
+    assert.equal(context.status, 'succeeded');
+    assert.equal(capabilities.value.available.writable, true);
+    assert.equal(context.value.writable, true);
+    for (const kind of ['rename-page', 'duplicate-page', 'delete-page']) {
+      assert.ok(capabilities.value.availableOperationKinds.includes(kind));
+    }
+
+    const renamed = await applyPageOperation(
+      sdk,
+      `${documentStatus}-rename`,
+      op('rename-page', { pageRef: 'page:a', title: '  Renamed  ' }),
+    );
+    assert.equal(renamed.status, 'succeeded', renamed.status === 'rejected' ? renamed.error.message : 'rename failed');
+    assert.equal(target.document.pages[0].title, 'Renamed');
+
+    const duplicated = await applyPageOperation(
+      sdk,
+      `${documentStatus}-duplicate`,
+      op('duplicate-page', { ref: 'temp:copy', sourcePageRef: 'page:a' }),
+    );
+    assert.equal(duplicated.status, 'succeeded', duplicated.status === 'rejected' ? duplicated.error.message : 'duplicate failed');
+    const copyRef = duplicated.value.createdRefs['temp:copy'];
+    const copyId = copyRef.slice('page:'.length);
+    const copyIndex = target.document.pages.findIndex((page) => page.id === copyId);
+    assert.equal(copyIndex, 1);
+    assert.equal(target.activePageId, copyId);
+    assert.deepEqual(target.document.pages[copyIndex].elements, target.document.pages[0].elements);
+    assert.deepEqual(target.document.pages[copyIndex].appState, target.document.pages[0].appState);
+    assert.deepEqual(target.document.pages[copyIndex].files, target.document.pages[0].files);
+
+    const deleted = await applyPageOperation(
+      sdk,
+      `${documentStatus}-delete`,
+      op('delete-page', { pageRef: `page:${copyId}` }),
+    );
+    assert.equal(deleted.status, 'succeeded', deleted.status === 'rejected' ? deleted.error.message : 'delete failed');
+    assert.equal(target.document.pages.some((page) => page.id === copyId), false);
+    assert.equal(target.activePageId, 'b');
+  });
+}
+
+test('Agent and protected Page targets do not inherit trusted in-memory writability', async () => {
+  const agentState = harness({ documentStatus: 'conflict' });
+  const agentCaller = createIdeaSketchHostCaller({ id: 'agent', profile: 'agent-v2' });
+  const agentSession = await agentState.host.createSession({
+    caller: agentCaller,
+    sdkProtocolVersion: { major: 1, minor: 0 },
+    agentToolProtocolVersion: { major: 2, minor: 0 },
+    expectedAgentSchemaDigest: 'agent-tool-v2:semantic',
+  });
+  assert.equal(agentSession.status, 'succeeded');
+  const agentCapabilities = await agentSession.value.context.getCapabilities();
+  const agentContext = await agentSession.value.context.get();
+  assert.equal(agentCapabilities.value.available.writable, false);
+  assert.equal(agentContext.value.writable, false);
+  assert.deepEqual(agentCapabilities.value.availableOperationKinds, []);
+
+  for (const options of [{ documentStatus: 'read-only', readOnly: true }, { documentStatus: 'conflict', servicesWritable: false }]) {
+    const { sdk } = await open(options);
+    const capabilities = await sdk.context.getCapabilities();
+    const context = await sdk.context.get();
+    assert.equal(capabilities.value.available.writable, false);
+    assert.equal(context.value.writable, false);
+    assert.deepEqual(capabilities.value.availableOperationKinds, []);
+  }
 });
 
 test('Page deletion retains one page and rejects out-of-range reorder', async () => {

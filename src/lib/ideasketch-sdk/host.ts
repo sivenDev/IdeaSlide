@@ -65,6 +65,7 @@ import type {
 } from "./editorHostAdapter.ts";
 import { createIdeaSketchPresentationService } from "./presentationService.ts";
 import { createIdeaSketchIoService } from "./ioService.ts";
+import { isIdeaSketchDocumentWritable } from "./documentWritability.ts";
 
 const hostCallerBrand = Symbol("IdeaSketchSdkHostCaller");
 const issuedHostCallers = new WeakSet<object>();
@@ -228,7 +229,7 @@ function sessionId(): CallerSessionId {
   return `caller-session:${globalThis.crypto.randomUUID()}` as CallerSessionId;
 }
 
-function targetAvailability(target: IdeaSketchSdkHostTarget): IdeaSketchSdkServiceAvailability {
+function targetAvailability(target: IdeaSketchSdkHostTarget, callerProfile: string): IdeaSketchSdkServiceAvailability {
   const methods = { ...(target.services.methods ?? {}) };
   // A namespace-level `true` only means that the service boundary is mounted;
   // it must not imply that every catalog method has shipped.  F073-02 owns
@@ -297,9 +298,12 @@ function targetAvailability(target: IdeaSketchSdkHostTarget): IdeaSketchSdkServi
     // unmounted/draft-only hosts), even when the document status itself is
     // editable.  Capability projections must never advertise writes the host
     // boundary will reject.
-    writable: target.services.writable !== false
-      && !target.readOnly
-      && target.documentStatus === "editable",
+    writable: isIdeaSketchDocumentWritable({
+      documentStatus: target.documentStatus,
+      readOnly: target.readOnly,
+      servicesWritable: target.services.writable,
+      callerProfile,
+    }),
   };
 }
 
@@ -586,7 +590,7 @@ export function createIdeaSketchSdkHost(
         };
         return createCapabilityProjection(
           input.caller.profile,
-          targetAvailability(capabilityTarget),
+          targetAvailability(capabilityTarget, input.caller.profile),
           negotiated.value.agentTool,
           input.caller.grantedScopes,
           {
@@ -959,6 +963,7 @@ export function createIdeaSketchSdkHost(
             ? { toolSchemaDigest: negotiated.value.agentSchemaDigest }
             : {}),
           documentFormatVersion: target.document.formatVersion,
+          callerProfile: input.caller.profile,
         }),
         requests,
         pages,

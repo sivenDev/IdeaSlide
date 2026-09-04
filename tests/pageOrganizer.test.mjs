@@ -9,6 +9,10 @@ test('Pages organizer supports both views and the complete v1 Page lifecycle', (
   assert.match(source, /aria-label="Add Page"/);
   assert.match(source, /onRename/);
   assert.match(source, /onDuplicate/);
+  assert.match(source, /onDelete/);
+  assert.match(source, /onCommitRename=\{commitRename\}/);
+  assert.match(source, /onDelete=\{\(\) => onDelete\(page\.id\)\}/);
+  assert.match(source, /onDuplicate=\{\(\) => onDuplicate\(page\.id\)\}/);
   assert.match(source, /aria-label=\{"Copy " \+ page\.title\}/);
   assert.match(source, /<Copy /);
   assert.match(source, /onReorder/);

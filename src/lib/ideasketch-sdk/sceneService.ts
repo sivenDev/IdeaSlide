@@ -31,6 +31,7 @@ import type { IdeaSketchRequestLedger } from "./requestLedger.ts";
 import type { createSnapshotStore } from "./snapshots.ts";
 import type { DocumentMutationScheduler } from "./transactions.ts";
 import type { IdeaSketchSdkHostTarget } from "./host.ts";
+import { isIdeaSketchDocumentWritable } from "./documentWritability.ts";
 
 interface SceneServiceInput {
   sessionId: string;
@@ -579,7 +580,7 @@ export function createIdeaSketchSceneService(input: SceneServiceInput) {
     const target = input.getTarget();
     if (!target) return rejected("editor_unavailable", "The active IdeaSketch editor is unavailable.", true);
     if (target.nativeInteraction.busy) return rejected("editor_busy", "A native editor interaction is in progress.", true);
-    if (target.readOnly || target.documentStatus !== "editable") return rejected("read_only", "The IdeaSketch document is read-only.");
+    if (!isIdeaSketchDocumentWritable({ ...target, callerProfile: input.callerProfile, servicesWritable: target.services.writable })) return rejected("read_only", "The IdeaSketch document is read-only.");
     if (!target.mountedPageId || target.mountedPageId !== target.activePageId || !target.commitScene) return rejected("editor_unavailable", "The active IdeaSketch canvas is unavailable.", true);
     const available = validateAvailableOperationKinds(
       validated.value,
@@ -637,7 +638,7 @@ export function createIdeaSketchSceneService(input: SceneServiceInput) {
         if (live.revision !== target.revision || live.sourceModified !== target.sourceModified) return sdkRejected("external_change", "The document changed before commit.", true);
         if (live.nativeInteraction.busy) return sdkRejected("editor_busy", "A native editor interaction is in progress.", true);
         if (live.pageEditVersion !== target.pageEditVersion || live.nativeInteraction.epoch !== target.nativeInteraction.epoch) return sdkRejected("snapshot_stale", "The scene changed before commit.", true);
-        if (live.readOnly || live.documentStatus !== "editable") return sdkRejected("read_only", "The document became read-only.");
+        if (!isIdeaSketchDocumentWritable({ ...live, callerProfile: input.callerProfile, servicesWritable: live.services.writable })) return sdkRejected("read_only", "The document became read-only.");
         return sdkSucceeded(undefined);
       },
       validatePostconditions: (scene) => Boolean(scene && prepared),
@@ -692,7 +693,7 @@ export function createIdeaSketchSceneService(input: SceneServiceInput) {
       if (!target) return rejected("editor_unavailable", "The active IdeaSketch editor is unavailable.", true);
       if (target.mountedPageId !== target.activePageId) return rejected("editor_unavailable", "The active IdeaSketch canvas is unavailable.", true);
       if (target.nativeInteraction.busy) return rejected("editor_busy", "A native editor interaction is in progress.", true);
-      if (target.readOnly || target.documentStatus !== "editable") return rejected("read_only", "The IdeaSketch document is read-only.");
+      if (!isIdeaSketchDocumentWritable({ ...target, callerProfile: input.callerProfile, servicesWritable: target.services.writable })) return rejected("read_only", "The IdeaSketch document is read-only.");
       const verified = await verifyReadSession(options.snapshotId, target);
       if (verified.status !== "succeeded") return verified;
       if (!verified.value.snapshot.complete) return rejected("incomplete_read", "Clear confirmation requires a complete scene snapshot.");

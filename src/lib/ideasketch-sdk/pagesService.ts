@@ -44,6 +44,7 @@ import type { IdeaSketchRequestLedger } from "./requestLedger.ts";
 import type { createSnapshotStore } from "./snapshots.ts";
 import type { DocumentMutationScheduler } from "./transactions.ts";
 import type { IdeaSketchSdkHostTarget } from "./host.ts";
+import { isIdeaSketchDocumentWritable } from "./documentWritability.ts";
 
 interface PagesServiceInput {
   sessionId: string;
@@ -693,7 +694,7 @@ export function createIdeaSketchPagesService(input: PagesServiceInput) {
     if (!input.isMethodAvailable("pages", "applyPlan")) return sdkRejected("unsupported_operation", "The pages.applyPlan method is not available.");
     const target = input.getTarget();
     if (!target) return sdkRejected("editor_unavailable", "The active IdeaSketch editor is unavailable.", true);
-    if (target.readOnly || target.documentStatus !== "editable") return sdkRejected("read_only", "The IdeaSketch document is read-only.");
+    if (!isIdeaSketchDocumentWritable({ ...target, callerProfile: input.callerProfile, servicesWritable: target.services.writable })) return sdkRejected("read_only", "The IdeaSketch document is read-only.");
     if (target.nativeInteraction.busy) return sdkRejected("editor_busy", "A native editor interaction is in progress.", true);
     if (!target.commitDocument) return sdkRejected("editor_unavailable", "The document commit adapter is unavailable.", true);
     let payloadDigest: string;
@@ -730,7 +731,7 @@ export function createIdeaSketchPagesService(input: PagesServiceInput) {
         live.flushDraft?.();
         beforeTarget = input.getTarget();
         if (!beforeTarget) return sdkRejected("editor_unavailable", "The active IdeaSketch editor is unavailable.", true);
-        if (beforeTarget.readOnly || beforeTarget.documentStatus !== "editable") return sdkRejected("read_only", "The IdeaSketch document is read-only.");
+        if (!isIdeaSketchDocumentWritable({ ...beforeTarget, callerProfile: input.callerProfile, servicesWritable: beforeTarget.services.writable })) return sdkRejected("read_only", "The IdeaSketch document is read-only.");
         return sdkSucceeded(undefined);
       },
       readState: () => input.getTarget()?.document ?? target.document,
@@ -756,7 +757,7 @@ export function createIdeaSketchPagesService(input: PagesServiceInput) {
         if (live.revision !== beforeTarget.revision || live.sourceModified !== beforeTarget.sourceModified) return sdkRejected("external_change", "The document changed before commit.", true);
         if (live.pageEditVersion !== beforeTarget.pageEditVersion || live.nativeInteraction.epoch !== beforeTarget.nativeInteraction.epoch) return sdkRejected("snapshot_stale", "The Page changed before commit.", true);
         if (live.nativeInteraction.busy) return sdkRejected("editor_busy", "A native editor interaction is in progress.", true);
-        if (live.readOnly || live.documentStatus !== "editable") return sdkRejected("read_only", "The document became read-only.");
+        if (!isIdeaSketchDocumentWritable({ ...live, callerProfile: input.callerProfile, servicesWritable: live.services.writable })) return sdkRejected("read_only", "The document became read-only.");
         return sdkSucceeded(undefined);
       },
       commit: (document) => {

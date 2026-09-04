@@ -59,6 +59,13 @@ test('IdeaSketch editor binds Excalidraw drafts to document and Page identity', 
   assert.match(source, /const previousEditVersion = getEditVersion\(\);[\s\S]*?updateDraft\(elements, appState, files\);[\s\S]*?getEditVersion\(\) === previousEditVersion/);
 });
 
+test('Page row lifecycle stays on the canonical SDK transaction path', () => {
+  assert.match(source, /const renamePage = useCallback[\s\S]*?kind: "rename-page"[\s\S]*?applyPagePlan/);
+  assert.match(source, /const duplicatePage = useCallback[\s\S]*?kind: "duplicate-page"[\s\S]*?applyPagePlan/);
+  assert.match(source, /const deletePage = useCallback[\s\S]*?kind: "delete-page"[\s\S]*?applyPagePlan/);
+  assert.doesNotMatch(source, /dispatch\(\{\s*type:\s*"(?:RENAME|DUPLICATE|DELETE)_PAGE"/);
+});
+
 test('native action ownership keeps the SDK busy until every exact owner settles', () => {
   const ownership = createIdeaSketchNativeActionOwnership();
   const first = ownership.begin();

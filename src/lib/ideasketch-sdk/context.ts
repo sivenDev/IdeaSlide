@@ -6,6 +6,7 @@ import {
   type IdeaSketchSdkContext,
   type SdkProtocolVersion,
 } from "./types.ts";
+import { isIdeaSketchDocumentWritable } from "./documentWritability.ts";
 
 export interface IdeaSketchContextSource {
   documentId: string;
@@ -22,6 +23,7 @@ export function createContextNamespace(input: {
   isActive: () => boolean;
   getSource: () => IdeaSketchContextSource | undefined;
   getCapabilities: () => IdeaSketchSdkCapabilities;
+  callerProfile: string;
   sdkProtocolVersion: Readonly<SdkProtocolVersion>;
   agentToolProtocolVersion?: Readonly<SdkProtocolVersion>;
   toolSchemaDigest?: string;
@@ -41,7 +43,11 @@ export function createContextNamespace(input: {
           documentRef: `document:${source.documentId}`,
           activePageRef: `page:${source.activePageId}`,
           documentStatus: source.documentStatus,
-          writable: capabilities.available.writable && !source.readOnly && source.documentStatus === "editable",
+          writable: capabilities.available.writable && isIdeaSketchDocumentWritable({
+            documentStatus: source.documentStatus,
+            readOnly: source.readOnly,
+            callerProfile: input.callerProfile,
+          }),
           mounted: source.mountedPageId === source.activePageId,
           busy: source.nativeInteraction.busy,
           revision: source.revision,

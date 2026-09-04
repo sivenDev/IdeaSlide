@@ -2,7 +2,7 @@
 id: "B057"
 title: "Restore IdeaSketch Page rename, duplicate, and delete actions"
 type: "bugfix"
-status: "draft"
+status: "complete"
 summary: "Allow trusted editor Page actions to mutate the in-memory document while preserving read-only and Agent safety gates."
 source: "docs/superplan/human/bugs.md"
 created: "2026-09-04"
@@ -41,8 +41,8 @@ parent: ""
 - `node --test tests/ideaSketchSdkPageTransactions.test.mjs tests/ideaSketchSdkSceneTransactions.test.mjs tests/ideaSketchSdkBoundaryReview.test.mjs`
 - Assert trusted UI can mutate an `external-change` or `conflict` target in memory, while `agent-v2`, read-only, and protected targets remain rejected and capability projections do not advertise writes for those callers.
 
-- [ ] Add the shared status/caller writability predicate and use it at every SDK mutation boundary.
-- [ ] Preserve explicit `services.writable: false`, native-interaction busy checks, snapshot checks, and filesystem save restrictions.
+- [x] Add the shared status/caller writability predicate and use it at every SDK mutation boundary.
+- [x] Preserve explicit `services.writable: false`, native-interaction busy checks, snapshot checks, and filesystem save restrictions.
 
 ## Task 2: Add behavior-level regressions for the Page controls
 
@@ -61,8 +61,10 @@ parent: ""
 - `npm run build`
 - Verify Rename commits the trimmed title, Copy creates a full adjacent clone and selects it, Delete preserves at least one Page and selects deterministically, and no direct Page reducer path is added to the UI handlers.
 
-- [ ] Add the external-change/conflict lifecycle regression and protected-caller assertions.
-- [ ] Run focused tests and the TypeScript/Vite production build.
+- [x] Add the external-change/conflict lifecycle regression and protected-caller assertions.
+- [x] Run focused tests and the TypeScript/Vite production build.
+
+Verification evidence: `node --test tests/*.test.mjs` (693/693 passed) and `npm run build` (TypeScript/Vite production build passed).
 
 ## References
 - `docs/superplan/human/bugs.md#B057`

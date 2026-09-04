@@ -6,13 +6,46 @@ import { op } from './ideaSketchSdkTestUtils.mjs';
 
 function hostWithScene(sceneState) {
   return createIdeaSketchSdkHost(() => ({
-    documentSessionId: 'document-1', documentId: 'document-1', activePageId: 'page-1', documentStatus: 'editable', revision: sceneState.revision ?? 1, readOnly: false, mountedPageId: 'page-1', pageEditVersion: sceneState.pageEditVersion ?? 1,
+    documentSessionId: 'document-1', documentId: 'document-1', activePageId: 'page-1', documentStatus: sceneState.documentStatus ?? 'editable', revision: sceneState.revision ?? 1, readOnly: sceneState.readOnly ?? false, mountedPageId: 'page-1', pageEditVersion: sceneState.pageEditVersion ?? 1,
     nativeInteraction: sceneState.nativeInteraction ?? { epoch: 1, busy: false, reasons: [] },
     document: { type: 'ideasketch', formatVersion: '1.0', created: '2026-01-01', modified: '2026-01-01', pages: [{ id: 'page-1', title: 'Page 1', elements: sceneState.elements ?? [], appState: sceneState.appState ?? {}, files: sceneState.files ?? {} }] },
-    scene: { elements: sceneState.elements ?? [], appState: sceneState.appState ?? {}, files: sceneState.files ?? {} }, services: { mountedCanvas: true, writable: true, scene: true, operations: true, cameras: true, assets: true },
+    scene: { elements: sceneState.elements ?? [], appState: sceneState.appState ?? {}, files: sceneState.files ?? {} }, services: { mountedCanvas: true, writable: sceneState.servicesWritable ?? true, scene: true, operations: true, cameras: true, assets: true },
     commitScene: (next) => { sceneState.elements = next.elements; sceneState.appState = next.appState; sceneState.files = next.files; sceneState.pageEditVersion += 1; },
   }));
 }
+
+test('trusted scene mutations use the same in-memory conflict writability policy as Page actions', async () => {
+  const state = { elements: [], appState: {}, files: {}, pageEditVersion: 1, documentStatus: 'conflict' };
+  const host = hostWithScene(state);
+  const caller = createIdeaSketchHostCaller({ id: 'trusted-conflict-writer', profile: 'trusted-ui' });
+  const session = await host.createSession({ caller, sdkProtocolVersion: { major: 1, minor: 0 } });
+  assert.equal(session.status, 'succeeded');
+  const sdk = session.value;
+  const context = await sdk.context.get();
+  assert.equal(context.value.writable, true);
+  const read = await sdk.scene.read({});
+  const result = await sdk.scene.applyPlan({
+    requestId: 'trusted-conflict-scene',
+    snapshotId: read.value.snapshotId,
+    operations: [op('create-text', { ref: 'temp:t', x: 0, y: 0, text: 'in memory' })],
+  });
+  assert.equal(result.status, 'succeeded', result.status === 'rejected' ? result.error.message : 'apply failed');
+  assert.equal(state.elements.filter((item) => item.type === 'text').length, 1);
+});
+
+test('external scene callers remain non-writable during an external-file conflict', async () => {
+  const state = { elements: [], appState: {}, files: {}, pageEditVersion: 1, documentStatus: 'conflict' };
+  const host = hostWithScene(state);
+  const caller = createIdeaSketchHostCaller({ id: 'external-conflict-writer', profile: 'future-external', grantedScopes: ['context.read', 'scene.read', 'scene.write'] });
+  const session = await host.createSession({ caller, sdkProtocolVersion: { major: 1, minor: 0 } });
+  assert.equal(session.status, 'succeeded');
+  const capabilities = await session.value.context.getCapabilities();
+  const context = await session.value.context.get();
+  assert.equal(context.status, 'succeeded');
+  assert.equal(capabilities.value.available.writable, false);
+  assert.equal(context.value.writable, false);
+  assert.deepEqual(capabilities.value.availableOperationKinds, []);
+});
 
 test('scene.read/applyPlan use one receipt-bound service and commit once', async () => {
   const state = { elements: [], appState: {}, files: {}, pageEditVersion: 1 };

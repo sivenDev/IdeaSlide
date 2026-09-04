@@ -448,7 +448,7 @@ Agent assistant responses can show Markdown syntax and collapsed headings or par
 
 ## B057: Restore IdeaSketch Page rename, duplicate, and delete actions
 
-- status: accepted
+- status: done
 - created: 2026-09-04
 
 在编辑器的 Pages 列表中，当前 Page 行右侧的重命名、复制、删除三个按钮点击后没有可见效果。期望：重命名打开并完成 Page 名称编辑，复制创建对应的新 Page，删除移除目标 Page；其它 Page 导航和现有数据保持不变。
