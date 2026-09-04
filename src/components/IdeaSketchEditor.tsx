@@ -564,6 +564,12 @@ export function IdeaSketchEditor({
     if (listed.status !== "succeeded") return listed;
     return sdk.pages.applyPlan({ requestId, documentSnapshotId: listed.value.documentSnapshotId, operations });
   }, [getTrustedUiSdk]);
+  const reportPageMutationResult = useCallback((result: { status?: string; error?: { message?: string } } | undefined) => {
+    if (result?.status !== "rejected") return;
+    const detail = result.error?.message ?? "The Page action could not be completed.";
+    console.warn(detail);
+    excalidrawApiRef.current?.setToast({ message: detail, duration: 4200 });
+  }, []);
 
   const exportActivePageAsDrawio = useCallback(async () => {
     const sdk = await getTrustedUiSdk();
@@ -607,18 +613,18 @@ export function IdeaSketchEditor({
   const selectPage = useCallback(async (pageId: string) => {
     const sdk = await getTrustedUiSdk();
     const result = await sdk?.pages.select({ pageRef: `page:${pageId}` });
-    if (result?.status === "rejected") console.warn(result.error.message);
-  }, [getTrustedUiSdk]);
+    reportPageMutationResult(result);
+  }, [getTrustedUiSdk, reportPageMutationResult]);
   const addPage = useCallback(async () => {
     if (readOnly) return;
     const result = await applyPagePlan([{ kind: "add-page", version: 1, ref: "temp:new-page", title: `Page ${editorStateRef.current.document.pages.length + 1}` }], `ui-add-page:${globalThis.crypto?.randomUUID?.() ?? Date.now()}`);
-    if (result?.status === "rejected") console.warn(result.error.message);
-  }, [applyPagePlan, readOnly]);
+    reportPageMutationResult(result);
+  }, [applyPagePlan, readOnly, reportPageMutationResult]);
   const duplicatePage = useCallback(async (pageId: string) => {
     if (readOnly) return;
     const result = await applyPagePlan([{ kind: "duplicate-page", version: 1, ref: "temp:duplicate-page", sourcePageRef: `page:${pageId}` }], `ui-duplicate-page:${globalThis.crypto?.randomUUID?.() ?? Date.now()}`);
-    if (result?.status === "rejected") console.warn(result.error.message);
-  }, [applyPagePlan, readOnly]);
+    reportPageMutationResult(result);
+  }, [applyPagePlan, readOnly, reportPageMutationResult]);
   const importPage = useCallback(async () => {
     if (readOnly) return;
     try {
@@ -636,18 +642,18 @@ export function IdeaSketchEditor({
   const renamePage = useCallback(async (pageId: string, title: string) => {
     if (readOnly) return;
     const result = await applyPagePlan([{ kind: "rename-page", version: 1, pageRef: `page:${pageId}`, title }], `ui-rename-page:${globalThis.crypto?.randomUUID?.() ?? Date.now()}`);
-    if (result?.status === "rejected") console.warn(result.error.message);
-  }, [applyPagePlan, readOnly]);
+    reportPageMutationResult(result);
+  }, [applyPagePlan, readOnly, reportPageMutationResult]);
   const reorderPage = useCallback(async (pageId: string, toIndex: number) => {
     if (readOnly) return;
     const result = await applyPagePlan([{ kind: "reorder-page", version: 1, pageRef: `page:${pageId}`, toIndex }], `ui-reorder-page:${globalThis.crypto?.randomUUID?.() ?? Date.now()}`);
-    if (result?.status === "rejected") console.warn(result.error.message);
-  }, [applyPagePlan, readOnly]);
+    reportPageMutationResult(result);
+  }, [applyPagePlan, readOnly, reportPageMutationResult]);
   const deletePage = useCallback(async (pageId: string) => {
     if (readOnly) return;
     const result = await applyPagePlan([{ kind: "delete-page", version: 1, pageRef: `page:${pageId}` }], `ui-delete-page:${globalThis.crypto?.randomUUID?.() ?? Date.now()}`);
-    if (result?.status === "rejected") console.warn(result.error.message);
-  }, [applyPagePlan, readOnly]);
+    reportPageMutationResult(result);
+  }, [applyPagePlan, readOnly, reportPageMutationResult]);
 
   const selectCamera = useCallback(async (camera: Camera) => {
     const sdk = await getTrustedUiSdk();

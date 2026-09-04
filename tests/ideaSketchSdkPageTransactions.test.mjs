@@ -114,6 +114,44 @@ for (const documentStatus of ['external-change', 'conflict']) {
   });
 }
 
+test('Page structure plans preserve unrelated legacy-invalid Page scenes', async () => {
+  const state = await open();
+  const malformedElement = {
+    ...state.target.document.pages[0].elements[0],
+    id: 'legacy-invalid-arrow-binding',
+    startBinding: {},
+  };
+  state.target.document.pages[1].elements = [malformedElement];
+
+  const renamed = await applyPageOperation(
+    state.sdk,
+    'legacy-invalid-rename',
+    op('rename-page', { pageRef: 'page:a', title: 'Renamed' }),
+  );
+  assert.equal(renamed.status, 'succeeded', renamed.status === 'rejected' ? renamed.error.message : 'rename failed');
+  assert.equal(state.target.document.pages[0].title, 'Renamed');
+
+  const duplicated = await applyPageOperation(
+    state.sdk,
+    'legacy-invalid-duplicate',
+    op('duplicate-page', { ref: 'temp:copy', sourcePageRef: 'page:b' }),
+  );
+  assert.equal(duplicated.status, 'succeeded', duplicated.status === 'rejected' ? duplicated.error.message : 'duplicate failed');
+  const copyId = duplicated.value.createdRefs['temp:copy'].slice('page:'.length);
+  assert.equal(state.target.activePageId, copyId);
+  const copiedLegacyPage = state.target.document.pages.find((page) => page.id === copyId);
+  assert.deepEqual(copiedLegacyPage?.elements, state.target.document.pages.find((page) => page.id === 'b')?.elements);
+
+  const deleted = await applyPageOperation(
+    state.sdk,
+    'legacy-invalid-delete',
+    op('delete-page', { pageRef: `page:${copyId}` }),
+  );
+  assert.equal(deleted.status, 'succeeded', deleted.status === 'rejected' ? deleted.error.message : 'delete failed');
+  assert.equal(state.target.document.pages.some((page) => page.id === copyId), false);
+  assert.equal(state.target.document.pages[1].elements[0].startBinding?.elementId, undefined);
+});
+
 test('Agent and protected Page targets do not inherit trusted in-memory writability', async () => {
   const agentState = harness({ documentStatus: 'conflict' });
   const agentCaller = createIdeaSketchHostCaller({ id: 'agent', profile: 'agent-v2' });

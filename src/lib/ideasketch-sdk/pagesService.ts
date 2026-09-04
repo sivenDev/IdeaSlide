@@ -546,6 +546,12 @@ export function createIdeaSketchPagesService(input: PagesServiceInput) {
     const diagnostics: string[] = [];
     const consumedDrafts: string[] = [];
     const reservedDraftTokens = new Set<string>();
+    // Existing .is files may contain legacy Excalidraw relations that the
+    // current scene validator intentionally rejects.  Page-structure
+    // mutations must preserve those untouched payloads instead of failing the
+    // whole document because an unrelated Page is legacy-invalid.  Validate
+    // only Pages whose scene is created or rewritten by this plan.
+    const sceneValidationPageIds = new Set<string>();
     let selectedPageId: string | undefined;
 
     const addPage = (page: IdeaSketchPage, ref: string, index = document.pages.length) => {
@@ -579,6 +585,7 @@ export function createIdeaSketchPagesService(input: PagesServiceInput) {
             for (const [temp, stableRef] of Object.entries(adapter.value.createdRefs)) createdRefs[temp] = { pageRef: pageRef(page.id), ref: stableRef };
           }
           addPage(page, operation.ref);
+          sceneValidationPageIds.add(page.id);
           operationResults.push({ index, kind: operation.kind, outcome: "created" });
           break;
         }
@@ -590,6 +597,7 @@ export function createIdeaSketchPagesService(input: PagesServiceInput) {
           consumedDrafts.push(operation.parsedPageDraftRef);
           const page = createIdeaSketchPageFromImport(draft.scene, { pageId: uniquePageId(document), title: title(operation.title, draft.scene.title) });
           addPage(page, operation.ref);
+          sceneValidationPageIds.add(page.id);
           operationResults.push({ index, kind: operation.kind, outcome: "created" });
           break;
         }
@@ -650,6 +658,7 @@ export function createIdeaSketchPagesService(input: PagesServiceInput) {
           page.files = converted.files;
           page.appState = persistentAppState(source.appState);
           addPage(page, operation.ref);
+          sceneValidationPageIds.add(page.id);
           diagnostics.push(`Created a new Page from ${closure.size} selected elements.`);
           operationResults.push({ index, kind: operation.kind, outcome: "created" });
           break;
@@ -659,14 +668,16 @@ export function createIdeaSketchPagesService(input: PagesServiceInput) {
       }
     }
     if (!document.pages.length) throw { code: "invalid_request", message: "The document must retain at least one Page." };
-    const postconditions = document.pages.every((page) => {
-      const ids = new Set<string>();
-      for (const element of page.elements) {
-        if (!element || typeof element.id !== "string" || ids.has(element.id)) return false;
-        ids.add(element.id);
-      }
-      return validateIdeaSketchScenePostconditions({ elements: page.elements, appState: page.appState, files: page.files }, { maxCameraCount: input.getLimits().maxCameraCount, cameraMinWidth: input.getLimits().minCameraWidth, cameraMinHeight: input.getLimits().minCameraHeight }).status === "succeeded";
-    });
+    const postconditions = document.pages
+      .filter((page) => sceneValidationPageIds.has(page.id))
+      .every((page) => {
+        const ids = new Set<string>();
+        for (const element of page.elements) {
+          if (!element || typeof element.id !== "string" || ids.has(element.id)) return false;
+          ids.add(element.id);
+        }
+        return validateIdeaSketchScenePostconditions({ elements: page.elements, appState: page.appState, files: page.files }, { maxCameraCount: input.getLimits().maxCameraCount, cameraMinWidth: input.getLimits().minCameraWidth, cameraMinHeight: input.getLimits().minCameraHeight }).status === "succeeded";
+      });
     if (!postconditions) throw { code: "relation_conflict", message: "The Page plan produced an invalid scene." };
     return { document, createdRefs, updatedPageRefs: [...new Set(updatedPageRefs)], deletedPageRefs: [...new Set(deletedPageRefs)], operationKinds, operationResults, diagnostics, selectedPageId, consumedDrafts };
   }
