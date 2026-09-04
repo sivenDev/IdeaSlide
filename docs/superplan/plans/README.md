@@ -4,11 +4,11 @@
 
 ## Status
 
-| Type | Plans | Complete | Superseded |
-| --- | --- | --- | --- |
-| `required` | 6 | 6 | 0 |
-| `feature` | 91 | 90 | 1 |
-| `bugfix` | 56 | 56 | 0 |
+| Type | Plans | Draft | Complete | Superseded |
+| --- | --- | --- | --- | --- |
+| `required` | 6 | 0 | 6 | 0 |
+| `feature` | 91 | 0 | 90 | 1 |
+| `bugfix` | 57 | 1 | 56 | 0 |
 
 ## Execution Order
 
@@ -188,3 +188,4 @@
 | `B054` | [Fix Agent Markdown Rendering](bugs/B054-agent-markdown-rendering-defect.md) | `complete` | 2026-09-01 |
 | `B055` | [Raise Agent maximum steps limit to 100](bugs/B055-raise-agent-maximum-steps-limit-to-100.md) | `complete` | 2026-09-01 |
 | `B056` | [Retain the Update Notice after Download Cancellation](bugs/B056-retain-update-notice-after-download-cancel.md) | `complete` | 2026-09-02 |
+| `B057` | [Restore IdeaSketch Page rename, duplicate, and delete actions](bugs/B057-restore-ideasketch-page-actions.md) | `draft` | 2026-09-04 |

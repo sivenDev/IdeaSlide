@@ -445,3 +445,10 @@ Agent assistant responses can show Markdown syntax and collapsed headings or par
 - created: 2026-09-02
 
 在 0.3.6 中已检测到 0.3.8 后开始下载，点击取消/关闭下载提示并重启，后续不再显示升级提示。取消下载不应持久化为忽略该版本；只有明确忽略时才应隐藏同版本提示。修复后随 0.9.10 发布。
+
+## B057: Restore IdeaSketch Page rename, duplicate, and delete actions
+
+- status: accepted
+- created: 2026-09-04
+
+在编辑器的 Pages 列表中，当前 Page 行右侧的重命名、复制、删除三个按钮点击后没有可见效果。期望：重命名打开并完成 Page 名称编辑，复制创建对应的新 Page，删除移除目标 Page；其它 Page 导航和现有数据保持不变。
